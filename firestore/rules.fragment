@@ -1,0 +1,49 @@
+// School Intelligence - Multi-tenant Firestore Security Rules
+// Dành riêng cho hệ thống THCS Giảng Võ School Intelligence
+match /siSchools/{schoolId} {
+  function signedIn() { return request.auth != null; }
+  function profile() { return get(/databases/$(database)/documents/siSchools/$(schoolId)/users/$(request.auth.uid)); }
+  function active() { return signedIn() && profile().data.active == true; }
+  function roleIn(roles) { return active() && profile().data.role in roles; }
+
+  // User profiles & scopes
+  match /users/{uid} { 
+    allow read: if signedIn() && (request.auth.uid == uid || roleIn(['SYSTEM_SUPER_ADMIN','SYSTEM_ADMIN','SCHOOL_ADMIN','PRINCIPAL','VICE_PRINCIPAL'])); 
+    allow write: if false; 
+  }
+
+  // General executive & operational data
+  match /dashboard/{doc} { allow read: if active(); allow write: if false; }
+  match /liveSessions/{doc} { allow read: if active(); allow write: if false; }
+  match /alerts/{doc} { allow read: if active(); allow write: if false; }
+  match /alertRules/{doc} { allow read: if roleIn(['SYSTEM_SUPER_ADMIN','SYSTEM_ADMIN','SCHOOL_ADMIN','PRINCIPAL','VICE_PRINCIPAL']); allow write: if false; }
+  match /metricsDaily/{doc} { allow read: if active(); allow write: if false; }
+  match /classes/{doc} { allow read: if active(); allow write: if false; }
+  match /courses/{courseId} { allow read: if active(); allow write: if false; match /{sub=**} { allow read: if active(); allow write: if false; } }
+  match /people/{doc} { allow read: if active(); allow write: if false; }
+  match /schedules/{doc} { allow read: if active(); allow write: if false; }
+  match /meetSessions/{id} { allow read: if active(); allow write: if false; match /{sub=**} { allow read: if active(); allow write: if false; } }
+
+  // Infrastructure & OAuth connection records (Admin only)
+  match /googleConnections/{id} { allow read: if roleIn(['SYSTEM_SUPER_ADMIN','SYSTEM_ADMIN','SCHOOL_ADMIN','PRINCIPAL']); allow write: if false; }
+  
+  // Standard School Catalog Mappings
+  match /subjectMappings/{id} { allow read: if active(); allow write: if false; }
+  match /classMappings/{id} { allow read: if active(); allow write: if false; }
+  match /schoolYears/{id} { allow read: if active(); allow write: if false; }
+  match /semesters/{id} { allow read: if active(); allow write: if false; }
+
+  // Security Audit & Classroom Activity Logs
+  match /systemAuditLogs/{id} { allow read: if roleIn(['SYSTEM_SUPER_ADMIN','SYSTEM_ADMIN','SCHOOL_ADMIN','PRINCIPAL']); allow write: if false; }
+  match /auditEvents/{id} { allow read: if roleIn(['SYSTEM_SUPER_ADMIN','SYSTEM_ADMIN','SCHOOL_ADMIN','PRINCIPAL','VICE_PRINCIPAL']); allow write: if false; }
+  match /syncJobs/{id} { allow read: if roleIn(['SYSTEM_SUPER_ADMIN','SYSTEM_ADMIN','SCHOOL_ADMIN','PRINCIPAL']); allow write: if false; }
+
+  // Analytics Collections
+  match /studentAnalytics/{id} { allow read: if active(); allow write: if false; }
+  match /courseAnalytics/{id} { allow read: if active(); allow write: if false; }
+  match /subjectAnalytics/{id} { allow read: if active(); allow write: if false; }
+  match /teacherAnalytics/{id} { allow read: if roleIn(['SYSTEM_SUPER_ADMIN','SYSTEM_ADMIN','SCHOOL_ADMIN','PRINCIPAL','VICE_PRINCIPAL','DEPARTMENT_HEAD']); allow write: if false; }
+
+  // Default lock-down: No unauthenticated or direct client writes
+  match /{document=**} { allow read, write: if false; }
+}

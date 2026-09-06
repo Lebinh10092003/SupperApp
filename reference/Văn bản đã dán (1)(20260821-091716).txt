@@ -1,0 +1,1683 @@
+# MASTER PROMPT — SCHOOL INTELLIGENCE PLATFORM
+# React + Firebase + Firestore + Cloud Run + Google Workspace APIs
+# Dự án: THCS Giảng Võ
+# Phiên bản mục tiêu: V1 Production Architecture
+
+Bạn là Senior Full-stack Engineer + Solution Architect + UI/UX Engineer chuyên về:
+- React / TypeScript
+- Firebase
+- Firestore
+- Cloud Run
+- Google Cloud
+- Google Workspace APIs
+- Google Classroom API
+- Google Meet REST API
+- Google Workspace Events API
+- Cloud Pub/Sub
+- Google Admin SDK
+- hệ thống Dashboard / BI dành cho giáo dục.
+
+Nhiệm vụ của bạn là XÂY DỰNG HOÀN CHỈNH một website School Intelligence Platform cho Trường THCS Giảng Võ.
+
+Đây KHÔNG phải demo UI.
+
+Hệ thống phải:
+- chạy thật;
+- kết nối dữ liệu thật;
+- có backend thật;
+- có Firebase Authentication;
+- có Firestore;
+- có Cloud Run;
+- có Google Workspace APIs;
+- tự động cập nhật dữ liệu;
+- có realtime / near-realtime;
+- có phân quyền;
+- có dashboard quản trị;
+- có báo cáo;
+- có logging;
+- có health monitoring;
+- có script triển khai.
+
+Không sử dụng mock data làm nguồn dữ liệu chính.
+
+==================================================
+I. MỤC TIÊU SẢN PHẨM
+==================================================
+
+Xây dựng một nền tảng quản trị dữ liệu nhà trường tập trung, phục vụ:
+
+1. Ban Giám hiệu
+2. Ban chuyên môn
+3. Tổ trưởng chuyên môn
+4. Giáo viên chủ nhiệm
+5. Giáo viên bộ môn
+6. Quản trị hệ thống
+
+Hệ thống tự động thu thập và phân tích dữ liệu từ hoạt động số của nhà trường, trọng tâm:
+
+- Google Classroom
+- Google Meet
+- Google Workspace Directory
+- thời khóa biểu
+- dữ liệu giáo viên
+- dữ liệu học sinh
+- dữ liệu lớp học
+- bài tập
+- hoạt động học tập
+- chuyên cần
+- thời lượng tham gia
+- tình trạng sử dụng Classroom
+- tình trạng sử dụng Meet
+- cảnh báo vận hành
+- chất lượng dữ liệu
+- trạng thái đồng bộ
+
+Mục tiêu cuối cùng:
+
+Ban Giám hiệu mở Dashboard và có thể ngay lập tức biết:
+
+- hôm nay trường đang hoạt động thế nào;
+- bao nhiêu lớp đang học;
+- lớp nào đang học online;
+- lớp nào có bất thường;
+- bao nhiêu học sinh tham gia;
+- tỷ lệ chuyên cần;
+- tỷ lệ đi muộn;
+- lớp nào thiếu học sinh;
+- giáo viên nào đang dạy;
+- môn học nào đang diễn ra;
+- Classroom nào ít hoạt động;
+- bài tập được giao bao nhiêu;
+- tỷ lệ nộp bài;
+- dữ liệu nào đang thiếu;
+- dịch vụ nào đang lỗi;
+- dữ liệu cập nhật lần cuối khi nào;
+- xu hướng theo ngày/tuần/tháng;
+- so sánh theo khối/lớp/môn/giáo viên.
+
+==================================================
+II. NGUYÊN TẮC KIẾN TRÚC BẮT BUỘC
+==================================================
+
+Không dùng Apps Script làm backend chính.
+
+Kiến trúc bắt buộc:
+
+Google Workspace
+        ↓
+Classroom / Meet / Directory
+        ↓
+Push Event / API / PubSub
+        ↓
+Cloud Run
+        ↓
+Firestore
+        ↓
+Firebase Web SDK
+        ↓
+React Dashboard
+
+Sử dụng:
+
+Frontend:
+- React
+- TypeScript
+- Vite
+- React Router
+- Firebase Web SDK
+- Material UI hoặc tương đương
+- Recharts hoặc Apache ECharts
+- TanStack Table
+- React Hook Form
+- Zod
+- date-fns
+- Zustand nếu cần state management
+
+Backend:
+- Node.js 22+
+- TypeScript
+- Express hoặc Fastify
+- Cloud Run
+- Firebase Admin SDK
+- Google APIs Node.js Client
+- Google Auth Library
+- Cloud Pub/Sub
+- Secret Manager
+- Cloud Logging
+
+Infrastructure:
+- Firebase Authentication
+- Firestore
+- Firebase Hosting
+- Cloud Run
+- Cloud Run Jobs
+- Cloud Scheduler
+- Pub/Sub
+- Secret Manager
+- IAM
+- Google Workspace Domain-Wide Delegation khi cần
+
+Không sử dụng:
+- Google Sheets làm database chính
+- Apps Script polling làm sync engine
+- BigQuery ở phiên bản đầu tiên
+- Cloud SQL nếu chưa thực sự cần
+- mock data trong production
+- private key hard-code trong source
+- service account JSON commit vào Git.
+
+==================================================
+III. RÀNG BUỘC FIRESTORE QUAN TRỌNG
+==================================================
+
+Firebase project hiện tại:
+
+thcs-giangvo
+
+Firestore của project này ĐƯỢC NHIỀU APP SỬ DỤNG CHUNG.
+
+Vì vậy:
+
+TUYỆT ĐỐI KHÔNG:
+- xóa collection không thuộc ứng dụng;
+- ghi đè Firestore Rules tổng;
+- ghi đè firestore.indexes.json tổng;
+- thay đổi schema của app khác;
+- deploy rule/index có thể phá các app khác.
+
+School Intelligence phải có namespace riêng.
+
+Sử dụng:
+
+siSchools/{schoolId}
+
+School ID:
+
+giang-vo
+
+Ví dụ:
+
+siSchools/giang-vo/dashboard/current
+siSchools/giang-vo/courses/{courseId}
+siSchools/giang-vo/classes/{classId}
+siSchools/giang-vo/people/{personId}
+siSchools/giang-vo/schedules/{scheduleId}
+siSchools/giang-vo/liveSessions/{sessionId}
+siSchools/giang-vo/meetSessions/{sessionId}
+siSchools/giang-vo/metricsDaily/{date}
+siSchools/giang-vo/metricsMonthly/{month}
+siSchools/giang-vo/alerts/{alertId}
+siSchools/giang-vo/users/{uid}
+siSchools/giang-vo/syncRuns/{syncId}
+siSchools/giang-vo/events/{eventId}
+siSchools/giang-vo/system/status
+
+Mọi đoạn code phải sử dụng SCHOOL_ID từ environment/config, không hard-code lặp lại khắp source.
+
+==================================================
+IV. FRONTEND — REACT WEBSITE
+==================================================
+
+Thiết kế một giao diện hiện đại dành cho giáo dục.
+
+Phong cách:
+
+- nền sáng;
+- trắng + xanh;
+- hiện đại;
+- sạch;
+- chuyên nghiệp;
+- Education;
+- không quá nhiều gradient;
+- không hiệu ứng kim loại;
+- không dashboard kiểu tài chính;
+- typography hỗ trợ tiếng Việt tốt;
+- không cắt dấu tiếng Việt;
+- responsive desktop/tablet/mobile.
+
+Ưu tiên font:
+
+Inter hoặc Be Vietnam Pro.
+
+Dashboard phải tối ưu cho màn hình laptop 1366x768 và Full HD.
+
+==================================================
+V. CẤU TRÚC WEBSITE
+==================================================
+
+Sidebar chính:
+
+1. Tổng quan
+2. Hoạt động hôm nay
+3. Lớp học
+4. Google Classroom
+5. Google Meet
+6. Học sinh
+7. Giáo viên
+8. Thời khóa biểu
+9. Chuyên cần
+10. Hoạt động học tập
+11. So sánh
+12. Cảnh báo
+13. Báo cáo
+14. Chất lượng dữ liệu
+15. Đồng bộ hệ thống
+16. Quản trị
+
+Có Topbar:
+
+- tên trường;
+- năm học;
+- ngày hiện tại;
+- trạng thái hệ thống;
+- lần cập nhật gần nhất;
+- tài khoản đăng nhập;
+- role;
+- notification.
+
+==================================================
+VI. DASHBOARD TỔNG QUAN — PHẦN QUAN TRỌNG NHẤT
+==================================================
+
+Dashboard là màn hình quan trọng nhất của toàn hệ thống.
+
+Không chỉ làm vài KPI card.
+
+Phải tạo dashboard quản trị thực sự.
+
+-----------------------------------
+A. Executive KPI
+-----------------------------------
+
+Hiển thị:
+
+- Tổng học sinh
+- Tổng giáo viên
+- Tổng lớp hành chính
+- Tổng Classroom
+- Classroom đang hoạt động
+- Lớp có hoạt động hôm nay
+- Buổi Meet hôm nay
+- Meet đang diễn ra
+- Học sinh đang online
+- Tỷ lệ chuyên cần hôm nay
+- Tỷ lệ đi muộn
+- Tỷ lệ hoàn thành bài tập
+- Cảnh báo đang mở
+- Dữ liệu lỗi
+- Dịch vụ đang lỗi
+
+Mỗi KPI:
+
+- số hiện tại;
+- tăng/giảm;
+- so với hôm qua;
+- so với trung bình 7 ngày;
+- tooltip giải thích;
+- thời gian dữ liệu được cập nhật.
+
+-----------------------------------
+B. Live School Monitor
+-----------------------------------
+
+Tạo khu vực:
+
+“Hoạt động đang diễn ra”
+
+Hiển thị từng lớp:
+
+Lớp
+Môn
+Giáo viên
+Tiết
+Giờ bắt đầu
+Giờ kết thúc
+Sĩ số
+Đang online
+Đi muộn
+Đã rời
+Chưa tham gia
+Trạng thái
+
+Ví dụ:
+
+8A2
+Toán
+Nguyễn Văn A
+Tiết 2
+08:00–08:45
+45
+42 online
+2 late
+1 left
+3 absent
+
+Status:
+
+LIVE
+WARNING
+NORMAL
+FINISHED
+
+Cập nhật realtime bằng Firestore onSnapshot().
+
+-----------------------------------
+C. School Health
+-----------------------------------
+
+Tạo School Health Score.
+
+Bao gồm:
+
+- Classroom coverage
+- Roster completeness
+- Meet coverage
+- Data freshness
+- Schedule mapping
+- Teacher mapping
+- Student mapping
+- API health
+
+Hiển thị:
+
+School Health: 92/100
+
+Không tạo con số giả.
+
+Backend phải tính từ dữ liệu thật.
+
+-----------------------------------
+D. Trend 30 ngày
+-----------------------------------
+
+Biểu đồ:
+
+- attendance
+- late rate
+- active classes
+- Meet sessions
+- Classroom activity
+- assignment submissions
+
+Cho phép chọn:
+
+7 ngày
+30 ngày
+90 ngày
+
+-----------------------------------
+E. So sánh theo khối
+-----------------------------------
+
+Khối:
+
+6
+7
+8
+9
+
+So sánh:
+
+- chuyên cần;
+- đi muộn;
+- Classroom activity;
+- bài tập;
+- tỷ lệ nộp;
+- số cảnh báo.
+
+-----------------------------------
+F. Top cần chú ý
+-----------------------------------
+
+Tạo các danh sách:
+
+5 lớp chuyên cần thấp nhất
+5 lớp đi muộn nhiều nhất
+5 Classroom ít hoạt động nhất
+5 lớp thiếu roster
+5 lớp thiếu mapping
+5 lớp Meet có vấn đề
+5 học sinh cần chú ý
+
+-----------------------------------
+G. Alerts
+-----------------------------------
+
+Severity:
+
+INFO
+WARNING
+CRITICAL
+
+Ví dụ:
+
+- Classroom không có roster
+- lớp chưa mapping Classroom
+- TKB chưa có Meet
+- giáo viên không khớp
+- API lỗi
+- subscription hết hạn
+- Meet không lấy được participant
+- dữ liệu quá cũ
+- attendance thấp bất thường
+
+Mỗi alert phải có:
+
+type
+severity
+title
+message
+source
+classId
+courseId
+teacher
+createdAt
+updatedAt
+resolved
+resolution
+assignedTo
+
+==================================================
+VII. GOOGLE CLASSROOM
+==================================================
+
+Kết nối Google Classroom API thật.
+
+Thu thập:
+
+Course:
+- id
+- name
+- section
+- descriptionHeading
+- ownerId
+- room
+- enrollmentCode nếu được phép
+- courseState
+- creationTime
+- updateTime
+
+Teachers
+
+Students
+
+Topics
+
+CourseWork
+
+CourseWorkMaterials
+
+Announcements
+
+StudentSubmissions
+
+Không tải toàn bộ dữ liệu lại mỗi lần.
+
+Xây dựng incremental sync.
+
+Khi nhận Classroom notification:
+
+notification
+    ↓
+xác định course
+    ↓
+xác định loại dữ liệu thay đổi
+    ↓
+chỉ đồng bộ resource cần thiết
+    ↓
+Firestore
+    ↓
+rebuild aggregate cần thiết
+
+Classroom phải có:
+
+- tổng Classroom;
+- Classroom active;
+- lớp thiếu học sinh;
+- lớp thiếu giáo viên;
+- số bài tập;
+- số bài mới 7 ngày;
+- submission;
+- completion rate;
+- lớp ít hoạt động;
+- last activity;
+- last sync.
+
+==================================================
+VIII. GOOGLE CLASSROOM PUSH NOTIFICATIONS
+==================================================
+
+Sử dụng Classroom Registrations API + Cloud Pub/Sub.
+
+Không polling Classroom liên tục.
+
+Tạo module:
+
+createClassroomRegistrations()
+renewClassroomRegistrations()
+deleteClassroomRegistration()
+handleClassroomNotification()
+
+Registration hết hạn phải tự gia hạn bằng Cloud Scheduler / Cloud Run Job.
+
+Có fallback reconciliation job để tránh mất event.
+
+==================================================
+IX. GOOGLE MEET
+==================================================
+
+Sử dụng:
+
+Google Meet REST API
+Google Workspace Events API
+
+Theo dõi:
+
+conference started
+conference ended
+participant joined
+participant left
+
+Xây dựng live session.
+
+Khi Meet đang diễn ra:
+
+liveSessions/{conferenceId}
+
+phải cập nhật:
+
+conferenceId
+meetingCode
+spaceName
+classId
+courseId
+teacher
+subject
+scheduleId
+expectedStudents
+onlineStudents
+joinedStudents
+leftStudents
+lateStudents
+startedAt
+updatedAt
+status
+
+==================================================
+X. ATTENDANCE ENGINE
+==================================================
+
+KHÔNG sử dụng điểm danh thủ công làm nguồn chính.
+
+Attendance tự tính từ:
+
+Thời khóa biểu
++
+Classroom roster
++
+Meet participant sessions
+
+Quy trình:
+
+Schedule
+↓
+Meet Conference
+↓
+Participants
+↓
+Participant Sessions
+↓
+Merge intervals
+↓
+Clip theo thời gian tiết học
+↓
+Classroom roster
+↓
+Attendance classification
+
+Xử lý trường hợp:
+
+- học sinh vào nhiều lần;
+- rời rồi vào lại;
+- vào trước giờ;
+- vào sau giờ;
+- Meet kéo dài hơn tiết;
+- Meet bắt đầu muộn;
+- thiếu participant;
+- Classroom API lỗi;
+- Meet API lỗi.
+
+Quy tắc an toàn:
+
+Nếu roster không lấy được:
+
+KHÔNG đánh học sinh vắng.
+
+Nếu Meet API lỗi:
+
+KHÔNG biến lỗi API thành absence.
+
+Nếu dữ liệu chưa đủ:
+
+status = INCOMPLETE
+
+hoặc:
+
+DATA_UNAVAILABLE
+
+Không tạo số liệu giả.
+
+==================================================
+XI. GOOGLE WORKSPACE DIRECTORY
+==================================================
+
+Sử dụng Admin SDK Directory API nếu có quyền.
+
+Đồng bộ:
+
+- giáo viên;
+- học sinh;
+- email;
+- tên;
+- organizational unit;
+- suspended;
+- last login nếu quyền cho phép.
+
+Không yêu cầu dữ liệu không cần thiết.
+
+DWD scope phải tối thiểu.
+
+==================================================
+XII. THỜI KHÓA BIỂU
+==================================================
+
+Hỗ trợ:
+
+- nhập CSV;
+- import từ UI;
+- chỉnh sửa;
+- validate;
+- preview trước import;
+- rollback khi import lỗi.
+
+Schedule gồm:
+
+id
+dayOfWeek
+period
+startTime
+endTime
+classId
+className
+subject
+teacherEmail
+courseId
+meetingCode
+room
+schoolYear
+semester
+
+Có mapping:
+
+Administrative Class
+↔
+Google Classroom
+↔
+Teacher
+↔
+Meet
+↔
+Schedule
+
+Không mapping bằng tên nếu có thể dùng ID.
+
+==================================================
+XIII. BÁO CÁO
+==================================================
+
+Trang Báo cáo phải hỗ trợ:
+
+Theo ngày
+Theo tuần
+Theo tháng
+Theo học kỳ
+
+Bộ lọc:
+
+- khối;
+- lớp;
+- môn;
+- giáo viên;
+- thời gian.
+
+Các báo cáo:
+
+1. Tổng quan hoạt động trường
+2. Chuyên cần
+3. Đi muộn
+4. Meet
+5. Classroom
+6. Bài tập
+7. Submission
+8. Hoạt động học sinh
+9. Hoạt động giáo viên
+10. Data Quality
+11. Alerts
+12. System Health
+
+Cho phép export:
+
+CSV
+
+Thiết kế code để sau này có thể thêm:
+
+Excel
+PDF
+
+==================================================
+XIV. DATA AGGREGATION
+==================================================
+
+Không để dashboard query hàng nghìn raw documents mỗi lần.
+
+Tạo aggregate documents.
+
+Ví dụ:
+
+siSchools/giang-vo/dashboard/current
+
+siSchools/giang-vo/metricsDaily/2026-08-21
+
+siSchools/giang-vo/metricsMonthly/2026-08
+
+Mỗi document metricsDaily chứa:
+
+attendanceRate
+lateRate
+activeClasses
+meetSessions
+activeClassrooms
+assignmentsCreated
+submissionRate
+alertsCreated
+studentsActive
+teachersActive
+
+Dashboard đọc aggregate.
+
+Raw history chỉ sử dụng cho drill-down.
+
+==================================================
+XV. REALTIME
+==================================================
+
+Frontend sử dụng Firestore onSnapshot() cho:
+
+dashboard/current
+liveSessions
+alerts
+system/status
+
+Không refresh toàn bộ trang.
+
+Ví dụ:
+
+Meet participant joins
+↓
+Pub/Sub
+↓
+Cloud Run
+↓
+Firestore write
+↓
+onSnapshot()
+↓
+React component update
+
+==================================================
+XVI. CLOUD RUN
+==================================================
+
+Tạo ít nhất:
+
+1. Cloud Run Service
+
+school-intelligence-api
+
+Chức năng:
+
+- frontend APIs
+- Firebase Auth verification
+- Classroom events
+- Workspace Events
+- admin APIs
+- report APIs
+- health check
+
+2. Cloud Run Job
+
+school-full-sync
+
+Chức năng:
+
+- Directory sync
+- Classroom discovery
+- roster reconcile
+- coursework reconcile
+- submission reconcile
+- dashboard rebuild
+- alert generation
+
+3. Cloud Run Job
+
+school-renew-subscriptions
+
+Chức năng:
+
+- renew Classroom registrations
+- renew Workspace Event subscriptions
+- subscription health
+
+==================================================
+XVII. PUB/SUB
+==================================================
+
+Tách topic rõ ràng:
+
+si-classroom-events
+si-meet-events
+si-sync-events
+
+Có Dead Letter handling nếu phù hợp.
+
+Event processing phải idempotent.
+
+Lưu eventId.
+
+Nếu event đã xử lý:
+
+skip.
+
+Không tạo dữ liệu trùng.
+
+==================================================
+XVIII. AUTHENTICATION
+==================================================
+
+Firebase Authentication.
+
+Đăng nhập Google.
+
+Không cho user tự tạo role.
+
+User profile:
+
+siSchools/giang-vo/users/{uid}
+
+Fields:
+
+email
+displayName
+role
+active
+scope
+createdAt
+updatedAt
+lastLogin
+
+==================================================
+XIX. ROLE & PERMISSION
+==================================================
+
+Roles:
+
+SYSTEM_ADMIN
+PRINCIPAL
+VICE_PRINCIPAL
+DEPARTMENT_HEAD
+HOMEROOM
+TEACHER
+VIEWER
+
+SYSTEM_ADMIN:
+
+quyền hệ thống cao nhất.
+
+PRINCIPAL:
+
+quyền nghiệp vụ nhà trường cao nhất.
+
+PRINCIPAL không được:
+
+- grant SYSTEM_ADMIN;
+- thay IAM;
+- thay DWD;
+- thay Cloud project infrastructure.
+
+TECH_ADMIN có thể bổ sung nếu cần nhưng không được mặc định đọc toàn bộ dữ liệu học sinh chỉ vì là technical admin.
+
+Không dùng đơn giản:
+
+if roleLevel >= X
+
+cho mọi permission.
+
+Tạo capability functions:
+
+canViewSchoolDashboard()
+canViewStudentData()
+canManageSchedules()
+canResolveAlerts()
+canManageUsers()
+canManageInfrastructure()
+
+Backend phải authorize lại.
+
+Không chỉ kiểm tra role ở frontend.
+
+==================================================
+XX. SYSTEM ADMIN
+==================================================
+
+Trang System phải có:
+
+API Health
+
+Classroom:
+CONNECTED / ERROR
+
+Meet:
+CONNECTED / ERROR
+
+Directory:
+CONNECTED / ERROR
+
+Firestore:
+CONNECTED
+
+Pub/Sub:
+CONNECTED
+
+Workspace Event:
+ACTIVE / EXPIRING / ERROR
+
+Classroom Registration:
+ACTIVE / EXPIRING / ERROR
+
+Thông tin:
+
+lastEvent
+lastSync
+lastFullSync
+lastError
+eventLag
+dataFreshness
+numberOfFailedEvents
+
+Buttons:
+
+Full Sync
+Rebuild Dashboard
+Renew Subscriptions
+Retry Failed Event
+Run Health Check
+
+==================================================
+XXI. DATA QUALITY
+==================================================
+
+Tạo Data Quality Dashboard.
+
+Theo dõi:
+
+- Classroom chưa mapping
+- lớp chưa có Classroom
+- roster trống
+- teacher không tồn tại
+- student không tồn tại
+- duplicate mapping
+- schedule thiếu course
+- schedule thiếu Meet
+- Meet không match schedule
+- stale data
+- API partial failure
+
+Tạo score:
+
+Completeness
+Freshness
+Consistency
+Coverage
+
+==================================================
+XXII. ERROR HANDLING
+==================================================
+
+Không hiển thị đơn giản:
+
+“Không tải được trang”
+
+Tạo error boundaries.
+
+Phân loại:
+
+AUTH_ERROR
+PERMISSION_ERROR
+API_ERROR
+NETWORK_ERROR
+DATA_ERROR
+INDEX_ERROR
+CONFIG_ERROR
+
+UI phải có:
+
+message thân thiện
+error code
+Retry
+Reload
+Contact admin nếu cần.
+
+Nếu query Firestore cần composite index:
+
+core dashboard không được crash.
+
+Thiết kế query ưu tiên tránh composite index không cần thiết.
+
+Nếu bắt buộc composite index:
+
+cung cấp file indexes fragment riêng.
+
+Không tự deploy đè indexes dùng chung.
+
+==================================================
+XXIII. SECURITY
+==================================================
+
+Không để:
+
+service account key
+OAuth secret
+refresh token
+private key
+
+trong source code.
+
+Sử dụng:
+
+Google Secret Manager.
+
+Cloud Run sử dụng service identity.
+
+Firestore backend sử dụng Application Default Credentials.
+
+DWD triển khai server-side.
+
+Pub/Sub push phải xác thực OIDC.
+
+Cloud Run event endpoints không được mở công khai không xác thực.
+
+==================================================
+XXIV. OBSERVABILITY
+==================================================
+
+Structured logging.
+
+Mọi log nên có:
+
+schoolId
+service
+operation
+courseId
+classId
+conferenceId
+eventId
+durationMs
+status
+errorCode
+
+Tạo endpoint:
+
+GET /health
+
+Response ví dụ:
+
+{
+  "status": "ok",
+  "firestore": "ok",
+  "classroom": "ok",
+  "meet": "ok",
+  "pubsub": "ok",
+  "version": "...",
+  "timestamp": "..."
+}
+
+==================================================
+XXV. PERFORMANCE
+==================================================
+
+Dashboard load < 2 giây sau khi Firebase initialized trong điều kiện mạng bình thường.
+
+Không query raw Meet attendance để dựng Dashboard.
+
+Không download toàn bộ students cho mỗi page.
+
+Pagination.
+
+Lazy loading routes.
+
+Code splitting.
+
+Memoization hợp lý.
+
+Firestore reads phải được tối ưu.
+
+==================================================
+XXVI. REACT ARCHITECTURE
+==================================================
+
+Đề xuất structure:
+
+web/
+  src/
+    app/
+    components/
+    layouts/
+    pages/
+    features/
+      dashboard/
+      classroom/
+      meet/
+      attendance/
+      students/
+      teachers/
+      schedules/
+      alerts/
+      reports/
+      system/
+    hooks/
+    services/
+    stores/
+    types/
+    utils/
+    config/
+
+Tách:
+
+UI component
+business hooks
+Firestore service
+API service
+
+Không gọi Firestore trực tiếp hỗn loạn ở mọi component.
+
+==================================================
+XXVII. BACKEND ARCHITECTURE
+==================================================
+
+backend/
+  src/
+    api/
+    auth/
+    config/
+    firestore/
+    classroom/
+    meet/
+    directory/
+    workspace-events/
+    pubsub/
+    attendance/
+    dashboard/
+    reports/
+    alerts/
+    schedules/
+    subscriptions/
+    jobs/
+    logging/
+    utils/
+
+Không viết toàn bộ backend vào một index.ts khổng lồ.
+
+==================================================
+XXVIII. TYPESCRIPT
+==================================================
+
+Bắt buộc TypeScript strict.
+
+Không lạm dụng:
+
+any
+
+Tạo types/interfaces rõ ràng:
+
+Course
+ClassroomMember
+Person
+Schedule
+MeetSession
+ParticipantInterval
+AttendanceRecord
+DailyMetrics
+Alert
+SystemStatus
+DashboardOverview
+UserProfile
+
+==================================================
+XXIX. CẤU HÌNH
+==================================================
+
+Tạo:
+
+.env.example
+
+Không commit:
+
+.env.local
+.env.production
+secret
+
+Các env ví dụ:
+
+PROJECT_ID
+SCHOOL_ID
+SCHOOL_NAME
+WORKSPACE_DOMAIN
+WORKSPACE_ADMIN_SUBJECT
+DWD_SERVICE_ACCOUNT
+CLASSROOM_TOPIC
+MEET_TOPIC
+REGION
+
+Frontend:
+
+VITE_FIREBASE_API_KEY
+VITE_FIREBASE_AUTH_DOMAIN
+VITE_FIREBASE_PROJECT_ID
+VITE_FIREBASE_APP_ID
+VITE_API_BASE_URL
+VITE_SCHOOL_ID
+
+==================================================
+XXX. DEPLOYMENT
+==================================================
+
+Tạo scripts PowerShell dành cho Windows.
+
+scripts/
+
+00-check-prerequisites.ps1
+01-enable-apis.ps1
+02-create-service-accounts.ps1
+03-configure-iam.ps1
+04-create-pubsub.ps1
+05-deploy-api.ps1
+06-deploy-jobs.ps1
+07-create-scheduler.ps1
+08-deploy-web.ps1
+09-health-check.ps1
+10-first-sync.ps1
+
+Script phải:
+
+- idempotent nếu có thể;
+- kiểm tra resource trước khi tạo;
+- không xóa resource hiện có;
+- không làm ảnh hưởng app khác;
+- output rõ PASS/FAIL.
+
+==================================================
+XXXI. FIRESTORE RULES
+==================================================
+
+Không tạo một firestore.rules mới rồi yêu cầu deploy đè.
+
+Tạo:
+
+firestore/
+  school-intelligence.rules.fragment
+
+để merge vào rule master.
+
+Rules chỉ cho phép client READ theo role/scope.
+
+Các write nhạy cảm:
+
+backend Admin SDK.
+
+User không được:
+
+tự đổi role
+tự active
+tự thành SYSTEM_ADMIN
+
+==================================================
+XXXII. FIRESTORE INDEX
+==================================================
+
+Tương tự Rules.
+
+Không ghi đè firestore.indexes.json dùng chung.
+
+Tạo:
+
+firestore/
+  school-intelligence.indexes.fragment.json
+
+Chỉ chứa indexes app cần.
+
+Cố gắng thiết kế Dashboard aggregate để giảm composite indexes.
+
+==================================================
+XXXIII. DỮ LIỆU KHÔNG ĐƯỢC BỊ SAI
+==================================================
+
+Đây là yêu cầu cực kỳ quan trọng.
+
+Không được:
+
+API lỗi
+→ biến thành 0
+
+Roster lỗi
+→ biến thành absent
+
+Meet lỗi
+→ biến thành không tham gia
+
+Classroom không load
+→ biến thành 0 students
+
+Thay vào đó dùng:
+
+COMPLETE
+PARTIAL
+STALE
+UNAVAILABLE
+ERROR
+
+Mọi KPI quan trọng nên có:
+
+value
+dataStatus
+updatedAt
+source
+
+==================================================
+XXXIV. DEMO / DEVELOPMENT MODE
+==================================================
+
+Có thể có:
+
+DEV_USE_MOCK_DATA=true
+
+nhưng mặc định:
+
+false
+
+Production tuyệt đối không fallback sang mock mà không thông báo.
+
+Nếu không có dữ liệu:
+
+hiển thị:
+
+“Chưa có dữ liệu”
+
+không tự sinh random number.
+
+==================================================
+XXXV. UX
+==================================================
+
+Dashboard phải nhìn giống sản phẩm thật.
+
+Không tạo UI kiểu template admin chung chung.
+
+Ưu tiên:
+
+Executive Dashboard
+Education
+School Operations
+Data Intelligence
+
+KPI có icon.
+
+Biểu đồ rõ ràng.
+
+Bảng có:
+
+search
+sort
+filter
+pagination
+column control
+
+Color semantic:
+
+Normal
+Warning
+Critical
+
+Không lạm dụng màu đỏ.
+
+==================================================
+XXXVI. RESPONSIVE
+==================================================
+
+Desktop:
+sidebar cố định
+
+Tablet:
+sidebar collapsible
+
+Mobile:
+drawer
+
+KPI tự chuyển grid.
+
+Table có horizontal scroll hợp lý.
+
+Chart không vỡ layout.
+
+==================================================
+XXXVII. ACCESSIBILITY
+==================================================
+
+Có:
+
+label
+aria-label
+keyboard navigation
+focus states
+contrast hợp lý.
+
+==================================================
+XXXVIII. TEST
+==================================================
+
+Tạo unit test cho các phần quan trọng:
+
+merge Meet participant intervals
+
+attendance classification
+
+schedule matching
+
+permission capability
+
+aggregate calculations
+
+event idempotency
+
+Không chỉ test UI.
+
+==================================================
+XXXIX. ACCEPTANCE TEST
+==================================================
+
+Dự án chỉ được coi là hoàn thành khi đáp ứng:
+
+1.
+npm install
+thành công.
+
+2.
+npm run build
+thành công.
+
+3.
+TypeScript không error.
+
+4.
+Backend start local thành công.
+
+5.
+/health trả về đúng.
+
+6.
+Firebase login thành công.
+
+7.
+Dashboard đọc Firestore thật.
+
+8.
+Cloud Run đọc/ghi Firestore thật.
+
+9.
+Classroom API lấy được dữ liệu thật khi đã cấu hình credential.
+
+10.
+Directory API hoạt động khi được cấp DWD.
+
+11.
+Meet API hoạt động khi được cấp quyền.
+
+12.
+Pub/Sub handler nhận event.
+
+13.
+Không có hard-coded secret.
+
+14.
+Không sử dụng Apps Script runtime.
+
+15.
+Không ghi đè Firestore của app khác.
+
+16.
+Không cần mock để website chạy production.
+
+17.
+Responsive.
+
+18.
+Vietnamese text không lỗi font/dấu.
+
+==================================================
+XL. OUTPUT BẮT BUỘC
+==================================================
+
+Không chỉ trả lời bằng hướng dẫn.
+
+Hãy TẠO TOÀN BỘ SOURCE CODE.
+
+Bao gồm đầy đủ:
+
+package.json
+tsconfig
+vite config
+React source
+backend source
+Dockerfile
+Cloud Run configuration
+Cloud Run Jobs
+Firebase configuration
+Firestore fragments
+Pub/Sub scripts
+Scheduler scripts
+PowerShell deployment scripts
+.env.example
+README
+deployment guide
+architecture documentation
+data model documentation
+API documentation
+
+Không dùng:
+
+// TODO
+// implement later
+placeholder function
+pseudo-code
+
+cho các chức năng lõi.
+
+Nếu một API yêu cầu cấu hình thủ công phía Google Admin Console, hãy:
+
+1. viết code đầy đủ;
+2. viết script phần có thể tự động;
+3. ghi chính xác bước cấu hình thủ công còn lại;
+4. sau đó hệ thống phải có thể chạy.
+
+==================================================
+XLI. CÁCH LÀM VIỆC
+==================================================
+
+Trước tiên:
+
+1. Phân tích kiến trúc.
+2. Chốt folder structure.
+3. Xác định data model.
+4. Xác định API/event flow.
+5. Sau đó bắt đầu viết code.
+
+KHÔNG dành phần lớn thời gian chỉ để giải thích.
+
+Ưu tiên tạo sản phẩm.
+
+Sau khi tạo source:
+
+- chạy npm install;
+- chạy lint;
+- chạy typecheck;
+- chạy test;
+- chạy build;
+- sửa mọi lỗi phát hiện được;
+- kiểm tra source lần cuối.
+
+Cuối cùng trả về:
+
+1. file ZIP toàn bộ source;
+2. danh sách module;
+3. lệnh deploy;
+4. các bước cấu hình Google Cloud/Workspace bắt buộc;
+5. các thông tin tôi cần cung cấp tiếp.
+
+==================================================
+XLII. NGUYÊN TẮC QUAN TRỌNG NHẤT
+==================================================
+
+Đây là hệ thống SCHOOL INTELLIGENCE.
+
+Trọng tâm không phải:
+
+“hiển thị dữ liệu Classroom”.
+
+Trọng tâm là:
+
+Google Workspace activity
+        ↓
+Data
+        ↓
+Analysis
+        ↓
+School KPI
+        ↓
+Alerts
+        ↓
+Executive Dashboard
+        ↓
+Decision Support
+
+Mọi thiết kế phải hướng tới Ban Giám hiệu có thể hiểu tình trạng vận hành toàn trường trong vòng 30 giây sau khi mở Dashboard.
+
+Hãy xây dựng hệ thống theo tiêu chí đó.
