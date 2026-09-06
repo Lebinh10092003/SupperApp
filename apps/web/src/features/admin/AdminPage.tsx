@@ -101,10 +101,10 @@ export default function AdminPage() {
         action={
           <Button
             variant="contained"
-            startIcon={syncing ? <CircularProgress size={16} color="inherit" /> : <SyncIcon />}
+            startIcon={syncing ? <CircularProgress size={16} color="inherit" /> : <SyncIcon sx={{ fontSize: 16 }} />}
             onClick={sync}
             disabled={syncing}
-            sx={{ bgcolor: '#2563eb', fontWeight: 700 }}
+            sx={{ bgcolor: '#18181b', color: '#ffffff', '&:hover': { bgcolor: '#27272a' }, fontWeight: 600, fontSize: '0.8125rem', textTransform: 'none', borderRadius: '6px' }}
           >
             {syncing ? 'Đang đồng bộ...' : 'Chạy Full Sync Google Workspace'}
           </Button>
@@ -112,7 +112,7 @@ export default function AdminPage() {
       />
 
       {toast && (
-        <Alert severity={toast.severity} onClose={() => setToast(null)} sx={{ mb: 3 }}>
+        <Alert severity={toast.severity} onClose={() => setToast(null)} sx={{ mb: 3, borderRadius: '6px' }}>
           {toast.text}
         </Alert>
       )}
@@ -120,19 +120,19 @@ export default function AdminPage() {
       <Grid container spacing={3}>
         {/* Grant Access Card */}
         <Grid size={{ xs: 12, lg: 5 }}>
-          <Card sx={{ borderRadius: 3 }}>
+          <Card sx={{ borderRadius: '8px', border: '1px solid #e4e4e7', boxShadow: '0 1px 2px 0 rgba(0,0,0,0.03)', bgcolor: '#ffffff' }}>
             <CardContent sx={{ p: 3 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
-                <PersonAddIcon sx={{ color: '#2563eb' }} />
-                <Typography variant="h6" fontWeight={800}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
+                <PersonAddIcon sx={{ color: '#18181b', fontSize: 20 }} />
+                <Typography variant="subtitle1" fontWeight={700} color="#09090b" sx={{ letterSpacing: '-0.01em' }}>
                   Cấp quyền truy cập mới
                 </Typography>
               </Box>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 3, fontSize: '0.8125rem' }}>
                 Thêm tài khoản Google Workspace và phân quyền vai trò tương ứng trong hệ thống.
               </Typography>
 
-              <Stack spacing={2.5}>
+              <Stack spacing={2}>
                 <TextField
                   fullWidth
                   size="small"
@@ -161,7 +161,16 @@ export default function AdminPage() {
                   variant="contained"
                   fullWidth
                   onClick={save}
-                  sx={{ py: 1.2, bgcolor: '#2563eb', fontWeight: 700 }}
+                  sx={{
+                    py: 1,
+                    bgcolor: '#18181b',
+                    color: '#ffffff',
+                    '&:hover': { bgcolor: '#27272a' },
+                    fontWeight: 600,
+                    fontSize: '0.8125rem',
+                    textTransform: 'none',
+                    borderRadius: '6px'
+                  }}
                 >
                   Lưu & Cấp quyền
                 </Button>
@@ -172,19 +181,32 @@ export default function AdminPage() {
 
         {/* User List Table */}
         <Grid size={{ xs: 12, lg: 7 }}>
-          <Card sx={{ borderRadius: 3 }}>
+          <Card sx={{ borderRadius: '8px', border: '1px solid #e4e4e7', boxShadow: '0 1px 2px 0 rgba(0,0,0,0.03)', overflow: 'hidden', bgcolor: '#ffffff' }}>
             <CardContent sx={{ p: 3 }}>
-              <Typography variant="h6" fontWeight={800} sx={{ mb: 2 }}>
-                👥 Danh sách tài khoản đã phân quyền ({users.length})
-              </Typography>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#09090b', letterSpacing: '-0.01em' }}>
+                  Danh sách tài khoản đã phân quyền
+                </Typography>
+                <Chip
+                  label={`${users.length} tài khoản`}
+                  size="small"
+                  sx={{
+                    bgcolor: '#f4f4f5',
+                    color: '#18181b',
+                    border: '1px solid #e4e4e7',
+                    fontWeight: 600,
+                    fontSize: '0.75rem'
+                  }}
+                />
+              </Box>
 
               <TableContainer sx={{ maxHeight: 420 }}>
                 <Table size="small">
-                  <TableHead>
+                  <TableHead sx={{ bgcolor: '#fcfcfd' }}>
                     <TableRow>
-                      <TableCell>Tài khoản</TableCell>
-                      <TableCell>Vai trò</TableCell>
-                      <TableCell align="right">Trạng thái</TableCell>
+                      <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tài khoản</TableCell>
+                      <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Vai trò</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 600, fontSize: '0.75rem', color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Trạng thái</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -204,14 +226,14 @@ export default function AdminPage() {
                       </TableRow>
                     ) : (
                       users.map((u) => (
-                        <TableRow key={u.uid || u.email} hover>
+                        <TableRow key={u.uid || u.email} hover sx={{ '&:hover': { bgcolor: '#f4f4f5' } }}>
                           <TableCell>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
-                              <Avatar sx={{ width: 30, height: 30, fontSize: '0.75rem', bgcolor: '#3b82f6' }}>
+                              <Avatar sx={{ width: 28, height: 28, fontSize: '0.75rem', bgcolor: '#18181b', color: '#fff', fontWeight: 600 }}>
                                 {(u.displayName || u.email)?.[0]?.toUpperCase() || 'U'}
                               </Avatar>
                               <Box>
-                                <Typography variant="body2" fontWeight={700}>
+                                <Typography variant="body2" fontWeight={600} sx={{ color: '#09090b' }}>
                                   {u.displayName || u.email}
                                 </Typography>
                                 <Typography variant="caption" color="text.secondary">
@@ -225,10 +247,12 @@ export default function AdminPage() {
                               label={u.role}
                               size="small"
                               sx={{
-                                bgcolor: u.role?.includes('ADMIN') ? '#fee2e2' : '#eff6ff',
-                                color: u.role?.includes('ADMIN') ? '#dc2626' : '#1d4ed8',
-                                fontWeight: 700,
-                                fontSize: '0.7rem'
+                                bgcolor: u.role?.includes('ADMIN') ? '#fef2f2' : '#f4f4f5',
+                                color: u.role?.includes('ADMIN') ? '#dc2626' : '#18181b',
+                                border: u.role?.includes('ADMIN') ? '1px solid #fecaca' : '1px solid #e4e4e7',
+                                fontWeight: 600,
+                                fontSize: '0.7rem',
+                                height: 22
                               }}
                             />
                           </TableCell>
@@ -237,9 +261,12 @@ export default function AdminPage() {
                               label={u.active ? 'Hoạt động' : 'Tạm khóa'}
                               size="small"
                               sx={{
-                                bgcolor: u.active ? '#ecfdf5' : '#f1f5f9',
-                                color: u.active ? '#059669' : '#64748b',
-                                fontWeight: 600
+                                bgcolor: u.active ? '#ecfdf5' : '#f4f4f5',
+                                color: u.active ? '#059669' : '#71717a',
+                                border: u.active ? '1px solid #a7f3d0' : '1px solid #e4e4e7',
+                                fontWeight: 600,
+                                fontSize: '0.7rem',
+                                height: 22
                               }}
                             />
                           </TableCell>

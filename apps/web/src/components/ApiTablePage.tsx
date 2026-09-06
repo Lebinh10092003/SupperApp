@@ -1,7 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import {
   Card,
-  CardContent,
   Table,
   TableBody,
   TableCell,
@@ -90,10 +89,12 @@ export function ApiTablePage({
           label={val || 'Hoàn thành'}
           size="small"
           sx={{
-            bgcolor: isLive ? '#fee2e2' : '#f1f5f9',
-            color: isLive ? '#dc2626' : '#475569',
-            fontWeight: 700,
-            fontSize: '0.75rem'
+            bgcolor: isLive ? '#fef2f2' : '#f4f4f5',
+            color: isLive ? '#b91c1c' : '#18181b',
+            border: isLive ? '1px solid #fecaca' : '1px solid #e4e4e7',
+            fontWeight: 600,
+            fontSize: '0.72rem',
+            height: 22
           }}
         />
       );
@@ -104,7 +105,7 @@ export function ApiTablePage({
       if (!isNaN(num)) {
         return (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Typography variant="body2" fontWeight={700} sx={{ color: num >= 95 ? '#16a34a' : '#ea580c' }}>
+            <Typography variant="body2" fontWeight={600} sx={{ color: num >= 95 ? '#15803d' : '#b45309', fontSize: '0.8125rem' }}>
               {num}%
             </Typography>
           </Box>
@@ -126,9 +127,16 @@ export function ApiTablePage({
             <Button
               variant="outlined"
               size="small"
-              startIcon={<RefreshIcon />}
+              startIcon={<RefreshIcon sx={{ fontSize: 16 }} />}
               onClick={loadData}
-              sx={{ bgcolor: '#fff', borderColor: '#cbd5e1', color: '#334155', fontWeight: 600 }}
+              sx={{
+                bgcolor: '#ffffff',
+                borderColor: '#e4e4e7',
+                color: '#18181b',
+                fontWeight: 500,
+                fontSize: '0.78rem',
+                '&:hover': { bgcolor: '#f4f4f5', borderColor: '#d4d4d8' }
+              }}
             >
               Làm mới
             </Button>
@@ -136,47 +144,55 @@ export function ApiTablePage({
         }
       />
 
-      <Card sx={{ mb: 3, borderRadius: 2.5, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-        <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-            <TextField
-              size="small"
-              placeholder="Tìm kiếm trong danh sách..."
-              value={q}
-              onChange={(e) => {
-                setQ(e.target.value);
-                setPage(0);
-              }}
-              sx={{ width: { xs: '100%', sm: 320 } }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon fontSize="small" sx={{ color: '#94a3b8' }} />
-                  </InputAdornment>
-                )
-              }}
-            />
+      {/* shadcn Filter Toolbar */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+        <TextField
+          size="small"
+          placeholder="Lọc dữ liệu tìm kiếm..."
+          value={q}
+          onChange={(e) => {
+            setQ(e.target.value);
+            setPage(0);
+          }}
+          sx={{ width: { xs: '100%', sm: 300 } }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon sx={{ color: '#a1a1aa', fontSize: 18 }} />
+              </InputAdornment>
+            ),
+            sx: { height: 36, fontSize: '0.84rem' }
+          }}
+        />
 
-            <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600 }}>
-              Tổng cộng {filtered.length} bản ghi
-            </Typography>
-          </Box>
-        </CardContent>
-      </Card>
+        <Chip
+          label={`Tổng cộng ${filtered.length} bản ghi`}
+          size="small"
+          sx={{
+            bgcolor: '#f4f4f5',
+            color: '#18181b',
+            border: '1px solid #e4e4e7',
+            fontWeight: 500,
+            fontSize: '0.75rem',
+            height: 26
+          }}
+        />
+      </Box>
 
       {err && (
-        <Alert severity="info" sx={{ mb: 2.5, borderRadius: 2 }}>
+        <Alert severity="info" sx={{ mb: 2, borderRadius: 1.5, border: '1px solid #e4e4e7', bgcolor: '#f4f4f5', color: '#18181b' }}>
           {err}
         </Alert>
       )}
 
-      <Card sx={{ borderRadius: 3, overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+      {/* shadcn Table Block */}
+      <Card sx={{ borderRadius: 2, overflow: 'hidden', border: '1px solid #e4e4e7', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)', bgcolor: '#ffffff' }}>
         <TableContainer sx={{ width: '100%', overflowX: 'auto' }}>
           <Table size="medium">
-            <TableHead sx={{ bgcolor: '#f8fafc' }}>
+            <TableHead sx={{ bgcolor: '#fcfcfd', borderBottom: '1px solid #e4e4e7' }}>
               <TableRow>
                 {columns.map((c) => (
-                  <TableCell key={c.key} sx={{ fontWeight: 700, color: '#334155', py: 1.75 }}>
+                  <TableCell key={c.key} sx={{ fontWeight: 600, color: '#71717a', py: 1.25, fontSize: '0.72rem', letterSpacing: '0.04em' }}>
                     {c.label}
                   </TableCell>
                 ))}
@@ -187,8 +203,8 @@ export function ApiTablePage({
                 Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i}>
                     {columns.map((c) => (
-                      <TableCell key={c.key}>
-                        <Skeleton variant="text" width="80%" />
+                      <TableCell key={c.key} sx={{ py: 1.5 }}>
+                        <Skeleton variant="text" width="80%" height={20} />
                       </TableCell>
                     ))}
                   </TableRow>
@@ -198,46 +214,49 @@ export function ApiTablePage({
                   <TableCell colSpan={columns.length} sx={{ py: 8, textAlign: 'center' }}>
                     <Box
                       sx={{
-                        width: 64,
-                        height: 64,
-                        borderRadius: '50%',
-                        bgcolor: '#eff6ff',
-                        color: '#2563eb',
+                        width: 48,
+                        height: 48,
+                        borderRadius: 2,
+                        border: '1px solid #e4e4e7',
+                        bgcolor: '#f4f4f5',
+                        color: '#71717a',
                         display: 'inline-flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         mb: 2
                       }}
                     >
-                      <SchoolIcon sx={{ fontSize: 32 }} />
+                      <SchoolIcon sx={{ fontSize: 24 }} />
                     </Box>
-                    <Typography variant="h6" fontWeight={700} sx={{ color: '#1e293b', mb: 0.5 }}>
+                    <Typography variant="subtitle1" fontWeight={600} sx={{ color: '#09090b', mb: 0.5 }}>
                       Chưa có dữ liệu từ Google Classroom
                     </Typography>
-                    <Typography variant="body2" sx={{ color: '#64748b', maxWidth: 480, mx: 'auto', mb: 3 }}>
+                    <Typography variant="body2" sx={{ color: '#71717a', maxWidth: 440, mx: 'auto', mb: 2.5, fontSize: '0.8125rem' }}>
                       Toàn bộ thông tin học tập và danh bạ được nạp trực tiếp từ Google Classroom. Hãy kết nối tài khoản hoặc tiến hành đồng bộ để hiển thị danh sách.
                     </Typography>
-                    <Stack direction="row" spacing={1.5} justifyContent="center">
+                    <Stack direction="row" spacing={1} justifyContent="center">
                       <Button
                         variant="contained"
-                        startIcon={<CloudSyncIcon />}
+                        startIcon={<CloudSyncIcon sx={{ fontSize: 16 }} />}
                         onClick={() => navigate('/connections')}
                         sx={{
-                          bgcolor: '#2563eb',
-                          fontWeight: 700,
-                          px: 2.5,
-                          py: 1,
-                          borderRadius: 2,
-                          '&:hover': { bgcolor: '#1d4ed8' }
+                          bgcolor: '#18181b',
+                          color: '#fafafa',
+                          fontWeight: 500,
+                          fontSize: '0.8125rem',
+                          px: 2,
+                          py: 0.75,
+                          borderRadius: 1.5,
+                          '&:hover': { bgcolor: '#27272a' }
                         }}
                       >
                         Kết nối & Đồng bộ Classroom
                       </Button>
                       <Button
                         variant="outlined"
-                        startIcon={<RefreshIcon />}
+                        startIcon={<RefreshIcon sx={{ fontSize: 16 }} />}
                         onClick={loadData}
-                        sx={{ borderColor: '#cbd5e1', color: '#475569', fontWeight: 600 }}
+                        sx={{ borderColor: '#e4e4e7', color: '#18181b', fontWeight: 500, fontSize: '0.8125rem' }}
                       >
                         Thử lại
                       </Button>
@@ -247,12 +266,11 @@ export function ApiTablePage({
               ) : pagedItems.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={columns.length} sx={{ py: 6, textAlign: 'center' }}>
-                    <Box sx={{ color: '#94a3b8', fontSize: '2rem', mb: 1 }}>🔍</Box>
-                    <Typography variant="body1" fontWeight={700} color="text.secondary">
-                      Không tìm thấy kết quả phù hợp với từ khóa "{q}"
+                    <Typography variant="body2" fontWeight={600} sx={{ color: '#09090b', mb: 0.5 }}>
+                      Không tìm thấy kết quả phù hợp với "{q}"
                     </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      Vui lòng thử tìm kiếm bằng tên, email hoặc mã lớp khác
+                    <Typography variant="caption" sx={{ color: '#71717a' }}>
+                      Vui lòng thử tìm kiếm bằng từ khóa khác
                     </Typography>
                   </TableCell>
                 </TableRow>
@@ -260,14 +278,13 @@ export function ApiTablePage({
                 pagedItems.map((x, i) => (
                   <TableRow
                     key={x.id || i}
-                    hover
                     sx={{
-                      '&:hover': { bgcolor: '#f8fafc' },
-                      transition: 'background-color 0.15s ease'
+                      borderBottom: '1px solid #f4f4f5',
+                      '&:hover': { bgcolor: 'rgba(244, 244, 245, 0.5) !important' }
                     }}
                   >
                     {columns.map((c) => (
-                      <TableCell key={c.key} sx={{ py: 1.5 }}>
+                      <TableCell key={c.key} sx={{ py: 1.25, fontSize: '0.84rem' }}>
                         {renderCellContent(c, x)}
                       </TableCell>
                     ))}
@@ -278,9 +295,9 @@ export function ApiTablePage({
           </Table>
         </TableContainer>
 
-        {items.length > 0 && (
+        {filtered.length > rowsPerPage && (
           <TablePagination
-            rowsPerPageOptions={[5, 10, 25, 50]}
+            rowsPerPageOptions={[10, 25, 50]}
             component="div"
             count={filtered.length}
             rowsPerPage={rowsPerPage}
@@ -290,9 +307,15 @@ export function ApiTablePage({
               setRowsPerPage(parseInt(e.target.value, 10));
               setPage(0);
             }}
-            labelRowsPerPage="Số dòng mỗi trang:"
+            labelRowsPerPage="Số hàng mỗi trang:"
             labelDisplayedRows={({ from, to, count }) => `${from}–${to} trên ${count}`}
-            sx={{ borderTop: '1px solid #f1f5f9' }}
+            sx={{
+              borderTop: '1px solid #e4e4e7',
+              color: '#71717a',
+              fontSize: '0.78rem',
+              '& .MuiTablePagination-select': { fontSize: '0.78rem' },
+              '& .MuiTablePagination-displayedRows': { fontSize: '0.78rem' }
+            }}
           />
         )}
       </Card>

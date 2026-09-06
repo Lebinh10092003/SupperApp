@@ -147,26 +147,37 @@ export default function GoogleConnectionPage() {
       />
 
       {msg && (
-        <Alert severity={msg.type} sx={{ my: 2 }} onClose={() => setMsg(null)}>
+        <Alert severity={msg.type} sx={{ my: 2.5, borderRadius: '6px' }} onClose={() => setMsg(null)}>
           {msg.text}
         </Alert>
       )}
 
       {/* Overview Card */}
-      <Card sx={{ mb: 3, bgcolor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 3 }}>
-        <CardContent sx={{ p: 2.5 }}>
+      <Card sx={{ mb: 3, bgcolor: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '8px', boxShadow: '0 1px 2px 0 rgba(0,0,0,0.03)' }}>
+        <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-            <Box sx={{ p: 1.5, bgcolor: '#2563eb', color: '#fff', borderRadius: 2, display: 'grid', placeItems: 'center' }}>
-              <SchoolIcon fontSize="large" />
+            <Box sx={{ p: 1.25, bgcolor: '#18181b', color: '#fff', borderRadius: '8px', display: 'grid', placeItems: 'center' }}>
+              <SchoolIcon fontSize="medium" />
             </Box>
             <Box sx={{ flex: 1 }}>
-              <Typography variant="h6" fontWeight={800} color="#1e3a8a">
+              <Typography variant="subtitle1" fontWeight={700} color="#09090b" sx={{ letterSpacing: '-0.01em' }}>
                 Số lượng khóa học Google Classroom thực tế đã đồng bộ: {status?.syncedCoursesCount ?? 0} lớp
               </Typography>
-              <Typography variant="body2" color="#1d4ed8">
-                Tất cả dữ liệu điểm danh, bài tập, điểm số và học sinh đều được tải trực tiếp từ máy chủ Google API theo thời gian thực.
+              <Typography variant="body2" color="#71717a" sx={{ fontSize: '0.8125rem' }}>
+                Tất cả dữ liệu điểm danh, bài tập, điểm số và học sinh đều được tải trực tiếp từ máy chủ Google API theo thời gian thực (SSOT).
               </Typography>
             </Box>
+            <Chip
+              label={status?.syncedCoursesCount > 0 ? 'Dữ liệu trực tiếp' : 'Sẵn sàng kết nối'}
+              size="small"
+              sx={{
+                bgcolor: status?.syncedCoursesCount > 0 ? '#ecfdf5' : '#f4f4f5',
+                color: status?.syncedCoursesCount > 0 ? '#059669' : '#71717a',
+                border: status?.syncedCoursesCount > 0 ? '1px solid #a7f3d0' : '1px solid #e4e4e7',
+                fontWeight: 600,
+                fontSize: '0.75rem'
+              }}
+            />
           </Box>
         </CardContent>
       </Card>
@@ -174,26 +185,32 @@ export default function GoogleConnectionPage() {
       <Grid container spacing={3}>
         {/* Mode A */}
         <Grid size={{ xs: 12, md: 6 }}>
-          <Card sx={{ borderRadius: 3, height: '100%', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+          <Card sx={{ borderRadius: '8px', height: '100%', border: '1px solid #e4e4e7', boxShadow: '0 1px 2px 0 rgba(0,0,0,0.03)', bgcolor: '#ffffff' }}>
             <CardContent sx={{ p: 3 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
-                <CloudDoneIcon color="primary" />
-                <Typography variant="h6" fontWeight={700}>
+                <CloudDoneIcon sx={{ color: '#09090b', fontSize: 20 }} />
+                <Typography variant="subtitle1" fontWeight={700} color="#09090b">
                   Chế Độ A: Google OAuth Cá Nhân
                 </Typography>
               </Box>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontSize: '0.8125rem' }}>
                 Dành cho Ban Giám hiệu hoặc Giáo viên kết nối tài khoản Google để kéo các lớp học mà tài khoản đó tham gia hoặc giảng dạy.
               </Typography>
 
-              <Box sx={{ p: 2, bgcolor: '#f8fafc', borderRadius: 2, mb: 2.5 }}>
-                <Typography variant="caption" fontWeight={700} color="text.secondary" display="block" gutterBottom>
-                  TRẠNG THÁI KẾT NỐI OAUTH:
+              <Box sx={{ p: 2, bgcolor: '#fafafa', borderRadius: '6px', border: '1px solid #e4e4e7', mb: 2.5 }}>
+                <Typography variant="caption" fontWeight={600} color="#71717a" display="block" gutterBottom sx={{ letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                  Trạng thái kết nối OAuth:
                 </Typography>
                 <Chip
                   label={status?.modeA?.connected ? `ĐÃ KẾT NỐI: ${status?.modeA?.email}` : 'CHƯA KẾT NỐI OAUTH'}
-                  color={status?.modeA?.connected ? 'success' : 'default'}
-                  sx={{ fontWeight: 700 }}
+                  size="small"
+                  sx={{
+                    bgcolor: status?.modeA?.connected ? '#ecfdf5' : '#f4f4f5',
+                    color: status?.modeA?.connected ? '#059669' : '#71717a',
+                    border: status?.modeA?.connected ? '1px solid #a7f3d0' : '1px solid #e4e4e7',
+                    fontWeight: 600,
+                    fontSize: '0.75rem'
+                  }}
                 />
               </Box>
 
@@ -201,12 +218,25 @@ export default function GoogleConnectionPage() {
                 variant="contained"
                 onClick={handleConnectOAuth}
                 disabled={loading}
-                sx={{ textTransform: 'none', fontWeight: 700, mb: 2.5 }}
+                fullWidth
+                sx={{
+                  bgcolor: '#18181b',
+                  color: '#ffffff',
+                  '&:hover': { bgcolor: '#27272a' },
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  fontSize: '0.8125rem',
+                  py: 1,
+                  borderRadius: '6px',
+                  mb: 2.5
+                }}
               >
                 🔐 Đăng nhập Google để cấp quyền Classroom
               </Button>
 
-              <Divider sx={{ my: 2 }}>HOẶC DÁN ACCESS TOKEN TRỰC TIẾP</Divider>
+              <Divider sx={{ my: 2, borderColor: '#e4e4e7', fontSize: '0.75rem', color: '#a1a1aa' }}>
+                HOẶC DÁN ACCESS TOKEN TRỰC TIẾP
+              </Divider>
 
               <Stack spacing={1.5}>
                 <TextField
@@ -231,7 +261,7 @@ export default function GoogleConnectionPage() {
                   variant="outlined"
                   onClick={handleSaveDirectToken}
                   disabled={syncing || !customToken.trim()}
-                  sx={{ fontWeight: 700 }}
+                  sx={{ fontWeight: 600, fontSize: '0.8125rem', textTransform: 'none', borderRadius: '6px', py: 0.9 }}
                 >
                   Xác nhận Token & Đồng bộ ngay
                 </Button>
@@ -242,33 +272,39 @@ export default function GoogleConnectionPage() {
 
         {/* Mode B */}
         <Grid size={{ xs: 12, md: 6 }}>
-          <Card sx={{ borderRadius: 3, height: '100%', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+          <Card sx={{ borderRadius: '8px', height: '100%', border: '1px solid #e4e4e7', boxShadow: '0 1px 2px 0 rgba(0,0,0,0.03)', bgcolor: '#ffffff' }}>
             <CardContent sx={{ p: 3 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
-                <VpnKeyIcon color="secondary" />
-                <Typography variant="h6" fontWeight={700}>
+                <VpnKeyIcon sx={{ color: '#09090b', fontSize: 20 }} />
+                <Typography variant="subtitle1" fontWeight={700} color="#09090b">
                   Chế Độ B: Google Workspace DWD Toàn Trường
                 </Typography>
               </Box>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontSize: '0.8125rem' }}>
                 Sử dụng Service Account ủy quyền toàn miền (Domain-Wide Delegation) để đồng bộ tự động 100% lớp học của toàn bộ giáo viên và học sinh trên tên miền trường.
               </Typography>
 
-              <Box sx={{ p: 2, bgcolor: '#f8fafc', borderRadius: 2, mb: 2.5 }}>
-                <Typography variant="caption" fontWeight={700} color="text.secondary" display="block" gutterBottom>
-                  TRẠNG THÁI SERVICE ACCOUNT DWD:
+              <Box sx={{ p: 2, bgcolor: '#fafafa', borderRadius: '6px', border: '1px solid #e4e4e7', mb: 2.5 }}>
+                <Typography variant="caption" fontWeight={600} color="#71717a" display="block" gutterBottom sx={{ letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                  Trạng thái Service Account DWD:
                 </Typography>
                 <Chip
                   label={status?.modeB?.configured ? `ĐÃ CẤU HÌNH DWD (${status?.modeB?.serviceAccount})` : 'CHƯA CÓ FILE SERVICE-ACCOUNT.JSON'}
-                  color={status?.modeB?.configured ? 'primary' : 'warning'}
-                  sx={{ fontWeight: 700 }}
+                  size="small"
+                  sx={{
+                    bgcolor: status?.modeB?.configured ? '#eff6ff' : '#fffbeb',
+                    color: status?.modeB?.configured ? '#1d4ed8' : '#b45309',
+                    border: status?.modeB?.configured ? '1px solid #bfdbfe' : '1px solid #fde68a',
+                    fontWeight: 600,
+                    fontSize: '0.75rem'
+                  }}
                 />
-                <Typography variant="caption" display="block" sx={{ mt: 1, color: 'text.secondary' }}>
-                  Tên miền Workspace: <strong>{status?.modeB?.domain || 'thcsgiangvo.edu.vn'}</strong>
+                <Typography variant="caption" display="block" sx={{ mt: 1, color: '#71717a' }}>
+                  Tên miền Workspace: <strong style={{ color: '#09090b' }}>{status?.modeB?.domain || 'thcsgiangvo.edu.vn'}</strong>
                 </Typography>
               </Box>
 
-              <Typography variant="subtitle2" fontWeight={700} gutterBottom>
+              <Typography variant="caption" fontWeight={600} color="#71717a" gutterBottom display="block" sx={{ letterSpacing: '0.05em', textTransform: 'uppercase' }}>
                 Cung cấp nội dung file JSON Service Account:
               </Typography>
               <TextField
@@ -283,10 +319,19 @@ export default function GoogleConnectionPage() {
               />
               <Button
                 variant="contained"
-                color="secondary"
                 onClick={handleSaveServiceAccount}
                 disabled={syncing || !saJson.trim()}
-                sx={{ fontWeight: 700 }}
+                fullWidth
+                sx={{
+                  bgcolor: '#18181b',
+                  color: '#ffffff',
+                  '&:hover': { bgcolor: '#27272a' },
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  fontSize: '0.8125rem',
+                  py: 1,
+                  borderRadius: '6px'
+                }}
               >
                 Lưu Service Account & Đồng bộ toàn trường
               </Button>

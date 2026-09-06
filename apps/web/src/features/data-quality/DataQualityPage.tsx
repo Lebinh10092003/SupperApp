@@ -91,20 +91,20 @@ export default function DataQualityPage() {
       <Grid container spacing={3}>
         {/* Overall Score Card */}
         <Grid size={{ xs: 12, md: 4 }}>
-          <Card sx={{ height: '100%', borderRadius: 3, border: '1px solid #e2e8f0' }}>
+          <Card sx={{ height: '100%', borderRadius: '8px', border: '1px solid #e4e4e7', boxShadow: '0 1px 2px 0 rgba(0,0,0,0.03)', bgcolor: '#ffffff' }}>
             <CardContent sx={{ p: 3, textAlign: 'center' }}>
-              <Typography variant="subtitle2" color="text.secondary" fontWeight={700}>
-                CHỈ SỐ CHẤT LƯỢNG TOÀN DIỆN
+              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Chỉ số chất lượng toàn diện
               </Typography>
               <Box sx={{ my: 3 }}>
                 {loading ? (
-                  <Skeleton variant="circular" width={100} height={100} sx={{ mx: 'auto' }} />
+                  <Skeleton variant="circular" width={80} height={80} sx={{ mx: 'auto' }} />
                 ) : (
                   <>
-                    <Typography variant="h1" fontWeight={900} sx={{ color: getScoreColor(score), lineHeight: 1 }}>
+                    <Typography sx={{ fontSize: '3.5rem', fontWeight: 800, color: getScoreColor(score), lineHeight: 1, letterSpacing: '-0.03em' }}>
                       {score}
                     </Typography>
-                    <Typography variant="h6" color="text.secondary" sx={{ mt: 0.5 }}>
+                    <Typography variant="body2" sx={{ color: '#71717a', mt: 0.5 }}>
                       / 100 Điểm
                     </Typography>
                   </>
@@ -114,13 +114,13 @@ export default function DataQualityPage() {
                 variant="determinate"
                 value={score}
                 sx={{
-                  height: 10,
-                  borderRadius: 5,
-                  bgcolor: '#e2e8f0',
+                  height: 6,
+                  borderRadius: 3,
+                  bgcolor: '#e4e4e7',
                   '& .MuiLinearProgress-bar': { bgcolor: getScoreColor(score) }
                 }}
               />
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 2, fontSize: '0.8125rem' }}>
                 {score >= 85
                   ? 'Dữ liệu trường học đạt chuẩn độ chính xác cao'
                   : score > 0
@@ -133,10 +133,10 @@ export default function DataQualityPage() {
 
         {/* Component Metrics Card */}
         <Grid size={{ xs: 12, md: 8 }}>
-          <Card sx={{ height: '100%', borderRadius: 3, border: '1px solid #e2e8f0' }}>
+          <Card sx={{ height: '100%', borderRadius: '8px', border: '1px solid #e4e4e7', boxShadow: '0 1px 2px 0 rgba(0,0,0,0.03)', bgcolor: '#ffffff' }}>
             <CardContent sx={{ p: 3 }}>
-              <Typography variant="h6" fontWeight={800} sx={{ mb: 2.5 }}>
-                📊 Phân tích thành phần chất lượng thực tế
+              <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#09090b', mb: 2.5, letterSpacing: '-0.01em' }}>
+                Phân tích thành phần chất lượng thực tế
               </Typography>
               <Stack spacing={2.5}>
                 {[
@@ -149,10 +149,10 @@ export default function DataQualityPage() {
                   return (
                     <Box key={key}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.75 }}>
-                        <Typography variant="body2" fontWeight={600} sx={{ color: '#1e293b' }}>
+                        <Typography variant="body2" fontWeight={500} sx={{ color: '#09090b', fontSize: '0.8125rem' }}>
                           {label}
                         </Typography>
-                        <Typography variant="body2" fontWeight={700} sx={{ color: val >= 80 ? '#10b981' : '#64748b' }}>
+                        <Typography variant="body2" fontWeight={600} sx={{ color: val >= 80 ? '#10b981' : '#71717a', fontSize: '0.8125rem' }}>
                           {val}%
                         </Typography>
                       </Box>
@@ -160,10 +160,10 @@ export default function DataQualityPage() {
                         variant="determinate"
                         value={val}
                         sx={{
-                          height: 8,
-                          borderRadius: 4,
-                          bgcolor: '#f1f5f9',
-                          '& .MuiLinearProgress-bar': { bgcolor: val >= 80 ? '#2563eb' : '#94a3b8' }
+                          height: 6,
+                          borderRadius: 3,
+                          bgcolor: '#e4e4e7',
+                          '& .MuiLinearProgress-bar': { bgcolor: val >= 80 ? '#10b981' : '#18181b' }
                         }}
                       />
                     </Box>
@@ -176,10 +176,10 @@ export default function DataQualityPage() {
 
         {/* Issues List */}
         <Grid size={{ xs: 12 }}>
-          <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0' }}>
+          <Card sx={{ borderRadius: '8px', border: '1px solid #e4e4e7', boxShadow: '0 1px 2px 0 rgba(0,0,0,0.03)', bgcolor: '#ffffff' }}>
             <CardContent sx={{ p: 3 }}>
-              <Typography variant="h6" fontWeight={800} sx={{ mb: 2 }}>
-                ⚠️ Các điểm cần chuẩn hóa dữ liệu ({issues.length})
+              <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#09090b', mb: 2, letterSpacing: '-0.01em' }}>
+                Các điểm cần chuẩn hóa dữ liệu ({issues.length})
               </Typography>
               {issues.length === 0 ? (
                 <Box sx={{ py: 4, textAlign: 'center' }}>
@@ -193,13 +193,13 @@ export default function DataQualityPage() {
                     <Alert
                       key={iss.id || i}
                       severity={iss.severity === 'CRITICAL' ? 'error' : iss.severity === 'WARNING' ? 'warning' : 'info'}
-                      sx={{ borderRadius: 2 }}
+                      sx={{ borderRadius: '6px' }}
                     >
-                      <Typography variant="subtitle2" fontWeight={700}>
+                      <Typography variant="subtitle2" fontWeight={600}>
                         {iss.message || iss.type}
                       </Typography>
                       {iss.entity && (
-                        <Typography variant="caption" sx={{ display: 'block', mt: 0.5, color: '#475569' }}>
+                        <Typography variant="caption" sx={{ display: 'block', mt: 0.5, color: '#71717a' }}>
                           Khóa học / Thực thể: {iss.entity}
                         </Typography>
                       )}

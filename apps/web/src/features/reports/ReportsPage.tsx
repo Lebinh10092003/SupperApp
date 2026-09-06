@@ -81,13 +81,13 @@ export default function ReportsPage() {
       />
 
       {toast && (
-        <Alert severity={toast.severity} onClose={() => setToast(null)} sx={{ mb: 2.5, borderRadius: 2 }}>
+        <Alert severity={toast.severity} onClose={() => setToast(null)} sx={{ mb: 2.5, borderRadius: '6px' }}>
           {toast.text}
         </Alert>
       )}
 
       {/* Filter Card */}
-      <Card sx={{ mb: 3, borderRadius: 2.5, border: '1px solid #e2e8f0' }}>
+      <Card sx={{ mb: 3, borderRadius: '8px', border: '1px solid #e4e4e7', boxShadow: '0 1px 2px 0 rgba(0,0,0,0.03)', bgcolor: '#ffffff' }}>
         <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center">
             <TextField
@@ -104,8 +104,8 @@ export default function ReportsPage() {
               <MenuItem value="180">Cả năm học 2025–2026</MenuItem>
             </TextField>
 
-            <Typography variant="body2" color="text.secondary">
-              Định dạng xuất chuẩn: <strong>CSV (UTF-8 có BOM tiếng Việt)</strong> tương thích hoàn toàn với Microsoft Excel và Google Sheets.
+            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>
+              Định dạng xuất chuẩn: <strong style={{ color: '#09090b' }}>CSV (UTF-8 có BOM tiếng Việt)</strong> tương thích hoàn toàn với Microsoft Excel và Google Sheets.
             </Typography>
           </Stack>
         </CardContent>
@@ -120,26 +120,33 @@ export default function ReportsPage() {
                 height: '100%',
                 display: 'flex',
                 flexDirection: 'column',
-                borderRadius: 3,
-                border: '1px solid #e2e8f0',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+                borderRadius: '8px',
+                border: '1px solid #e4e4e7',
+                boxShadow: '0 1px 2px 0 rgba(0,0,0,0.03)',
+                bgcolor: '#ffffff'
               }}
             >
               <CardContent sx={{ p: 3, flex: 1 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                  <Box sx={{ p: 1.2, bgcolor: '#f1f5f9', borderRadius: 2.5, display: 'grid', placeItems: 'center' }}>
+                  <Box sx={{ p: 1.25, bgcolor: '#f4f4f5', borderRadius: '8px', display: 'grid', placeItems: 'center', color: '#18181b' }}>
                     {rep.icon}
                   </Box>
                   <Chip
                     label={rep.tag}
                     size="small"
-                    sx={{ bgcolor: '#eff6ff', color: '#1d4ed8', fontWeight: 700 }}
+                    sx={{
+                      bgcolor: '#f4f4f5',
+                      color: '#18181b',
+                      border: '1px solid #e4e4e7',
+                      fontWeight: 600,
+                      fontSize: '0.75rem'
+                    }}
                   />
                 </Box>
-                <Typography variant="subtitle1" fontWeight={800} sx={{ color: '#0f172a', mb: 1 }}>
+                <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#09090b', mb: 1, letterSpacing: '-0.01em' }}>
                   {rep.title}
                 </Typography>
-                <Typography variant="body2" sx={{ color: '#64748b', mb: 3 }}>
+                <Typography variant="body2" sx={{ color: '#71717a', mb: 3, fontSize: '0.8125rem', lineHeight: 1.5 }}>
                   {rep.desc}
                 </Typography>
               </CardContent>
@@ -147,10 +154,19 @@ export default function ReportsPage() {
                 <Button
                   fullWidth
                   variant="contained"
-                  startIcon={downloading === rep.id ? <CircularProgress size={16} color="inherit" /> : <DownloadIcon />}
+                  startIcon={downloading === rep.id ? <CircularProgress size={16} color="inherit" /> : <DownloadIcon sx={{ fontSize: 16 }} />}
                   disabled={downloading === rep.id}
                   onClick={() => handleDownload(rep)}
-                  sx={{ bgcolor: '#2563eb', py: 1, fontWeight: 700 }}
+                  sx={{
+                    bgcolor: '#18181b',
+                    color: '#ffffff',
+                    '&:hover': { bgcolor: '#27272a' },
+                    py: 1,
+                    fontWeight: 600,
+                    fontSize: '0.8125rem',
+                    textTransform: 'none',
+                    borderRadius: '6px'
+                  }}
                 >
                   {downloading === rep.id ? 'Đang kết xuất CSV...' : 'Tải báo cáo CSV'}
                 </Button>

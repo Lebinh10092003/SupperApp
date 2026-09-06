@@ -232,46 +232,71 @@ export function AppShell({ children }: { children: ReactNode }) {
     }))
     .filter((group) => group.items.length > 0);
 
+  const allNavItems = navGroups.flatMap((g) => g.items);
+  const currentNav = allNavItems.find((it) => it.path === location.pathname);
+  const currentPageTitle = currentNav ? currentNav.label : 'Trang chủ';
+
   const drawerContent = (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: '#0f172a', color: '#fff' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: '#09090b', color: '#fafafa' }}>
       {/* Brand Header */}
       <Box
         sx={{
-          p: 2.5,
+          p: 2,
           display: 'flex',
           alignItems: 'center',
-          gap: 1.5,
-          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-          background: 'linear-gradient(180deg, rgba(30, 41, 59, 0.5) 0%, rgba(15, 23, 42, 0) 100%)'
+          gap: 1.25,
+          borderBottom: '1px solid #27272a'
         }}
       >
         <Box
           sx={{
-            width: 42,
-            height: 42,
-            borderRadius: '12px',
-            bgcolor: '#2563eb',
+            width: 32,
+            height: 32,
+            borderRadius: 1.5,
+            bgcolor: '#18181b',
+            border: '1px solid #3f3f46',
             display: 'grid',
             placeItems: 'center',
-            fontSize: '1.4rem',
-            boxShadow: '0 4px 12px rgba(37, 99, 235, 0.35)',
+            fontSize: '1rem',
             flexShrink: 0
           }}
         >
           🏫
         </Box>
         <Box sx={{ overflow: 'hidden' }}>
-          <Typography variant="subtitle1" fontWeight={800} noWrap sx={{ color: '#ffffff', letterSpacing: '-0.01em' }}>
-            School Intelligence
+          <Typography variant="subtitle2" fontWeight={700} noWrap sx={{ color: '#fafafa', letterSpacing: '-0.02em', lineHeight: 1.2 }}>
+            THCS Giảng Võ
           </Typography>
-          <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block', fontWeight: 500 }} noWrap>
-            THCS Giảng Võ • Hà Nội
+          <Typography variant="caption" sx={{ color: '#71717a', display: 'block', fontSize: '0.7rem' }} noWrap>
+            School Intelligence
           </Typography>
         </Box>
       </Box>
 
+      {/* Quick Search Trigger (shadcn style) */}
+      <Box sx={{ px: 2, pt: 1.5, pb: 0.5 }}>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            bgcolor: '#18181b',
+            border: '1px solid #27272a',
+            borderRadius: 1.5,
+            px: 1.25,
+            py: 0.75,
+            color: '#71717a',
+            fontSize: '0.78rem',
+            cursor: 'default'
+          }}
+        >
+          <span>Tìm kiếm điều hành...</span>
+          <Chip label="⌘K" size="small" sx={{ height: 18, fontSize: '0.65rem', bgcolor: '#27272a', color: '#a1a1aa', border: '1px solid #3f3f46' }} />
+        </Box>
+      </Box>
+
       {/* Navigation List */}
-      <Box sx={{ flex: 1, overflowY: 'auto', px: 1.5, py: 2 }}>
+      <Box sx={{ flex: 1, overflowY: 'auto', px: 1.5, py: 1.5 }}>
         <List disablePadding>
           {visibleGroups.map((group) => (
             <Box key={group.groupTitle} sx={{ mb: 2 }}>
@@ -279,13 +304,14 @@ export function AppShell({ children }: { children: ReactNode }) {
                 disableSticky
                 sx={{
                   bgcolor: 'transparent',
-                  color: '#64748b',
-                  fontSize: '0.6875rem',
-                  fontWeight: 800,
+                  color: '#71717a',
+                  fontSize: '0.65rem',
+                  fontWeight: 600,
                   letterSpacing: '0.08em',
-                  px: 1.5,
+                  px: 1.25,
                   py: 0.5,
-                  lineHeight: '1.5rem'
+                  lineHeight: '1.25rem',
+                  textTransform: 'uppercase'
                 }}
               >
                 {group.groupTitle}
@@ -302,23 +328,24 @@ export function AppShell({ children }: { children: ReactNode }) {
                       setMobileOpen(false);
                     }}
                     sx={{
-                      borderRadius: '10px',
+                      borderRadius: '6px',
                       mb: 0.5,
-                      py: 1,
-                      px: 1.5,
-                      color: isSelected ? '#ffffff' : '#94a3b8',
-                      bgcolor: isSelected ? '#2563eb !important' : 'transparent',
-                      transition: 'all 0.15s ease',
+                      py: 0.85,
+                      px: 1.25,
+                      color: isSelected ? '#fafafa' : '#a1a1aa',
+                      bgcolor: isSelected ? '#27272a !important' : 'transparent',
+                      border: isSelected ? '1px solid #3f3f46' : '1px solid transparent',
+                      transition: 'all 0.12s ease',
                       '&:hover': {
-                        bgcolor: isSelected ? '#2563eb' : 'rgba(255, 255, 255, 0.05)',
+                        bgcolor: isSelected ? '#27272a' : 'rgba(39, 39, 42, 0.6)',
                         color: '#ffffff'
                       }
                     }}
                   >
                     <ListItemIcon
                       sx={{
-                        minWidth: 32,
-                        color: isSelected ? '#ffffff' : '#94a3b8'
+                        minWidth: 28,
+                        color: isSelected ? '#fafafa' : '#71717a'
                       }}
                     >
                       {item.icon}
@@ -326,8 +353,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                     <ListItemText
                       primary={item.label}
                       primaryTypographyProps={{
-                        fontSize: '0.84rem',
-                        fontWeight: isSelected ? 700 : 500
+                        fontSize: '0.8125rem',
+                        fontWeight: isSelected ? 600 : 400
                       }}
                     />
                     {item.badge && (
@@ -337,10 +364,11 @@ export function AppShell({ children }: { children: ReactNode }) {
                         sx={{
                           height: 18,
                           fontSize: '0.65rem',
-                          fontWeight: 800,
-                          bgcolor: '#ef4444',
-                          color: '#fff',
-                          px: 0.5
+                          fontWeight: 700,
+                          bgcolor: '#27272a',
+                          color: '#fafafa',
+                          border: '1px solid #3f3f46',
+                          px: 0.25
                         }}
                       />
                     )}
@@ -355,30 +383,32 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* User Session Footer */}
       <Box
         sx={{
-          p: 2,
-          borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-          bgcolor: 'rgba(15, 23, 42, 0.6)'
+          p: 1.75,
+          borderTop: '1px solid #27272a',
+          bgcolor: 'rgba(9, 9, 11, 0.95)'
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, minWidth: 0, flex: 1, overflow: 'hidden' }}>
             <Avatar
               sx={{
-                width: 34,
-                height: 34,
-                bgcolor: '#3b82f6',
-                fontSize: '0.875rem',
-                fontWeight: 700,
+                width: 32,
+                height: 32,
+                bgcolor: '#27272a',
+                color: '#fafafa',
+                border: '1px solid #3f3f46',
+                fontSize: '0.8rem',
+                fontWeight: 600,
                 flexShrink: 0
               }}
             >
               {profile?.displayName?.[0] || 'G'}
             </Avatar>
             <Box sx={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
-              <Typography variant="body2" fontWeight={700} sx={{ color: '#f8fafc' }} noWrap>
+              <Typography variant="body2" fontWeight={600} sx={{ color: '#fafafa', fontSize: '0.8125rem' }} noWrap>
                 {profile?.displayName || 'Người dùng'}
               </Typography>
-              <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block' }} noWrap>
+              <Typography variant="caption" sx={{ color: '#71717a', display: 'block', fontSize: '0.7rem' }} noWrap>
                 {roleLabelMap[profile?.role || ''] || profile?.role || 'Hệ thống'}
               </Typography>
             </Box>
@@ -387,9 +417,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             <IconButton
               size="small"
               onClick={logout}
-              sx={{ color: '#94a3b8', flexShrink: 0, '&:hover': { color: '#ef4444', bgcolor: 'rgba(239, 68, 68, 0.1)' } }}
+              sx={{ color: '#71717a', flexShrink: 0, '&:hover': { color: '#ef4444', bgcolor: 'rgba(239, 68, 68, 0.1)' } }}
             >
-              <LogoutIcon fontSize="small" />
+              <LogoutIcon sx={{ fontSize: 18 }} />
             </IconButton>
           </Tooltip>
         </Box>
@@ -398,21 +428,22 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: '#f8fafc' }}>
+    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: '#fafafa' }}>
       {/* Top Header */}
       <AppBar
         position="fixed"
         elevation={0}
         sx={{
-          bgcolor: '#ffffff',
-          color: '#0f172a',
-          borderBottom: '1px solid #e2e8f0',
+          bgcolor: 'rgba(255, 255, 255, 0.9)',
+          backdropFilter: 'blur(8px)',
+          color: '#09090b',
+          borderBottom: '1px solid #e4e4e7',
           zIndex: (t) => t.zIndex.drawer + 1,
           ml: { md: `${DRAWER_WIDTH}px` },
           width: { md: `calc(100% - ${DRAWER_WIDTH}px)` }
         }}
       >
-        <Toolbar sx={{ justifyContent: 'space-between', minHeight: { xs: 58, md: 64 }, px: { xs: 2, md: 3 } }}>
+        <Toolbar sx={{ justifyContent: 'space-between', minHeight: { xs: 52, md: 54 }, px: { xs: 2, md: 3 } }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <IconButton
               color="inherit"
@@ -420,19 +451,22 @@ export function AppShell({ children }: { children: ReactNode }) {
               onClick={() => setMobileOpen(true)}
               sx={{ display: { md: 'none' }, mr: 0.5 }}
             >
-              <MenuIcon />
+              <MenuIcon fontSize="small" />
             </IconButton>
-            <Box>
-              <Typography variant="subtitle1" fontWeight={800} sx={{ lineHeight: 1.2, color: '#0f172a' }}>
-                Trường THCS Giảng Võ
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="body2" fontWeight={500} sx={{ color: '#71717a' }}>
+                Giảng Võ Intelligence
               </Typography>
-              <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 500 }}>
-                Hệ thống điều hành trường học thông minh
+              <Typography variant="body2" sx={{ color: '#d4d4d8' }}>
+                /
+              </Typography>
+              <Typography variant="body2" fontWeight={600} sx={{ color: '#09090b' }}>
+                {currentPageTitle}
               </Typography>
             </Box>
           </Box>
 
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
             {/* Live Classroom Sync Status Pill */}
             <Tooltip title={syncStatus?.isSynced ? `Đã đồng bộ ${syncStatus.courseCount} khóa học từ Google Classroom` : 'Chưa đồng bộ dữ liệu thật từ Google Classroom. Bấm để kết nối.'}>
               <Box
@@ -441,32 +475,32 @@ export function AppShell({ children }: { children: ReactNode }) {
                   display: { xs: 'none', sm: 'flex' },
                   alignItems: 'center',
                   gap: 1,
-                  bgcolor: syncStatus?.isSynced ? '#ecfdf5' : '#fffbeb',
+                  bgcolor: syncStatus?.isSynced ? '#f0fdf4' : '#fffbeb',
                   border: '1px solid',
-                  borderColor: syncStatus?.isSynced ? '#a7f3d0' : '#fde68a',
-                  px: 1.5,
-                  py: 0.5,
-                  borderRadius: 2,
+                  borderColor: syncStatus?.isSynced ? '#bbf7d0' : '#fde68a',
+                  px: 1.25,
+                  py: 0.4,
+                  borderRadius: 1.5,
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
                   '&:hover': {
                     borderColor: syncStatus?.isSynced ? '#10b981' : '#f59e0b',
-                    boxShadow: '0 2px 6px rgba(0,0,0,0.06)'
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
                   }
                 }}
               >
                 <Box
                   sx={{
-                    width: 8,
-                    height: 8,
+                    width: 7,
+                    height: 7,
                     borderRadius: '50%',
                     bgcolor: syncStatus?.isSynced ? '#10b981' : '#f59e0b',
                     boxShadow: syncStatus?.isSynced
-                      ? '0 0 0 2px rgba(16, 185, 129, 0.3)'
-                      : '0 0 0 2px rgba(245, 158, 11, 0.3)'
+                      ? '0 0 0 2px rgba(16, 185, 129, 0.25)'
+                      : '0 0 0 2px rgba(245, 158, 11, 0.25)'
                   }}
                 />
-                <Typography variant="caption" fontWeight={700} sx={{ color: syncStatus?.isSynced ? '#065f46' : '#92400e' }}>
+                <Typography variant="caption" fontWeight={600} sx={{ color: syncStatus?.isSynced ? '#166534' : '#92400e', fontSize: '0.75rem' }}>
                   {syncStatus?.isSynced ? `Classroom: ${syncStatus.courseCount} lớp` : 'Chờ đồng bộ Classroom'}
                 </Typography>
               </Box>
@@ -478,16 +512,16 @@ export function AppShell({ children }: { children: ReactNode }) {
               variant="outlined"
               onClick={handleSyncNow}
               disabled={isSyncing}
-              startIcon={isSyncing ? <CircularProgress size={14} color="inherit" /> : <SyncIcon fontSize="small" />}
+              startIcon={isSyncing ? <CircularProgress size={13} color="inherit" /> : <SyncIcon sx={{ fontSize: 15 }} />}
               sx={{
                 display: { xs: 'none', md: 'flex' },
                 textTransform: 'none',
-                fontWeight: 700,
+                fontWeight: 500,
                 fontSize: '0.75rem',
-                borderColor: '#cbd5e1',
-                color: '#334155',
-                bgcolor: '#fff',
-                '&:hover': { bgcolor: '#f8fafc', borderColor: '#94a3b8' }
+                borderColor: '#e4e4e7',
+                color: '#18181b',
+                bgcolor: '#ffffff',
+                '&:hover': { bgcolor: '#f4f4f5', borderColor: '#d4d4d8' }
               }}
             >
               {isSyncing ? 'Đang đồng bộ...' : 'Đồng bộ'}
@@ -499,14 +533,14 @@ export function AppShell({ children }: { children: ReactNode }) {
                 display: { xs: 'none', lg: 'flex' },
                 alignItems: 'center',
                 gap: 1,
-                bgcolor: '#f1f5f9',
-                border: '1px solid #e2e8f0',
-                px: 1.5,
-                py: 0.5,
-                borderRadius: 2
+                bgcolor: '#f4f4f5',
+                border: '1px solid #e4e4e7',
+                px: 1.25,
+                py: 0.4,
+                borderRadius: 1.5
               }}
             >
-              <Typography variant="caption" fontWeight={700} sx={{ color: '#475569' }}>
+              <Typography variant="caption" fontWeight={600} sx={{ color: '#18181b', fontSize: '0.75rem' }}>
                 Học kỳ II • 2025–2026
               </Typography>
             </Box>
@@ -515,17 +549,17 @@ export function AppShell({ children }: { children: ReactNode }) {
               size="small"
               label={roleLabelMap[profile?.role || ''] || profile?.role || 'Khách'}
               sx={{
-                bgcolor: '#eff6ff',
-                color: '#1d4ed8',
-                border: '1px solid #bfdbfe',
-                fontWeight: 700,
+                bgcolor: '#f4f4f5',
+                color: '#18181b',
+                border: '1px solid #e4e4e7',
+                fontWeight: 600,
                 fontSize: '0.75rem'
               }}
             />
 
             <Tooltip title="Đăng xuất">
-              <IconButton onClick={logout} sx={{ color: '#64748b', '&:hover': { color: '#ef4444' } }}>
-                <LogoutIcon fontSize="small" />
+              <IconButton onClick={logout} size="small" sx={{ color: '#71717a', '&:hover': { color: '#ef4444' } }}>
+                <LogoutIcon sx={{ fontSize: 18 }} />
               </IconButton>
             </Tooltip>
           </Box>
@@ -561,7 +595,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             '& .MuiDrawer-paper': {
               width: DRAWER_WIDTH,
               boxSizing: 'border-box',
-              borderRight: '1px solid #1e293b'
+              borderRight: '1px solid #27272a'
             }
           }}
           open
@@ -578,8 +612,8 @@ export function AppShell({ children }: { children: ReactNode }) {
           p: { xs: 2, sm: 3, md: 3.5 },
           width: { md: `calc(100% - ${DRAWER_WIDTH}px)` },
           minWidth: 0,
-          mt: { xs: '58px', md: '64px' },
-          minHeight: 'calc(100vh - 64px)',
+          mt: { xs: '52px', md: '54px' },
+          minHeight: 'calc(100vh - 54px)',
           boxSizing: 'border-box'
         }}
       >

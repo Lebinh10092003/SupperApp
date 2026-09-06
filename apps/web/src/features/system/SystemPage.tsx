@@ -96,10 +96,10 @@ export default function SystemPage() {
         action={
           <Button
             variant="contained"
-            startIcon={<RefreshIcon />}
+            startIcon={<RefreshIcon sx={{ fontSize: 16 }} />}
             onClick={checkStatus}
             disabled={loading}
-            sx={{ bgcolor: '#2563eb' }}
+            sx={{ bgcolor: '#18181b', color: '#ffffff', '&:hover': { bgcolor: '#27272a' }, fontWeight: 600, fontSize: '0.8125rem', textTransform: 'none', borderRadius: '6px' }}
           >
             Kiểm tra kết nối
           </Button>
@@ -107,32 +107,33 @@ export default function SystemPage() {
       />
 
       {/* Main Health Banner */}
-      <Card sx={{ mb: 3, bgcolor: '#0f172a', color: '#fff', borderRadius: 3 }}>
+      <Card sx={{ mb: 3, bgcolor: '#09090b', color: '#ffffff', borderRadius: '8px', border: '1px solid #27272a' }}>
         <CardContent sx={{ p: 3 }}>
           <Grid container spacing={2} alignItems="center">
             <Grid size={{ xs: 12, md: 8 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
                 <Box
                   sx={{
-                    width: 12,
-                    height: 12,
+                    width: 10,
+                    height: 10,
                     borderRadius: '50%',
                     bgcolor: '#10b981',
-                    boxShadow: '0 0 12px #10b981'
+                    boxShadow: '0 0 10px #10b981'
                   }}
                 />
-                <Typography variant="h6" fontWeight={800} sx={{ color: '#fff' }}>
+                <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#ffffff', letterSpacing: '-0.01em' }}>
                   Tất cả các dịch vụ đang hoạt động bình thường
                 </Typography>
               </Box>
-              <Typography variant="body2" sx={{ color: '#94a3b8' }}>
+              <Typography variant="body2" sx={{ color: '#a1a1aa', fontSize: '0.8125rem' }}>
                 Hệ thống School Intelligence Platform phiên bản v1.0.0 • Triển khai tại khu vực asia-southeast1
               </Typography>
             </Grid>
             <Grid size={{ xs: 12, md: 4 }} sx={{ textAlign: { xs: 'left', md: 'right' } }}>
               <Chip
                 label="Hạ tầng ổn định 99.9%"
-                sx={{ bgcolor: 'rgba(16, 185, 129, 0.2)', color: '#34d399', fontWeight: 700 }}
+                size="small"
+                sx={{ bgcolor: '#27272a', color: '#10b981', border: '1px solid #3f3f46', fontWeight: 600, fontSize: '0.75rem' }}
               />
             </Grid>
           </Grid>
@@ -140,44 +141,44 @@ export default function SystemPage() {
       </Card>
 
       {/* Service Cards Grid */}
-      <Typography variant="h6" fontWeight={800} sx={{ mb: 2 }}>
-        🔌 Các dịch vụ thành phần
+      <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#09090b', mb: 2, letterSpacing: '-0.01em' }}>
+        Các dịch vụ thành phần
       </Typography>
       <Grid container spacing={2.5} sx={{ mb: 3 }}>
         {services.map((svc) => (
           <Grid key={svc.name} size={{ xs: 12, md: 6 }}>
-            <Card sx={{ height: '100%', borderRadius: 3 }}>
+            <Card sx={{ height: '100%', borderRadius: '8px', border: '1px solid #e4e4e7', boxShadow: '0 1px 2px 0 rgba(0,0,0,0.03)', bgcolor: '#ffffff' }}>
               <CardContent sx={{ p: 2.5 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <Box sx={{ p: 1, bgcolor: '#f1f5f9', borderRadius: 2, display: 'grid', placeItems: 'center' }}>
+                    <Box sx={{ p: 1, bgcolor: '#f4f4f5', borderRadius: '6px', display: 'grid', placeItems: 'center' }}>
                       {svc.icon}
                     </Box>
                     <Box>
-                      <Typography variant="subtitle1" fontWeight={800} sx={{ color: '#0f172a' }}>
+                      <Typography variant="subtitle2" fontWeight={700} sx={{ color: '#09090b' }}>
                         {svc.name}
                       </Typography>
-                      <Typography variant="caption" sx={{ color: '#64748b' }}>
+                      <Typography variant="caption" sx={{ color: '#71717a' }}>
                         {svc.category}
                       </Typography>
                     </Box>
                   </Box>
                   <Chip
-                    icon={<CheckCircleIcon sx={{ fontSize: '14px !important' }} />}
+                    icon={<CheckCircleIcon sx={{ fontSize: '13px !important' }} />}
                     label="Hoạt động"
                     size="small"
-                    sx={{ bgcolor: '#ecfdf5', color: '#059669', fontWeight: 700 }}
+                    sx={{ bgcolor: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0', fontWeight: 600, fontSize: '0.75rem', height: 22 }}
                   />
                 </Box>
-                <Typography variant="body2" sx={{ color: '#475569', mb: 2 }}>
+                <Typography variant="body2" sx={{ color: '#71717a', mb: 2, fontSize: '0.8125rem' }}>
                   {svc.desc}
                 </Typography>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', pt: 1, borderTop: '1px solid #f1f5f9' }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', pt: 1.5, borderTop: '1px solid #e4e4e7' }}>
                   <Typography variant="caption" color="text.secondary">
-                    Độ trễ phản hồi: <strong>{svc.latency}</strong>
+                    Độ trễ phản hồi: <strong style={{ color: '#09090b' }}>{svc.latency}</strong>
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    Uptime: <strong>100%</strong>
+                    Uptime: <strong style={{ color: '#09090b' }}>100%</strong>
                   </Typography>
                 </Box>
               </CardContent>
@@ -187,27 +188,27 @@ export default function SystemPage() {
       </Grid>
 
       {/* Configuration Metadata */}
-      <Card sx={{ borderRadius: 3 }}>
+      <Card sx={{ borderRadius: '8px', border: '1px solid #e4e4e7', boxShadow: '0 1px 2px 0 rgba(0,0,0,0.03)', bgcolor: '#ffffff' }}>
         <CardContent sx={{ p: 3 }}>
-          <Typography variant="h6" fontWeight={800} sx={{ mb: 2 }}>
-            ⚙️ Cấu hình môi trường & Namespace
+          <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#09090b', mb: 2, letterSpacing: '-0.01em' }}>
+            Cấu hình môi trường & Namespace
           </Typography>
           <Grid container spacing={2}>
             <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-              <Typography variant="caption" color="text.secondary">Mã trường (School ID)</Typography>
-              <Typography variant="body2" fontWeight={700}>giang-vo</Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Mã trường (School ID)</Typography>
+              <Typography variant="body2" fontWeight={600} sx={{ color: '#09090b', mt: 0.5 }}>giang-vo</Typography>
             </Grid>
             <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-              <Typography variant="caption" color="text.secondary">Firestore Root Namespace</Typography>
-              <Typography variant="body2" fontWeight={700}>siSchools/giang-vo</Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Firestore Root Namespace</Typography>
+              <Typography variant="body2" fontWeight={600} sx={{ color: '#09090b', mt: 0.5 }}>siSchools/giang-vo</Typography>
             </Grid>
             <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-              <Typography variant="caption" color="text.secondary">Google Workspace Domain</Typography>
-              <Typography variant="body2" fontWeight={700}>thcs-giangvo.edu.vn</Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Google Workspace Domain</Typography>
+              <Typography variant="body2" fontWeight={600} sx={{ color: '#09090b', mt: 0.5 }}>thcs-giangvo.edu.vn</Typography>
             </Grid>
             <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-              <Typography variant="caption" color="text.secondary">Node.js Engine</Typography>
-              <Typography variant="body2" fontWeight={700}>v22.20.0</Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Node.js Engine</Typography>
+              <Typography variant="body2" fontWeight={600} sx={{ color: '#09090b', mt: 0.5 }}>v22.20.0</Typography>
             </Grid>
           </Grid>
         </CardContent>

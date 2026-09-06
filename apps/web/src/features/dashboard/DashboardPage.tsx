@@ -50,66 +50,58 @@ interface KpiItemProps {
   deltaPositive?: boolean;
   subtitle?: string;
   icon: React.ReactNode;
-  color: string;
-  bgLight: string;
   onClick?: () => void;
 }
 
-const CardK = ({ title, value, delta, deltaPositive = true, subtitle, icon, color, bgLight, onClick }: KpiItemProps) => (
+const CardK = ({ title, value, delta, deltaPositive = true, subtitle, icon, onClick }: KpiItemProps) => (
   <Card
     onClick={onClick}
     sx={{
       height: '100%',
-      borderRadius: 3,
-      border: '1px solid #e2e8f0',
+      borderRadius: 2,
+      border: '1px solid #e4e4e7',
+      bgcolor: '#ffffff',
+      boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
       cursor: onClick ? 'pointer' : 'default',
-      transition: 'all 0.2s ease',
+      transition: 'all 0.15s ease-in-out',
       '&:hover': onClick
         ? {
-            transform: 'translateY(-3px)',
-            boxShadow: '0 12px 20px -5px rgba(0, 0, 0, 0.08)'
+            borderColor: '#a1a1aa',
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
           }
         : {}
     }}
   >
-    <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5 }}>
-        <Typography color="text.secondary" variant="body2" sx={{ fontWeight: 700, fontSize: '0.8125rem' }}>
+    <CardContent sx={{ p: 2.25, '&:last-child': { pb: 2.25 } }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+        <Typography variant="caption" sx={{ fontWeight: 600, color: '#71717a', fontSize: '0.72rem', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
           {title}
         </Typography>
-        <Box
-          sx={{
-            width: 36,
-            height: 36,
-            borderRadius: 2,
-            bgcolor: bgLight,
-            color: color,
-            display: 'grid',
-            placeItems: 'center'
-          }}
-        >
+        <Box sx={{ color: '#71717a', display: 'flex', alignItems: 'center' }}>
           {icon}
         </Box>
       </Box>
 
-      <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, my: 0.5 }}>
-        <Typography variant="h4" fontWeight={900} sx={{ color: '#0f172a', letterSpacing: '-0.02em' }}>
+      <Box sx={{ my: 0.5 }}>
+        <Typography variant="h4" fontWeight={700} sx={{ color: '#09090b', letterSpacing: '-0.03em', fontSize: '1.75rem', lineHeight: 1.2 }}>
           {value ?? '0'}
         </Typography>
+      </Box>
+
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.75, flexWrap: 'wrap' }}>
         {delta && (
           <Typography
             variant="caption"
-            fontWeight={800}
-            sx={{ color: deltaPositive ? '#16a34a' : '#dc2626' }}
+            fontWeight={600}
+            sx={{ color: deltaPositive ? '#16a34a' : '#e11d48', fontSize: '0.72rem' }}
           >
             {delta}
           </Typography>
         )}
+        <Typography variant="caption" sx={{ color: '#a1a1aa', fontSize: '0.72rem' }}>
+          • {subtitle || 'Classroom'}
+        </Typography>
       </Box>
-
-      <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600 }}>
-        {subtitle || 'Dữ liệu chuẩn hóa trường học'}
-      </Typography>
     </CardContent>
   </Card>
 );
@@ -273,50 +265,61 @@ export default function DashboardPage() {
         </Alert>
       )}
 
-      {/* Lối tắt Điều Hành Nhanh */}
-      <Box sx={{ display: 'flex', gap: 1.5, mb: 3, overflowX: 'auto', pb: 1 }}>
+      {/* Lối tắt Điều Hành Nhanh (shadcn Action Bar) */}
+      <Box sx={{ display: 'flex', gap: 1, mb: 3, overflowX: 'auto', pb: 0.5 }}>
         <Button
           variant="contained"
-          startIcon={<GridViewIcon />}
+          size="small"
+          startIcon={<GridViewIcon sx={{ fontSize: 16 }} />}
           onClick={() => navigate('/executive')}
-          sx={{ bgcolor: '#0f172a', whiteSpace: 'nowrap' }}
+          sx={{ bgcolor: '#18181b', color: '#fafafa', whiteSpace: 'nowrap', fontWeight: 500, '&:hover': { bgcolor: '#27272a' } }}
         >
           Executive Heatmap Lớp × Môn
         </Button>
 
         <Button
           variant="outlined"
-          startIcon={<PersonSearchIcon />}
+          size="small"
+          startIcon={<PersonSearchIcon sx={{ fontSize: 16 }} />}
           onClick={() => navigate('/students/360')}
-          sx={{ whiteSpace: 'nowrap', bgcolor: '#fff', borderColor: '#cbd5e1' }}
+          sx={{ whiteSpace: 'nowrap', bgcolor: '#fff', borderColor: '#e4e4e7', color: '#18181b', fontWeight: 500, '&:hover': { bgcolor: '#f4f4f5' } }}
         >
           Hồ sơ 360° Học sinh
         </Button>
 
         <Button
           variant="outlined"
-          startIcon={<CompareArrowsIcon />}
+          size="small"
+          startIcon={<CompareArrowsIcon sx={{ fontSize: 16 }} />}
           onClick={() => navigate('/classes/compare')}
-          sx={{ whiteSpace: 'nowrap', bgcolor: '#fff', borderColor: '#cbd5e1' }}
+          sx={{ whiteSpace: 'nowrap', bgcolor: '#fff', borderColor: '#e4e4e7', color: '#18181b', fontWeight: 500, '&:hover': { bgcolor: '#f4f4f5' } }}
         >
           So sánh Lớp học Đối đầu
         </Button>
 
         <Button
           variant="outlined"
-          startIcon={<AutoStoriesIcon />}
+          size="small"
+          startIcon={<AutoStoriesIcon sx={{ fontSize: 16 }} />}
           onClick={() => navigate('/subjects/analytics')}
-          sx={{ whiteSpace: 'nowrap', bgcolor: '#fff', borderColor: '#cbd5e1' }}
+          sx={{ whiteSpace: 'nowrap', bgcolor: '#fff', borderColor: '#e4e4e7', color: '#18181b', fontWeight: 500, '&:hover': { bgcolor: '#f4f4f5' } }}
         >
           Phân tích Môn học
         </Button>
 
         <Button
           variant="outlined"
-          color="error"
-          startIcon={<NotificationsActiveIcon />}
+          size="small"
+          startIcon={<NotificationsActiveIcon sx={{ fontSize: 16 }} />}
           onClick={() => navigate('/alerts')}
-          sx={{ whiteSpace: 'nowrap', bgcolor: '#fff' }}
+          sx={{
+            whiteSpace: 'nowrap',
+            bgcolor: '#ffffff',
+            borderColor: Number(k?.openAlerts?.value || 0) > 0 ? '#fecaca' : '#e4e4e7',
+            color: Number(k?.openAlerts?.value || 0) > 0 ? '#dc2626' : '#18181b',
+            fontWeight: 500,
+            '&:hover': { bgcolor: Number(k?.openAlerts?.value || 0) > 0 ? '#fef2f2' : '#f4f4f5' }
+          }}
         >
           Trung tâm Cảnh báo ({k?.openAlerts?.value ?? 0})
         </Button>
@@ -326,10 +329,10 @@ export default function DashboardPage() {
       {Number(k?.dormantClassrooms?.value || 0) > 0 && (
         <Alert
           severity="warning"
-          icon={<SleepIcon />}
-          sx={{ mb: 3 }}
+          icon={<SleepIcon sx={{ fontSize: 18 }} />}
+          sx={{ mb: 3, borderRadius: 1.5, border: '1px solid #fed7aa', bgcolor: '#fffbeb' }}
           action={
-            <Button color="inherit" size="small" onClick={() => navigate('/classroom')}>
+            <Button color="inherit" size="small" onClick={() => navigate('/classroom')} sx={{ fontWeight: 600 }}>
               Xem chi tiết
             </Button>
           }
@@ -338,127 +341,121 @@ export default function DashboardPage() {
         </Alert>
       )}
 
-      {/* Lưới Thẻ KPI Điều Hành 8 Chỉ Số Thực (100% SSOT Đồng Bộ 1:1) */}
-      <Grid container spacing={2.5} sx={{ mb: 3 }}>
+      {/* Lưới Thẻ KPI Điều Hành 8 Chỉ Số Thực (100% SSOT Đồng Bộ 1:1 theo shadcn Dashboard 01) */}
+      <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <CardK
-            title="KHÓA HỌC CLASSROOM"
+            title="Khóa học Classroom"
             value={k?.totalCourses?.value ?? k?.activeClassrooms?.value ?? 0}
             delta={k?.activeClassrooms?.delta}
-            subtitle={isSynced ? 'Lớp học số đang hoạt động' : 'Chờ đồng bộ Classroom'}
-            icon={<AutoStoriesIcon />}
-            color="#2563eb"
-            bgLight="#eff6ff"
+            subtitle={isSynced ? 'Lớp số hoạt động' : 'Chờ đồng bộ'}
+            icon={<AutoStoriesIcon sx={{ fontSize: 18 }} />}
             onClick={() => navigate('/classroom')}
           />
         </Grid>
 
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <CardK
-            title="GIÁO VIÊN GIẢNG DẠY"
+            title="Giáo viên giảng dạy"
             value={k?.totalTeachers?.value ?? 0}
             delta={k?.totalTeachers?.delta || `${k?.totalTeachers?.value ?? 0} Giáo viên`}
-            subtitle="Đồng bộ từ Google Classroom"
-            icon={<BadgeIcon />}
-            color="#059669"
-            bgLight="#ecfdf5"
+            subtitle="Từ Classroom & Danh bạ"
+            icon={<BadgeIcon sx={{ fontSize: 18 }} />}
             onClick={() => navigate('/teachers')}
           />
         </Grid>
 
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <CardK
-            title="HỌC SINH TOÀN TRƯỜNG"
+            title="Học sinh toàn trường"
             value={k?.totalStudents?.value ?? 0}
             delta={k?.totalStudents?.delta || `${k?.totalStudents?.value ?? 0} Học sinh`}
-            subtitle="Danh sách từ Classroom"
-            icon={<PeopleAltIcon />}
-            color="#0284c7"
-            bgLight="#e0f2fe"
+            subtitle="Từ Google Classroom"
+            icon={<PeopleAltIcon sx={{ fontSize: 18 }} />}
             onClick={() => navigate('/students')}
           />
         </Grid>
 
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <CardK
-            title="LỚP HÀNH CHÍNH"
+            title="Lớp hành chính"
             value={k?.totalClasses?.value ?? 0}
-            delta={k?.totalClasses?.delta || `${k?.totalClasses?.value ?? 0} Lớp học`}
-            subtitle="Phân bổ khối 6, 7, 8, 9"
-            icon={<SchoolIcon />}
-            color="#4f46e5"
-            bgLight="#eef2ff"
+            delta={k?.totalClasses?.delta || `${k?.totalClasses?.value ?? 0} Lớp`}
+            subtitle="Khối 6, 7, 8, 9"
+            icon={<SchoolIcon sx={{ fontSize: 18 }} />}
             onClick={() => navigate('/classes')}
           />
         </Grid>
 
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <CardK
-            title="TỶ LỆ HOÀN THÀNH BÀI TẬP"
+            title="Tỷ lệ hoàn thành bài"
             value={k?.completionRate?.value != null ? `${k.completionRate.value}%` : '0%'}
             delta={k?.completionRate?.delta}
             deltaPositive={Number(k?.completionRate?.value || 0) >= 80}
-            subtitle={isSynced ? 'Tiến độ nộp bài thực tế' : 'Chưa có bài nộp'}
-            icon={<CheckCircleIcon />}
-            color="#16a34a"
-            bgLight="#dcfce7"
+            subtitle={isSynced ? 'Tiến độ nộp bài' : 'Chưa có bài'}
+            icon={<CheckCircleIcon sx={{ fontSize: 18 }} />}
             onClick={() => navigate('/executive')}
           />
         </Grid>
 
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <CardK
-            title="TỶ LỆ NỘP ĐÚNG HẠN"
+            title="Tỷ lệ nộp đúng hạn"
             value={k?.onTimeRate?.value != null ? `${k.onTimeRate.value}%` : '0%'}
             delta={k?.onTimeRate?.delta}
             deltaPositive={Number(k?.onTimeRate?.value || 0) >= 80}
-            subtitle={isSynced ? 'Nộp trước hạn chót' : 'Chưa có số liệu'}
-            icon={<AssignmentIcon />}
-            color="#0891b2"
-            bgLight="#cffafe"
+            subtitle={isSynced ? 'Đúng hạn chót' : 'Chưa có số liệu'}
+            icon={<AssignmentIcon sx={{ fontSize: 18 }} />}
           />
         </Grid>
 
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <CardK
-            title="BÀI CHƯA CHẤM / TỒN ĐỌNG"
+            title="Bài chưa chấm / Tồn đọng"
             value={k?.ungradedAssignments?.value ?? 0}
             delta={k?.ungradedAssignments?.delta}
             deltaPositive={Number(k?.ungradedAssignments?.value || 0) === 0}
-            subtitle="Đang chờ giáo viên trả điểm"
-            icon={<WarningAmberIcon />}
-            color="#ea580c"
-            bgLight="#ffedd5"
+            subtitle="Chờ giáo viên chấm"
+            icon={<WarningAmberIcon sx={{ fontSize: 18 }} />}
             onClick={() => navigate('/classroom')}
           />
         </Grid>
 
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <CardK
-            title="CẢNH BÁO CẦN XỬ LÝ"
+            title="Cảnh báo cần xử lý"
             value={k?.openAlerts?.value ?? 0}
             delta={k?.openAlerts?.delta}
             deltaPositive={Number(k?.openAlerts?.value || 0) === 0}
-            subtitle="Được quét tự động theo quy tắc"
-            icon={<NotificationsActiveIcon />}
-            color="#e11d48"
-            bgLight="#ffe4e6"
+            subtitle="Quét tự động"
+            icon={<NotificationsActiveIcon sx={{ fontSize: 18 }} />}
             onClick={() => navigate('/alerts')}
           />
         </Grid>
       </Grid>
 
-      {/* Biểu đồ Xu hướng Hoàn thành theo thời gian */}
-      <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', p: 3, mb: 3 }}>
+      {/* Biểu đồ Xu hướng Hoàn thành theo thời gian (shadcn Chart Block) */}
+      <Card sx={{ borderRadius: 2, border: '1px solid #e4e4e7', bgcolor: '#ffffff', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)', p: 2.5, mb: 3 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 1 }}>
-          <Typography variant="h6" fontWeight={800} color="#0f172a">
-            Xu Hướng Học Tập Toàn Trường
-          </Typography>
+          <Box>
+            <Typography variant="subtitle1" fontWeight={600} sx={{ color: '#09090b', letterSpacing: '-0.02em', lineHeight: 1.2 }}>
+              Xu Hướng Học Tập Toàn Trường
+            </Typography>
+            <Typography variant="caption" sx={{ color: '#71717a' }}>
+              Theo dõi tiến độ hoàn thành và nộp bài đúng hạn
+            </Typography>
+          </Box>
           <Chip
-            label={trendData.length > 0 ? 'Dữ liệu thời gian thực' : 'Đang chờ chu kỳ đồng bộ tiếp theo'}
-            color={trendData.length > 0 ? 'success' : 'default'}
+            label={trendData.length > 0 ? 'Dữ liệu thời gian thực' : 'Đang chờ chu kỳ đồng bộ'}
             size="small"
-            sx={{ fontWeight: 700 }}
+            sx={{
+              fontWeight: 500,
+              fontSize: '0.72rem',
+              bgcolor: trendData.length > 0 ? '#f0fdf4' : '#f4f4f5',
+              color: trendData.length > 0 ? '#166534' : '#71717a',
+              border: trendData.length > 0 ? '1px solid #bbf7d0' : '1px solid #e4e4e7'
+            }}
           />
         </Box>
 
@@ -466,9 +463,9 @@ export default function DashboardPage() {
           <Box sx={{ width: '100%', height: 280 }}>
             <ResponsiveContainer>
               <LineChart data={trendData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                <XAxis dataKey="date" stroke="#94a3b8" />
-                <YAxis yAxisId="left" domain={[0, 100]} stroke="#94a3b8" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#f4f4f5" />
+                <XAxis dataKey="date" stroke="#a1a1aa" fontSize={11} tickLine={false} />
+                <YAxis yAxisId="left" domain={[0, 100]} stroke="#a1a1aa" fontSize={11} tickLine={false} />
                 <Tooltip />
                 <Legend />
                 <Line
@@ -476,27 +473,29 @@ export default function DashboardPage() {
                   type="monotone"
                   dataKey="completion"
                   name="Tỷ lệ nộp bài (%)"
-                  stroke="#16a34a"
-                  strokeWidth={3}
+                  stroke="#18181b"
+                  strokeWidth={2}
+                  dot={{ r: 3, fill: '#18181b' }}
                 />
                 <Line
                   yAxisId="left"
                   type="monotone"
                   dataKey="onTime"
                   name="Tỷ lệ đúng hạn (%)"
-                  stroke="#0891b2"
+                  stroke="#2563eb"
                   strokeWidth={2}
+                  dot={{ r: 3, fill: '#2563eb' }}
                 />
               </LineChart>
             </ResponsiveContainer>
           </Box>
         ) : (
-          <Box sx={{ py: 6, textAlign: 'center', bgcolor: '#f8fafc', borderRadius: 2 }}>
-            <Typography variant="body2" fontWeight={600} color="#64748b" sx={{ mb: 1 }}>
+          <Box sx={{ py: 6, textAlign: 'center', bgcolor: '#fcfcfd', border: '1px dashed #e4e4e7', borderRadius: 2 }}>
+            <Typography variant="body2" fontWeight={500} color="#09090b" sx={{ mb: 0.5, fontSize: '0.84rem' }}>
               Chưa có dữ liệu lịch sử theo dõi
             </Typography>
-            <Typography variant="caption" color="#94a3b8">
-              Biểu đồ sẽ tự động hiển thị tiến trình khi dữ liệu bài nộp được tích lũy theo từng chu kỳ đồng bộ.
+            <Typography variant="caption" color="#71717a">
+              Biểu đồ sẽ tự động hiển thị tiến trình khi dữ liệu bài nộp được tích lũy theo từng chu kỳ đồng bộ Google Classroom.
             </Typography>
           </Box>
         )}
