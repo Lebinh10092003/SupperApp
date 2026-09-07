@@ -7,6 +7,7 @@ import { col, resolveServiceAccount } from '../../core/firebase.js';
 import { env } from '../../config/env.js';
 import { syncAllCourses } from './classroom.service.js';
 import { rebuildDashboard } from '../dashboard/dashboard.service.js';
+import { cleanCourseName } from '../catalog/catalog.service.js';
 
 export const classroomRouter = Router();
 
@@ -40,7 +41,10 @@ classroomRouter.get(
   requireCapability('VIEW_DASHBOARD'),
   asyncRoute(async (_q, r) => {
     const s = await col('courses').get();
-    const items = s.docs.map(d => ({ id: d.id, ...d.data() }));
+    const items = s.docs.map(d => {
+      const data = d.data();
+      return { id: d.id, ...data, name: cleanCourseName(data.name) || data.name };
+    });
     r.json({ total: items.length, items });
   })
 );
@@ -109,10 +113,9 @@ classroomRouter.post(
       });
     }
 
-    // 2. Kiểm tra Mode B (DWD Service Account cho toàn trường)
+    // 2. Kiểm tra Mode B (DWD Service Account cho toàn trường có file private key)
     const sa = resolveServiceAccount();
-    const dwdEmail = sa?.data?.client_email || env.DWD_SERVICE_ACCOUNT_EMAIL;
-    if (dwdEmail && env.WORKSPACE_ADMIN_SUBJECT) {
+    if (sa?.data?.private_key && env.WORKSPACE_ADMIN_SUBJECT) {
       const syncResult = await syncAllCourses([env.WORKSPACE_ADMIN_SUBJECT], undefined, 'DWD_SERVICE_ACCOUNT');
       await rebuildDashboard().catch(() => null);
       return res.json({

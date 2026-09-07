@@ -146,25 +146,11 @@ analyticsRouter.get(
 analyticsRouter.get(
   '/compare',
   firebaseAuth,
-  requireCapability('VIEW_EXECUTIVE_BI'),
-  asyncRoute(async (_req, res) => {
-    const classesSnap = await col('classes').limit(100).get();
-    const items = classesSnap.docs.map(d => {
-      const data = d.data();
-      return {
-        id: d.id,
-        className: data.className || d.id,
-        grade: data.grade || null,
-        completionRate: data.completionRate || 0,
-        onTimeRate: data.onTimeRate || 0,
-        avgScore: data.averageScore || data.avgScore || null,
-        activeStudents: data.studentCount || data.expectedStudents || 0,
-        courseCount: data.courseCount || (data.courses?.length || 0),
-        totalCoursework: data.totalCoursework || 0
-      };
-    });
-
-    items.sort((a, b) => (b.completionRate || 0) - (a.completionRate || 0));
+  requireCapability('VIEW_DASHBOARD'),
+  asyncRoute(async (req, res) => {
+    const grade = String(req.query.grade || 'all');
+    const { getEnrichedClasses } = await import('../classes/classes.routes.js');
+    const items = await getEnrichedClasses(grade);
     res.json({ items });
   })
 );

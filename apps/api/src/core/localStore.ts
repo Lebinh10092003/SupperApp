@@ -1,4 +1,11 @@
 // In-memory Firestore-compatible mock store for local development without credentials
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const PERSISTENCE_FILE = path.resolve(__dirname, '../../.local-db.json');
 
 function resolveFieldValues(target: any, patch: any): any {
   if (!patch || typeof patch !== 'object') return patch;
@@ -17,11 +24,24 @@ function resolveFieldValues(target: any, patch: any): any {
       // Check for FieldValue.arrayUnion
       if (
         (value as any)._methodName === 'arrayUnion' ||
-        Array.isArray((value as any)._elements)
+        Array.isArray((value as any)._elements) ||
+        Array.isArray((value as any).elements)
+      ) {
+        const existingArr = Array.isArray(result[key])
+          ? result[key]
+          : (result[key]?.elements && Array.isArray(result[key].elements) ? result[key].elements : []);
+        const toAdd = (value as any)._elements || (value as any).elements || [];
+        result[key] = Array.from(new Set([...existingArr, ...toAdd]));
+        continue;
+      }
+      // Check for FieldValue.arrayRemove
+      if (
+        (value as any)._methodName === 'arrayRemove' ||
+        (value as any).constructor?.name === 'ArrayRemove'
       ) {
         const existingArr = Array.isArray(result[key]) ? result[key] : [];
-        const toAdd = (value as any)._elements || [];
-        result[key] = Array.from(new Set([...existingArr, ...toAdd]));
+        const toRemove = new Set((value as any)._elements || (value as any).elements || []);
+        result[key] = existingArr.filter((x: any) => !toRemove.has(x));
         continue;
       }
       // Check for FieldValue.increment
@@ -39,6 +59,11 @@ function resolveFieldValues(target: any, patch: any): any {
         (value as any).constructor?.name === 'DeleteTransform'
       ) {
         delete result[key];
+        continue;
+      }
+      // Unwrap objects that only contain { elements: [...] }
+      if (Array.isArray((value as any).elements) && Object.keys(value).length === 1) {
+        result[key] = (value as any).elements;
         continue;
       }
     }
@@ -97,11 +122,25 @@ export class LocalDocRef {
 
   async get() {
     const data = this.store.get(this.id);
+    const unwrapElements = (obj: any): any => {
+      if (!obj || typeof obj !== 'object') return obj;
+      if (Array.isArray(obj)) return obj.map(unwrapElements);
+      if (Array.isArray(obj.elements) && Object.keys(obj).length === 1) return obj.elements.map(unwrapElements);
+      const res: any = {};
+      for (const [k, v] of Object.entries(obj)) {
+        if (v && typeof v === 'object' && Array.isArray((v as any).elements) && Object.keys(v).length === 1) {
+          res[k] = (v as any).elements.map(unwrapElements);
+        } else {
+          res[k] = unwrapElements(v);
+        }
+      }
+      return res;
+    };
     return {
       id: this.id,
       ref: this,
       exists: data !== undefined,
-      data: () => (data ? JSON.parse(JSON.stringify(data)) : undefined)
+      data: () => (data ? unwrapElements(JSON.parse(JSON.stringify(data))) : undefined)
     };
   }
 
@@ -114,16 +153,19 @@ export class LocalDocRef {
       const resolved = resolveFieldValues({}, data);
       this.store.set(this.id, resolved);
     }
+    this.db.saveToDisk();
   }
 
   async update(data: any) {
     const existing = this.store.get(this.id) || {};
     const updated = resolveFieldValues(existing, data);
     this.store.set(this.id, updated);
+    this.db.saveToDisk();
   }
 
   async delete() {
     this.store.delete(this.id);
+    this.db.saveToDisk();
   }
 }
 
@@ -276,6 +318,47 @@ export class LocalBulkWriter {
 
 export class LocalDb {
   private collections = new Map<string, Map<string, any>>();
+  private saveTimeout: any = null;
+
+  constructor() {
+    this.loadFromDisk();
+  }
+
+  private loadFromDisk() {
+    try {
+      if (fs.existsSync(PERSISTENCE_FILE)) {
+        const raw = fs.readFileSync(PERSISTENCE_FILE, 'utf-8');
+        const json = JSON.parse(raw);
+        for (const [colName, docs] of Object.entries(json)) {
+          const docMap = new Map<string, any>();
+          for (const [docId, docData] of Object.entries(docs as Record<string, any>)) {
+            docMap.set(docId, docData);
+          }
+          this.collections.set(colName, docMap);
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load local DB persistence file:', e);
+    }
+  }
+
+  saveToDisk() {
+    if (this.saveTimeout) clearTimeout(this.saveTimeout);
+    this.saveTimeout = setTimeout(() => {
+      try {
+        const exportData: Record<string, Record<string, any>> = {};
+        for (const [colName, docMap] of this.collections.entries()) {
+          exportData[colName] = {};
+          for (const [docId, docData] of docMap.entries()) {
+            exportData[colName][docId] = docData;
+          }
+        }
+        fs.writeFileSync(PERSISTENCE_FILE, JSON.stringify(exportData, null, 2), 'utf-8');
+      } catch (e) {
+        console.warn('Failed to save local DB persistence file:', e);
+      }
+    }, 100);
+  }
 
   collection(name: string): LocalCollectionRef {
     const normalized = name.replace(/^\/+|\/+$/g, '');

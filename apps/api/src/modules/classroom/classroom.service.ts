@@ -2,7 +2,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { env } from '../../config/env.js';
 import { col } from '../../core/firebase.js';
 import { googleJson } from '../../integrations/dwd.js';
-import { autoDetectClass, autoDetectSubject } from '../catalog/catalog.service.js';
+import { autoDetectClass, autoDetectSubject, cleanCourseName } from '../catalog/catalog.service.js';
 import { evaluateAlertRules } from '../alerts/alert-engine.service.js';
 
 const scopes = [
@@ -190,9 +190,13 @@ export async function syncCourse(course: Course, subject = env.WORKSPACE_ADMIN_S
     }
   }
 
+  const cleanedCourseName = cleanCourseName(course.name) || course.name;
+
   await ref.set(
     {
       ...course,
+      name: cleanedCourseName,
+      originalName: course.name,
       classId: classId || null,
       className: className || null,
       grade: grade || null,
@@ -262,16 +266,20 @@ export async function syncCourse(course: Course, subject = env.WORKSPACE_ADMIN_S
   }
 
   for (const x of work) {
-    writer.set(ref.collection('coursework').doc(x.id), { ...x, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    const cleanedTitle = cleanCourseName(x.title) || x.title;
+    writer.set(ref.collection('coursework').doc(x.id), { ...x, title: cleanedTitle, originalTitle: x.title, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
   }
   for (const x of materials) {
-    writer.set(ref.collection('materials').doc(x.id), { ...x, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    const cleanedTitle = cleanCourseName(x.title) || x.title;
+    writer.set(ref.collection('materials').doc(x.id), { ...x, title: cleanedTitle, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
   }
   for (const x of announcements) {
-    writer.set(ref.collection('announcements').doc(x.id), { ...x, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    const cleanedText = cleanCourseName(x.text) || x.text;
+    writer.set(ref.collection('announcements').doc(x.id), { ...x, text: cleanedText, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
   }
   for (const x of topics) {
-    writer.set(ref.collection('topics').doc(x.topicId || x.id), { ...x, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    const cleanedTopicName = cleanCourseName(x.name) || x.name;
+    writer.set(ref.collection('topics').doc(x.topicId || x.id), { ...x, name: cleanedTopicName, originalName: x.name, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
   }
 
   // Đồng bộ đầy đủ toàn bộ submissions (không giới hạn 50 bài)
@@ -307,7 +315,7 @@ export async function syncCourse(course: Course, subject = env.WORKSPACE_ADMIN_S
           {
             ...s,
             courseWorkId: item.id,
-            courseWorkTitle: item.title,
+            courseWorkTitle: cleanCourseName(item.title) || item.title,
             courseId: course.id,
             maxPoints: item.maxPoints || 10,
             dueDate: item.dueDate || null,

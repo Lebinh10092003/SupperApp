@@ -59,7 +59,7 @@ connectionsRouter.get(
 
     // 2. Kiểm tra Mode B (Google Workspace DWD)
     const sa = resolveServiceAccount();
-    const hasDwd = Boolean(sa?.data?.private_key || (env.WORKSPACE_DOMAIN && env.DWD_SERVICE_ACCOUNT_EMAIL));
+    const hasDwd = Boolean(sa?.data?.private_key);
 
     // 3. Đếm số khóa học thực tế đã đồng bộ
     const coursesSnap = await col('courses').get();
