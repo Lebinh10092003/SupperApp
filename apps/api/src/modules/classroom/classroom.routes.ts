@@ -61,7 +61,45 @@ classroomRouter.post(
       : (currentConnDoc.exists && currentConnDoc.data()?.accessToken ? currentConnDoc.data() : null);
 
     if (conn && conn.accessToken) {
-      const syncResult = await syncAllCourses([], conn.accessToken, conn.email || req.appUser!.email);
+      let activeToken = conn.accessToken;
+      const isExpired = conn.expiresAt && Date.now() > Number(conn.expiresAt) - 60000;
+      if (isExpired && conn.refreshToken) {
+        try {
+          const cfgDoc = await col('system').doc('oauthConfig').get();
+          const cfg = cfgDoc.exists ? cfgDoc.data() : null;
+          const clientId = cfg?.clientId || env.GOOGLE_OAUTH_CLIENT_ID;
+          const clientSecret = cfg?.clientSecret || env.GOOGLE_OAUTH_CLIENT_SECRET;
+          if (clientId && clientSecret && !clientId.includes('your-client-id')) {
+            const refreshRes = await fetch('https://oauth2.googleapis.com/token', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: new URLSearchParams({
+                client_id: clientId,
+                client_secret: clientSecret,
+                refresh_token: conn.refreshToken,
+                grant_type: 'refresh_token'
+              })
+            });
+            if (refreshRes.ok) {
+              const refreshData = (await refreshRes.json()) as any;
+              activeToken = refreshData.access_token;
+              const updateData = {
+                accessToken: activeToken,
+                expiresAt: Date.now() + (refreshData.expires_in || 3600) * 1000,
+                tokenExpiresAt: Date.now() + (refreshData.expires_in || 3600) * 1000
+              };
+              await Promise.all([
+                col('googleConnections').doc(req.appUser!.uid).set(updateData, { merge: true }),
+                col('googleConnections').doc('current').set(updateData, { merge: true })
+              ]);
+            }
+          }
+        } catch (e: any) {
+          console.warn('Auto token refresh notice:', e.message);
+        }
+      }
+
+      const syncResult = await syncAllCourses([], activeToken, conn.email || req.appUser!.email);
       await rebuildDashboard().catch(() => null);
       return res.json({
         ok: true,

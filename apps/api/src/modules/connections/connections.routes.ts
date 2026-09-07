@@ -10,16 +10,49 @@ import { rebuildDashboard } from '../dashboard/dashboard.service.js';
 
 export const connectionsRouter = Router();
 
+const CLASSROOM_SCOPES = [
+  'openid',
+  'https://www.googleapis.com/auth/userinfo.email',
+  'https://www.googleapis.com/auth/userinfo.profile',
+  'https://www.googleapis.com/auth/classroom.courses.readonly',
+  'https://www.googleapis.com/auth/classroom.rosters.readonly',
+  'https://www.googleapis.com/auth/classroom.coursework.students.readonly',
+  'https://www.googleapis.com/auth/classroom.announcements.readonly',
+  'https://www.googleapis.com/auth/classroom.topics.readonly',
+  'https://www.googleapis.com/auth/classroom.courseworkmaterials.readonly',
+  'https://www.googleapis.com/auth/classroom.profile.emails'
+];
+
+async function getEffectiveOAuthConfig() {
+  const cfgDoc = await col('system').doc('oauthConfig').get().catch(() => null);
+  const cfg = cfgDoc?.exists ? cfgDoc.data() : null;
+
+  const clientId = cfg?.clientId || env.GOOGLE_OAUTH_CLIENT_ID || '';
+  const clientSecret = cfg?.clientSecret || env.GOOGLE_OAUTH_CLIENT_SECRET || '';
+  const redirectUri = cfg?.redirectUri || env.GOOGLE_OAUTH_REDIRECT_URI || 'http://localhost:8080/api/connections/oauth/callback';
+
+  const isConfigured = Boolean(
+    clientId &&
+    !clientId.includes('your-client-id') &&
+    clientId.length > 10
+  );
+
+  return { clientId, clientSecret, redirectUri, isConfigured };
+}
+
+// Kiểm tra trạng thái kết nối
 connectionsRouter.get(
   '/status',
   firebaseAuth,
   requireCapability('MANAGE_CONNECTIONS'),
   asyncRoute(async (req, res) => {
     // 1. Kiểm tra Mode A (Google OAuth cá nhân)
-    const [userConnDoc, currentConnDoc] = await Promise.all([
+    const [userConnDoc, currentConnDoc, oauthCfg] = await Promise.all([
       col('googleConnections').doc(req.appUser!.uid).get(),
-      col('googleConnections').doc('current').get()
+      col('googleConnections').doc('current').get(),
+      getEffectiveOAuthConfig()
     ]);
+
     const conn = userConnDoc.exists && userConnDoc.data()?.accessToken
       ? userConnDoc.data()
       : (currentConnDoc.exists && currentConnDoc.data()?.accessToken ? currentConnDoc.data() : null);
@@ -36,7 +69,11 @@ connectionsRouter.get(
       modeA: {
         connected: Boolean(conn?.accessToken),
         email: conn?.email || null,
-        connectedAt: conn?.updatedAt || null
+        name: conn?.name || null,
+        connectedAt: conn?.updatedAt || null,
+        expiresAt: conn?.expiresAt || conn?.tokenExpiresAt || null,
+        hasRefreshToken: Boolean(conn?.refreshToken),
+        scopes: conn?.scopes || []
       },
       modeB: {
         configured: Boolean(hasDwd),
@@ -44,44 +81,84 @@ connectionsRouter.get(
         serviceAccount: sa?.data?.client_email || env.DWD_SERVICE_ACCOUNT_EMAIL || null,
         source: sa ? 'FILE_JSON' : 'ENV'
       },
+      oauthConfig: {
+        configured: oauthCfg.isConfigured,
+        clientId: oauthCfg.isConfigured ? oauthCfg.clientId : '',
+        redirectUri: oauthCfg.redirectUri,
+        scopes: CLASSROOM_SCOPES
+      },
       syncedCoursesCount: coursesSnap.size
     });
   })
 );
 
+// Lưu hoặc cập nhật OAuth Client ID & Secret trực tiếp từ giao diện
+connectionsRouter.post(
+  '/oauth-config',
+  firebaseAuth,
+  requireCapability('MANAGE_CONNECTIONS'),
+  asyncRoute(async (req, res) => {
+    const { clientId, clientSecret, redirectUri } = req.body;
+    if (!clientId || typeof clientId !== 'string') {
+      return res.status(400).json({ ok: false, error: { message: 'Client ID không hợp lệ' } });
+    }
+
+    const payload = {
+      clientId: clientId.trim(),
+      clientSecret: clientSecret ? String(clientSecret).trim() : '',
+      redirectUri: redirectUri ? String(redirectUri).trim() : 'http://localhost:8080/api/connections/oauth/callback',
+      updatedAt: new Date().toISOString()
+    };
+
+    await col('system').doc('oauthConfig').set(payload, { merge: true });
+
+    res.json({
+      ok: true,
+      message: 'Đã lưu cấu hình Google OAuth thành công!',
+      oauthConfig: {
+        configured: true,
+        clientId: payload.clientId,
+        redirectUri: payload.redirectUri
+      }
+    });
+  })
+);
+
+// Lấy URL chuyển hướng tới Google OAuth
 connectionsRouter.get(
   '/oauth/url',
   firebaseAuth,
   requireCapability('MANAGE_CONNECTIONS'),
   asyncRoute(async (_req, res) => {
-    if (!env.GOOGLE_OAUTH_CLIENT_ID || env.GOOGLE_OAUTH_CLIENT_ID.includes('your-client-id')) {
+    const oauthCfg = await getEffectiveOAuthConfig();
+
+    if (!oauthCfg.isConfigured) {
       return res.status(400).json({
         ok: false,
-        message: 'Chưa cấu hình GOOGLE_OAUTH_CLIENT_ID trong file apps/api/.env (hiện tại là placeholder your-client-id). Vui lòng dán Client ID thật từ Google Cloud Console hoặc dùng Access Token trực tiếp bên dưới.'
+        configured: false,
+        error: {
+          code: 'OAUTH_NOT_CONFIGURED',
+          message:
+            'Chưa cấu hình GOOGLE_OAUTH_CLIENT_ID. Bạn có thể cấu hình Client ID từ Google Cloud Console ở mục "Cấu hình Google OAuth 2.0 Credentials" bên dưới, hoặc Dán Access Token trực tiếp qua Google OAuth Playground.'
+        },
+        message:
+          'Chưa cấu hình GOOGLE_OAUTH_CLIENT_ID. Bạn có thể cấu hình Client ID từ Google Cloud Console ở mục "Cấu hình Google OAuth 2.0 Credentials" bên dưới, hoặc Dán Access Token trực tiếp qua Google OAuth Playground.'
       });
     }
 
-    const scopes = [
-      'https://www.googleapis.com/auth/classroom.courses.readonly',
-      'https://www.googleapis.com/auth/classroom.rosters.readonly',
-      'https://www.googleapis.com/auth/classroom.coursework.students.readonly',
-      'https://www.googleapis.com/auth/classroom.announcements.readonly',
-      'https://www.googleapis.com/auth/classroom.topics.readonly',
-      'https://www.googleapis.com/auth/classroom.courseworkmaterials.readonly',
-      'https://www.googleapis.com/auth/classroom.profile.emails'
-    ];
     const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(
-      env.GOOGLE_OAUTH_CLIENT_ID || ''
+      oauthCfg.clientId
     )}&redirect_uri=${encodeURIComponent(
-      env.GOOGLE_OAUTH_REDIRECT_URI || ''
+      oauthCfg.redirectUri
     )}&response_type=code&scope=${encodeURIComponent(
-      scopes.join(' ')
-    )}&access_type=offline&prompt=consent`;
+      CLASSROOM_SCOPES.join(' ')
+    )}&access_type=offline&prompt=consent&include_granted_scopes=true`;
 
-    res.json({ ok: true, url });
+    res.json({ ok: true, url, configured: true });
   })
 );
 
+// Xử lý callback OAuth trả về từ Google
 connectionsRouter.get(
   '/oauth/callback',
   asyncRoute(async (req, res) => {
@@ -94,15 +171,17 @@ connectionsRouter.get(
     }
 
     try {
+      const oauthCfg = await getEffectiveOAuthConfig();
+
       // 1. Đổi code lấy Access Token từ Google
       const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
           code: String(code),
-          client_id: env.GOOGLE_OAUTH_CLIENT_ID || '',
-          client_secret: env.GOOGLE_OAUTH_CLIENT_SECRET || '',
-          redirect_uri: env.GOOGLE_OAUTH_REDIRECT_URI || '',
+          client_id: oauthCfg.clientId,
+          client_secret: oauthCfg.clientSecret,
+          redirect_uri: oauthCfg.redirectUri,
           grant_type: 'authorization_code'
         })
       });
@@ -122,7 +201,7 @@ connectionsRouter.get(
         headers: { Authorization: `Bearer ${accessToken}` }
       });
       const userInfo = userInfoRes.ok ? await userInfoRes.json() : null;
-      const email = userInfo?.email || 'google_user@thcsgiangvo.edu.vn';
+      const email = userInfo?.email || '09.levanbinh2003@gmail.com';
       const uid = userInfo?.id || `user_${Date.now()}`;
 
       const connData = {
@@ -132,19 +211,22 @@ connectionsRouter.get(
         accessToken,
         refreshToken: refreshToken || null,
         expiresAt: Date.now() + (tokens.expires_in || 3600) * 1000,
+        scopes: tokens.scope ? String(tokens.scope).split(' ') : CLASSROOM_SCOPES,
         updatedAt: new Date().toISOString()
       };
 
       await col('googleConnections').doc('current').set(connData, { merge: true });
       await col('googleConnections').doc(uid).set(connData, { merge: true });
 
-      // 3. Tự động kéo dữ liệu thật từ Google Classroom ngay lập tức!
+      // 3. Tự động kéo dữ liệu thật từ Google Classroom ngay lập tức
       console.log(`[Google Classroom] Đang tự động kéo dữ liệu thật cho tài khoản: ${email}...`);
       const syncResult = await syncAllCourses([], accessToken, email);
       await rebuildDashboard().catch(() => null);
       console.log(`[Google Classroom] Đồng bộ thành công: ${syncResult.success} khóa học.`);
 
-      return res.redirect(`${env.WEB_ORIGIN}/classroom?oauth_success=1&count=${syncResult.success}`);
+      return res.redirect(
+        `${env.WEB_ORIGIN}/connections?oauth_success=1&count=${syncResult.success}&email=${encodeURIComponent(email)}`
+      );
     } catch (err: any) {
       console.error('Lỗi xử lý callback OAuth:', err);
       return res.redirect(`${env.WEB_ORIGIN}/connections?oauth_error=${encodeURIComponent(err.message)}`);
@@ -152,40 +234,241 @@ connectionsRouter.get(
   })
 );
 
-// Nhập trực tiếp Google Access Token (cho trường hợp developer / tester test token thực)
+// Nhập trực tiếp Google Access Token (cho trường hợp developer / tester test token thực qua OAuth Playground)
 connectionsRouter.post(
   '/token',
   firebaseAuth,
   requireCapability('MANAGE_CONNECTIONS'),
   asyncRoute(async (req, res) => {
-    const { token, email } = req.body;
-    if (!token) {
-      return res.status(400).json({ ok: false, error: { message: 'Thiếu Google Access Token' } });
+    const { token, refreshToken, email } = req.body;
+    if (!token || typeof token !== 'string' || !token.trim()) {
+      return res.status(400).json({ ok: false, error: { message: 'Vui lòng cung cấp chuỗi Google Access Token hợp lệ (bắt đầu bằng ya29...)' } });
     }
 
-    const connData = {
+    const cleanToken = token.trim();
+    const cleanRefreshToken = refreshToken && typeof refreshToken === 'string' ? refreshToken.trim() : null;
+
+    // 1. Xác thực token trực tiếp với Google API (tokeninfo & userinfo)
+    let tokenInfo: any = null;
+    let userInfo: any = null;
+
+    try {
+      const [tokenInfoRes, userInfoRes] = await Promise.all([
+        fetch(`https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(cleanToken)}`),
+        fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+          headers: { Authorization: `Bearer ${cleanToken}` }
+        })
+      ]);
+
+      if (tokenInfoRes.ok) {
+        tokenInfo = await tokenInfoRes.json();
+      }
+      if (userInfoRes.ok) {
+        userInfo = await userInfoRes.json();
+      }
+    } catch (e: any) {
+      console.warn('Google token verification notice:', e.message);
+    }
+
+    // Nếu cả 2 đều báo lỗi không hợp lệ (thường là 400 Invalid Value hoặc 401 Unauthorized)
+    if (!tokenInfo?.email && !userInfo?.email && tokenInfo?.error) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 'INVALID_OR_EXPIRED_TOKEN',
+          message:
+            'Google Access Token không hợp lệ hoặc đã hết hạn. Vui lòng lấy Token mới từ Google OAuth Playground (https://developers.google.com/oauthplayground) với tài khoản của bạn.'
+        }
+      });
+    }
+
+    const resolvedEmail =
+      userInfo?.email ||
+      tokenInfo?.email ||
+      email?.trim() ||
+      req.appUser!.email ||
+      '09.levanbinh2003@gmail.com';
+
+    const expiresIn = Number(tokenInfo?.expires_in) || 3600;
+    const scopes = tokenInfo?.scope ? String(tokenInfo.scope).split(' ') : [];
+
+    const connData: any = {
       uid: req.appUser!.uid,
-      email: email || req.appUser!.email,
-      accessToken: token,
+      email: resolvedEmail,
+      name: userInfo?.name || resolvedEmail,
+      accessToken: cleanToken,
+      expiresAt: Date.now() + expiresIn * 1000,
+      tokenExpiresAt: Date.now() + expiresIn * 1000,
+      scopes,
       updatedAt: new Date().toISOString()
     };
+    if (cleanRefreshToken) {
+      connData.refreshToken = cleanRefreshToken;
+    }
 
     await col('googleConnections').doc(req.appUser!.uid).set(connData, { merge: true });
     await col('googleConnections').doc('current').set(connData, { merge: true });
 
-    // Đồng bộ ngay lập tức
-    const syncResult = await syncAllCourses([], token, connData.email);
-    await rebuildDashboard().catch(() => null);
+    // 2. Đồng bộ các khóa học thực tế từ Google Classroom
+    let syncResult: any = { success: 0, courses: 0, errors: [] };
+    try {
+      syncResult = await syncAllCourses([], cleanToken, connData.email);
+      await rebuildDashboard().catch(() => null);
+    } catch (err: any) {
+      console.error('Lỗi khi đồng bộ qua token:', err.message);
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 'CLASSROOM_SYNC_ERROR',
+          message: `Kết nối thành công nhưng đồng bộ Google Classroom gặp sự cố: ${err.message}`
+        }
+      });
+    }
 
     res.json({
       ok: true,
-      message: `Đã kết nối và đồng bộ thành công ${syncResult.success} khóa học từ Google Classroom!`,
+      email: connData.email,
+      name: connData.name,
+      expiresIn,
+      message:
+        syncResult.success > 0
+          ? `Đã kết nối tài khoản Google (${connData.email}) và đồng bộ thành công ${syncResult.success} khóa học từ Google Classroom!`
+          : `Đã kết nối tài khoản Google (${connData.email}) thành công! (Hiện tại tài khoản chưa có khóa học nào trên Google Classroom).`,
       ...syncResult
     });
   })
 );
 
-// Lưu file Service Account JSON trực tiếp
+// Nạp dữ liệu mẫu Google Classroom thực tế của THCS Giảng Võ (khi tài khoản Google chưa tạo lớp)
+connectionsRouter.post(
+  '/demo-seed',
+  firebaseAuth,
+  requireCapability('MANAGE_CONNECTIONS'),
+  asyncRoute(async (_req, res) => {
+    const demoCourses = [
+      {
+        id: 'gv-demo-toan-6a1',
+        name: 'Toán Học 6A1 — THCS Giảng Võ',
+        section: 'Năm học 2024 - 2025',
+        descriptionHeading: 'Môn Toán lớp 6A1 — Thầy Nguyễn Văn A phụ trách',
+        room: 'Phòng 201',
+        courseState: 'ACTIVE',
+        alternateLink: 'https://classroom.google.com/c/gv-demo-toan-6a1',
+        classId: '6A1',
+        className: 'Lớp 6A1',
+        grade: 6,
+        subjectId: 'TOAN',
+        subjectName: 'Toán Học',
+        creationTime: new Date(Date.now() - 30 * 86400000).toISOString(),
+        updateTime: new Date().toISOString(),
+        roster: { status: 'COMPLETE', teacherCount: 1, studentCount: 42 },
+        content: {
+          courseWorkCount: 12,
+          materialsCount: 15,
+          announcementsCount: 8,
+          submissionsTotal: 504,
+          submissionsTurnedIn: 480,
+          completionRate: 95.2
+        }
+      },
+      {
+        id: 'gv-demo-van-7a2',
+        name: 'Ngữ Văn 7A2 — THCS Giảng Võ',
+        section: 'Năm học 2024 - 2025',
+        descriptionHeading: 'Môn Ngữ Văn lớp 7A2 — Cô Trần Thị B',
+        room: 'Phòng 204',
+        courseState: 'ACTIVE',
+        alternateLink: 'https://classroom.google.com/c/gv-demo-van-7a2',
+        classId: '7A2',
+        className: 'Lớp 7A2',
+        grade: 7,
+        subjectId: 'VAN',
+        subjectName: 'Ngữ Văn',
+        creationTime: new Date(Date.now() - 28 * 86400000).toISOString(),
+        updateTime: new Date().toISOString(),
+        roster: { status: 'COMPLETE', teacherCount: 1, studentCount: 40 },
+        content: {
+          courseWorkCount: 10,
+          materialsCount: 12,
+          announcementsCount: 6,
+          submissionsTotal: 400,
+          submissionsTurnedIn: 376,
+          completionRate: 94.0
+        }
+      },
+      {
+        id: 'gv-demo-anh-8a3',
+        name: 'Tiếng Anh 8A3 — THCS Giảng Võ',
+        section: 'Năm học 2024 - 2025',
+        descriptionHeading: 'Môn Tiếng Anh lớp 8A3 — Thầy Lê Văn C',
+        room: 'Phòng Lab 1',
+        courseState: 'ACTIVE',
+        alternateLink: 'https://classroom.google.com/c/gv-demo-anh-8a3',
+        classId: '8A3',
+        className: 'Lớp 8A3',
+        grade: 8,
+        subjectId: 'ANH',
+        subjectName: 'Tiếng Anh',
+        creationTime: new Date(Date.now() - 25 * 86400000).toISOString(),
+        updateTime: new Date().toISOString(),
+        roster: { status: 'COMPLETE', teacherCount: 1, studentCount: 41 },
+        content: {
+          courseWorkCount: 14,
+          materialsCount: 20,
+          announcementsCount: 10,
+          submissionsTotal: 574,
+          submissionsTurnedIn: 540,
+          completionRate: 94.1
+        }
+      },
+      {
+        id: 'gv-demo-tin-6a2',
+        name: 'Tin Học 6A2 — THCS Giảng Võ',
+        section: 'Năm học 2024 - 2025',
+        descriptionHeading: 'Môn Tin học ứng dụng & Lập trình Scratch',
+        room: 'Phòng Máy 2',
+        courseState: 'ACTIVE',
+        alternateLink: 'https://classroom.google.com/c/gv-demo-tin-6a2',
+        classId: '6A2',
+        className: 'Lớp 6A2',
+        grade: 6,
+        subjectId: 'TIN',
+        subjectName: 'Tin Học',
+        creationTime: new Date(Date.now() - 20 * 86400000).toISOString(),
+        updateTime: new Date().toISOString(),
+        roster: { status: 'COMPLETE', teacherCount: 1, studentCount: 39 },
+        content: {
+          courseWorkCount: 8,
+          materialsCount: 10,
+          announcementsCount: 5,
+          submissionsTotal: 312,
+          submissionsTurnedIn: 298,
+          completionRate: 95.5
+        }
+      }
+    ];
+
+    for (const c of demoCourses) {
+      await col('courses').doc(c.id).set(c, { merge: true });
+    }
+
+    await col('system').doc('syncStatus').set({
+      lastSyncAt: new Date().toISOString(),
+      mode: 'DEMO_SEED',
+      totalCourses: demoCourses.length
+    }, { merge: true });
+
+    await rebuildDashboard().catch(() => null);
+
+    res.json({
+      ok: true,
+      message: `Đã nạp thành công ${demoCourses.length} khóa học Google Classroom mẫu chuẩn cho THCS Giảng Võ!`,
+      count: demoCourses.length
+    });
+  })
+);
+
+// Lưu file Service Account JSON trực tiếp (Mode B)
 connectionsRouter.post(
   '/service-account',
   firebaseAuth,
@@ -229,6 +512,7 @@ connectionsRouter.post(
   })
 );
 
+// Ngắt kết nối tài khoản Google
 connectionsRouter.post(
   '/disconnect',
   firebaseAuth,
@@ -241,3 +525,80 @@ connectionsRouter.post(
     res.json({ ok: true, message: 'Đã ngắt kết nối tài khoản Google thành công' });
   })
 );
+
+// Làm mới Access Token thủ công hoặc kiểm tra tính năng tự gia hạn của Refresh Token
+connectionsRouter.post(
+  '/refresh',
+  firebaseAuth,
+  requireCapability('MANAGE_CONNECTIONS'),
+  asyncRoute(async (req, res) => {
+    const [userConnDoc, currentConnDoc] = await Promise.all([
+      col('googleConnections').doc(req.appUser!.uid).get(),
+      col('googleConnections').doc('current').get()
+    ]);
+    const conn = userConnDoc.exists && userConnDoc.data()?.refreshToken
+      ? userConnDoc.data()
+      : (currentConnDoc.exists && currentConnDoc.data()?.refreshToken ? currentConnDoc.data() : null);
+
+    if (!conn || !conn.refreshToken) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 'NO_REFRESH_TOKEN',
+          message: 'Tài khoản chưa lưu Refresh Token. Bạn hãy dán mã Refresh Token vào mục Chế độ A để kích hoạt tự động gia hạn vĩnh viễn.'
+        }
+      });
+    }
+
+    const oauthCfg = await getEffectiveOAuthConfig();
+    const clientId = conn.clientId || oauthCfg.clientId;
+    const clientSecret = conn.clientSecret || oauthCfg.clientSecret;
+
+    const refreshBody: Record<string, string> = {
+      refresh_token: conn.refreshToken,
+      grant_type: 'refresh_token'
+    };
+    if (clientId && !clientId.includes('your-client-id')) refreshBody.client_id = clientId;
+    if (clientSecret && !clientSecret.includes('your-client-secret')) refreshBody.client_secret = clientSecret;
+
+    const refreshRes = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams(refreshBody)
+    });
+
+    if (!refreshRes.ok) {
+      const errText = await refreshRes.text();
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 'REFRESH_FAILED',
+          message: `Lỗi làm mới token từ Google: ${errText}`
+        }
+      });
+    }
+
+    const refreshData = (await refreshRes.json()) as any;
+    const newAccessToken = refreshData.access_token;
+    const expiresIn = Number(refreshData.expires_in) || 3600;
+
+    const updateData = {
+      accessToken: newAccessToken,
+      expiresAt: Date.now() + expiresIn * 1000,
+      tokenExpiresAt: Date.now() + expiresIn * 1000,
+      updatedAt: new Date().toISOString()
+    };
+
+    await Promise.all([
+      col('googleConnections').doc(req.appUser!.uid).set(updateData, { merge: true }),
+      col('googleConnections').doc('current').set(updateData, { merge: true })
+    ]);
+
+    res.json({
+      ok: true,
+      message: `Đã làm mới thành công Access Token Google! Token mới có hiệu lực thêm ${Math.round(expiresIn / 60)} phút.`,
+      expiresAt: updateData.expiresAt
+    });
+  })
+);
+

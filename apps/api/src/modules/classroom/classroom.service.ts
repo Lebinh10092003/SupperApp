@@ -82,6 +82,7 @@ export type Course = {
 
 export async function discoverCourses(subject: string, customToken?: string): Promise<Course[]> {
   const merged = new Map<string, Course>();
+  let lastError: Error | null = null;
 
   // 1. Quét với vai trò giáo viên (teacherId)
   try {
@@ -97,6 +98,7 @@ export async function discoverCourses(subject: string, customToken?: string): Pr
     const teacherCourses = await listAll<Course>(u.toString(), subject, 'courses', customToken);
     for (const c of teacherCourses) merged.set(c.id, c);
   } catch (err: any) {
+    lastError = err;
     console.warn('Teacher courses scan notice:', err.message);
   }
 
@@ -108,7 +110,9 @@ export async function discoverCourses(subject: string, customToken?: string): Pr
       u2.searchParams.append('courseStates', 'ACTIVE');
       const studentCourses = await listAll<Course>(u2.toString(), subject, 'courses', customToken);
       for (const c of studentCourses) merged.set(c.id, c);
-    } catch {}
+    } catch (err: any) {
+      lastError = lastError || err;
+    }
   }
 
   // 3. Nếu là Super Admin Workspace hoặc chưa có khóa học, quét toàn bộ
@@ -118,7 +122,18 @@ export async function discoverCourses(subject: string, customToken?: string): Pr
       u3.searchParams.append('courseStates', 'ACTIVE');
       const allCourses = await listAll<Course>(u3.toString(), subject, 'courses', customToken);
       for (const c of allCourses) merged.set(c.id, c);
-    } catch {}
+    } catch (err: any) {
+      lastError = lastError || err;
+    }
+  }
+
+  if (merged.size === 0 && lastError && customToken) {
+    if (lastError.message?.includes('401')) {
+      throw new Error('Google Access Token không hợp lệ hoặc đã hết hạn (401 Unauthorized). Vui lòng cấp lại Token mới từ Google OAuth Playground.');
+    }
+    if (lastError.message?.includes('403')) {
+      throw new Error(`Google Classroom API trả về 403 Forbidden: ${lastError.message}. Vui lòng kiểm tra quyền truy cập Classroom.`);
+    }
   }
 
   return Array.from(merged.values());

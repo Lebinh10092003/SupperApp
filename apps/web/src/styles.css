@@ -1,26 +1,27 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
 
 :root {
-  --background: 0 0% 100%;
-  --foreground: 240 10% 3.9%;
-  --card: 0 0% 100%;
-  --card-foreground: 240 10% 3.9%;
+  /* School Intelligence Fresh Palette */
+  --background: 210 40% 98%;      /* #F8FAFC - Soft Clean Slate 50 */
+  --foreground: 222 47% 11%;      /* #0F172A - Slate 900 */
+  --card: 0 0% 100%;              /* #FFFFFF - Pure White */
+  --card-foreground: 222 47% 11%;
   --popover: 0 0% 100%;
-  --popover-foreground: 240 10% 3.9%;
-  --primary: 240 5.9% 10%;
-  --primary-foreground: 0 0% 98%;
-  --secondary: 240 4.8% 95.9%;
-  --secondary-foreground: 240 5.9% 10%;
-  --muted: 240 4.8% 95.9%;
-  --muted-foreground: 240 3.8% 46.1%;
-  --accent: 240 4.8% 95.9%;
-  --accent-foreground: 240 5.9% 10%;
-  --destructive: 0 84.2% 60.2%;
+  --popover-foreground: 222 47% 11%;
+  --primary: 221 83% 53%;         /* #2563EB - School Royal Blue */
+  --primary-foreground: 0 0% 100%;
+  --secondary: 214 95% 93%;       /* #EFF6FF - Soft Sky Tint */
+  --secondary-foreground: 224 76% 48%; /* #1D4ED8 */
+  --muted: 210 40% 96.1%;         /* #F1F5F9 */
+  --muted-foreground: 215 16% 47%;/* #64748B */
+  --accent: 214 95% 93%;
+  --accent-foreground: 224 76% 48%;
+  --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 98%;
-  --border: 240 5.9% 90%;
-  --input: 240 5.9% 90%;
-  --ring: 240 5.9% 10%;
-  --radius: 0.5rem;
+  --border: 214 32% 91%;          /* #E2E8F0 - Slate 200 */
+  --input: 214 32% 91%;
+  --ring: 221 83% 53%;
+  --radius: 0.625rem;
 }
 
 html,
@@ -37,15 +38,15 @@ body,
 }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  background-color: #fafafa;
-  color: #09090b;
+  font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: #f8fafc;
+  color: #0f172a;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   letter-spacing: -0.01em;
 }
 
-/* Subtle shadcn Scrollbar */
+/* Elegant School Intelligence Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -56,43 +57,48 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #e4e4e7;
+  background: #cbd5e1;
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #d4d4d8;
+  background: #94a3b8;
 }
 
-/* shadcn Card Styling */
+/* School Card Styling */
+.school-card,
 .shadcn-card {
   background: #ffffff;
-  border: 1px solid #e4e4e7;
-  border-radius: 10px;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.04), 0 1px 2px -1px rgba(15, 23, 42, 0.04);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
 
+.school-card:hover,
 .shadcn-card:hover {
-  border-color: #d4d4d8;
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.06);
 }
 
-/* shadcn Interactive Elements */
+/* Interactive Elements */
+.school-interactive,
 .shadcn-interactive {
   transition: all 0.15s ease-in-out;
 }
 
+.school-interactive:hover,
 .shadcn-interactive:hover {
-  background-color: #f4f4f5;
+  background-color: #f1f5f9;
 }
 
-/* Recharts Custom Tooltip for shadcn */
+/* Recharts Custom Tooltip */
 .recharts-default-tooltip {
   background-color: #ffffff !important;
-  border: 1px solid #e4e4e7 !important;
-  border-radius: 8px !important;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08) !important;
-  padding: 8px 12px !important;
-  font-family: 'Inter', sans-serif !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 10px !important;
+  box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.08) !important;
+  padding: 10px 14px !important;
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif !important;
   font-size: 0.8125rem !important;
 }

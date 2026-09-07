@@ -162,15 +162,15 @@ export default function AlertsPage() {
               startIcon={<PlayArrowIcon />}
               onClick={handleTriggerEvaluate}
               disabled={evaluating}
-              sx={{ fontWeight: 600, fontSize: '0.8125rem' }}
+              sx={{ fontWeight: 600, fontSize: '0.8125rem', borderRadius: 2 }}
             >
-              {evaluating ? 'Đang quét...' : 'Quét cảnh báo ngay'}
+              Chạy quét cảnh báo
             </Button>
             <Button
               variant="contained"
               startIcon={<TuneIcon />}
               onClick={() => setRulesOpen(true)}
-              sx={{ bgcolor: '#18181b', color: '#fff', '&:hover': { bgcolor: '#27272a' }, fontWeight: 600, fontSize: '0.8125rem' }}
+              sx={{ bgcolor: '#2563eb', color: '#fff', '&:hover': { bgcolor: '#1d4ed8' }, fontWeight: 700, fontSize: '0.8125rem', borderRadius: 2 }}
             >
               Cấu hình quy tắc động
             </Button>
@@ -179,19 +179,19 @@ export default function AlertsPage() {
       />
 
       {toast && (
-        <Alert severity="success" onClose={() => setToast('')} sx={{ mb: 2.5, borderRadius: '6px' }}>
+        <Alert severity="success" onClose={() => setToast('')} sx={{ mb: 2.5, borderRadius: 2 }}>
           {toast}
         </Alert>
       )}
 
-      {/* shadcn Segmented Tabs */}
+      {/* Segmented Tabs */}
       <Box
         sx={{
           display: 'inline-flex',
-          bgcolor: '#f4f4f5',
+          bgcolor: '#f1f5f9',
           p: '4px',
-          borderRadius: '8px',
-          border: '1px solid #e4e4e7',
+          borderRadius: 2,
+          border: '1px solid #e2e8f0',
           mb: 3
         }}
       >
@@ -200,22 +200,22 @@ export default function AlertsPage() {
           onChange={(_, v) => setTab(v)}
           TabIndicatorProps={{ style: { display: 'none' } }}
           sx={{
-            minHeight: 32,
+            minHeight: 34,
             '& .MuiTab-root': {
-              minHeight: 32,
+              minHeight: 34,
               py: 0.5,
               px: 2,
-              borderRadius: '6px',
+              borderRadius: 1.5,
               textTransform: 'none',
-              fontWeight: 500,
+              fontWeight: 600,
               fontSize: '0.8125rem',
-              color: '#71717a',
+              color: '#64748b',
               transition: 'all 0.15s ease',
               '&.Mui-selected': {
                 bgcolor: '#ffffff',
-                color: '#09090b',
-                fontWeight: 600,
-                boxShadow: '0 1px 2px rgba(0,0,0,0.06)'
+                color: '#2563eb',
+                fontWeight: 700,
+                boxShadow: '0 1px 3px rgba(15, 23, 42, 0.08)'
               }
             }
           }}
@@ -242,10 +242,10 @@ export default function AlertsPage() {
       {/* Alert List */}
       <Stack spacing={2}>
         {filtered.length === 0 ? (
-          <Card sx={{ borderRadius: '8px', border: '1px solid #e4e4e7', boxShadow: 'none' }}>
+          <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none', bgcolor: '#ffffff' }}>
             <CardContent sx={{ py: 6, textAlign: 'center' }}>
-              <CheckCircleOutlineIcon sx={{ fontSize: '3rem', color: '#10b981', mb: 1 }} />
-              <Typography variant="h6" fontWeight={700} sx={{ color: '#09090b' }}>
+              <CheckCircleOutlineIcon sx={{ fontSize: '3.2rem', color: '#10b981', mb: 1 }} />
+              <Typography variant="h6" fontWeight={700} sx={{ color: '#0f172a' }}>
                 Không có cảnh báo nào đang mở
               </Typography>
               <Typography variant="body2" color="text.secondary">
@@ -261,9 +261,9 @@ export default function AlertsPage() {
                 key={x.id}
                 sx={{
                   borderLeft: `4px solid ${sp.color}`,
-                  borderRadius: '8px',
-                  border: '1px solid #e4e4e7',
-                  boxShadow: '0 1px 2px 0 rgba(0,0,0,0.03)',
+                  borderRadius: 3,
+                  border: '1px solid #e2e8f0',
+                  boxShadow: '0 1px 3px 0 rgba(15, 23, 42, 0.04)',
                   bgcolor: '#ffffff'
                 }}
               >
@@ -287,7 +287,7 @@ export default function AlertsPage() {
                           bgcolor: sp.bgcolor,
                           color: sp.color,
                           border: sp.border,
-                          fontWeight: 600,
+                          fontWeight: 700,
                           fontSize: '0.75rem',
                           height: 24
                         }}
@@ -296,15 +296,15 @@ export default function AlertsPage() {
                         label={x.targetName || x.targetId || 'Lớp học'}
                         size="small"
                         sx={{
-                          bgcolor: '#f4f4f5',
-                          color: '#18181b',
-                          border: '1px solid #e4e4e7',
-                          fontWeight: 600,
+                          bgcolor: '#f8fafc',
+                          color: '#334155',
+                          border: '1px solid #e2e8f0',
+                          fontWeight: 700,
                           fontSize: '0.75rem',
                           height: 24
                         }}
                       />
-                      <Typography variant="subtitle2" fontWeight={700} color="#09090b">
+                      <Typography variant="subtitle2" fontWeight={700} color="#0f172a">
                         {x.targetType === 'STUDENT' ? 'Cảnh báo học sinh' : x.targetType === 'CLASS' ? 'Cảnh báo tập thể lớp' : 'Cảnh báo Classroom'}
                       </Typography>
                     </Box>
@@ -319,15 +319,15 @@ export default function AlertsPage() {
                           setResolutionText('Đã chỉ đạo giáo viên bộ môn và chủ nhiệm đôn đốc');
                         }}
                         sx={{
-                          bgcolor: '#18181b',
+                          bgcolor: '#2563eb',
                           color: '#ffffff',
-                          '&:hover': { bgcolor: '#27272a' },
-                          fontWeight: 600,
+                          '&:hover': { bgcolor: '#1d4ed8' },
+                          fontWeight: 700,
                           fontSize: '0.75rem',
-                          borderRadius: '6px',
+                          borderRadius: 2,
                           textTransform: 'none',
-                          py: 0.5,
-                          px: 1.5
+                          py: 0.6,
+                          px: 1.75
                         }}
                       >
                         Tiếp nhận & Xử lý
@@ -341,7 +341,7 @@ export default function AlertsPage() {
                           bgcolor: '#ecfdf5',
                           color: '#059669',
                           border: '1px solid #a7f3d0',
-                          fontWeight: 600,
+                          fontWeight: 700,
                           fontSize: '0.75rem',
                           height: 24
                         }}
@@ -350,20 +350,20 @@ export default function AlertsPage() {
                   </Box>
 
                   {/* Lý do cảnh báo */}
-                  <Typography variant="body2" fontWeight={500} color="#09090b" sx={{ mb: 1.5 }}>
+                  <Typography variant="body2" fontWeight={600} color="#0f172a" sx={{ mb: 1.5 }}>
                     {x.reason || x.message}
                   </Typography>
 
                   {/* Bằng chứng & Số liệu chứng minh */}
                   {x.evidence && (
-                    <Box sx={{ bgcolor: '#fafafa', p: 2, borderRadius: '6px', border: '1px solid #e4e4e7', mb: 1.5 }}>
-                      <Typography variant="caption" fontWeight={700} color="#71717a" sx={{ display: 'block', mb: 0.75, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                    <Box sx={{ bgcolor: '#f8fafc', p: 2, borderRadius: 2, border: '1px solid #e2e8f0', mb: 1.5 }}>
+                      <Typography variant="caption" fontWeight={700} color="#64748b" sx={{ display: 'block', mb: 0.75, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
                         Số liệu chứng minh (Evidence)
                       </Typography>
                       <Grid container spacing={2}>
                         <Grid size={{ xs: 6, sm: 3 }}>
                           <Typography variant="caption" color="text.secondary">Chỉ số đo lường:</Typography>
-                          <Typography variant="body2" fontWeight={600}>{x.evidence.metricName}</Typography>
+                          <Typography variant="body2" fontWeight={600} color="#0f172a">{x.evidence.metricName}</Typography>
                         </Grid>
                         <Grid size={{ xs: 6, sm: 3 }}>
                           <Typography variant="caption" color="text.secondary">Giá trị thực tế:</Typography>
@@ -371,14 +371,14 @@ export default function AlertsPage() {
                         </Grid>
                         <Grid size={{ xs: 12, sm: 6 }}>
                           <Typography variant="caption" color="text.secondary">Chi tiết:</Typography>
-                          <Typography variant="body2">{x.evidence.details}</Typography>
+                          <Typography variant="body2" color="#334155">{x.evidence.details}</Typography>
                         </Grid>
                       </Grid>
                     </Box>
                   )}
 
                   {x.principalNotes && (
-                    <Box sx={{ p: 1.5, bgcolor: '#f0fdf4', borderRadius: '6px', border: '1px solid #bbf7d0' }}>
+                    <Box sx={{ p: 1.5, bgcolor: '#f0fdf4', borderRadius: 2, border: '1px solid #bbf7d0' }}>
                       <Typography variant="caption" color="#166534">
                         <strong>Ghi chú Ban Giám hiệu:</strong> {x.principalNotes} ({x.resolvedBy || 'Hiệu trưởng'})
                       </Typography>
@@ -394,7 +394,7 @@ export default function AlertsPage() {
       {/* Dialog Xử lý Cảnh báo */}
       <Dialog open={Boolean(resolveTarget)} onClose={() => setResolveTarget(null)} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ fontWeight: 700, fontSize: '1.125rem' }}>Xử Lý & Đóng Cảnh Báo Điều Hành</DialogTitle>
-        <DialogContent dividers sx={{ borderColor: '#e4e4e7' }}>
+        <DialogContent dividers sx={{ borderColor: '#e2e8f0' }}>
           {resolveTarget && (
             <Stack spacing={2} sx={{ pt: 1 }}>
               <Typography variant="body2">
@@ -414,9 +414,9 @@ export default function AlertsPage() {
             </Stack>
           )}
         </DialogContent>
-        <DialogActions sx={{ p: 2, borderTop: '1px solid #e4e4e7' }}>
-          <Button onClick={() => setResolveTarget(null)} sx={{ textTransform: 'none', color: '#71717a' }}>Hủy</Button>
-          <Button variant="contained" onClick={handleResolve} sx={{ bgcolor: '#18181b', color: '#ffffff', '&:hover': { bgcolor: '#27272a' }, textTransform: 'none', fontWeight: 600 }}>
+        <DialogActions sx={{ p: 2, borderTop: '1px solid #e2e8f0' }}>
+          <Button onClick={() => setResolveTarget(null)} sx={{ textTransform: 'none', color: '#64748b' }}>Hủy</Button>
+          <Button variant="contained" onClick={handleResolve} sx={{ bgcolor: '#2563eb', color: '#ffffff', '&:hover': { bgcolor: '#1d4ed8' }, textTransform: 'none', fontWeight: 700, borderRadius: 2 }}>
             Lưu & Đóng cảnh báo
           </Button>
         </DialogActions>
@@ -425,16 +425,16 @@ export default function AlertsPage() {
       {/* Dialog Cấu hình Dynamic Rules */}
       <Dialog open={rulesOpen} onClose={() => setRulesOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle sx={{ fontWeight: 700, fontSize: '1.125rem' }}>Cấu Hình Quy Tắc Cảnh Báo Sớm (Dynamic Rules)</DialogTitle>
-        <DialogContent dividers sx={{ borderColor: '#e4e4e7' }}>
+        <DialogContent dividers sx={{ borderColor: '#e2e8f0' }}>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
             Ban Giám hiệu có thể điều chỉnh ngưỡng phát hiện tự động để cảnh báo phù hợp với quy mô và tiêu chuẩn thực tế của trường:
           </Typography>
 
           <Stack spacing={2.5}>
             {rules.map((rule) => (
-              <Box key={rule.id} sx={{ p: 2, border: '1px solid #e4e4e7', borderRadius: '8px', bgcolor: '#fafafa' }}>
+              <Box key={rule.id} sx={{ p: 2, border: '1px solid #e2e8f0', borderRadius: 2, bgcolor: '#f8fafc' }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                  <Typography variant="subtitle2" fontWeight={600} color="#09090b">
+                  <Typography variant="subtitle2" fontWeight={700} color="#0f172a">
                     {rule.name}
                   </Typography>
                   <FormControlLabel
@@ -442,16 +442,17 @@ export default function AlertsPage() {
                       <Switch
                         checked={rule.enabled}
                         onChange={(e) => handleUpdateRule(rule.id, rule.threshold, e.target.checked)}
+                        color="primary"
                       />
                     }
-                    label={<Typography sx={{ fontSize: '0.8125rem', color: '#71717a' }}>{rule.enabled ? 'Đang bật' : 'Tạm tắt'}</Typography>}
+                    label={<Typography sx={{ fontSize: '0.8125rem', color: '#64748b', fontWeight: 600 }}>{rule.enabled ? 'Đang bật' : 'Tạm tắt'}</Typography>}
                   />
                 </Box>
                 <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
                   {rule.description}
                 </Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                  <Typography variant="body2" fontWeight={600} sx={{ minWidth: 140, color: '#09090b' }}>
+                  <Typography variant="body2" fontWeight={700} sx={{ minWidth: 140, color: '#0f172a' }}>
                     Ngưỡng: {rule.threshold} {rule.unit}
                   </Typography>
                   <Slider
@@ -460,15 +461,15 @@ export default function AlertsPage() {
                     max={rule.unit === '%' ? 100 : 30}
                     disabled={!rule.enabled}
                     onChange={(_, v) => handleUpdateRule(rule.id, v as number, rule.enabled)}
-                    sx={{ color: '#18181b' }}
+                    sx={{ color: '#2563eb' }}
                   />
                 </Box>
               </Box>
             ))}
           </Stack>
         </DialogContent>
-        <DialogActions sx={{ p: 2, borderTop: '1px solid #e4e4e7' }}>
-          <Button variant="contained" onClick={() => setRulesOpen(false)} sx={{ bgcolor: '#18181b', color: '#ffffff', '&:hover': { bgcolor: '#27272a' }, textTransform: 'none', fontWeight: 600 }}>
+        <DialogActions sx={{ p: 2, borderTop: '1px solid #e2e8f0' }}>
+          <Button variant="contained" onClick={() => setRulesOpen(false)} sx={{ bgcolor: '#2563eb', color: '#ffffff', '&:hover': { bgcolor: '#1d4ed8' }, textTransform: 'none', fontWeight: 700, borderRadius: 2 }}>
             Hoàn tất cấu hình
           </Button>
         </DialogActions>

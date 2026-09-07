@@ -12,7 +12,7 @@ console.log('\x1b[32m%s\x1b[0m', '==============================================
 
 function runService(name, colorCode, args) {
   const child = spawn(npmCmd, args, {
-    stdio: ['inherit', 'pipe', 'pipe'],
+    stdio: ['ignore', 'pipe', 'pipe'],
     shell: process.platform === 'win32',
   });
 

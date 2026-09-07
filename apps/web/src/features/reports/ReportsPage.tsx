@@ -87,8 +87,8 @@ export default function ReportsPage() {
       )}
 
       {/* Filter Card */}
-      <Card sx={{ mb: 3, borderRadius: '8px', border: '1px solid #e4e4e7', boxShadow: '0 1px 2px 0 rgba(0,0,0,0.03)', bgcolor: '#ffffff' }}>
-        <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+      <Card sx={{ mb: 3, borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', bgcolor: '#ffffff' }}>
+        <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center">
             <TextField
               select
@@ -104,8 +104,8 @@ export default function ReportsPage() {
               <MenuItem value="180">Cả năm học 2025–2026</MenuItem>
             </TextField>
 
-            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>
-              Định dạng xuất chuẩn: <strong style={{ color: '#09090b' }}>CSV (UTF-8 có BOM tiếng Việt)</strong> tương thích hoàn toàn với Microsoft Excel và Google Sheets.
+            <Typography variant="body2" color="#64748b" sx={{ fontSize: '0.8125rem' }}>
+              Định dạng xuất chuẩn: <strong style={{ color: '#0f172a' }}>CSV (UTF-8 có BOM tiếng Việt)</strong> tương thích hoàn toàn với Microsoft Excel và Google Sheets.
             </Typography>
           </Stack>
         </CardContent>
@@ -120,33 +120,45 @@ export default function ReportsPage() {
                 height: '100%',
                 display: 'flex',
                 flexDirection: 'column',
-                borderRadius: '8px',
-                border: '1px solid #e4e4e7',
-                boxShadow: '0 1px 2px 0 rgba(0,0,0,0.03)',
-                bgcolor: '#ffffff'
+                borderRadius: '12px',
+                border: '1px solid #e2e8f0',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                bgcolor: '#ffffff',
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                  boxShadow: '0 4px 12px rgba(37, 99, 235, 0.08)',
+                  borderColor: '#bfdbfe'
+                }
               }}
             >
               <CardContent sx={{ p: 3, flex: 1 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                  <Box sx={{ p: 1.25, bgcolor: '#f4f4f5', borderRadius: '8px', display: 'grid', placeItems: 'center', color: '#18181b' }}>
+                  <Box sx={{
+                    p: 1.25,
+                    bgcolor: rep.id === 'rep-summary' ? '#eff6ff' : rep.id === 'rep-classroom' ? '#ecfdf5' : '#f5f3ff',
+                    borderRadius: '10px',
+                    display: 'grid',
+                    placeItems: 'center'
+                  }}>
                     {rep.icon}
                   </Box>
                   <Chip
                     label={rep.tag}
                     size="small"
                     sx={{
-                      bgcolor: '#f4f4f5',
-                      color: '#18181b',
-                      border: '1px solid #e4e4e7',
+                      bgcolor: rep.id === 'rep-summary' ? '#eff6ff' : rep.id === 'rep-classroom' ? '#ecfdf5' : '#f5f3ff',
+                      color: rep.id === 'rep-summary' ? '#1d4ed8' : rep.id === 'rep-classroom' ? '#059669' : '#7c3aed',
+                      border: '1px solid',
+                      borderColor: rep.id === 'rep-summary' ? '#bfdbfe' : rep.id === 'rep-classroom' ? '#a7f3d0' : '#ddd6fe',
                       fontWeight: 600,
                       fontSize: '0.75rem'
                     }}
                   />
                 </Box>
-                <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#09090b', mb: 1, letterSpacing: '-0.01em' }}>
+                <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#0f172a', mb: 1, letterSpacing: '-0.01em' }}>
                   {rep.title}
                 </Typography>
-                <Typography variant="body2" sx={{ color: '#71717a', mb: 3, fontSize: '0.8125rem', lineHeight: 1.5 }}>
+                <Typography variant="body2" sx={{ color: '#64748b', mb: 3, fontSize: '0.8125rem', lineHeight: 1.5 }}>
                   {rep.desc}
                 </Typography>
               </CardContent>
@@ -158,14 +170,15 @@ export default function ReportsPage() {
                   disabled={downloading === rep.id}
                   onClick={() => handleDownload(rep)}
                   sx={{
-                    bgcolor: '#18181b',
+                    bgcolor: '#2563eb',
                     color: '#ffffff',
-                    '&:hover': { bgcolor: '#27272a' },
-                    py: 1,
+                    '&:hover': { bgcolor: '#1d4ed8' },
+                    py: 1.1,
                     fontWeight: 600,
                     fontSize: '0.8125rem',
                     textTransform: 'none',
-                    borderRadius: '6px'
+                    borderRadius: '8px',
+                    boxShadow: '0 2px 6px rgba(37, 99, 235, 0.2)'
                   }}
                 >
                   {downloading === rep.id ? 'Đang kết xuất CSV...' : 'Tải báo cáo CSV'}

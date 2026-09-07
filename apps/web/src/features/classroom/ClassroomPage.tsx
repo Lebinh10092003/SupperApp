@@ -84,6 +84,17 @@ export default function ClassroomPage() {
   };
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('oauth_success')) {
+      const count = params.get('count') || '0';
+      setSyncDialog({
+        open: true,
+        title: 'Đăng Nhập Google & Đồng Bộ Thành Công!',
+        message: `Đã kết nối tài khoản Google và nạp thành công ${count} khóa học từ Google Classroom!`,
+        isError: false
+      });
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
     load();
   }, []);
 
@@ -164,17 +175,17 @@ export default function ClassroomPage() {
       )}
 
       {/* Summary KPI Cards */}
-      <Grid container spacing={2} sx={{ mb: 3 }}>
+      <Grid container spacing={2.5} sx={{ mb: 3 }}>
         <Grid size={{ xs: 12, sm: 4 }}>
-          <Card sx={{ borderRadius: '8px', border: '1px solid #e4e4e7', boxShadow: '0 1px 2px 0 rgba(0,0,0,0.03)', bgcolor: '#ffffff' }}>
+          <Card sx={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', bgcolor: '#ffffff' }}>
             <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
-              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 Tổng khóa học Classroom
               </Typography>
-              <Typography sx={{ fontSize: '1.75rem', fontWeight: 700, color: '#09090b', my: 0.5, letterSpacing: '-0.025em' }}>
+              <Typography sx={{ fontSize: '1.875rem', fontWeight: 700, color: '#0f172a', my: 0.5, letterSpacing: '-0.025em' }}>
                 {items.length}
               </Typography>
-              <Typography variant="caption" sx={{ color: '#71717a', fontSize: '0.75rem' }}>
+              <Typography variant="caption" sx={{ color: '#64748b', fontSize: '0.75rem' }}>
                 Đồng bộ tự động từ Google Workspace
               </Typography>
             </CardContent>
@@ -182,15 +193,15 @@ export default function ClassroomPage() {
         </Grid>
 
         <Grid size={{ xs: 12, sm: 4 }}>
-          <Card sx={{ borderRadius: '8px', border: '1px solid #e4e4e7', boxShadow: '0 1px 2px 0 rgba(0,0,0,0.03)', bgcolor: '#ffffff' }}>
+          <Card sx={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', bgcolor: '#ffffff' }}>
             <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
-              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 Tỷ lệ Mapping lớp hành chính
               </Typography>
-              <Typography sx={{ fontSize: '1.75rem', fontWeight: 700, color: '#09090b', my: 0.5, letterSpacing: '-0.025em' }}>
+              <Typography sx={{ fontSize: '1.875rem', fontWeight: 700, color: '#2563eb', my: 0.5, letterSpacing: '-0.025em' }}>
                 {items.length ? Math.round((mappedCount / items.length) * 100) : 0}%
               </Typography>
-              <Typography variant="caption" sx={{ color: '#71717a', fontSize: '0.75rem' }}>
+              <Typography variant="caption" sx={{ color: '#64748b', fontSize: '0.75rem' }}>
                 {mappedCount}/{items.length} khóa học đã xác định lớp
               </Typography>
             </CardContent>
@@ -198,15 +209,15 @@ export default function ClassroomPage() {
         </Grid>
 
         <Grid size={{ xs: 12, sm: 4 }}>
-          <Card sx={{ borderRadius: '8px', border: '1px solid #e4e4e7', boxShadow: '0 1px 2px 0 rgba(0,0,0,0.03)', bgcolor: '#ffffff' }}>
+          <Card sx={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', bgcolor: '#ffffff' }}>
             <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
-              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 Tỷ lệ nộp bài trung bình
               </Typography>
-              <Typography sx={{ fontSize: '1.75rem', fontWeight: 700, color: '#09090b', my: 0.5, letterSpacing: '-0.025em' }}>
+              <Typography sx={{ fontSize: '1.875rem', fontWeight: 700, color: '#10b981', my: 0.5, letterSpacing: '-0.025em' }}>
                 {avgSubmissionRate}%
               </Typography>
-              <Typography variant="caption" sx={{ color: '#71717a', fontSize: '0.75rem' }}>
+              <Typography variant="caption" sx={{ color: '#64748b', fontSize: '0.75rem' }}>
                 {items.length ? 'Dựa trên bài tập đã giao trong học kỳ' : 'Chưa có dữ liệu bài tập'}
               </Typography>
             </CardContent>
@@ -215,8 +226,8 @@ export default function ClassroomPage() {
       </Grid>
 
       {/* Unified DataTable Block */}
-      <Card sx={{ borderRadius: '8px', border: '1px solid #e4e4e7', boxShadow: '0 1px 2px 0 rgba(0,0,0,0.03)', overflow: 'hidden', bgcolor: '#ffffff' }}>
-        <Box sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, borderBottom: '1px solid #e4e4e7', flexWrap: 'wrap' }}>
+      <Card sx={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', overflow: 'hidden', bgcolor: '#ffffff' }}>
+        <Box sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, borderBottom: '1px solid #e2e8f0', flexWrap: 'wrap' }}>
           <TextField
             size="small"
             placeholder="Tìm theo tên khóa học, mã lớp, học kỳ..."
@@ -226,7 +237,7 @@ export default function ClassroomPage() {
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <SearchIcon fontSize="small" sx={{ color: '#a1a1aa' }} />
+                  <SearchIcon fontSize="small" sx={{ color: '#94a3b8' }} />
                 </InputAdornment>
               )
             }}
@@ -235,23 +246,36 @@ export default function ClassroomPage() {
             label={`Hiển thị ${filtered.length} / ${items.length} khóa học`}
             size="small"
             sx={{
-              height: 24,
+              height: 26,
               fontSize: '0.75rem',
-              fontWeight: 500,
-              bgcolor: '#f4f4f5',
-              color: '#71717a',
-              border: '1px solid #e4e4e7'
+              fontWeight: 600,
+              bgcolor: '#eff6ff',
+              color: '#1d4ed8',
+              border: '1px solid #bfdbfe'
             }}
           />
         </Box>
 
         {items.length === 0 && !loading ? (
-          <Box sx={{ p: 6, textAlign: 'center', bgcolor: '#fafafa', borderTop: '1px solid #e4e4e7' }}>
-            <Box sx={{ fontSize: 36, mb: 1.5 }}>🏫</Box>
-            <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#09090b', mb: 0.5 }}>
+          <Box sx={{ p: 6, textAlign: 'center', bgcolor: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
+            <Box sx={{
+              width: 56,
+              height: 56,
+              borderRadius: '16px',
+              background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+              color: '#ffffff',
+              display: 'grid',
+              placeItems: 'center',
+              mx: 'auto',
+              mb: 2,
+              boxShadow: '0 4px 12px rgba(37, 99, 235, 0.25)'
+            }}>
+              <SchoolIcon sx={{ fontSize: 32 }} />
+            </Box>
+            <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#0f172a', mb: 0.5 }}>
               Chưa có khóa học nào được đồng bộ từ Google Classroom
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 580, mx: 'auto', mb: 3 }}>
+            <Typography variant="body2" color="#64748b" sx={{ maxWidth: 580, mx: 'auto', mb: 3 }}>
               Hệ thống THCS Giảng Võ tuân thủ nguyên tắc 100% dữ liệu thực tế từ Google Classroom API chính thức, tuyệt đối không dùng dữ liệu giả lập. Vui lòng kết nối tài khoản Google để nạp toàn bộ danh sách lớp học và bài nộp thực tế.
             </Typography>
             <Stack direction="row" spacing={1.5} justifyContent="center">
@@ -259,7 +283,16 @@ export default function ClassroomPage() {
                 variant="contained"
                 startIcon={<LinkIcon sx={{ fontSize: 16 }} />}
                 onClick={() => navigate('/connections')}
-                sx={{ bgcolor: '#18181b', color: '#ffffff', '&:hover': { bgcolor: '#27272a' }, fontWeight: 600, fontSize: '0.8125rem', textTransform: 'none' }}
+                sx={{
+                  bgcolor: '#2563eb',
+                  color: '#ffffff',
+                  '&:hover': { bgcolor: '#1d4ed8' },
+                  fontWeight: 600,
+                  fontSize: '0.8125rem',
+                  textTransform: 'none',
+                  borderRadius: '8px',
+                  boxShadow: '0 2px 6px rgba(37, 99, 235, 0.2)'
+                }}
               >
                 Kết nối Google Classroom (Chế độ A / B)
               </Button>
@@ -268,7 +301,7 @@ export default function ClassroomPage() {
                 startIcon={syncing ? <CircularProgress size={16} /> : <SyncIcon sx={{ fontSize: 16 }} />}
                 onClick={handleSync}
                 disabled={syncing}
-                sx={{ fontWeight: 600, fontSize: '0.8125rem', textTransform: 'none' }}
+                sx={{ fontWeight: 600, fontSize: '0.8125rem', textTransform: 'none', borderRadius: '8px' }}
               >
                 Thử đồng bộ ngay
               </Button>
@@ -277,7 +310,7 @@ export default function ClassroomPage() {
         ) : (
           <TableContainer sx={{ width: '100%', overflowX: 'auto' }}>
             <Table size="medium">
-              <TableHead sx={{ bgcolor: '#fcfcfd' }}>
+              <TableHead sx={{ bgcolor: '#f8fafc' }}>
                 <TableRow>
                   <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tên khóa học</TableCell>
                   <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Học kỳ / Section</TableCell>
@@ -295,21 +328,21 @@ export default function ClassroomPage() {
                     : (typeof x.content?.submissionRate === 'number' ? x.content.submissionRate : null);
                   const isMapped = Boolean(x.className || x.classId);
                   return (
-                    <TableRow key={x.id} hover sx={{ '&:hover': { bgcolor: '#f4f4f5' } }}>
+                    <TableRow key={x.id} hover sx={{ '&:hover': { bgcolor: 'rgba(239, 246, 255, 0.6)' } }}>
                       <TableCell>
-                        <Typography variant="body2" fontWeight={600} sx={{ color: '#09090b' }}>
+                        <Typography variant="body2" fontWeight={600} sx={{ color: '#0f172a' }}>
                           {x.name}
                         </Typography>
                       </TableCell>
-                      <TableCell sx={{ color: '#71717a' }}>{x.section || '—'}</TableCell>
+                      <TableCell sx={{ color: '#64748b' }}>{x.section || '—'}</TableCell>
                       <TableCell>
                         <Chip
                           label={x.courseState === 'ACTIVE' ? 'Đang mở' : x.courseState}
                           size="small"
                           sx={{
-                            bgcolor: x.courseState === 'ACTIVE' ? '#ecfdf5' : '#f4f4f5',
-                            color: x.courseState === 'ACTIVE' ? '#059669' : '#71717a',
-                            border: x.courseState === 'ACTIVE' ? '1px solid #a7f3d0' : '1px solid #e4e4e7',
+                            bgcolor: x.courseState === 'ACTIVE' ? '#ecfdf5' : '#f1f5f9',
+                            color: x.courseState === 'ACTIVE' ? '#059669' : '#64748b',
+                            border: x.courseState === 'ACTIVE' ? '1px solid #a7f3d0' : '1px solid #e2e8f0',
                             fontWeight: 600,
                             fontSize: '0.75rem',
                             height: 22
@@ -333,7 +366,7 @@ export default function ClassroomPage() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2" fontWeight={500} sx={{ color: '#09090b' }}>
+                        <Typography variant="body2" fontWeight={500} sx={{ color: '#0f172a' }}>
                           {x.roster?.students ?? '—'} HS
                         </Typography>
                       </TableCell>
@@ -347,12 +380,12 @@ export default function ClassroomPage() {
                                 sx={{
                                   height: 6,
                                   borderRadius: 3,
-                                  bgcolor: '#e4e4e7',
-                                  '& .MuiLinearProgress-bar': { bgcolor: subRate >= 90 ? '#10b981' : '#f59e0b' }
+                                  bgcolor: '#f1f5f9',
+                                  '& .MuiLinearProgress-bar': { bgcolor: subRate >= 90 ? '#10b981' : '#2563eb' }
                                 }}
                               />
                             </Box>
-                            <Typography variant="caption" fontWeight={600} sx={{ minWidth: 35, color: '#09090b' }}>
+                            <Typography variant="caption" fontWeight={600} sx={{ minWidth: 35, color: '#0f172a' }}>
                               {subRate}%
                             </Typography>
                           </Box>
@@ -368,7 +401,7 @@ export default function ClassroomPage() {
                           variant="outlined"
                           startIcon={<LinkIcon sx={{ fontSize: 14 }} />}
                           onClick={() => openMapDialog(x)}
-                          sx={{ fontSize: '0.75rem', py: 0.4, px: 1.2, borderRadius: '6px', fontWeight: 500, textTransform: 'none' }}
+                          sx={{ fontSize: '0.75rem', py: 0.4, px: 1.2, borderRadius: '6px', fontWeight: 600, textTransform: 'none' }}
                         >
                           {isMapped ? 'Sửa map' : 'Mapping'}
                         </Button>
@@ -388,15 +421,16 @@ export default function ClassroomPage() {
         onClose={() => setMapTarget(null)}
         maxWidth="xs"
         fullWidth
+        PaperProps={{ sx: { borderRadius: '12px' } }}
       >
-        <DialogTitle sx={{ fontWeight: 700, fontSize: '1.125rem' }}>
+        <DialogTitle sx={{ fontWeight: 700, fontSize: '1.125rem', color: '#0f172a' }}>
           Mapping Khóa Học Với Lớp Hành Chính
         </DialogTitle>
-        <DialogContent dividers sx={{ borderColor: '#e4e4e7' }}>
+        <DialogContent dividers sx={{ borderColor: '#e2e8f0' }}>
           {mapTarget && (
             <Stack spacing={2} sx={{ pt: 1 }}>
               <Typography variant="body2" color="text.secondary">
-                Khóa học: <strong style={{ color: '#09090b' }}>{mapTarget.name}</strong>
+                Khóa học: <strong style={{ color: '#0f172a' }}>{mapTarget.name}</strong>
               </Typography>
               <TextField
                 label="Mã Lớp (Class ID)"
@@ -417,9 +451,21 @@ export default function ClassroomPage() {
             </Stack>
           )}
         </DialogContent>
-        <DialogActions sx={{ p: 2, borderTop: '1px solid #e4e4e7' }}>
-          <Button onClick={() => setMapTarget(null)} sx={{ textTransform: 'none', color: '#71717a' }}>Hủy</Button>
-          <Button variant="contained" onClick={handleSaveMapping} sx={{ bgcolor: '#18181b', color: '#ffffff', '&:hover': { bgcolor: '#27272a' }, textTransform: 'none', fontWeight: 600 }}>
+        <DialogActions sx={{ p: 2, borderTop: '1px solid #e2e8f0' }}>
+          <Button onClick={() => setMapTarget(null)} sx={{ textTransform: 'none', color: '#64748b' }}>Hủy</Button>
+          <Button
+            variant="contained"
+            onClick={handleSaveMapping}
+            sx={{
+              bgcolor: '#2563eb',
+              color: '#ffffff',
+              '&:hover': { bgcolor: '#1d4ed8' },
+              textTransform: 'none',
+              fontWeight: 600,
+              borderRadius: '8px',
+              boxShadow: '0 2px 6px rgba(37, 99, 235, 0.2)'
+            }}
+          >
             Lưu Mapping
           </Button>
         </DialogActions>
@@ -431,16 +477,17 @@ export default function ClassroomPage() {
         onClose={() => setSyncDialog((prev) => ({ ...prev, open: false }))}
         maxWidth="sm"
         fullWidth
+        PaperProps={{ sx: { borderRadius: '12px' } }}
       >
-        <DialogTitle sx={{ fontWeight: 700, fontSize: '1.125rem' }}>
+        <DialogTitle sx={{ fontWeight: 700, fontSize: '1.125rem', color: '#0f172a' }}>
           {syncDialog.title}
         </DialogTitle>
-        <DialogContent dividers sx={{ borderColor: '#e4e4e7' }}>
-          <Typography variant="body2" sx={{ mt: 1, whiteSpace: 'pre-line', color: '#3f3f46' }}>
+        <DialogContent dividers sx={{ borderColor: '#e2e8f0' }}>
+          <Typography variant="body2" sx={{ mt: 1, whiteSpace: 'pre-line', color: '#334155' }}>
             {syncDialog.message}
           </Typography>
         </DialogContent>
-        <DialogActions sx={{ p: 2, borderTop: '1px solid #e4e4e7' }}>
+        <DialogActions sx={{ p: 2, borderTop: '1px solid #e2e8f0' }}>
           {syncDialog.isError && (
             <Button
               variant="contained"
@@ -448,7 +495,15 @@ export default function ClassroomPage() {
                 setSyncDialog((prev) => ({ ...prev, open: false }));
                 navigate('/connections');
               }}
-              sx={{ bgcolor: '#18181b', color: '#ffffff', '&:hover': { bgcolor: '#27272a' }, textTransform: 'none', fontWeight: 600 }}
+              sx={{
+                bgcolor: '#2563eb',
+                color: '#ffffff',
+                '&:hover': { bgcolor: '#1d4ed8' },
+                textTransform: 'none',
+                fontWeight: 600,
+                borderRadius: '8px',
+                boxShadow: '0 2px 6px rgba(37, 99, 235, 0.2)'
+              }}
             >
               Mở trang Quản Lý Kết Nối
             </Button>
@@ -456,7 +511,7 @@ export default function ClassroomPage() {
           <Button
             variant="outlined"
             onClick={() => setSyncDialog((prev) => ({ ...prev, open: false }))}
-            sx={{ textTransform: 'none', fontWeight: 500 }}
+            sx={{ textTransform: 'none', fontWeight: 500, borderRadius: '8px' }}
           >
             Đóng
           </Button>

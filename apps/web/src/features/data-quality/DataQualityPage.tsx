@@ -91,9 +91,9 @@ export default function DataQualityPage() {
       <Grid container spacing={3}>
         {/* Overall Score Card */}
         <Grid size={{ xs: 12, md: 4 }}>
-          <Card sx={{ height: '100%', borderRadius: '8px', border: '1px solid #e4e4e7', boxShadow: '0 1px 2px 0 rgba(0,0,0,0.03)', bgcolor: '#ffffff' }}>
+          <Card sx={{ height: '100%', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', bgcolor: '#ffffff' }}>
             <CardContent sx={{ p: 3, textAlign: 'center' }}>
-              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 Chỉ số chất lượng toàn diện
               </Typography>
               <Box sx={{ my: 3 }}>
@@ -104,7 +104,7 @@ export default function DataQualityPage() {
                     <Typography sx={{ fontSize: '3.5rem', fontWeight: 800, color: getScoreColor(score), lineHeight: 1, letterSpacing: '-0.03em' }}>
                       {score}
                     </Typography>
-                    <Typography variant="body2" sx={{ color: '#71717a', mt: 0.5 }}>
+                    <Typography variant="body2" sx={{ color: '#64748b', mt: 0.5 }}>
                       / 100 Điểm
                     </Typography>
                   </>
@@ -116,11 +116,11 @@ export default function DataQualityPage() {
                 sx={{
                   height: 6,
                   borderRadius: 3,
-                  bgcolor: '#e4e4e7',
+                  bgcolor: '#f1f5f9',
                   '& .MuiLinearProgress-bar': { bgcolor: getScoreColor(score) }
                 }}
               />
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 2, fontSize: '0.8125rem' }}>
+              <Typography variant="body2" color="#64748b" sx={{ mt: 2, fontSize: '0.8125rem' }}>
                 {score >= 85
                   ? 'Dữ liệu trường học đạt chuẩn độ chính xác cao'
                   : score > 0
@@ -133,9 +133,9 @@ export default function DataQualityPage() {
 
         {/* Component Metrics Card */}
         <Grid size={{ xs: 12, md: 8 }}>
-          <Card sx={{ height: '100%', borderRadius: '8px', border: '1px solid #e4e4e7', boxShadow: '0 1px 2px 0 rgba(0,0,0,0.03)', bgcolor: '#ffffff' }}>
+          <Card sx={{ height: '100%', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', bgcolor: '#ffffff' }}>
             <CardContent sx={{ p: 3 }}>
-              <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#09090b', mb: 2.5, letterSpacing: '-0.01em' }}>
+              <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#0f172a', mb: 2.5, letterSpacing: '-0.01em' }}>
                 Phân tích thành phần chất lượng thực tế
               </Typography>
               <Stack spacing={2.5}>
@@ -149,10 +149,10 @@ export default function DataQualityPage() {
                   return (
                     <Box key={key}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.75 }}>
-                        <Typography variant="body2" fontWeight={500} sx={{ color: '#09090b', fontSize: '0.8125rem' }}>
+                        <Typography variant="body2" fontWeight={500} sx={{ color: '#0f172a', fontSize: '0.8125rem' }}>
                           {label}
                         </Typography>
-                        <Typography variant="body2" fontWeight={600} sx={{ color: val >= 80 ? '#10b981' : '#71717a', fontSize: '0.8125rem' }}>
+                        <Typography variant="body2" fontWeight={600} sx={{ color: val >= 80 ? '#10b981' : '#2563eb', fontSize: '0.8125rem' }}>
                           {val}%
                         </Typography>
                       </Box>
@@ -162,8 +162,8 @@ export default function DataQualityPage() {
                         sx={{
                           height: 6,
                           borderRadius: 3,
-                          bgcolor: '#e4e4e7',
-                          '& .MuiLinearProgress-bar': { bgcolor: val >= 80 ? '#10b981' : '#18181b' }
+                          bgcolor: '#f1f5f9',
+                          '& .MuiLinearProgress-bar': { bgcolor: val >= 80 ? '#10b981' : '#2563eb' }
                         }}
                       />
                     </Box>
@@ -176,9 +176,9 @@ export default function DataQualityPage() {
 
         {/* Issues List */}
         <Grid size={{ xs: 12 }}>
-          <Card sx={{ borderRadius: '8px', border: '1px solid #e4e4e7', boxShadow: '0 1px 2px 0 rgba(0,0,0,0.03)', bgcolor: '#ffffff' }}>
+          <Card sx={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', bgcolor: '#ffffff' }}>
             <CardContent sx={{ p: 3 }}>
-              <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#09090b', mb: 2, letterSpacing: '-0.01em' }}>
+              <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#0f172a', mb: 2, letterSpacing: '-0.01em' }}>
                 Các điểm cần chuẩn hóa dữ liệu ({issues.length})
               </Typography>
               {issues.length === 0 ? (
