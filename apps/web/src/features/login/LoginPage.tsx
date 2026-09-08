@@ -333,7 +333,7 @@ export default function LoginPage() {
                   onClick={() =>
                     loginDemo(
                       'TEACHER',
-                      'Thầy Giáo Viên Toán (6A1, 6A2)',
+                      'Thầy Giáo Viên Toán (Bộ Môn Toán)',
                       'giaovien.toan@thcs-giangvo.edu.vn'
                     )
                   }

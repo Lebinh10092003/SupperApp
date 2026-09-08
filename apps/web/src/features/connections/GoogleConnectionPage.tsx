@@ -56,7 +56,7 @@ export default function GoogleConnectionPage() {
   const [status, setStatus] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
-  const [seedLoading, setSeedLoading] = useState(false);
+  const [purgeLoading, setPurgeLoading] = useState(false);
   const [msg, setMsg] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [copiedScopes, setCopiedScopes] = useState(false);
   const [copiedRedirect, setCopiedRedirect] = useState(false);
@@ -230,16 +230,17 @@ export default function GoogleConnectionPage() {
     }
   };
 
-  const handleLoadDemoSeed = async () => {
-    setSeedLoading(true);
+  const handlePurgeDemo = async () => {
+    if (!window.confirm('Hành động này sẽ xóa toàn bộ các khóa học mẫu/thử nghiệm (nếu có). Bạn có chắc muốn tiếp tục?')) return;
+    setPurgeLoading(true);
     try {
-      const res = await api<any>('/api/connections/demo-seed', { method: 'POST' });
-      setMsg({ text: res.message || 'Đã nạp thành công bộ lớp học mẫu THCS Giảng Võ!', type: 'success' });
+      const res = await api<any>('/api/connections/purge-demo', { method: 'POST' });
+      setMsg({ text: res.message || 'Đã dọn dẹp sạch sẽ dữ liệu mẫu!', type: 'success' });
       loadStatus();
     } catch (err: any) {
-      setMsg({ text: err.message || 'Lỗi khi nạp dữ liệu mẫu', type: 'error' });
+      setMsg({ text: err.message || 'Lỗi khi dọn dẹp dữ liệu mẫu', type: 'error' });
     } finally {
-      setSeedLoading(false);
+      setPurgeLoading(false);
     }
   };
 
@@ -296,13 +297,13 @@ export default function GoogleConnectionPage() {
             </Button>
             <Button
               variant="outlined"
-              color="secondary"
-              startIcon={seedLoading ? <CircularProgress size={16} color="inherit" /> : <PlayCircleOutlineIcon />}
-              onClick={handleLoadDemoSeed}
-              disabled={seedLoading}
-              sx={{ fontWeight: 600 }}
+              color="inherit"
+              startIcon={purgeLoading ? <CircularProgress size={16} color="inherit" /> : <DeleteOutlineIcon />}
+              onClick={handlePurgeDemo}
+              disabled={purgeLoading}
+              sx={{ fontWeight: 600, color: '#64748b', borderColor: '#cbd5e1', '&:hover': { bgcolor: '#fef2f2', color: '#dc2626', borderColor: '#fca5a5' } }}
             >
-              Nạp lớp học mẫu THCS Giảng Võ
+              {purgeLoading ? 'Đang dọn dẹp...' : 'Dọn dẹp dữ liệu mẫu'}
             </Button>
             <Button variant="outlined" startIcon={<RefreshIcon />} onClick={loadStatus} disabled={loading}>
               Làm mới

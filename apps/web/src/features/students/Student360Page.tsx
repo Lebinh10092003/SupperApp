@@ -546,8 +546,8 @@ export default function Student360Page() {
           🟢 Chế độ Dữ Liệu Thực Tế 100% (Zero-Mock SSOT)
         </AlertTitle>
         <Typography variant="body2" sx={{ color: '#166534', fontSize: '0.82rem', lineHeight: 1.6 }}>
-          • <strong>Tài khoản Google Classroom:</strong> Hệ thống kết nối và đồng bộ trực tiếp tài khoản của bạn (<strong>Lê Văn Bình — 09.levanbinh2003@gmail.com</strong>) cùng 8 khóa học và các topic từ Classroom.<br />
-          • <strong>Tình trạng điểm số:</strong> Các ô điểm hiển thị <strong>"Chưa có"</strong> do giáo viên bộ môn chưa công bố điểm bài tập trên Google Classroom. Ngay khi giáo viên chấm bài thật trên Classroom, bạn bấm <strong>"Làm mới"</strong> để cập nhật điểm số thật ngay lập tức!
+          • <strong>Tài khoản Google Classroom:</strong> Hệ thống kết nối và đồng bộ trực tiếp tài khoản Google Classroom cùng các khóa học và chủ đề môn học thực tế.<br />
+          • <strong>Tình trạng điểm số:</strong> Các ô điểm hiển thị <strong>"Chưa có"</strong> khi giáo viên bộ môn chưa công bố điểm bài tập trên Google Classroom. Ngay khi bài tập được chấm trên Classroom, bạn bấm <strong>"Làm mới"</strong> để cập nhật điểm số thực tế.
         </Typography>
       </Alert>
 

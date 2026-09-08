@@ -57,18 +57,20 @@ import {
   ReferenceLine,
   Cell
 } from 'recharts';
+import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
 
 export default function ClassComparePage() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(0);
   const [selectedGrade, setSelectedGrade] = useState<string>('all');
   const [classes, setClasses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Head-to-head Duel state
-  const [classAId, setClassAId] = useState<string>('6A1');
-  const [classBId, setClassBId] = useState<string>('6A2');
+  const [classAId, setClassAId] = useState<string>('');
+  const [classBId, setClassBId] = useState<string>('');
   const [duelData, setDuelData] = useState<any>(null);
   const [duelLoading, setDuelLoading] = useState(false);
 
@@ -82,6 +84,12 @@ export default function ClassComparePage() {
       if (items.length >= 2) {
         setClassAId(items[0].classId || items[0].id);
         setClassBId(items[1].classId || items[1].id);
+      } else if (items.length === 1) {
+        setClassAId(items[0].classId || items[0].id);
+        setClassBId('');
+      } else {
+        setClassAId('');
+        setClassBId('');
       }
     } catch (e) {
       console.error('Lỗi tải danh sách lớp:', e);
@@ -92,6 +100,7 @@ export default function ClassComparePage() {
 
   // 2. Tải phân tích đối đầu 1 vs 1 khi đổi lớp A hoặc B
   const loadDuel = async (aId: string, bId: string) => {
+    if (!aId || !bId) return;
     try {
       setDuelLoading(true);
       const res = await api<any>(`/api/classes/duel?classA=${encodeURIComponent(aId)}&classB=${encodeURIComponent(bId)}`);
@@ -110,14 +119,42 @@ export default function ClassComparePage() {
   useEffect(() => {
     if (classAId && classBId) {
       loadDuel(classAId, classBId);
+    } else {
+      setDuelData(null);
     }
   }, [classAId, classBId]);
+
+  // Danh sách các khối thực tế từ dữ liệu lớp học
+  const availableGrades = useMemo(() => {
+    const grades = new Set<string>();
+    classes.forEach((c) => {
+      if (c.grade != null && c.grade !== '') grades.add(String(c.grade));
+    });
+    const sorted = Array.from(grades).sort((a, b) => {
+      const numA = parseInt(a, 10);
+      const numB = parseInt(b, 10);
+      if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+      return a.localeCompare(b);
+    });
+    return ['all', ...sorted];
+  }, [classes]);
 
   // Bộ lọc danh sách lớp theo khối cho Tab 2
   const filteredClasses = useMemo(() => {
     if (selectedGrade === 'all') return classes;
     return classes.filter((c) => String(c.grade) === selectedGrade);
   }, [classes, selectedGrade]);
+
+  // Nhóm lớp theo khối cho Tab 3
+  const classesByGrade = useMemo(() => {
+    const groups: Record<string, any[]> = {};
+    classes.forEach((c) => {
+      const g = c.grade ? `Khối ${c.grade}` : 'Chưa phân khối';
+      if (!groups[g]) groups[g] = [];
+      groups[g].push(c);
+    });
+    return groups;
+  }, [classes]);
 
   // Thống kê tổng hợp toàn trường
   const stats = useMemo(() => {
@@ -322,72 +359,118 @@ export default function ClassComparePage() {
       {/* ========================================================================= */}
       {activeTab === 0 && (
         <Box>
-          {/* Class Selectors Bar */}
-          <Card sx={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', mb: 3, bgcolor: '#ffffff' }}>
-            <CardContent sx={{ p: 2.5 }}>
-              <Grid container spacing={2} alignItems="center" justifyContent="center">
-                <Grid size={{ xs: 12, sm: 5 }}>
-                  <FormControl fullWidth size="small">
-                    <InputLabel id="class-a-label" sx={{ fontWeight: 600 }}>Lớp thứ nhất (Lớp A)</InputLabel>
-                    <Select
-                      labelId="class-a-label"
-                      value={classAId}
-                      label="Lớp thứ nhất (Lớp A)"
-                      onChange={(e) => setClassAId(e.target.value)}
-                      sx={{ borderRadius: '8px', fontWeight: 700 }}
-                    >
-                      {classes.map((c) => (
-                        <MenuItem key={c.classId || c.id} value={c.classId || c.id}>
-                          <strong>{c.className}</strong> &nbsp;— Khối {c.grade} ({c.homeroomTeacher})
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Grid>
-
-                <Grid size={{ xs: 12, sm: 2 }} sx={{ textAlign: 'center' }}>
-                  <Tooltip title="Hoán đổi 2 lớp">
-                    <IconButton
-                      onClick={handleSwapClasses}
-                      sx={{
-                        bgcolor: '#eff6ff',
-                        color: '#2563eb',
-                        border: '1px solid #bfdbfe',
-                        '&:hover': { bgcolor: '#dbeafe' }
-                      }}
-                    >
-                      <SwapHorizIcon />
-                    </IconButton>
-                  </Tooltip>
-                </Grid>
-
-                <Grid size={{ xs: 12, sm: 5 }}>
-                  <FormControl fullWidth size="small">
-                    <InputLabel id="class-b-label" sx={{ fontWeight: 600 }}>Lớp thứ hai (Lớp B)</InputLabel>
-                    <Select
-                      labelId="class-b-label"
-                      value={classBId}
-                      label="Lớp thứ hai (Lớp B)"
-                      onChange={(e) => setClassBId(e.target.value)}
-                      sx={{ borderRadius: '8px', fontWeight: 700 }}
-                    >
-                      {classes.map((c) => (
-                        <MenuItem key={c.classId || c.id} value={c.classId || c.id}>
-                          <strong>{c.className}</strong> &nbsp;— Khối {c.grade} ({c.homeroomTeacher})
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Grid>
-              </Grid>
-            </CardContent>
-          </Card>
-
-          {duelLoading ? (
+          {loading ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
               <CircularProgress size={36} />
             </Box>
-          ) : duelData?.classA && duelData?.classB ? (
+          ) : classes.length < 2 ? (
+            <Card sx={{ borderRadius: '12px', border: '1px solid #e2e8f0', p: 5, textAlign: 'center', bgcolor: '#ffffff', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+              <Box
+                sx={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: 3,
+                  bgcolor: '#eff6ff',
+                  color: '#2563eb',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  mb: 2,
+                  boxShadow: '0 4px 12px rgba(37, 99, 235, 0.15)'
+                }}
+              >
+                <CompareArrowsIcon sx={{ fontSize: 32 }} />
+              </Box>
+              <Typography variant="h6" fontWeight={800} color="#0f172a" sx={{ mb: 1 }}>
+                Cần Ít Nhất 2 Lớp Học Để So Sánh Đối Đầu
+              </Typography>
+              <Typography variant="body2" color="#64748b" sx={{ maxWidth: 500, mx: 'auto', mb: 3 }}>
+                Hiện hệ thống chỉ ghi nhận {classes.length} lớp học. Vui lòng kết nối Google Classroom và đồng bộ các khóa học thực tế để sử dụng tính năng so sánh đối đầu sư phạm.
+              </Typography>
+              <Button
+                variant="contained"
+                onClick={() => navigate('/connections')}
+                sx={{
+                  bgcolor: '#2563eb',
+                  '&:hover': { bgcolor: '#1d4ed8' },
+                  textTransform: 'none',
+                  fontWeight: 700,
+                  px: 3,
+                  py: 1,
+                  borderRadius: '8px'
+                }}
+              >
+                Đến Trang Kết Nối Google Classroom
+              </Button>
+            </Card>
+          ) : (
+            <>
+              {/* Class Selectors Bar */}
+              <Card sx={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', mb: 3, bgcolor: '#ffffff' }}>
+                <CardContent sx={{ p: 2.5 }}>
+                  <Grid container spacing={2} alignItems="center" justifyContent="center">
+                    <Grid size={{ xs: 12, sm: 5 }}>
+                      <FormControl fullWidth size="small">
+                        <InputLabel id="class-a-label" sx={{ fontWeight: 600 }}>Lớp thứ nhất (Lớp A)</InputLabel>
+                        <Select
+                          labelId="class-a-label"
+                          value={classAId}
+                          label="Lớp thứ nhất (Lớp A)"
+                          onChange={(e) => setClassAId(e.target.value)}
+                          sx={{ borderRadius: '8px', fontWeight: 700 }}
+                        >
+                          {classes.map((c) => (
+                            <MenuItem key={c.classId || c.id} value={c.classId || c.id}>
+                              <strong>{c.className}</strong> &nbsp;— Khối {c.grade} ({c.homeroomTeacher})
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </Grid>
+
+                    <Grid size={{ xs: 12, sm: 2 }} sx={{ textAlign: 'center' }}>
+                      <Tooltip title="Hoán đổi 2 lớp">
+                        <IconButton
+                          onClick={handleSwapClasses}
+                          sx={{
+                            bgcolor: '#eff6ff',
+                            color: '#2563eb',
+                            border: '1px solid #bfdbfe',
+                            '&:hover': { bgcolor: '#dbeafe' }
+                          }}
+                        >
+                          <SwapHorizIcon />
+                        </IconButton>
+                      </Tooltip>
+                    </Grid>
+
+                    <Grid size={{ xs: 12, sm: 5 }}>
+                      <FormControl fullWidth size="small">
+                        <InputLabel id="class-b-label" sx={{ fontWeight: 600 }}>Lớp thứ hai (Lớp B)</InputLabel>
+                        <Select
+                          labelId="class-b-label"
+                          value={classBId}
+                          label="Lớp thứ hai (Lớp B)"
+                          onChange={(e) => setClassBId(e.target.value)}
+                          sx={{ borderRadius: '8px', fontWeight: 700 }}
+                        >
+                          {classes.map((c) => (
+                            <MenuItem key={c.classId || c.id} value={c.classId || c.id}>
+                              <strong>{c.className}</strong> &nbsp;— Khối {c.grade} ({c.homeroomTeacher})
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                  </Grid>
+                </CardContent>
+              </Card>
+
+              {duelLoading ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+                  <CircularProgress size={36} />
+                </Box>
+              ) : duelData?.classA && duelData?.classB ? (
             <Box>
               {/* Comparative Head-to-Head Cards */}
               <Grid container spacing={3} sx={{ mb: 3 }}>
@@ -671,8 +754,8 @@ export default function ClassComparePage() {
                       <TableBody>
                         {(duelData.classA.subjects || []).map((subA: any, idx: number) => {
                           const subB = duelData.classB.subjects?.find((s: any) => s.name === subA.name) || {
-                            completionRate: 90.0,
-                            avgScore: 8.0
+                            completionRate: 0,
+                            avgScore: 0
                           };
                           const isAWinner = subA.completionRate >= subB.completionRate;
                           return (
@@ -714,6 +797,8 @@ export default function ClassComparePage() {
           ) : (
             <Alert severity="warning">Không tìm thấy dữ liệu đối đầu giữa 2 lớp đã chọn.</Alert>
           )}
+            </>
+          )}
         </Box>
       )}
 
@@ -722,206 +807,246 @@ export default function ClassComparePage() {
       {/* ========================================================================= */}
       {activeTab === 1 && (
         <Box>
-          {/* Filter Bar */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3, flexWrap: 'wrap' }}>
-            <Typography variant="body2" fontWeight={700} color="#475569">
-              Lọc theo Khối lớp:
-            </Typography>
-            {['all', '6', '7', '8', '9'].map((g) => (
-              <Chip
-                key={g}
-                label={g === 'all' ? 'Tất cả các khối' : `Khối ${g}`}
-                clickable
-                color={selectedGrade === g ? 'primary' : 'default'}
-                onClick={() => setSelectedGrade(g)}
+          {classes.length === 0 ? (
+            <Card sx={{ borderRadius: '12px', border: '1px solid #e2e8f0', p: 5, textAlign: 'center', bgcolor: '#ffffff', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+              <Box
                 sx={{
-                  fontWeight: 700,
-                  fontSize: '0.8rem',
-                  bgcolor: selectedGrade === g ? '#2563eb' : '#f1f5f9',
-                  color: selectedGrade === g ? '#ffffff' : '#475569',
-                  '&:hover': { bgcolor: selectedGrade === g ? '#1d4ed8' : '#e2e8f0' }
+                  width: 56,
+                  height: 56,
+                  borderRadius: 3,
+                  bgcolor: '#eff6ff',
+                  color: '#2563eb',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  mb: 2,
+                  boxShadow: '0 4px 12px rgba(37, 99, 235, 0.15)'
                 }}
-              />
-            ))}
-          </Box>
-
-          {/* Benchmark Bar Chart */}
-          <Card sx={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', mb: 3, bgcolor: '#ffffff' }}>
-            <CardContent sx={{ p: 3 }}>
-              <Typography variant="subtitle1" fontWeight={700} color="#0f172a" sx={{ mb: 0.5 }}>
-                Chuẩn Đối Sánh Tỷ Lệ Nộp Bài (Benchmark Comparison)
-              </Typography>
-              <Typography variant="caption" color="#64748b" display="block" sx={{ mb: 2 }}>
-                Đường nét đứt màu đỏ thể hiện mức trung bình toàn trường ({stats.avgCompletion}%)
-              </Typography>
-
-              <Box sx={{ height: 320, width: '100%' }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={filteredClasses} margin={{ top: 20, right: 30, left: 0, bottom: 20 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                    <XAxis dataKey="className" tick={{ fill: '#475569', fontSize: 12, fontWeight: 600 }} />
-                    <YAxis domain={[75, 100]} tick={{ fill: '#64748b', fontSize: 12 }} />
-                    <RechartsTooltip
-                      formatter={(val: any) => [`${val}%`, 'Tỷ lệ hoàn thành']}
-                      contentStyle={{ backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid #cbd5e1' }}
-                    />
-                    <ReferenceLine y={stats.avgCompletion} stroke="#ef4444" strokeDasharray="4 4" label={{ value: `TB: ${stats.avgCompletion}%`, fill: '#ef4444', fontSize: 12, fontWeight: 700, position: 'top' }} />
-                    <Bar dataKey="completionRate" radius={[6, 6, 0, 0]}>
-                      {filteredClasses.map((entry, index) => (
-                        <Cell
-                          key={`cell-${index}`}
-                          fill={entry.completionRate >= 95 ? '#10b981' : entry.completionRate >= 90 ? '#2563eb' : '#f59e0b'}
-                        />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
+              >
+                <TrendingUpIcon sx={{ fontSize: 32 }} />
               </Box>
-            </CardContent>
-          </Card>
-
-          {/* Full Interactive Grid */}
-          <Card sx={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', bgcolor: '#ffffff' }}>
-            <CardContent sx={{ p: 3 }}>
-              <Typography variant="subtitle1" fontWeight={700} color="#0f172a" sx={{ mb: 0.5 }}>
-                Bảng Xếp Hạng Hiệu Suất Học Tập Toàn Bộ Các Lớp
+              <Typography variant="h6" fontWeight={800} color="#0f172a" sx={{ mb: 1 }}>
+                Chưa Có Dữ Liệu Lớp Học Để Lập Bảng Xếp Hạng
               </Typography>
-              <Typography variant="caption" color="#64748b" display="block" sx={{ mb: 2 }}>
-                Dữ liệu đồng bộ trực tiếp từ Google Classroom và CSDL trường học THCS Giảng Võ
+              <Typography variant="body2" color="#64748b" sx={{ maxWidth: 480, mx: 'auto', mb: 3 }}>
+                Vui lòng kết nối Google Classroom và đồng bộ các khóa học để hệ thống tự động tổng hợp hiệu suất và lập chuẩn đối sánh.
               </Typography>
+              <Button
+                variant="contained"
+                onClick={() => navigate('/connections')}
+                sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' }, textTransform: 'none', fontWeight: 700, borderRadius: '8px', px: 3 }}
+              >
+                Kết Nối Google Classroom
+              </Button>
+            </Card>
+          ) : (
+            <>
+              {/* Filter Bar */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3, flexWrap: 'wrap' }}>
+                <Typography variant="body2" fontWeight={700} color="#475569">
+                  Lọc theo Khối lớp:
+                </Typography>
+                {availableGrades.map((g) => (
+                  <Chip
+                    key={g}
+                    label={g === 'all' ? 'Tất cả các khối' : `Khối ${g}`}
+                    clickable
+                    color={selectedGrade === g ? 'primary' : 'default'}
+                    onClick={() => setSelectedGrade(g)}
+                    sx={{
+                      fontWeight: 700,
+                      fontSize: '0.8rem',
+                      bgcolor: selectedGrade === g ? '#2563eb' : '#f1f5f9',
+                      color: selectedGrade === g ? '#ffffff' : '#475569',
+                      '&:hover': { bgcolor: selectedGrade === g ? '#1d4ed8' : '#e2e8f0' }
+                    }}
+                  />
+                ))}
+              </Box>
 
-              <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid #e2e8f0', borderRadius: '8px' }}>
-                <Table>
-                  <TableHead sx={{ bgcolor: '#f8fafc' }}>
-                    <TableRow>
-                      <TableCell sx={{ fontWeight: 700, color: '#475569', width: 60 }}>Hạng</TableCell>
-                      <TableCell sx={{ fontWeight: 700, color: '#475569' }}>Lớp Học</TableCell>
-                      <TableCell sx={{ fontWeight: 700, color: '#475569' }}>Khối</TableCell>
-                      <TableCell sx={{ fontWeight: 700, color: '#475569' }}>Sĩ Số</TableCell>
-                      <TableCell sx={{ fontWeight: 700, color: '#475569' }}>Giáo Viên Chủ Nhiệm</TableCell>
-                      <TableCell sx={{ fontWeight: 700, color: '#475569', width: 220 }}>Tỷ Lệ Hoàn Thành</TableCell>
-                      <TableCell align="center" sx={{ fontWeight: 700, color: '#475569' }}>Đúng Hạn</TableCell>
-                      <TableCell align="center" sx={{ fontWeight: 700, color: '#475569' }}>Điểm TB</TableCell>
-                      <TableCell align="center" sx={{ fontWeight: 700, color: '#475569' }}>Trạng Thái</TableCell>
-                      <TableCell align="center" sx={{ fontWeight: 700, color: '#475569' }}>Thao Tác</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {filteredClasses.map((cls, idx) => {
-                      const isTop3 = idx < 3;
-                      return (
-                        <TableRow key={cls.id || cls.classId} hover>
-                          <TableCell>
-                            {isTop3 ? (
-                              <Box
-                                sx={{
-                                  width: 26,
-                                  height: 26,
-                                  borderRadius: '50%',
-                                  bgcolor: idx === 0 ? '#fef3c7' : idx === 1 ? '#f1f5f9' : '#ffedd5',
-                                  color: idx === 0 ? '#d97706' : idx === 1 ? '#475569' : '#c2410c',
-                                  display: 'grid',
-                                  placeItems: 'center',
-                                  fontWeight: 800,
-                                  fontSize: '0.8rem',
-                                  border: idx === 0 ? '1px solid #fde68a' : '1px solid #cbd5e1'
-                                }}
-                              >
-                                {idx + 1}
-                              </Box>
-                            ) : (
-                              <Typography variant="body2" color="#64748b" fontWeight={600} sx={{ pl: 1 }}>
-                                {idx + 1}
-                              </Typography>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <SchoolIcon sx={{ color: '#2563eb', fontSize: 18 }} />
-                              <Typography variant="body2" fontWeight={700} color="#0f172a">
-                                {cls.className}
-                              </Typography>
-                            </Box>
-                          </TableCell>
-                          <TableCell>
-                            <Chip label={`Khối ${cls.grade}`} size="small" sx={{ bgcolor: '#eff6ff', color: '#1d4ed8', fontWeight: 700 }} />
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2" fontWeight={600} color="#334155">
-                              {cls.expectedStudents || '—'} HS
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2" color="#334155">
-                              {cls.homeroomTeacher || 'Chưa phân công'}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                              <Box sx={{ flex: 1 }}>
-                                <LinearProgress
-                                  variant="determinate"
-                                  value={cls.completionRate || 0}
+              {/* Benchmark Bar Chart */}
+              <Card sx={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', mb: 3, bgcolor: '#ffffff' }}>
+                <CardContent sx={{ p: 3 }}>
+                  <Typography variant="subtitle1" fontWeight={700} color="#0f172a" sx={{ mb: 0.5 }}>
+                    Chuẩn Đối Sánh Tỷ Lệ Nộp Bài (Benchmark Comparison)
+                  </Typography>
+                  <Typography variant="caption" color="#64748b" display="block" sx={{ mb: 2 }}>
+                    Đường nét đứt màu đỏ thể hiện mức trung bình toàn trường ({stats.avgCompletion}%)
+                  </Typography>
+
+                  {filteredClasses.length === 0 ? (
+                    <Alert severity="info" sx={{ borderRadius: '8px' }}>Không có lớp học nào thuộc khối được chọn.</Alert>
+                  ) : (
+                    <Box sx={{ height: 320, width: '100%' }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={filteredClasses} margin={{ top: 20, right: 30, left: 0, bottom: 20 }}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                          <XAxis dataKey="className" tick={{ fill: '#475569', fontSize: 12, fontWeight: 600 }} />
+                          <YAxis domain={[0, 100]} tick={{ fill: '#64748b', fontSize: 12 }} />
+                          <RechartsTooltip
+                            formatter={(val: any) => [`${val}%`, 'Tỷ lệ hoàn thành']}
+                            contentStyle={{ backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                          />
+                          <ReferenceLine y={stats.avgCompletion} stroke="#ef4444" strokeDasharray="4 4" label={{ value: `TB: ${stats.avgCompletion}%`, fill: '#ef4444', fontSize: 12, fontWeight: 700, position: 'top' }} />
+                          <Bar dataKey="completionRate" radius={[6, 6, 0, 0]}>
+                            {filteredClasses.map((entry, index) => (
+                              <Cell
+                                key={`cell-${index}`}
+                                fill={entry.completionRate >= 95 ? '#10b981' : entry.completionRate >= 90 ? '#2563eb' : '#f59e0b'}
+                              />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </Box>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Full Interactive Grid */}
+              <Card sx={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', bgcolor: '#ffffff' }}>
+                <CardContent sx={{ p: 3 }}>
+                  <Typography variant="subtitle1" fontWeight={700} color="#0f172a" sx={{ mb: 0.5 }}>
+                    Bảng Xếp Hạng Hiệu Suất Học Tập Toàn Bộ Các Lớp
+                  </Typography>
+                  <Typography variant="caption" color="#64748b" display="block" sx={{ mb: 2 }}>
+                    Dữ liệu đồng bộ trực tiếp từ Google Classroom và CSDL trường học THCS Giảng Võ
+                  </Typography>
+
+                  <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid #e2e8f0', borderRadius: '8px' }}>
+                    <Table>
+                      <TableHead sx={{ bgcolor: '#f8fafc' }}>
+                        <TableRow>
+                          <TableCell sx={{ fontWeight: 700, color: '#475569', width: 60 }}>Hạng</TableCell>
+                          <TableCell sx={{ fontWeight: 700, color: '#475569' }}>Lớp Học</TableCell>
+                          <TableCell sx={{ fontWeight: 700, color: '#475569' }}>Khối</TableCell>
+                          <TableCell sx={{ fontWeight: 700, color: '#475569' }}>Sĩ Số</TableCell>
+                          <TableCell sx={{ fontWeight: 700, color: '#475569' }}>Giáo Viên Chủ Nhiệm</TableCell>
+                          <TableCell sx={{ fontWeight: 700, color: '#475569', width: 220 }}>Tỷ Lệ Hoàn Thành</TableCell>
+                          <TableCell align="center" sx={{ fontWeight: 700, color: '#475569' }}>Đúng Hạn</TableCell>
+                          <TableCell align="center" sx={{ fontWeight: 700, color: '#475569' }}>Điểm TB</TableCell>
+                          <TableCell align="center" sx={{ fontWeight: 700, color: '#475569' }}>Trạng Thái</TableCell>
+                          <TableCell align="center" sx={{ fontWeight: 700, color: '#475569' }}>Thao Tác</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {filteredClasses.map((cls, idx) => {
+                          const isTop3 = idx < 3;
+                          return (
+                            <TableRow key={cls.id || cls.classId} hover>
+                              <TableCell>
+                                {isTop3 ? (
+                                  <Box
+                                    sx={{
+                                      width: 26,
+                                      height: 26,
+                                      borderRadius: '50%',
+                                      bgcolor: idx === 0 ? '#fef3c7' : idx === 1 ? '#f1f5f9' : '#ffedd5',
+                                      color: idx === 0 ? '#d97706' : idx === 1 ? '#475569' : '#c2410c',
+                                      display: 'grid',
+                                      placeItems: 'center',
+                                      fontWeight: 800,
+                                      fontSize: '0.8rem',
+                                      border: idx === 0 ? '1px solid #fde68a' : '1px solid #cbd5e1'
+                                    }}
+                                  >
+                                    {idx + 1}
+                                  </Box>
+                                ) : (
+                                  <Typography variant="body2" color="#64748b" fontWeight={600} sx={{ pl: 1 }}>
+                                    {idx + 1}
+                                  </Typography>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <SchoolIcon sx={{ color: '#2563eb', fontSize: 18 }} />
+                                  <Typography variant="body2" fontWeight={700} color="#0f172a">
+                                    {cls.className}
+                                  </Typography>
+                                </Box>
+                              </TableCell>
+                              <TableCell>
+                                <Chip label={`Khối ${cls.grade}`} size="small" sx={{ bgcolor: '#eff6ff', color: '#1d4ed8', fontWeight: 700 }} />
+                              </TableCell>
+                              <TableCell>
+                                <Typography variant="body2" fontWeight={600} color="#334155">
+                                  {cls.expectedStudents || '—'} HS
+                                </Typography>
+                              </TableCell>
+                              <TableCell>
+                                <Typography variant="body2" color="#334155">
+                                  {cls.homeroomTeacher || 'Chưa phân công'}
+                                </Typography>
+                              </TableCell>
+                              <TableCell>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                  <Box sx={{ flex: 1 }}>
+                                    <LinearProgress
+                                      variant="determinate"
+                                      value={cls.completionRate || 0}
+                                      sx={{
+                                        height: 8,
+                                        borderRadius: 4,
+                                        bgcolor: '#e2e8f0',
+                                        '& .MuiLinearProgress-bar': {
+                                          bgcolor: cls.completionRate >= 95 ? '#10b981' : cls.completionRate >= 90 ? '#2563eb' : '#f59e0b'
+                                        }
+                                      }}
+                                    />
+                                  </Box>
+                                  <Typography variant="body2" fontWeight={800} color="#0f172a" sx={{ minWidth: 45 }}>
+                                    {cls.completionRate}%
+                                  </Typography>
+                                </Box>
+                              </TableCell>
+                              <TableCell align="center">
+                                <Typography variant="body2" fontWeight={700} color="#16a34a">
+                                  {cls.onTimeRate}%
+                                </Typography>
+                              </TableCell>
+                              <TableCell align="center">
+                                <Typography variant="body2" fontWeight={800} color="#d97706">
+                                  {cls.averageScore}
+                                </Typography>
+                              </TableCell>
+                              <TableCell align="center">
+                                <Chip
+                                  label={cls.completionRate >= 95 ? 'Xuất sắc' : cls.completionRate >= 90 ? 'Tốt' : 'Cần hỗ trợ'}
+                                  size="small"
                                   sx={{
-                                    height: 8,
-                                    borderRadius: 4,
-                                    bgcolor: '#e2e8f0',
-                                    '& .MuiLinearProgress-bar': {
-                                      bgcolor: cls.completionRate >= 95 ? '#10b981' : cls.completionRate >= 90 ? '#2563eb' : '#f59e0b'
-                                    }
+                                    bgcolor: cls.completionRate >= 95 ? '#ecfdf5' : cls.completionRate >= 90 ? '#eff6ff' : '#fef2f2',
+                                    color: cls.completionRate >= 95 ? '#059669' : cls.completionRate >= 90 ? '#2563eb' : '#dc2626',
+                                    fontWeight: 700,
+                                    fontSize: '0.75rem',
+                                    border: cls.completionRate >= 95 ? '1px solid #a7f3d0' : cls.completionRate >= 90 ? '1px solid #bfdbfe' : '1px solid #fecaca'
                                   }}
                                 />
-                              </Box>
-                              <Typography variant="body2" fontWeight={800} color="#0f172a" sx={{ minWidth: 45 }}>
-                                {cls.completionRate}%
-                              </Typography>
-                            </Box>
-                          </TableCell>
-                          <TableCell align="center">
-                            <Typography variant="body2" fontWeight={700} color="#16a34a">
-                              {cls.onTimeRate}%
-                            </Typography>
-                          </TableCell>
-                          <TableCell align="center">
-                            <Typography variant="body2" fontWeight={800} color="#d97706">
-                              {cls.averageScore}
-                            </Typography>
-                          </TableCell>
-                          <TableCell align="center">
-                            <Chip
-                              label={cls.completionRate >= 95 ? 'Xuất sắc' : cls.completionRate >= 90 ? 'Tốt' : 'Cần hỗ trợ'}
-                              size="small"
-                              sx={{
-                                bgcolor: cls.completionRate >= 95 ? '#ecfdf5' : cls.completionRate >= 90 ? '#eff6ff' : '#fef2f2',
-                                color: cls.completionRate >= 95 ? '#059669' : cls.completionRate >= 90 ? '#2563eb' : '#dc2626',
-                                fontWeight: 700,
-                                fontSize: '0.75rem',
-                                border: cls.completionRate >= 95 ? '1px solid #a7f3d0' : cls.completionRate >= 90 ? '1px solid #bfdbfe' : '1px solid #fecaca'
-                              }}
-                            />
-                          </TableCell>
-                          <TableCell align="center">
-                            <Button
-                              size="small"
-                              variant="text"
-                              startIcon={<CompareArrowsIcon sx={{ fontSize: 16 }} />}
-                              onClick={() => {
-                                setClassAId(cls.classId || cls.id);
-                                setActiveTab(0);
-                              }}
-                              sx={{ textTransform: 'none', fontWeight: 700, fontSize: '0.75rem', color: '#2563eb' }}
-                            >
-                              So sánh
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </CardContent>
-          </Card>
+                              </TableCell>
+                              <TableCell align="center">
+                                <Button
+                                  size="small"
+                                  variant="text"
+                                  startIcon={<CompareArrowsIcon sx={{ fontSize: 16 }} />}
+                                  onClick={() => {
+                                    setClassAId(cls.classId || cls.id);
+                                    setActiveTab(0);
+                                  }}
+                                  sx={{ textTransform: 'none', fontWeight: 700, fontSize: '0.75rem', color: '#2563eb' }}
+                                >
+                                  So sánh
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </CardContent>
+              </Card>
+            </>
+          )}
         </Box>
       )}
 
@@ -930,85 +1055,111 @@ export default function ClassComparePage() {
       {/* ========================================================================= */}
       {activeTab === 2 && (
         <Box>
-          <Grid container spacing={3}>
-            <Grid size={{ xs: 12, md: 8 }}>
-              <Card sx={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', bgcolor: '#ffffff', mb: 3 }}>
-                <CardContent sx={{ p: 3 }}>
-                  <Typography variant="h6" fontWeight={800} color="#0f172a" sx={{ mb: 1 }}>
-                    Chỉ Đạo Điều Hành Sư Phạm Theo Khối Lớp
-                  </Typography>
-                  <Typography variant="body2" color="#64748b" sx={{ mb: 3 }}>
-                    Các hành động cụ thể dành cho Hiệu trưởng và Phó Hiệu trưởng phụ trách chuyên môn THCS Giảng Võ
-                  </Typography>
+          {classes.length === 0 ? (
+            <Card sx={{ borderRadius: '12px', border: '1px solid #e2e8f0', p: 5, textAlign: 'center', bgcolor: '#ffffff' }}>
+              <Box sx={{ width: 56, height: 56, borderRadius: 3, bgcolor: '#eff6ff', color: '#2563eb', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', mb: 2 }}>
+                <LightbulbOutlinedIcon sx={{ fontSize: 32 }} />
+              </Box>
+              <Typography variant="h6" fontWeight={800} color="#0f172a" sx={{ mb: 1 }}>
+                Chưa Có Dữ Liệu Lớp Học Để Tạo Khuyến Nghị Điều Hành
+              </Typography>
+              <Typography variant="body2" color="#64748b" sx={{ maxWidth: 480, mx: 'auto', mb: 3 }}>
+                Sau khi kết nối và đồng bộ các khóa học Google Classroom, hệ thống sẽ tự động tổng hợp hiệu suất và lập danh mục chỉ đạo chuyên môn cho Ban Giám hiệu.
+              </Typography>
+              <Button
+                variant="contained"
+                onClick={() => navigate('/connections')}
+                sx={{ bgcolor: '#2563eb', textTransform: 'none', fontWeight: 700, borderRadius: '8px' }}
+              >
+                Kết Nối Google Classroom
+              </Button>
+            </Card>
+          ) : (
+            <Grid container spacing={3}>
+              <Grid size={{ xs: 12, md: 8 }}>
+                <Card sx={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', bgcolor: '#ffffff', mb: 3 }}>
+                  <CardContent sx={{ p: 3 }}>
+                    <Typography variant="h6" fontWeight={800} color="#0f172a" sx={{ mb: 1 }}>
+                      Chỉ Đạo Điều Hành Sư Phạm Theo Khối Lớp Thực Tế
+                    </Typography>
+                    <Typography variant="body2" color="#64748b" sx={{ mb: 3 }}>
+                      Khuyến nghị tự động dựa trên kết quả nộp bài và chuyên cần thực tế từ Google Classroom
+                    </Typography>
 
-                  <Stack spacing={2.5}>
-                    <Box sx={{ p: 2, bgcolor: '#f8fafc', borderRadius: '10px', borderLeft: '4px solid #10b981' }}>
-                      <Typography variant="subtitle2" fontWeight={800} color="#0f172a">
-                        1. Khối 9 — Tăng cường luyện đề & Chuẩn bị kỳ thi vào 10
-                      </Typography>
-                      <Typography variant="body2" color="#475569" sx={{ mt: 0.5, fontSize: '0.85rem' }}>
-                        Lớp 9A1 và 9A2 duy trì phong độ xuất sắc ({'>'}96% hoàn thành bài). Cần chỉ đạo giáo viên bộ môn Toán, Văn, Anh ra các dạng đề nâng cao bám sát cấu trúc đề thi Sở GD&ĐT Hà Nội. Lớp 9A4 cần đôn đốc thêm về môn KHTN.
-                      </Typography>
-                    </Box>
+                    <Stack spacing={2.5}>
+                      {Object.entries(classesByGrade).map(([gradeName, gradeClasses], idx) => {
+                        const topInGrade = [...gradeClasses].sort((a, b) => (b.completionRate || 0) - (a.completionRate || 0))[0];
+                        const lowInGrade = [...gradeClasses].sort((a, b) => (a.completionRate || 0) - (b.completionRate || 0))[0];
+                        const avgGradeComp = Math.round((gradeClasses.reduce((acc, c) => acc + (c.completionRate || 0), 0) / gradeClasses.length) * 10) / 10;
+                        const borderColor = idx % 3 === 0 ? '#10b981' : idx % 3 === 1 ? '#2563eb' : '#f59e0b';
 
-                    <Box sx={{ p: 2, bgcolor: '#f8fafc', borderRadius: '10px', borderLeft: '4px solid #2563eb' }}>
-                      <Typography variant="subtitle2" fontWeight={800} color="#0f172a">
-                        2. Khối 8 — Giữ vững chất lượng các môn Khoa học Tự nhiên
-                      </Typography>
-                      <Typography variant="body2" color="#475569" sx={{ mt: 0.5, fontSize: '0.85rem' }}>
-                        Lớp 8A3 đạt điểm trung bình cao nhất khối (8.8 điểm). Đề xuất tuyên dương GVCN Cô Phan Hải Yến. Nhắc nhở GVCN 8A4 phối hợp phụ huynh hỗ trợ 5 học sinh thường xuyên nộp bài quá hạn.
-                      </Typography>
-                    </Box>
+                        return (
+                          <Box key={gradeName} sx={{ p: 2.25, bgcolor: '#f8fafc', borderRadius: '10px', borderLeft: `4px solid ${borderColor}`, border: '1px solid #e2e8f0', borderLeftWidth: '4px' }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5, flexWrap: 'wrap', gap: 1 }}>
+                              <Typography variant="subtitle2" fontWeight={800} color="#0f172a">
+                                {idx + 1}. {gradeName} — {gradeClasses.length} lớp học (Tỷ lệ hoàn thành TB: {avgGradeComp}%)
+                              </Typography>
+                              <Chip
+                                label={avgGradeComp >= 90 ? 'Tiến độ tốt' : 'Cần đôn đốc'}
+                                size="small"
+                                sx={{
+                                  fontWeight: 700,
+                                  fontSize: '0.72rem',
+                                  bgcolor: avgGradeComp >= 90 ? '#ecfdf5' : '#fffbeb',
+                                  color: avgGradeComp >= 90 ? '#059669' : '#d97706',
+                                  border: avgGradeComp >= 90 ? '1px solid #a7f3d0' : '1px solid #fde68a'
+                                }}
+                              />
+                            </Box>
+                            <Typography variant="body2" color="#475569" sx={{ mt: 0.5, fontSize: '0.85rem', lineHeight: 1.6 }}>
+                              • <strong>Lớp dẫn đầu:</strong> {topInGrade?.className || '—'} đạt tỷ lệ nộp bài {topInGrade?.completionRate || 0}%{topInGrade?.homeroomTeacher ? ` (GVCN: ${topInGrade.homeroomTeacher})` : ''}.<br />
+                              • <strong>Chỉ đạo chuyên môn:</strong> {lowInGrade && lowInGrade !== topInGrade ? `Phối hợp cùng GVCN lớp ${lowInGrade.className} đôn đốc việc hoàn thành bài tập trực tuyến (hiện đạt ${lowInGrade.completionRate || 0}%).` : 'Duy trì nề nếp giao và nộp bài đều đặn qua Google Classroom.'}
+                            </Typography>
+                          </Box>
+                        );
+                      })}
+                    </Stack>
+                  </CardContent>
+                </Card>
+              </Grid>
 
-                    <Box sx={{ p: 2, bgcolor: '#f8fafc', borderRadius: '10px', borderLeft: '4px solid #f59e0b' }}>
-                      <Typography variant="subtitle2" fontWeight={800} color="#0f172a">
-                        3. Khối 6 & Khối 7 — Xây dựng phương pháp tự học trên Google Classroom
-                      </Typography>
-                      <Typography variant="body2" color="#475569" sx={{ mt: 0.5, fontSize: '0.85rem' }}>
-                        Học sinh đầu cấp cần làm quen với hạn nộp và hướng dẫn bài tập trực tuyến. Tổ chức buổi tập huấn nhanh cho học sinh lớp 6A3 và 7A3 về kỹ năng nộp bài qua Google Classroom.
-                      </Typography>
-                    </Box>
-                  </Stack>
-                </CardContent>
-              </Card>
+              <Grid size={{ xs: 12, md: 4 }}>
+                <Card sx={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', bgcolor: '#ffffff', mb: 3 }}>
+                  <CardContent sx={{ p: 3 }}>
+                    <Typography variant="subtitle1" fontWeight={700} color="#0f172a" sx={{ mb: 2 }}>
+                      Lịch Họp Giao Ban Đề Xuất
+                    </Typography>
+
+                    <Stack spacing={2}>
+                      <Box sx={{ p: 1.5, bgcolor: '#eff6ff', borderRadius: '8px', border: '1px solid #bfdbfe' }}>
+                        <Typography variant="caption" fontWeight={700} color="#2563eb" display="block">
+                          ĐỊNH KỲ — ĐẦU TUẦN
+                        </Typography>
+                        <Typography variant="body2" fontWeight={700} color="#0f172a">
+                          Họp Ban Giám Hiệu & Khối Chuyên Môn
+                        </Typography>
+                        <Typography variant="caption" color="#64748b">
+                          Đánh giá tỷ lệ nộp bài ({stats.avgCompletion}%) và đôn đốc các lớp cần hỗ trợ ({stats.warningCount} lớp)
+                        </Typography>
+                      </Box>
+
+                      <Box sx={{ p: 1.5, bgcolor: '#f0fdf4', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
+                        <Typography variant="caption" fontWeight={700} color="#16a34a" display="block">
+                          SINH HOẠT TỔ BỘ MÔN
+                        </Typography>
+                        <Typography variant="body2" fontWeight={700} color="#0f172a">
+                          Rà Soát Tiến Độ Chấm Điểm Classroom
+                        </Typography>
+                        <Typography variant="caption" color="#64748b">
+                          Thống nhất khối lượng bài tập trực tuyến và công bố điểm cho học sinh
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  </CardContent>
+                </Card>
+              </Grid>
             </Grid>
-
-            <Grid size={{ xs: 12, md: 4 }}>
-              <Card sx={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', bgcolor: '#ffffff', mb: 3 }}>
-                <CardContent sx={{ p: 3 }}>
-                  <Typography variant="subtitle1" fontWeight={700} color="#0f172a" sx={{ mb: 2 }}>
-                    Lịch Họp Giao Ban Đề Xuất
-                  </Typography>
-
-                  <Stack spacing={2}>
-                    <Box sx={{ p: 1.5, bgcolor: '#eff6ff', borderRadius: '8px', border: '1px solid #bfdbfe' }}>
-                      <Typography variant="caption" fontWeight={700} color="#2563eb" display="block">
-                        THỨ HAI — 08:30
-                      </Typography>
-                      <Typography variant="body2" fontWeight={700} color="#0f172a">
-                        Họp Ban Giám Hiệu & Trưởng Khối 9
-                      </Typography>
-                      <Typography variant="caption" color="#64748b">
-                        Đánh giá kết quả khảo sát tháng môn Toán & Văn
-                      </Typography>
-                    </Box>
-
-                    <Box sx={{ p: 1.5, bgcolor: '#f0fdf4', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
-                      <Typography variant="caption" fontWeight={700} color="#16a34a" display="block">
-                        THỨ NĂM — 14:00
-                      </Typography>
-                      <Typography variant="body2" fontWeight={700} color="#0f172a">
-                        Sinh Hoạt Chuyên Môn Tổ Toán - Tin
-                      </Typography>
-                      <Typography variant="caption" color="#64748b">
-                        Thống nhất khối lượng bài tập trực tuyến khối 6, 7
-                      </Typography>
-                    </Box>
-                  </Stack>
-                </CardContent>
-              </Card>
-            </Grid>
-          </Grid>
+          )}
         </Box>
       )}
     </Box>

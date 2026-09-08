@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import {
   Card,
   CardContent,
@@ -131,6 +131,27 @@ export default function DashboardPage() {
   const [trendData, setTrendData] = useState<any[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [syncNotice, setSyncNotice] = useState<string | null>(null);
+  const [classes, setClasses] = useState<any[]>([]);
+
+  useEffect(() => {
+    api.get<{ items: any[] }>('/api/classes')
+      .then((res) => setClasses(res.items || []))
+      .catch(() => {});
+  }, []);
+
+  const availableGrades = useMemo(() => {
+    const grades = new Set<string>();
+    classes.forEach((c) => {
+      if (c.grade != null && c.grade !== '') grades.add(String(c.grade));
+    });
+    const sorted = Array.from(grades).sort((a, b) => {
+      const numA = parseInt(a, 10);
+      const numB = parseInt(b, 10);
+      if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+      return a.localeCompare(b);
+    });
+    return sorted;
+  }, [classes]);
 
   const fetchOverview = async () => {
     try {
@@ -246,10 +267,9 @@ export default function DashboardPage() {
               <InputLabel>Khối lớp</InputLabel>
               <Select value={grade} label="Khối lớp" onChange={(e) => setGrade(e.target.value)}>
                 <MenuItem value="all">Toàn trường</MenuItem>
-                <MenuItem value="6">Khối 6</MenuItem>
-                <MenuItem value="7">Khối 7</MenuItem>
-                <MenuItem value="8">Khối 8</MenuItem>
-                <MenuItem value="9">Khối 9</MenuItem>
+                {availableGrades.map((g) => (
+                  <MenuItem key={g} value={g}>Khối {g}</MenuItem>
+                ))}
               </Select>
             </FormControl>
           </Box>

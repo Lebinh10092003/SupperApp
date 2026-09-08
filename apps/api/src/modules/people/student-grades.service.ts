@@ -44,16 +44,16 @@ export interface StudentTranscript {
 }
 
 export const STANDARD_TOPICS = [
-  { topicId: 'topic_math', name: 'Toán Học', code: 'MATH', teacher: 'Thầy Nguyễn Văn Đức' },
-  { topicId: 'topic_literature', name: 'Ngữ Văn', code: 'LIT', teacher: 'Cô Trần Thị Thu' },
-  { topicId: 'topic_english', name: 'Tiếng Anh', code: 'ENG', teacher: 'Cô Lê Hoàng Oanh' },
-  { topicId: 'topic_physics', name: 'Vật Lý', code: 'PHY', teacher: 'Thầy Phạm Thanh Tùng' },
-  { topicId: 'topic_chemistry', name: 'Hóa Học', code: 'CHEM', teacher: 'Cô Đỗ Thúy Hằng' },
-  { topicId: 'topic_biology', name: 'Sinh Học', code: 'BIO', teacher: 'Thầy Bùi Quang Hưng' },
-  { topicId: 'topic_history', name: 'Lịch Sử', code: 'HIST', teacher: 'Cô Vũ Phương Linh' },
-  { topicId: 'topic_geography', name: 'Địa Lý', code: 'GEO', teacher: 'Thầy Hoàng Trọng Nam' },
-  { topicId: 'topic_informatics', name: 'Tin Học', code: 'INF', teacher: 'Cô Lê Thu Trang' },
-  { topicId: 'topic_civics', name: 'Giáo Dục Công Dân', code: 'CIV', teacher: 'Cô Nguyễn Hồng Vân' }
+  { topicId: 'topic_math', name: 'Toán Học', code: 'MATH', teacher: '' },
+  { topicId: 'topic_literature', name: 'Ngữ Văn', code: 'LIT', teacher: '' },
+  { topicId: 'topic_english', name: 'Tiếng Anh', code: 'ENG', teacher: '' },
+  { topicId: 'topic_physics', name: 'Vật Lý', code: 'PHY', teacher: '' },
+  { topicId: 'topic_chemistry', name: 'Hóa Học', code: 'CHEM', teacher: '' },
+  { topicId: 'topic_biology', name: 'Sinh Học', code: 'BIO', teacher: '' },
+  { topicId: 'topic_history', name: 'Lịch Sử', code: 'HIST', teacher: '' },
+  { topicId: 'topic_geography', name: 'Địa Lý', code: 'GEO', teacher: '' },
+  { topicId: 'topic_informatics', name: 'Tin Học', code: 'INF', teacher: '' },
+  { topicId: 'topic_civics', name: 'Giáo Dục Công Dân', code: 'CIV', teacher: '' }
 ];
 
 export async function getStudentTranscript(studentId: string): Promise<StudentTranscript | null> {
@@ -74,7 +74,7 @@ export async function getStudentTranscript(studentId: string): Promise<StudentTr
   // Lấy thông tin lớp học thực tế từ khóa học
   let className = person.className;
   let classId = person.classId;
-  let grade = person.grade || 12;
+  let grade = person.grade || null;
   let primaryCourse: any = null;
 
   if (courseIds.length > 0) {
@@ -84,14 +84,13 @@ export async function getStudentTranscript(studentId: string): Promise<StudentTr
       const detected = autoDetectClass(primaryCourse.name || '');
       className = className || primaryCourse.className || detected?.className || `Lớp ${primaryCourse.id}`;
       classId = classId || primaryCourse.classId || detected?.classId || primaryCourse.id;
-      grade = primaryCourse.grade || detected?.grade || 12;
+      grade = primaryCourse.grade || detected?.grade || grade;
     }
   }
 
   if (!className || className === 'Học sinh' || className === '—') {
-    className = 'Lớp 12A1';
-    classId = '12A1';
-    grade = 12;
+    className = 'Chưa phân lớp';
+    classId = '';
   }
 
   // 1. Quét các Topics thực tế từ subcollection courses/{id}/topics nếu có
@@ -242,8 +241,8 @@ export async function getStudentTranscript(studentId: string): Promise<StudentTr
     studentId,
     displayName: person.displayName || person.name || 'Học sinh',
     email: person.email || '',
-    classId: classId || '12A1',
-    className: cleanCourseName(className) || 'Lớp 12A1',
+    classId: classId || '',
+    className: cleanCourseName(className) || (classId ? `Lớp ${classId}` : 'Chưa phân lớp'),
     grade,
     academicYear: '2026–2027',
     semester: 'Học kỳ I',

@@ -65,7 +65,7 @@ async function enrichStudentItems(rawStudents: any[]): Promise<{ items: any[]; c
         }
       }
 
-      // Xử lý triệt để nếu lớp bị lỗi thành "Học sinh"
+      // Xử lý nếu lớp chưa được xác định
       if (!className || className === 'Học sinh' || className === '—') {
         const firstCourse = coursesMap.values().next().value;
         if (firstCourse) {
@@ -73,14 +73,14 @@ async function enrichStudentItems(rawStudents: any[]): Promise<{ items: any[]; c
           classId = firstCourse.classId;
           grade = firstCourse.grade;
         } else {
-          className = 'Lớp 12A1';
-          classId = '12A1';
-          grade = 12;
+          className = 'Chưa phân lớp';
+          classId = '';
+          grade = null;
         }
       }
 
-      className = cleanCourseName(className) || 'Lớp 12A1';
-      const orgUnit = `/Học sinh/Khối ${grade}/Lớp ${classId || className.replace(/^Lớp\s*/, '')}`;
+      className = cleanCourseName(className) || (classId ? `Lớp ${classId}` : 'Chưa phân lớp');
+      const orgUnit = grade ? `/Học sinh/Khối ${grade}/Lớp ${classId || className.replace(/^Lớp\s*/, '')}` : '/Học sinh';
 
       // Cập nhật lại vào CSDL nếu dữ liệu cũ chưa có className hoặc bị gán nhầm
       if (!st.className || st.className === 'Học sinh') {
@@ -90,7 +90,7 @@ async function enrichStudentItems(rawStudents: any[]): Promise<{ items: any[]; c
             classId,
             grade,
             orgUnitPath: orgUnit,
-            courses: courseIds.length > 0 ? courseIds : (coursesMap.size > 0 ? [coursesMap.keys().next().value] : ['869086101416'])
+            courses: courseIds.length > 0 ? courseIds : (coursesMap.size > 0 ? [coursesMap.keys().next().value] : [])
           },
           { merge: true }
         ).catch(() => null);

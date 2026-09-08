@@ -7,38 +7,13 @@ import { col, resolveServiceAccount } from '../../core/firebase.js';
 import { env } from '../../config/env.js';
 import { syncAllCourses } from '../classroom/classroom.service.js';
 import { rebuildDashboard } from '../dashboard/dashboard.service.js';
+import {
+  CLASSROOM_SCOPES,
+  getEffectiveOAuthConfig,
+  refreshGoogleAccessToken
+} from './google-token.service.js';
 
 export const connectionsRouter = Router();
-
-const CLASSROOM_SCOPES = [
-  'openid',
-  'https://www.googleapis.com/auth/userinfo.email',
-  'https://www.googleapis.com/auth/userinfo.profile',
-  'https://www.googleapis.com/auth/classroom.courses.readonly',
-  'https://www.googleapis.com/auth/classroom.rosters.readonly',
-  'https://www.googleapis.com/auth/classroom.coursework.students.readonly',
-  'https://www.googleapis.com/auth/classroom.announcements.readonly',
-  'https://www.googleapis.com/auth/classroom.topics.readonly',
-  'https://www.googleapis.com/auth/classroom.courseworkmaterials.readonly',
-  'https://www.googleapis.com/auth/classroom.profile.emails'
-];
-
-async function getEffectiveOAuthConfig() {
-  const cfgDoc = await col('system').doc('oauthConfig').get().catch(() => null);
-  const cfg = cfgDoc?.exists ? cfgDoc.data() : null;
-
-  const clientId = cfg?.clientId || env.GOOGLE_OAUTH_CLIENT_ID || '';
-  const clientSecret = cfg?.clientSecret || env.GOOGLE_OAUTH_CLIENT_SECRET || '';
-  const redirectUri = cfg?.redirectUri || env.GOOGLE_OAUTH_REDIRECT_URI || 'http://localhost:8080/api/connections/oauth/callback';
-
-  const isConfigured = Boolean(
-    clientId &&
-    !clientId.includes('your-client-id') &&
-    clientId.length > 10
-  );
-
-  return { clientId, clientSecret, redirectUri, isConfigured };
-}
 
 // Kiểm tra trạng thái kết nối
 connectionsRouter.get(
@@ -300,6 +275,7 @@ connectionsRouter.post(
       expiresAt: Date.now() + expiresIn * 1000,
       tokenExpiresAt: Date.now() + expiresIn * 1000,
       scopes,
+      clientId: tokenInfo?.azp || tokenInfo?.aud || null,
       updatedAt: new Date().toISOString()
     };
     if (cleanRefreshToken) {
@@ -339,131 +315,34 @@ connectionsRouter.post(
   })
 );
 
-// Nạp dữ liệu mẫu Google Classroom thực tế của THCS Giảng Võ (khi tài khoản Google chưa tạo lớp)
+// Xóa sạch toàn bộ dữ liệu mẫu / demo nếu từng được nạp thử nghiệm
 connectionsRouter.post(
-  '/demo-seed',
+  '/purge-demo',
   firebaseAuth,
   requireCapability('MANAGE_CONNECTIONS'),
   asyncRoute(async (_req, res) => {
-    const demoCourses = [
-      {
-        id: 'gv-demo-toan-6a1',
-        name: 'Toán Học 6A1 — THCS Giảng Võ',
-        section: 'Năm học 2024 - 2025',
-        descriptionHeading: 'Môn Toán lớp 6A1 — Thầy Nguyễn Văn A phụ trách',
-        room: 'Phòng 201',
-        courseState: 'ACTIVE',
-        alternateLink: 'https://classroom.google.com/c/gv-demo-toan-6a1',
-        classId: '6A1',
-        className: 'Lớp 6A1',
-        grade: 6,
-        subjectId: 'TOAN',
-        subjectName: 'Toán Học',
-        creationTime: new Date(Date.now() - 30 * 86400000).toISOString(),
-        updateTime: new Date().toISOString(),
-        roster: { status: 'COMPLETE', teacherCount: 1, studentCount: 42 },
-        content: {
-          courseWorkCount: 12,
-          materialsCount: 15,
-          announcementsCount: 8,
-          submissionsTotal: 504,
-          submissionsTurnedIn: 480,
-          completionRate: 95.2
-        }
-      },
-      {
-        id: 'gv-demo-van-7a2',
-        name: 'Ngữ Văn 7A2 — THCS Giảng Võ',
-        section: 'Năm học 2024 - 2025',
-        descriptionHeading: 'Môn Ngữ Văn lớp 7A2 — Cô Trần Thị B',
-        room: 'Phòng 204',
-        courseState: 'ACTIVE',
-        alternateLink: 'https://classroom.google.com/c/gv-demo-van-7a2',
-        classId: '7A2',
-        className: 'Lớp 7A2',
-        grade: 7,
-        subjectId: 'VAN',
-        subjectName: 'Ngữ Văn',
-        creationTime: new Date(Date.now() - 28 * 86400000).toISOString(),
-        updateTime: new Date().toISOString(),
-        roster: { status: 'COMPLETE', teacherCount: 1, studentCount: 40 },
-        content: {
-          courseWorkCount: 10,
-          materialsCount: 12,
-          announcementsCount: 6,
-          submissionsTotal: 400,
-          submissionsTurnedIn: 376,
-          completionRate: 94.0
-        }
-      },
-      {
-        id: 'gv-demo-anh-8a3',
-        name: 'Tiếng Anh 8A3 — THCS Giảng Võ',
-        section: 'Năm học 2024 - 2025',
-        descriptionHeading: 'Môn Tiếng Anh lớp 8A3 — Thầy Lê Văn C',
-        room: 'Phòng Lab 1',
-        courseState: 'ACTIVE',
-        alternateLink: 'https://classroom.google.com/c/gv-demo-anh-8a3',
-        classId: '8A3',
-        className: 'Lớp 8A3',
-        grade: 8,
-        subjectId: 'ANH',
-        subjectName: 'Tiếng Anh',
-        creationTime: new Date(Date.now() - 25 * 86400000).toISOString(),
-        updateTime: new Date().toISOString(),
-        roster: { status: 'COMPLETE', teacherCount: 1, studentCount: 41 },
-        content: {
-          courseWorkCount: 14,
-          materialsCount: 20,
-          announcementsCount: 10,
-          submissionsTotal: 574,
-          submissionsTurnedIn: 540,
-          completionRate: 94.1
-        }
-      },
-      {
-        id: 'gv-demo-tin-6a2',
-        name: 'Tin Học 6A2 — THCS Giảng Võ',
-        section: 'Năm học 2024 - 2025',
-        descriptionHeading: 'Môn Tin học ứng dụng & Lập trình Scratch',
-        room: 'Phòng Máy 2',
-        courseState: 'ACTIVE',
-        alternateLink: 'https://classroom.google.com/c/gv-demo-tin-6a2',
-        classId: '6A2',
-        className: 'Lớp 6A2',
-        grade: 6,
-        subjectId: 'TIN',
-        subjectName: 'Tin Học',
-        creationTime: new Date(Date.now() - 20 * 86400000).toISOString(),
-        updateTime: new Date().toISOString(),
-        roster: { status: 'COMPLETE', teacherCount: 1, studentCount: 39 },
-        content: {
-          courseWorkCount: 8,
-          materialsCount: 10,
-          announcementsCount: 5,
-          submissionsTotal: 312,
-          submissionsTurnedIn: 298,
-          completionRate: 95.5
-        }
-      }
-    ];
+    const coursesSnap = await col('courses').get();
+    let deletedCount = 0;
 
-    for (const c of demoCourses) {
-      await col('courses').doc(c.id).set(c, { merge: true });
+    for (const doc of coursesSnap.docs) {
+      if (doc.id.startsWith('gv-demo-') || doc.id.includes('demo')) {
+        await col('courses').doc(doc.id).delete();
+        deletedCount++;
+      }
     }
 
-    await col('system').doc('syncStatus').set({
-      lastSyncAt: new Date().toISOString(),
-      mode: 'DEMO_SEED',
-      totalCourses: demoCourses.length
-    }, { merge: true });
+    const syncStatusDoc = await col('system').doc('syncStatus').get();
+    if (syncStatusDoc.exists && syncStatusDoc.data()?.mode === 'DEMO_SEED') {
+      await col('system').doc('syncStatus').delete();
+    }
 
+    const { rebuildDashboard } = await import('../dashboard/dashboard.service.js');
     await rebuildDashboard().catch(() => null);
 
     res.json({
       ok: true,
-      message: `Đã nạp thành công ${demoCourses.length} khóa học Google Classroom mẫu chuẩn cho THCS Giảng Võ!`,
-      count: demoCourses.length
+      message: `Đã dọn dẹp sạch sẽ ${deletedCount} khóa học mẫu thử nghiệm khỏi hệ thống!`,
+      deletedCount
     });
   })
 );
@@ -550,44 +429,31 @@ connectionsRouter.post(
       });
     }
 
-    const oauthCfg = await getEffectiveOAuthConfig();
-    const clientId = conn.clientId || oauthCfg.clientId;
-    const clientSecret = conn.clientSecret || oauthCfg.clientSecret;
-
-    const refreshBody: Record<string, string> = {
-      refresh_token: conn.refreshToken,
-      grant_type: 'refresh_token'
-    };
-    if (clientId && !clientId.includes('your-client-id')) refreshBody.client_id = clientId;
-    if (clientSecret && !clientSecret.includes('your-client-secret')) refreshBody.client_secret = clientSecret;
-
-    const refreshRes = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams(refreshBody)
+    const refreshResult = await refreshGoogleAccessToken(conn.refreshToken, {
+      clientId: conn.clientId,
+      clientSecret: conn.clientSecret
     });
 
-    if (!refreshRes.ok) {
-      const errText = await refreshRes.text();
+    if (!refreshResult.ok || !refreshResult.accessToken) {
       return res.status(400).json({
         ok: false,
-        error: {
+        error: refreshResult.error || {
           code: 'REFRESH_FAILED',
-          message: `Lỗi làm mới token từ Google: ${errText}`
+          message: 'Không thể làm mới token từ Google.'
         }
       });
     }
 
-    const refreshData = (await refreshRes.json()) as any;
-    const newAccessToken = refreshData.access_token;
-    const expiresIn = Number(refreshData.expires_in) || 3600;
-
-    const updateData = {
-      accessToken: newAccessToken,
+    const expiresIn = refreshResult.expiresIn || 3600;
+    const updateData: any = {
+      accessToken: refreshResult.accessToken,
       expiresAt: Date.now() + expiresIn * 1000,
       tokenExpiresAt: Date.now() + expiresIn * 1000,
       updatedAt: new Date().toISOString()
     };
+    if (refreshResult.newRefreshToken) {
+      updateData.refreshToken = refreshResult.newRefreshToken;
+    }
 
     await Promise.all([
       col('googleConnections').doc(req.appUser!.uid).set(updateData, { merge: true }),
@@ -597,7 +463,8 @@ connectionsRouter.post(
     res.json({
       ok: true,
       message: `Đã làm mới thành công Access Token Google! Token mới có hiệu lực thêm ${Math.round(expiresIn / 60)} phút.`,
-      expiresAt: updateData.expiresAt
+      expiresAt: updateData.expiresAt,
+      source: refreshResult.source
     });
   })
 );
