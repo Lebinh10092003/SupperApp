@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Button,
   Card,
@@ -21,7 +21,10 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Divider
+  ToggleButton,
+  ToggleButtonGroup,
+  Tooltip,
+  IconButton
 } from '@mui/material';
 import AssessmentIcon from '@mui/icons-material/AssessmentRounded';
 import DownloadIcon from '@mui/icons-material/DownloadRounded';
@@ -30,8 +33,22 @@ import AutoStoriesIcon from '@mui/icons-material/AutoStoriesRounded';
 import VideocamIcon from '@mui/icons-material/VideocamRounded';
 import PrintIcon from '@mui/icons-material/PrintRounded';
 import RefreshIcon from '@mui/icons-material/RefreshRounded';
-import SchoolIcon from '@mui/icons-material/SchoolRounded';
 import CheckCircleIcon from '@mui/icons-material/CheckCircleRounded';
+import ZoomInIcon from '@mui/icons-material/ZoomInRounded';
+import ZoomOutIcon from '@mui/icons-material/ZoomOutRounded';
+import PaletteIcon from '@mui/icons-material/PaletteRounded';
+import VerifiedIcon from '@mui/icons-material/VerifiedRounded';
+import FilterListIcon from '@mui/icons-material/FilterListRounded';
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip as RechartsTooltip,
+  Legend,
+  CartesianGrid
+} from 'recharts';
 import { PageHeader } from '../../components/PageHeader';
 import { api, download } from '../../services/api';
 
@@ -75,6 +92,12 @@ export default function ReportsPage() {
   const [briefing, setBriefing] = useState<any>(null);
   const [loadingBriefing, setLoadingBriefing] = useState(false);
 
+  // Tùy biến xem trước A4 (MUI UI controls)
+  const [zoomLevel, setZoomLevel] = useState<number>(100);
+  const [paperTone, setPaperTone] = useState<'white' | 'ivory'>('white');
+  const [isApproved, setIsApproved] = useState<boolean>(true);
+  const [classFilter, setClassFilter] = useState<'all' | 'submitted' | 'waiting'>('all');
+
   const loadBriefing = async () => {
     try {
       setLoadingBriefing(true);
@@ -110,6 +133,24 @@ export default function ReportsPage() {
   const handlePrint = () => {
     window.print();
   };
+
+  // Dữ liệu biểu đồ mini tiến độ bài tập
+  const chartData = useMemo(() => {
+    if (!briefing?.classes) return [];
+    return briefing.classes.map((c: any) => ({
+      name: c.className.replace('Lớp ', ''),
+      coursework: c.totalCoursework || 0,
+      turnedIn: c.submissionsTurnedIn || 0
+    }));
+  }, [briefing]);
+
+  // Bộ lọc danh sách lớp trong báo cáo
+  const filteredClasses = useMemo(() => {
+    if (!briefing?.classes) return [];
+    if (classFilter === 'submitted') return briefing.classes.filter((c: any) => c.submissionsTotal > 0);
+    if (classFilter === 'waiting') return briefing.classes.filter((c: any) => c.submissionsTotal === 0);
+    return briefing.classes;
+  }, [briefing, classFilter]);
 
   return (
     <>
@@ -181,26 +222,134 @@ export default function ReportsPage() {
       {/* ========================================================= */}
       {activeTab === 0 && (
         <Box sx={{ pb: 6 }}>
-          {/* Document Canvas (Mô phỏng khổ giấy A4) */}
+          {/* Thanh công cụ tương tác tài liệu (Interactive Document Toolbar) */}
+          <Paper
+            elevation={0}
+            sx={{
+              maxWidth: 960,
+              mx: 'auto',
+              mb: 2.5,
+              p: 1.5,
+              bgcolor: '#ffffff',
+              borderRadius: '12px',
+              border: '1px solid #e2e8f0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: 1.5,
+              '@media print': { display: 'none' }
+            }}
+          >
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Typography variant="caption" fontWeight={700} color="#475569" sx={{ textTransform: 'uppercase' }}>
+                Trạng thái:
+              </Typography>
+              <Chip
+                icon={isApproved ? <VerifiedIcon sx={{ fontSize: '15px !important' }} /> : undefined}
+                label={isApproved ? 'ĐÃ PHÊ DUYỆT BAN HÀNH' : 'BẢN DỰ THẢO GIAO BAN'}
+                size="small"
+                onClick={() => setIsApproved(!isApproved)}
+                sx={{
+                  fontWeight: 800,
+                  fontSize: '0.72rem',
+                  cursor: 'pointer',
+                  bgcolor: isApproved ? '#ecfdf5' : '#fffbeb',
+                  color: isApproved ? '#059669' : '#d97706',
+                  border: isApproved ? '1px solid #a7f3d0' : '1px solid #fde68a'
+                }}
+              />
+            </Stack>
+
+            <Stack direction="row" spacing={1.5} alignItems="center">
+              {/* Lọc hiển thị bảng */}
+              <Stack direction="row" spacing={0.5} alignItems="center">
+                <FilterListIcon sx={{ color: '#64748b', fontSize: 18 }} />
+                <Typography variant="caption" color="#64748b" fontWeight={600}>
+                  Lớp:
+                </Typography>
+                <ToggleButtonGroup
+                  size="small"
+                  value={classFilter}
+                  exclusive
+                  onChange={(_e, v) => v && setClassFilter(v)}
+                  sx={{ height: 28 }}
+                >
+                  <ToggleButton value="all" sx={{ px: 1, py: 0, fontSize: '0.75rem', fontWeight: 700, textTransform: 'none' }}>
+                    Tất cả (8)
+                  </ToggleButton>
+                  <ToggleButton value="submitted" sx={{ px: 1, py: 0, fontSize: '0.75rem', fontWeight: 700, textTransform: 'none' }}>
+                    Đã nộp (2)
+                  </ToggleButton>
+                  <ToggleButton value="waiting" sx={{ px: 1, py: 0, fontSize: '0.75rem', fontWeight: 700, textTransform: 'none' }}>
+                    Chờ HS (6)
+                  </ToggleButton>
+                </ToggleButtonGroup>
+              </Stack>
+
+              {/* Tông màu giấy */}
+              <Tooltip title="Đổi màu nền hiển thị (Trắng văn phòng / Ngà hành chính)">
+                <IconButton
+                  size="small"
+                  onClick={() => setPaperTone(paperTone === 'white' ? 'ivory' : 'white')}
+                  sx={{ border: '1px solid #e2e8f0', borderRadius: '8px' }}
+                >
+                  <PaletteIcon sx={{ fontSize: 16, color: paperTone === 'ivory' ? '#d97706' : '#64748b' }} />
+                </IconButton>
+              </Tooltip>
+
+              {/* Thu phóng */}
+              <Stack direction="row" spacing={0.5} alignItems="center">
+                <Tooltip title="Thu nhỏ">
+                  <IconButton
+                    size="small"
+                    onClick={() => setZoomLevel(Math.max(80, zoomLevel - 10))}
+                    disabled={zoomLevel <= 80}
+                  >
+                    <ZoomOutIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
+                </Tooltip>
+                <Typography variant="caption" fontWeight={700} sx={{ minWidth: 35, textAlign: 'center' }}>
+                  {zoomLevel}%
+                </Typography>
+                <Tooltip title="Phóng to">
+                  <IconButton
+                    size="small"
+                    onClick={() => setZoomLevel(Math.min(120, zoomLevel + 10))}
+                    disabled={zoomLevel >= 120}
+                  >
+                    <ZoomInIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
+                </Tooltip>
+              </Stack>
+            </Stack>
+          </Paper>
+
+          {/* Document Canvas (Khổ giấy A4 chuẩn) */}
           <Paper
             elevation={0}
             sx={{
               maxWidth: 960,
               mx: 'auto',
               p: { xs: 3, sm: 5, md: 6 },
-              bgcolor: '#ffffff',
+              bgcolor: paperTone === 'ivory' ? '#fdfbf7' : '#ffffff',
               borderRadius: '16px',
               border: '1px solid #cbd5e1',
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.05)',
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.06)',
               fontFamily: '"Times New Roman", Times, serif',
               color: '#0f172a',
+              transform: `scale(${zoomLevel / 100})`,
+              transformOrigin: 'top center',
+              transition: 'transform 0.15s ease, background-color 0.2s ease',
               '@media print': {
                 maxWidth: '100% !important',
                 border: 'none !important',
                 boxShadow: 'none !important',
                 p: 0,
                 m: 0,
-                borderRadius: 0
+                borderRadius: 0,
+                transform: 'none !important',
+                bgcolor: '#ffffff !important'
               }
             }}
           >
@@ -309,6 +458,28 @@ export default function ReportsPage() {
                   </Box>
                 </Grid>
               </Grid>
+
+              {/* Biểu đồ mini Recharts minh họa tiến độ các lớp */}
+              {chartData.length > 0 && (
+                <Box sx={{ mt: 2.5, p: 2, border: '1px solid #e2e8f0', borderRadius: '8px', bgcolor: '#ffffff' }}>
+                  <Typography variant="caption" fontWeight={700} color="#64748b" display="block" sx={{ mb: 1, textTransform: 'uppercase' }}>
+                    Biểu Đồ So Sánh Số Bài Đã Giao & Số Bài Đã Nộp Theo Từng Lớp
+                  </Typography>
+                  <Box sx={{ height: 160, width: '100%' }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                        <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                        <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                        <RechartsTooltip />
+                        <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '4px' }} />
+                        <Bar dataKey="coursework" name="Bài đã giao" fill="#94a3b8" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="turnedIn" name="Bài đã nộp" fill="#2563eb" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </Box>
+                </Box>
+              )}
             </Box>
 
             {/* PHẦN II: BẢNG CHI TIẾT 8 KHÓA HỌC THỰC TẾ */}
@@ -333,7 +504,7 @@ export default function ReportsPage() {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {(briefing?.classes || []).map((c: any, idx: number) => {
+                    {filteredClasses.map((c: any, idx: number) => {
                       const hasSubs = c.submissionsTotal > 0;
                       return (
                         <TableRow key={c.id || idx}>
@@ -441,7 +612,7 @@ export default function ReportsPage() {
                 <Typography variant="body2" sx={{ fontWeight: 800, fontSize: '0.95rem', textTransform: 'uppercase' }}>
                   HIỆU TRƯỞNG
                 </Typography>
-                <Typography variant="caption" sx={{ fontStyle: 'italic', color: '#64748b', display: 'block', mb: 7 }}>
+                <Typography variant="caption" sx={{ fontStyle: 'italic', color: '#64748b', display: 'block', mb: 6 }}>
                   (Ký tên và đóng dấu)
                 </Typography>
                 <Typography variant="body2" sx={{ fontWeight: 800, fontSize: '1rem' }}>
