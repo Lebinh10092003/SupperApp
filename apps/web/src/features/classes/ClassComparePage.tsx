@@ -26,7 +26,12 @@ import {
   Tooltip,
   IconButton,
   Divider,
-  Alert
+  Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField
 } from '@mui/material';
 import CompareArrowsIcon from '@mui/icons-material/CompareArrowsRounded';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEventsRounded';
@@ -40,6 +45,10 @@ import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined';
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
 import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
+import MessageIcon from '@mui/icons-material/MessageRounded';
+import ContentCopyIcon from '@mui/icons-material/ContentCopyRounded';
+import SpeedIcon from '@mui/icons-material/SpeedRounded';
+import FactCheckIcon from '@mui/icons-material/FactCheckRounded';
 import {
   ResponsiveContainer,
   RadarChart,
@@ -126,6 +135,54 @@ export default function ClassComparePage() {
       setActionMsg({ text: `Lỗi đôn đốc: ${e.message}`, type: 'warning' });
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const [parentModalOpen, setParentModalOpen] = useState(false);
+  const [parentTemplate, setParentTemplate] = useState('');
+  const [parentClassInfo, setParentClassInfo] = useState({ name: '', teacher: '', completion: 0 });
+  const [copiedTemplate, setCopiedTemplate] = useState(false);
+
+  const handleGradePending = async () => {
+    setActionLoading('grade');
+    setActionMsg(null);
+    try {
+      const res = await api.post<any>('/api/classes/grade-pending', {});
+      setActionMsg({ text: res.message || 'Đã hoàn thành chấm điểm bài nộp tồn đọng!', type: 'success' });
+      await loadClasses();
+      if (classAId && classBId) loadDuel(classAId, classBId);
+    } catch (e: any) {
+      setActionMsg({ text: `Lỗi chấm điểm: ${e.message}`, type: 'warning' });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleAccelerateProgress = async () => {
+    setActionLoading('accelerate');
+    setActionMsg(null);
+    try {
+      const res = await api.post<any>('/api/classes/accelerate-progress', {});
+      setActionMsg({ text: res.message || 'Đã thúc đẩy tiến độ hoàn thành bài tập toàn trường!', type: 'success' });
+      await loadClasses();
+      if (classAId && classBId) loadDuel(classAId, classBId);
+    } catch (e: any) {
+      setActionMsg({ text: `Lỗi thúc đẩy: ${e.message}`, type: 'warning' });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const openParentNudge = async (targetClassId?: string) => {
+    const cId = targetClassId || classAId || '12A1';
+    try {
+      const res = await api.get<any>(`/api/classes/parent-nudge?classId=${encodeURIComponent(cId)}`);
+      setParentTemplate(res.template || '');
+      setParentClassInfo({ name: res.className, teacher: res.teacherName, completion: 0 });
+      setCopiedTemplate(false);
+      setParentModalOpen(true);
+    } catch {
+      setParentModalOpen(true);
     }
   };
 
@@ -262,6 +319,35 @@ export default function ClassComparePage() {
               sx={{ bgcolor: '#d97706', '&:hover': { bgcolor: '#b45309' }, textTransform: 'none', fontWeight: 700, borderRadius: '8px' }}
             >
               {actionLoading === 'nudge' ? 'Đang gửi...' : 'Đôn Đốc Nộp Bài'}
+            </Button>
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={<MessageIcon />}
+              onClick={() => openParentNudge()}
+              sx={{ bgcolor: '#7c3aed', '&:hover': { bgcolor: '#6d28d9' }, textTransform: 'none', fontWeight: 700, borderRadius: '8px' }}
+            >
+              Mẫu Nhắn Phụ Huynh
+            </Button>
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={actionLoading === 'grade' ? <CircularProgress size={16} color="inherit" /> : <FactCheckIcon />}
+              onClick={handleGradePending}
+              disabled={actionLoading !== null}
+              sx={{ bgcolor: '#0891b2', '&:hover': { bgcolor: '#0e7490' }, textTransform: 'none', fontWeight: 700, borderRadius: '8px' }}
+            >
+              {actionLoading === 'grade' ? 'Đang chấm...' : 'Chấm Bài Nợ (SLA 48h)'}
+            </Button>
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={actionLoading === 'accelerate' ? <CircularProgress size={16} color="inherit" /> : <SpeedIcon />}
+              onClick={handleAccelerateProgress}
+              disabled={actionLoading !== null}
+              sx={{ bgcolor: '#ea580c', '&:hover': { bgcolor: '#c2410c' }, textTransform: 'none', fontWeight: 700, borderRadius: '8px' }}
+            >
+              {actionLoading === 'accelerate' ? 'Đang tăng...' : 'Thúc Đẩy Nộp Bài (60%)'}
             </Button>
             <Button
               variant="outlined"
@@ -981,7 +1067,8 @@ export default function ClassComparePage() {
                           <TableCell sx={{ fontWeight: 700, color: '#475569' }}>Khối</TableCell>
                           <TableCell sx={{ fontWeight: 700, color: '#475569' }}>Sĩ Số</TableCell>
                           <TableCell sx={{ fontWeight: 700, color: '#475569' }}>Giáo Viên Chủ Nhiệm</TableCell>
-                          <TableCell sx={{ fontWeight: 700, color: '#475569', width: 220 }}>Tỷ Lệ Hoàn Thành</TableCell>
+                          <TableCell sx={{ fontWeight: 700, color: '#475569', width: 200 }}>Tỷ Lệ Hoàn Thành</TableCell>
+                          <TableCell sx={{ fontWeight: 700, color: '#475569', width: 150 }}>Chỉ Tiêu BGH</TableCell>
                           <TableCell align="center" sx={{ fontWeight: 700, color: '#475569' }}>Đúng Hạn</TableCell>
                           <TableCell align="center" sx={{ fontWeight: 700, color: '#475569' }}>Điểm TB</TableCell>
                           <TableCell align="center" sx={{ fontWeight: 700, color: '#475569' }}>Trạng Thái</TableCell>
@@ -991,6 +1078,8 @@ export default function ClassComparePage() {
                       <TableBody>
                         {filteredClasses.map((cls, idx) => {
                           const isTop3 = idx < 3;
+                          const targetComp = cls.classId === '12A1' ? 60 : 50;
+                          const isTargetReached = (cls.completionRate || 0) >= targetComp;
                           return (
                             <TableRow key={cls.id || cls.classId} hover>
                               <TableCell>
@@ -1059,6 +1148,24 @@ export default function ClassComparePage() {
                                   </Typography>
                                 </Box>
                               </TableCell>
+                              <TableCell>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <Typography variant="caption" fontWeight={700} color="#2563eb">
+                                    Mục tiêu {targetComp}%
+                                  </Typography>
+                                  <Chip
+                                    label={isTargetReached ? 'Đạt' : `${cls.completionRate || 0}/${targetComp}%`}
+                                    size="small"
+                                    sx={{
+                                      height: 18,
+                                      fontSize: '0.65rem',
+                                      fontWeight: 800,
+                                      bgcolor: isTargetReached ? '#ecfdf5' : '#fff1f2',
+                                      color: isTargetReached ? '#059669' : '#e11d48'
+                                    }}
+                                  />
+                                </Box>
+                              </TableCell>
                               <TableCell align="center">
                                 <Typography variant="body2" fontWeight={700} color="#16a34a">
                                   {cls.onTimeRate}%
@@ -1066,7 +1173,7 @@ export default function ClassComparePage() {
                               </TableCell>
                               <TableCell align="center">
                                 <Typography variant="body2" fontWeight={800} color="#d97706">
-                                  {cls.averageScore}
+                                  {cls.averageScore ?? '—'}
                                 </Typography>
                               </TableCell>
                               <TableCell align="center">
@@ -1083,18 +1190,29 @@ export default function ClassComparePage() {
                                 />
                               </TableCell>
                               <TableCell align="center">
-                                <Button
-                                  size="small"
-                                  variant="text"
-                                  startIcon={<CompareArrowsIcon sx={{ fontSize: 16 }} />}
-                                  onClick={() => {
-                                    setClassAId(cls.classId || cls.id);
-                                    setActiveTab(0);
-                                  }}
-                                  sx={{ textTransform: 'none', fontWeight: 700, fontSize: '0.75rem', color: '#2563eb' }}
-                                >
-                                  So sánh
-                                </Button>
+                                <Stack direction="row" spacing={0.5} justifyContent="center">
+                                  <Tooltip title="Xem mẫu tin nhắn gửi phụ huynh lớp này">
+                                    <IconButton
+                                      size="small"
+                                      onClick={() => openParentNudge(cls.classId || cls.id)}
+                                      sx={{ color: '#7c3aed', bgcolor: '#f5f3ff', '&:hover': { bgcolor: '#ede9fe' } }}
+                                    >
+                                      <MessageIcon sx={{ fontSize: 16 }} />
+                                    </IconButton>
+                                  </Tooltip>
+                                  <Button
+                                    size="small"
+                                    variant="text"
+                                    startIcon={<CompareArrowsIcon sx={{ fontSize: 15 }} />}
+                                    onClick={() => {
+                                      setClassAId(cls.classId || cls.id);
+                                      setActiveTab(0);
+                                    }}
+                                    sx={{ textTransform: 'none', fontWeight: 700, fontSize: '0.75rem', color: '#2563eb' }}
+                                  >
+                                    So sánh
+                                  </Button>
+                                </Stack>
                               </TableCell>
                             </TableRow>
                           );
@@ -1221,6 +1339,95 @@ export default function ClassComparePage() {
           )}
         </Box>
       )}
+
+      {/* Dialog Mẫu Tin Nhắn Gửi Phụ Huynh Học Sinh */}
+      <Dialog
+        open={parentModalOpen}
+        onClose={() => setParentModalOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: { borderRadius: '16px', p: 1 }
+        }}
+      >
+        <DialogTitle sx={{ pb: 1 }}>
+          <Stack direction="row" alignItems="center" spacing={1.5}>
+            <Box
+              sx={{
+                width: 40,
+                height: 40,
+                borderRadius: '10px',
+                bgcolor: '#f5f3ff',
+                color: '#7c3aed',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              <MessageIcon />
+            </Box>
+            <Box>
+              <Typography variant="subtitle1" fontWeight={800} color="#0f172a">
+                Mẫu Tin Nhắn Đôn Đốc Phụ Huynh
+              </Typography>
+              <Typography variant="caption" color="#64748b">
+                {parentClassInfo.name ? `Lớp ${parentClassInfo.name}` : 'Thông báo BGH'} • GVCN: {parentClassInfo.teacher || 'Chưa phân công'}
+              </Typography>
+            </Box>
+          </Stack>
+        </DialogTitle>
+        <DialogContent dividers sx={{ borderTop: '1px solid #f1f5f9', borderBottom: '1px solid #f1f5f9' }}>
+          <Alert severity="info" sx={{ mb: 2, borderRadius: '8px', fontSize: '0.85rem' }}>
+            Nội dung được hệ thống soạn sẵn dựa trên số liệu tiến độ nộp bài thực tế của lớp. GVCN hoặc BGH chỉ cần sao chép và dán vào nhóm <strong>Zalo Phụ huynh</strong>.
+          </Alert>
+          <TextField
+            multiline
+            rows={10}
+            fullWidth
+            value={parentTemplate}
+            onChange={(e) => setParentTemplate(e.target.value)}
+            variant="outlined"
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                bgcolor: '#f8fafc',
+                fontSize: '0.875rem',
+                fontFamily: 'monospace',
+                lineHeight: 1.6
+              }
+            }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button
+            onClick={() => setParentModalOpen(false)}
+            variant="outlined"
+            sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
+          >
+            Đóng
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<ContentCopyIcon />}
+            onClick={() => {
+              if (navigator?.clipboard) {
+                navigator.clipboard.writeText(parentTemplate);
+                setCopiedTemplate(true);
+                setTimeout(() => setCopiedTemplate(false), 3000);
+              }
+            }}
+            sx={{
+              bgcolor: copiedTemplate ? '#16a34a' : '#7c3aed',
+              '&:hover': { bgcolor: copiedTemplate ? '#15803d' : '#6d28d9' },
+              textTransform: 'none',
+              fontWeight: 700,
+              borderRadius: '8px'
+            }}
+          >
+            {copiedTemplate ? 'Đã sao chép vào Clipboard!' : 'Sao chép tin nhắn Zalo'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
+
