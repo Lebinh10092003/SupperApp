@@ -68,13 +68,19 @@ const navGroups: NavGroup[] = [
     items: [
       { path: '/', label: 'Tổng quan điều hành', icon: <DashboardIcon fontSize="small" /> },
       {
+        path: '/reports',
+        label: 'Báo cáo Giao ban Tuần',
+        icon: <ReportsIcon fontSize="small" />,
+        badge: 'BGH',
+        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'DEPARTMENT_HEAD']
+      },
+      {
         path: '/executive',
-        label: 'Executive Analytics & Heatmap',
+        label: 'Executive Analytics & BI',
         icon: <GridViewIcon fontSize="small" />,
         badge: 'BI',
         roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL']
       },
-      { path: '/today', label: 'Hoạt động hôm nay', icon: <TodayIcon fontSize="small" />, badge: 'LIVE' },
       {
         path: '/alerts',
         label: 'Trung tâm Cảnh báo sớm',
@@ -84,8 +90,14 @@ const navGroups: NavGroup[] = [
     ]
   },
   {
-    groupTitle: 'PHÂN TÍCH & SO SÁNH',
+    groupTitle: 'CHUYÊN MÔN & ĐÁNH GIÁ',
     items: [
+      {
+        path: '/classes/compare',
+        label: 'So sánh & Đánh giá Lớp',
+        icon: <CompareArrowsIcon fontSize="small" />,
+        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'DEPARTMENT_HEAD']
+      },
       {
         path: '/students/360',
         label: 'Hồ sơ 360° Học sinh',
@@ -93,14 +105,8 @@ const navGroups: NavGroup[] = [
         roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'DEPARTMENT_HEAD', 'TEACHER', 'HOMEROOM']
       },
       {
-        path: '/classes/compare',
-        label: 'So sánh Lớp đối đầu',
-        icon: <CompareArrowsIcon fontSize="small" />,
-        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'DEPARTMENT_HEAD']
-      },
-      {
         path: '/subjects/analytics',
-        label: 'Phân tích Môn học',
+        label: 'Phân tích Bộ Môn',
         icon: <ClassroomIcon fontSize="small" />,
         roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'DEPARTMENT_HEAD']
       },
@@ -113,34 +119,22 @@ const navGroups: NavGroup[] = [
     ]
   },
   {
-    groupTitle: 'LỚP HỌC SỐ & DANH MỤC',
+    groupTitle: 'LỚP HỌC SỐ & NỀN NẾP',
     items: [
       { path: '/classroom', label: 'Google Classroom', icon: <ClassroomIcon fontSize="small" /> },
-      {
-        path: '/catalog/mapping',
-        label: 'Chuẩn hóa Dữ liệu Trường',
-        icon: <AutoFixHighIcon fontSize="small" />,
-        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL']
-      },
       { path: '/classes', label: 'Lớp học & Sĩ số', icon: <SchoolIcon fontSize="small" /> },
       { path: '/students', label: 'Danh sách Học sinh', icon: <StudentsIcon fontSize="small" /> },
-      {
-        path: '/teachers',
-        label: 'Danh sách Giáo viên',
-        icon: <TeachersIcon fontSize="small" />,
-        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'DEPARTMENT_HEAD']
-      },
       { path: '/schedules', label: 'Thời khóa biểu', icon: <ScheduleIcon fontSize="small" /> },
       {
         path: '/attendance',
-        label: 'Điểm danh & Chuyên cần',
+        label: 'Điểm danh chuyên cần',
         icon: <AttendanceIcon fontSize="small" />,
         roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'DEPARTMENT_HEAD', 'TEACHER', 'HOMEROOM']
       }
     ]
   },
   {
-    groupTitle: 'KẾT NỐI & QUẢN TRỊ',
+    groupTitle: 'HỆ THỐNG & KẾT NỐI',
     items: [
       {
         path: '/connections',
@@ -150,14 +144,19 @@ const navGroups: NavGroup[] = [
       },
       {
         path: '/audit/classroom',
-        label: 'Classroom Audit (Reports)',
+        label: 'Kiểm toán Classroom Audit',
         icon: <HistoryIcon fontSize="small" />,
         roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL']
       },
-      { path: '/reports', label: 'Báo cáo số liệu', icon: <ReportsIcon fontSize="small" /> },
+      {
+        path: '/catalog/mapping',
+        label: 'Chuẩn hóa Dữ liệu Trường',
+        icon: <AutoFixHighIcon fontSize="small" />,
+        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL']
+      },
       {
         path: '/data-quality',
-        label: 'Chất lượng dữ liệu',
+        label: 'Chất lượng Dữ liệu',
         icon: <DataQualityIcon fontSize="small" />,
         roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL']
       },
@@ -165,12 +164,6 @@ const navGroups: NavGroup[] = [
         path: '/admin',
         label: 'Phân quyền Quản trị',
         icon: <AdminIcon fontSize="small" />,
-        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN']
-      },
-      {
-        path: '/system',
-        label: 'Tình trạng hệ thống',
-        icon: <SystemIcon fontSize="small" />,
         roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN']
       }
     ]
