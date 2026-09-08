@@ -158,20 +158,21 @@ export default function ClassComparePage() {
     }
   };
 
-  const handleAccelerateProgress = async () => {
-    setActionLoading('accelerate');
+  const handleSyncRealMetrics = async () => {
+    setActionLoading('sync');
     setActionMsg(null);
     try {
-      const res = await api.post<any>('/api/classes/accelerate-progress', {});
-      setActionMsg({ text: res.message || 'Đã thúc đẩy tiến độ hoàn thành bài tập toàn trường!', type: 'success' });
+      const res = await api.post<any>('/api/classes/sync-metrics', {});
+      setActionMsg({ text: res.message || 'Đã đối soát và đồng bộ 100% số liệu thực tế từ Google Classroom!', type: 'success' });
       await loadClasses();
       if (classAId && classBId) loadDuel(classAId, classBId);
     } catch (e: any) {
-      setActionMsg({ text: `Lỗi thúc đẩy: ${e.message}`, type: 'warning' });
+      setActionMsg({ text: `Lỗi đồng bộ: ${e.message}`, type: 'warning' });
     } finally {
       setActionLoading(null);
     }
   };
+
 
   const openParentNudge = async (targetClassId?: string) => {
     const cId = targetClassId || classAId || '12A1';
@@ -342,12 +343,12 @@ export default function ClassComparePage() {
             <Button
               variant="contained"
               size="small"
-              startIcon={actionLoading === 'accelerate' ? <CircularProgress size={16} color="inherit" /> : <SpeedIcon />}
-              onClick={handleAccelerateProgress}
+              startIcon={actionLoading === 'sync' ? <CircularProgress size={16} color="inherit" /> : <RefreshRoundedIcon />}
+              onClick={handleSyncRealMetrics}
               disabled={actionLoading !== null}
-              sx={{ bgcolor: '#ea580c', '&:hover': { bgcolor: '#c2410c' }, textTransform: 'none', fontWeight: 700, borderRadius: '8px' }}
+              sx={{ bgcolor: '#0284c7', '&:hover': { bgcolor: '#0369a1' }, textTransform: 'none', fontWeight: 700, borderRadius: '8px' }}
             >
-              {actionLoading === 'accelerate' ? 'Đang tăng...' : 'Thúc Đẩy Nộp Bài (60%)'}
+              {actionLoading === 'sync' ? 'Đang đối soát...' : 'Đồng Bộ Số Liệu Classroom'}
             </Button>
             <Button
               variant="outlined"
@@ -1128,64 +1129,113 @@ export default function ClassComparePage() {
                                 </Typography>
                               </TableCell>
                               <TableCell>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                                  <Box sx={{ flex: 1 }}>
-                                    <LinearProgress
-                                      variant="determinate"
-                                      value={cls.completionRate || 0}
+                                {cls.submissionsTotal === 0 ? (
+                                  <Typography variant="caption" sx={{ color: '#94a3b8', fontStyle: 'italic' }}>
+                                    0 bài nộp (Chưa có HS tham gia Classroom)
+                                  </Typography>
+                                ) : (
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                    <Box sx={{ flex: 1 }}>
+                                      <LinearProgress
+                                        variant="determinate"
+                                        value={cls.completionRate || 0}
+                                        sx={{
+                                          height: 8,
+                                          borderRadius: 4,
+                                          bgcolor: '#e2e8f0',
+                                          '& .MuiLinearProgress-bar': {
+                                            bgcolor: cls.completionRate >= 95 ? '#10b981' : cls.completionRate >= 90 ? '#2563eb' : '#f59e0b'
+                                          }
+                                        }}
+                                      />
+                                    </Box>
+                                    <Typography variant="body2" fontWeight={800} color="#0f172a" sx={{ minWidth: 45 }}>
+                                      {cls.completionRate}%
+                                    </Typography>
+                                  </Box>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {cls.submissionsTotal === 0 ? (
+                                  <Chip
+                                    label="0 HS trên Classroom"
+                                    size="small"
+                                    sx={{
+                                      height: 20,
+                                      fontSize: '0.68rem',
+                                      fontWeight: 600,
+                                      bgcolor: '#f1f5f9',
+                                      color: '#64748b'
+                                    }}
+                                  />
+                                ) : (
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <Typography variant="caption" fontWeight={700} color="#2563eb">
+                                      Mục tiêu {targetComp}%
+                                    </Typography>
+                                    <Chip
+                                      label={isTargetReached ? 'Đạt' : `${cls.completionRate || 0}/${targetComp}%`}
+                                      size="small"
                                       sx={{
-                                        height: 8,
-                                        borderRadius: 4,
-                                        bgcolor: '#e2e8f0',
-                                        '& .MuiLinearProgress-bar': {
-                                          bgcolor: cls.completionRate >= 95 ? '#10b981' : cls.completionRate >= 90 ? '#2563eb' : '#f59e0b'
-                                        }
+                                        height: 18,
+                                        fontSize: '0.65rem',
+                                        fontWeight: 800,
+                                        bgcolor: isTargetReached ? '#ecfdf5' : '#fff1f2',
+                                        color: isTargetReached ? '#059669' : '#e11d48'
                                       }}
                                     />
                                   </Box>
-                                  <Typography variant="body2" fontWeight={800} color="#0f172a" sx={{ minWidth: 45 }}>
-                                    {cls.completionRate}%
-                                  </Typography>
-                                </Box>
-                              </TableCell>
-                              <TableCell>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                  <Typography variant="caption" fontWeight={700} color="#2563eb">
-                                    Mục tiêu {targetComp}%
-                                  </Typography>
-                                  <Chip
-                                    label={isTargetReached ? 'Đạt' : `${cls.completionRate || 0}/${targetComp}%`}
-                                    size="small"
-                                    sx={{
-                                      height: 18,
-                                      fontSize: '0.65rem',
-                                      fontWeight: 800,
-                                      bgcolor: isTargetReached ? '#ecfdf5' : '#fff1f2',
-                                      color: isTargetReached ? '#059669' : '#e11d48'
-                                    }}
-                                  />
-                                </Box>
+                                )}
                               </TableCell>
                               <TableCell align="center">
-                                <Typography variant="body2" fontWeight={700} color="#16a34a">
-                                  {cls.onTimeRate}%
+                                <Typography variant="body2" fontWeight={700} color={cls.submissionsTotal > 0 ? '#16a34a' : '#94a3b8'}>
+                                  {cls.submissionsTotal > 0 ? `${cls.onTimeRate}%` : '—'}
                                 </Typography>
                               </TableCell>
                               <TableCell align="center">
-                                <Typography variant="body2" fontWeight={800} color="#d97706">
+                                <Typography variant="body2" fontWeight={800} color={cls.averageScore != null ? '#d97706' : '#94a3b8'}>
                                   {cls.averageScore ?? '—'}
                                 </Typography>
                               </TableCell>
                               <TableCell align="center">
                                 <Chip
-                                  label={cls.completionRate >= 95 ? 'Xuất sắc' : cls.completionRate >= 90 ? 'Tốt' : 'Cần hỗ trợ'}
+                                  label={
+                                    cls.submissionsTotal === 0
+                                      ? 'Chờ HS tham gia'
+                                      : cls.completionRate >= 95
+                                        ? 'Xuất sắc'
+                                        : cls.completionRate >= 90
+                                          ? 'Tốt'
+                                          : 'Cần hỗ trợ'
+                                  }
                                   size="small"
                                   sx={{
-                                    bgcolor: cls.completionRate >= 95 ? '#ecfdf5' : cls.completionRate >= 90 ? '#eff6ff' : '#fef2f2',
-                                    color: cls.completionRate >= 95 ? '#059669' : cls.completionRate >= 90 ? '#2563eb' : '#dc2626',
+                                    bgcolor:
+                                      cls.submissionsTotal === 0
+                                        ? '#f8fafc'
+                                        : cls.completionRate >= 95
+                                          ? '#ecfdf5'
+                                          : cls.completionRate >= 90
+                                            ? '#eff6ff'
+                                            : '#fef2f2',
+                                    color:
+                                      cls.submissionsTotal === 0
+                                        ? '#64748b'
+                                        : cls.completionRate >= 95
+                                          ? '#059669'
+                                          : cls.completionRate >= 90
+                                            ? '#2563eb'
+                                            : '#dc2626',
                                     fontWeight: 700,
                                     fontSize: '0.75rem',
-                                    border: cls.completionRate >= 95 ? '1px solid #a7f3d0' : cls.completionRate >= 90 ? '1px solid #bfdbfe' : '1px solid #fecaca'
+                                    border:
+                                      cls.submissionsTotal === 0
+                                        ? '1px solid #e2e8f0'
+                                        : cls.completionRate >= 95
+                                          ? '1px solid #a7f3d0'
+                                          : cls.completionRate >= 90
+                                            ? '1px solid #bfdbfe'
+                                            : '1px solid #fecaca'
                                   }}
                                 />
                               </TableCell>

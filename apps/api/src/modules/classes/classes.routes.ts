@@ -458,38 +458,49 @@ Trân trọng cảm ơn sự đồng hành quý báu của Quý Phụ huynh vì 
   })
 );
 
-// 9. [NÂNG CẤP ĐÁNH GIÁ] Thúc Đẩy Tiến Độ Nộp Bài Sau Lệnh Đôn Đốc (Simulate Progress)
+// 9. Đồng bộ số liệu thực tế 100% từ Google Classroom (Single Source of Truth, không tự seed)
 classesRouter.post(
-  '/accelerate-progress',
+  '/sync-metrics',
   firebaseAuth,
   requireCapability('VIEW_DASHBOARD'),
   asyncRoute(async (_req, res) => {
     const coursesSnap = await col('courses').get();
-    const progressMap: Record<string, { turnedIn: number; total: number; comp: number; avg: number }> = {
-      '12A1': { turnedIn: 3, total: 5, comp: 60.0, avg: 8.8 },
-      '12A2': { turnedIn: 2, total: 5, comp: 40.0, avg: 8.5 },
-      '11A3': { turnedIn: 2, total: 5, comp: 40.0, avg: 8.2 },
-      '11A2': { turnedIn: 2, total: 5, comp: 40.0, avg: 8.4 },
-      '11A1': { turnedIn: 2, total: 5, comp: 40.0, avg: 8.6 },
-      '10A2': { turnedIn: 2, total: 5, comp: 40.0, avg: 8.0 },
-      '10A1': { turnedIn: 2, total: 5, comp: 40.0, avg: 8.3 },
-      'STEM': { turnedIn: 2, total: 5, comp: 40.0, avg: 9.0 }
-    };
-
     let updated = 0;
-    for (const courseDoc of coursesSnap.docs) {
-      const data = courseDoc.data();
-      const detected = autoDetectClass(data.name || '');
-      const key = detected?.classId || '12A1';
-      const conf = progressMap[key] || { turnedIn: 2, total: 5, comp: 40.0, avg: 8.5 };
 
-      await col('courses').doc(courseDoc.id).set({
+    for (const doc of coursesSnap.docs) {
+      const id = doc.id;
+      const membersSnap = await col('courses').doc(id).collection('members').get().catch(() => ({ docs: [] }));
+      const cwSnap = await col('courses').doc(id).collection('coursework').get().catch(() => ({ docs: [] }));
+      const subsSnap = await col('courses').doc(id).collection('submissions').get().catch(() => ({ docs: [] }));
+
+      const students = membersSnap.docs.filter((d: any) => d.data().role === 'STUDENT').length;
+      const teachers = membersSnap.docs.filter((d: any) => d.data().role === 'TEACHER').length;
+      const cwCount = cwSnap.docs.length;
+      const subTotal = subsSnap.docs.length;
+      const turnedIn = subsSnap.docs.filter((d: any) => d.data().state === 'TURNED_IN' || d.data().state === 'RETURNED').length;
+      const graded = subsSnap.docs.filter((d: any) => d.data().assignedGrade != null).length;
+      const late = subsSnap.docs.filter((d: any) => d.data().late === true).length;
+      const scores = subsSnap.docs.map((d: any) => d.data().assignedGrade).filter((g: any) => typeof g === 'number');
+      const avgScore = scores.length ? Math.round((scores.reduce((a: number, b: number) => a + b, 0) / scores.length) * 10) / 10 : null;
+      const compRate = subTotal > 0 ? Math.round((turnedIn / subTotal) * 1000) / 10 : 0;
+      const onTimeRate = turnedIn > 0 ? Math.round(((turnedIn - late) / turnedIn) * 1000) / 10 : 100;
+
+      await col('courses').doc(id).set({
         content: {
-          submissionsTotal: conf.total * 40,
-          submissionsTurnedIn: conf.turnedIn * 40,
-          completionRate: conf.comp,
-          averageScore: conf.avg,
-          onTimeRate: 92.5
+          coursework: cwCount,
+          submissionsTotal: subTotal,
+          submissionsTurnedIn: turnedIn,
+          submissionsGraded: graded,
+          submissionsLate: late,
+          completionRate: compRate,
+          onTimeRate: onTimeRate,
+          averageScore: avgScore,
+          status: 'COMPLETE'
+        },
+        roster: {
+          students,
+          teachers,
+          status: 'COMPLETE'
         }
       }, { merge: true });
       updated++;
@@ -500,7 +511,7 @@ classesRouter.post(
 
     res.json({
       ok: true,
-      message: `Đã thúc đẩy tiến độ hoàn thành bài tập toàn trường thành công! Lớp 12A1 đạt chỉ tiêu 60%, các lớp còn lại đạt 40%. Chuẩn TB toàn trường tăng từ 2.5% lên 42.5%!`,
+      message: `Đã đối soát và đồng bộ 100% số liệu thực tế từ Google Classroom cho ${updated} khóa học. Dữ liệu phản ánh đúng số bài nộp và học sinh thực tế.`,
       updatedCourses: updated
     });
   })
