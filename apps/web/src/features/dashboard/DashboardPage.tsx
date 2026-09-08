@@ -132,6 +132,38 @@ export default function DashboardPage() {
   const [syncing, setSyncing] = useState(false);
   const [syncNotice, setSyncNotice] = useState<string | null>(null);
   const [classes, setClasses] = useState<any[]>([]);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [actionMsg, setActionMsg] = useState<{ text: string; type: 'success' | 'warning' | 'info' } | null>(null);
+
+  const handleAutoAssignTeachers = async () => {
+    setActionLoading('teachers');
+    setActionMsg(null);
+    try {
+      const res = await api.post<any>('/api/classes/auto-assign-teachers', {});
+      setActionMsg({ text: res.message || 'Đã phân công Giáo viên Chủ nhiệm chuẩn hóa cho tất cả các lớp!', type: 'success' });
+      await fetchOverview();
+      const updatedClasses = await api.get<{ items: any[] }>('/api/classes').catch(() => ({ items: [] }));
+      setClasses(updatedClasses.items || []);
+    } catch (e: any) {
+      setActionMsg({ text: `Lỗi phân công GVCN: ${e.message}`, type: 'warning' });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleNudgeSubmissions = async () => {
+    setActionLoading('nudge');
+    setActionMsg(null);
+    try {
+      const res = await api.post<any>('/api/classes/nudge', { classId: grade });
+      setActionMsg({ text: res.message || 'Đã gửi lệnh đôn đốc nộp bài tập số thành công!', type: 'success' });
+      await fetchOverview();
+    } catch (e: any) {
+      setActionMsg({ text: `Lỗi gửi đôn đốc: ${e.message}`, type: 'warning' });
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   useEffect(() => {
     api.get<{ items: any[] }>('/api/classes')
@@ -242,6 +274,30 @@ export default function DashboardPage() {
             </Button>
 
             <Button
+              variant="contained"
+              color="success"
+              size="small"
+              startIcon={actionLoading === 'teachers' ? <CircularProgress size={16} color="inherit" /> : <SchoolIcon />}
+              onClick={handleAutoAssignTeachers}
+              disabled={actionLoading !== null}
+              sx={{ fontWeight: 700, px: 1.75, bgcolor: '#059669', '&:hover': { bgcolor: '#047857' } }}
+            >
+              {actionLoading === 'teachers' ? 'Đang gán...' : 'Phân Công GVCN'}
+            </Button>
+
+            <Button
+              variant="contained"
+              color="warning"
+              size="small"
+              startIcon={actionLoading === 'nudge' ? <CircularProgress size={16} color="inherit" /> : <NotificationsActiveIcon />}
+              onClick={handleNudgeSubmissions}
+              disabled={actionLoading !== null}
+              sx={{ fontWeight: 700, px: 1.75, bgcolor: '#d97706', '&:hover': { bgcolor: '#b45309' } }}
+            >
+              {actionLoading === 'nudge' ? 'Đang gửi...' : 'Đôn Đốc Nộp Bài'}
+            </Button>
+
+            <Button
               variant="outlined"
               size="small"
               startIcon={<RefreshIcon />}
@@ -251,7 +307,7 @@ export default function DashboardPage() {
               Làm mới
             </Button>
 
-            <FormControl size="small" sx={{ minWidth: 150, bgcolor: '#fff' }}>
+            <FormControl size="small" sx={{ minWidth: 140, bgcolor: '#fff' }}>
               <InputLabel>Thời gian</InputLabel>
               <Select value={period} label="Thời gian" onChange={(e) => setPeriod(e.target.value)}>
                 <MenuItem value="today">Hôm nay</MenuItem>
@@ -263,7 +319,7 @@ export default function DashboardPage() {
               </Select>
             </FormControl>
 
-            <FormControl size="small" sx={{ minWidth: 130, bgcolor: '#fff' }}>
+            <FormControl size="small" sx={{ minWidth: 120, bgcolor: '#fff' }}>
               <InputLabel>Khối lớp</InputLabel>
               <Select value={grade} label="Khối lớp" onChange={(e) => setGrade(e.target.value)}>
                 <MenuItem value="all">Toàn trường</MenuItem>
@@ -279,6 +335,33 @@ export default function DashboardPage() {
       {syncNotice && (
         <Alert severity={syncNotice.includes('thành công') ? 'success' : 'warning'} sx={{ mb: 2.5, borderRadius: 2 }} onClose={() => setSyncNotice(null)}>
           {syncNotice}
+        </Alert>
+      )}
+
+      {actionMsg && (
+        <Alert severity={actionMsg.type} sx={{ mb: 2.5, borderRadius: 2, fontWeight: 600 }} onClose={() => setActionMsg(null)}>
+          {actionMsg.text}
+        </Alert>
+      )}
+
+      {/* Cảnh báo Tiến độ Chấm bài quá 48h */}
+      {Number(k?.ungradedAssignments?.value || 0) > 0 && (
+        <Alert
+          severity="warning"
+          sx={{ mb: 2.5, borderRadius: 2, border: '1px solid #fde68a', bgcolor: '#fffbeb' }}
+          action={
+            <Button
+              color="warning"
+              variant="contained"
+              size="small"
+              onClick={() => navigate('/teachers')}
+              sx={{ textTransform: 'none', fontWeight: 700, bgcolor: '#d97706', '&:hover': { bgcolor: '#b45309' } }}
+            >
+              Đôn Đốc Chấm Bài
+            </Button>
+          }
+        >
+          ⚠️ <strong>Cảnh Báo Chậm Trả Điểm (&gt;48h):</strong> Hiện có <strong>{k?.ungradedAssignments?.value} bài tập</strong> đã nộp nhưng giáo viên bộ môn chưa chấm điểm. Cần hoàn thành chấm để đồng bộ điểm vào Hồ sơ 360° học sinh.
         </Alert>
       )}
 

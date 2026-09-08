@@ -98,6 +98,37 @@ export default function ClassComparePage() {
     }
   };
 
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [actionMsg, setActionMsg] = useState<{ text: string; type: 'success' | 'warning' | 'info' } | null>(null);
+
+  const handleAutoAssignTeachers = async () => {
+    setActionLoading('teachers');
+    setActionMsg(null);
+    try {
+      const res = await api.post<any>('/api/classes/auto-assign-teachers', {});
+      setActionMsg({ text: res.message || 'Đã phân công Giáo viên Chủ nhiệm chuẩn hóa thành công!', type: 'success' });
+      await loadClasses();
+      if (classAId && classBId) loadDuel(classAId, classBId);
+    } catch (e: any) {
+      setActionMsg({ text: `Lỗi phân công GVCN: ${e.message}`, type: 'warning' });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleNudgeSubmissions = async () => {
+    setActionLoading('nudge');
+    setActionMsg(null);
+    try {
+      const res = await api.post<any>('/api/classes/nudge', { classId: selectedGrade });
+      setActionMsg({ text: res.message || 'Đã gửi lệnh đôn đốc nộp bài tập số thành công!', type: 'success' });
+    } catch (e: any) {
+      setActionMsg({ text: `Lỗi đôn đốc: ${e.message}`, type: 'warning' });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   // 2. Tải phân tích đối đầu 1 vs 1 khi đổi lớp A hoặc B
   const loadDuel = async (aId: string, bId: string) => {
     if (!aId || !bId) return;
@@ -209,7 +240,29 @@ export default function ClassComparePage() {
         title="So Sánh Lớp Học Đối Đầu & Chuẩn Đối Sánh Sư Phạm"
         subtitle="Phân tích tương quan đối đầu giữa các lớp học, đánh giá tiến độ nộp bài và khuyến nghị điều hành cho Ban Giám hiệu"
         action={
-          <Stack direction="row" spacing={1.5}>
+          <Stack direction="row" spacing={1.5} flexWrap="wrap">
+            <Button
+              variant="contained"
+              size="small"
+              color="success"
+              startIcon={actionLoading === 'teachers' ? <CircularProgress size={16} color="inherit" /> : <SchoolIcon />}
+              onClick={handleAutoAssignTeachers}
+              disabled={actionLoading !== null}
+              sx={{ bgcolor: '#059669', '&:hover': { bgcolor: '#047857' }, textTransform: 'none', fontWeight: 700, borderRadius: '8px' }}
+            >
+              {actionLoading === 'teachers' ? 'Đang gán...' : 'Phân Công GVCN'}
+            </Button>
+            <Button
+              variant="contained"
+              size="small"
+              color="warning"
+              startIcon={actionLoading === 'nudge' ? <CircularProgress size={16} color="inherit" /> : <AssignmentTurnedInIcon />}
+              onClick={handleNudgeSubmissions}
+              disabled={actionLoading !== null}
+              sx={{ bgcolor: '#d97706', '&:hover': { bgcolor: '#b45309' }, textTransform: 'none', fontWeight: 700, borderRadius: '8px' }}
+            >
+              {actionLoading === 'nudge' ? 'Đang gửi...' : 'Đôn Đốc Nộp Bài'}
+            </Button>
             <Button
               variant="outlined"
               size="small"
@@ -241,6 +294,12 @@ export default function ClassComparePage() {
           </Stack>
         }
       />
+
+      {actionMsg && (
+        <Alert severity={actionMsg.type} sx={{ mb: 2.5, borderRadius: 2, fontWeight: 600 }} onClose={() => setActionMsg(null)}>
+          {actionMsg.text}
+        </Alert>
+      )}
 
       {/* KPI Highlight Summary Cards */}
       <Grid container spacing={2.5} sx={{ mb: 3 }}>

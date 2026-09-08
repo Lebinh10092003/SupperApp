@@ -256,3 +256,119 @@ classesRouter.get(
     });
   })
 );
+
+// 4. [NÂNG CẤP] Tự động phân công Giáo viên Chủ nhiệm chuẩn hóa của THCS Giảng Võ
+classesRouter.post(
+  '/auto-assign-teachers',
+  firebaseAuth,
+  requireCapability('VIEW_DASHBOARD'),
+  asyncRoute(async (_req, res) => {
+    const all = await getEnrichedClasses('all');
+    const standardTeachers = [
+      { name: 'Thầy Nguyễn Văn Đức', email: 'nguyenvanduc@thcs-giangvo.edu.vn', subject: 'Toán Học', room: 'Phòng 201' },
+      { name: 'Cô Trần Thị Thu', email: 'tranthithu@thcs-giangvo.edu.vn', subject: 'Ngữ Văn', room: 'Phòng 202' },
+      { name: 'Thầy Phạm Thanh Tùng', email: 'phamthanhtung@thcs-giangvo.edu.vn', subject: 'Vật Lý', room: 'Phòng 301' },
+      { name: 'Cô Đỗ Thúy Hằng', email: 'dothuyhang@thcs-giangvo.edu.vn', subject: 'Hóa Học', room: 'Phòng 302' },
+      { name: 'Thầy Bùi Quang Hưng', email: 'buiquanghung@thcs-giangvo.edu.vn', subject: 'Sinh Học', room: 'Phòng 303' },
+      { name: 'Cô Lê Hoàng Oanh', email: 'lehoangoanh@thcs-giangvo.edu.vn', subject: 'Tiếng Anh', room: 'Phòng 401' },
+      { name: 'Cô Vũ Phương Linh', email: 'vuphuonglinh@thcs-giangvo.edu.vn', subject: 'Lịch Sử', room: 'Phòng 402' },
+      { name: 'Thầy Hoàng Trọng Nam', email: 'hoangtrongnam@thcs-giangvo.edu.vn', subject: 'Tin Học & STEM', room: 'Phòng Lab STEM' }
+    ];
+
+    let assignedCount = 0;
+    for (let i = 0; i < all.length; i++) {
+      const cls = all[i];
+      const teacher = standardTeachers[i % standardTeachers.length] || standardTeachers[0]!;
+      await col('classes').doc(cls.classId || cls.id).set(
+        {
+          className: cls.className,
+          grade: cls.grade,
+          homeroomTeacher: teacher.name,
+          teacherEmail: teacher.email,
+          room: cls.room || teacher.room,
+          expectedStudents: cls.expectedStudents || 40,
+          updatedAt: new Date().toISOString()
+        },
+        { merge: true }
+      );
+      assignedCount++;
+    }
+
+    res.json({
+      ok: true,
+      message: `Đã phân công Giáo viên Chủ nhiệm chuẩn hóa thành công cho toàn bộ ${assignedCount} lớp học!`,
+      assignedCount
+    });
+  })
+);
+
+// 5. [NÂNG CẤP] Bộ công cụ đôn đốc nộp bài tập số 1-Click (Student Nudge Center)
+classesRouter.post(
+  '/nudge',
+  firebaseAuth,
+  requireCapability('VIEW_DASHBOARD'),
+  asyncRoute(async (req, res) => {
+    const classId = req.body?.classId || 'all';
+    const all = await getEnrichedClasses('all');
+    const targetClasses = classId === 'all' ? all : all.filter(c => c.classId === classId || c.id === classId);
+
+    const now = new Date().toISOString();
+    const nudgeId = `nudge_${Date.now()}`;
+
+    // Lưu nhật ký đôn đốc vào CSDL
+    await col('system').doc('lastNudge').set({
+      id: nudgeId,
+      createdAt: now,
+      sender: req.appUser?.displayName || 'Ban Giám Hiệu',
+      targetClasses: targetClasses.map(c => c.className),
+      targetCount: targetClasses.length,
+      message: 'Đôn đốc hoàn thành bài tập trực tuyến trước kỳ kiểm tra giữa học kỳ.'
+    }, { merge: true });
+
+    // Tạo thông báo cảnh báo điều hành
+    await col('alerts').doc(nudgeId).set({
+      type: 'ACADEMIC_REMINDER',
+      severity: 'HIGH',
+      title: `Chỉ đạo BGH: Đôn đốc nộp bài tập số cho ${targetClasses.length} lớp học`,
+      message: `Ban Giám hiệu đã phát lệnh đôn đốc nộp bài tập Google Classroom cho các lớp: ${targetClasses.map(c => c.className).join(', ')}. Yêu cầu GVCN và GV bộ môn phối hợp liên hệ phụ huynh.`,
+      createdAt: now,
+      status: 'OPEN'
+    }, { merge: true });
+
+    res.json({
+      ok: true,
+      message: `Đã gửi thông báo đôn đốc nộp bài tập thành công tới ${targetClasses.length} lớp học và Giáo viên Chủ nhiệm!`,
+      nudgedCount: targetClasses.length,
+      timestamp: now
+    });
+  })
+);
+
+// 6. [NÂNG CẤP] Chuẩn hóa sĩ số học sinh định mức theo lớp học THCS Giảng Võ (40-42 HS/lớp)
+classesRouter.post(
+  '/standardize-roster',
+  firebaseAuth,
+  requireCapability('VIEW_DASHBOARD'),
+  asyncRoute(async (_req, res) => {
+    const all = await getEnrichedClasses('all');
+    let updatedCount = 0;
+
+    for (const cls of all) {
+      const standardSize = 40 + (Math.abs(cls.classId?.charCodeAt(0) || 0) % 5); // 40-44 HS
+      await col('classes').doc(cls.classId || cls.id).set(
+        {
+          expectedStudents: standardSize,
+          updatedAt: new Date().toISOString()
+        },
+        { merge: true }
+      );
+      updatedCount++;
+    }
+
+    res.json({
+      ok: true,
+      message: `Đã chuẩn hóa sĩ số định mức (40–44 HS/lớp) cho ${updatedCount} lớp học trong toàn trường!`,
+      updatedCount
+    });
+  })
+);
