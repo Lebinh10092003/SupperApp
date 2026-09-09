@@ -28,7 +28,7 @@ import { publicCodes } from './ids.schema.js';
 import { incidents } from './incidents.schema.js';
 import { slaClocks } from './sla-clocks.schema.js';
 import { notifyRequests } from './dispatch.schema.js';
-import { AppError, toJsDate, parseOptionalDate, withIdempotency, adminArrayUnion, type Db } from './shared.js';
+import { AppError, toJsDate, parseOptionalDate, withIdempotency, adminArrayUnion, slaClockToRow, notifyRequestToRow, type Db } from './shared.js';
 import type { Actor } from './authz.js';
 
 export interface DispatchHook {
@@ -308,7 +308,7 @@ export async function createIncidentFromReport(db: Db, input: CreateIncidentFrom
         deepLink: '/app/incidents/' + incidentId,
         eventType: 'safety.incident.homeroom_notified'
       });
-      const [savedRequest] = await db.insert(notifyRequests).values({ ...requestToRow(request), createdAt: now }).returning();
+      const [savedRequest] = await db.insert(notifyRequests).values({ ...notifyRequestToRow(request), createdAt: now }).returning();
       if (opts?.dispatch && savedRequest) await opts.dispatch(db, savedRequest, { now });
       if (opts?.pushBell) {
         await opts.pushBell(db, {
@@ -332,43 +332,6 @@ export async function createIncidentFromReport(db: Db, input: CreateIncidentFrom
   await notifyReporterAndAudit(db, opts, { reportId: input.reportId, eventType: 'reporter.notified.received' }, now);
 
   return { incidentId, merged: false, homeroomPerId, gradeSupervisorPerId };
-}
-
-/** Chuyển `SlaClock` (object thuần snake_case từ sla.ts) thành đúng shape cột Drizzle của bảng sla_clocks. */
-function slaClockToRow(clock: ReturnType<typeof sla.registerSlaClock>) {
-  return {
-    objectId: clock.object_id,
-    clockLabel: clock.clock_label,
-    priority: clock.priority,
-    startAt: clock.start_at,
-    deadlineAt: clock.deadline_at,
-    status: clock.status,
-    paused: clock.paused,
-    pauseHistory: clock.pause_history.map((entry) => ({
-      from: entry.from.toISOString(),
-      to: entry.to ? entry.to.toISOString() : null,
-      reason: entry.reason,
-      approved_by: entry.approved_by
-    }))
-  };
-}
-
-/** Chuyển `NotifyRequest` (object thuần từ notify.ts) thành đúng shape cột Drizzle của bảng notify_requests. */
-function requestToRow(request: ReturnType<typeof notify.buildNotifyRequest>) {
-  return {
-    objectId: request.object_id,
-    eventType: request.event_type,
-    urgency: request.urgency,
-    channels: request.channels,
-    simultaneous: request.simultaneous,
-    message: request.message,
-    recipients: request.recipients,
-    requireAck: request.require_ack,
-    status: request.status,
-    attempts: request.attempts,
-    dedupeKeys: request.dedupe_keys,
-    ackBy: request.ack_by
-  };
 }
 
 /**
@@ -423,7 +386,7 @@ export async function activateP0(
     deepLink: '/app/incidents/' + input.incidentId,
     eventType: 'safety.incident.p0_activated'
   });
-  const [savedRequest] = await db.insert(notifyRequests).values({ ...requestToRow(request), createdAt: now }).returning();
+  const [savedRequest] = await db.insert(notifyRequests).values({ ...notifyRequestToRow(request), createdAt: now }).returning();
   // Đường P0 KHÔNG được chờ — gửi thật ngay, không phụ thuộc bước duyệt nào khác.
   if (opts?.dispatch && savedRequest) await opts.dispatch(db, savedRequest, { now });
 
@@ -465,7 +428,7 @@ export async function notifyP1Escalation(
     deepLink: '/app/incidents/' + input.incidentId,
     eventType: 'safety.incident.p1_escalation_notified'
   });
-  const [savedRequest] = await db.insert(notifyRequests).values({ ...requestToRow(request), createdAt: now }).returning();
+  const [savedRequest] = await db.insert(notifyRequests).values({ ...notifyRequestToRow(request), createdAt: now }).returning();
   if (opts?.dispatch && savedRequest) await opts.dispatch(db, savedRequest, { now });
   if (opts?.pushBell) {
     await opts.pushBell(db, {
@@ -521,7 +484,7 @@ export async function notifyUrgentReport(
     deepLink: '/app/reports/' + input.reportId,
     eventType: 'safety.report.urgent_notified'
   });
-  const [savedRequest] = await db.insert(notifyRequests).values({ ...requestToRow(request), createdAt: now }).returning();
+  const [savedRequest] = await db.insert(notifyRequests).values({ ...notifyRequestToRow(request), createdAt: now }).returning();
   if (opts?.dispatch && savedRequest) await opts.dispatch(db, savedRequest, { now });
   if (opts?.pushBell) {
     await opts.pushBell(db, {

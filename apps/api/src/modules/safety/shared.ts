@@ -8,6 +8,8 @@
 import { eq } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { idempotencyKeys } from './idempotency.schema.js';
+import type { registerSlaClock } from './sla.js';
+import type { buildNotifyRequest } from './notify.js';
 
 export type Db = NodePgDatabase<Record<string, never>>;
 
@@ -60,4 +62,46 @@ export function adminArrayUnion<T>(existing: T[] | null | undefined, value: T): 
   const arr = Array.isArray(existing) ? [...existing] : [];
   if (!arr.includes(value)) arr.push(value);
   return arr;
+}
+
+/**
+ * `sla.registerSlaClock`/`recomputeOnPriorityChange` trả object snake_case
+ * (dùng chung cho cả report-flow.ts và cụm hàm state-machine của Killshot)
+ * — chuyển thành đúng shape cột Drizzle bảng sla_clocks. `pause_history`
+ * dùng `Date` thật ở from/to nhưng cột jsonb lưu string, nên convert ISO.
+ */
+export function slaClockToRow(clock: ReturnType<typeof registerSlaClock>) {
+  return {
+    objectId: clock.object_id,
+    clockLabel: clock.clock_label,
+    priority: clock.priority,
+    startAt: clock.start_at,
+    deadlineAt: clock.deadline_at,
+    status: clock.status,
+    paused: clock.paused,
+    pauseHistory: clock.pause_history.map((entry) => ({
+      from: entry.from.toISOString(),
+      to: entry.to ? entry.to.toISOString() : null,
+      reason: entry.reason,
+      approved_by: entry.approved_by
+    }))
+  };
+}
+
+/** `notify.buildNotifyRequest` trả object snake_case — chuyển thành đúng shape cột Drizzle bảng notify_requests. */
+export function notifyRequestToRow(request: ReturnType<typeof buildNotifyRequest>) {
+  return {
+    objectId: request.object_id,
+    eventType: request.event_type,
+    urgency: request.urgency,
+    channels: request.channels,
+    simultaneous: request.simultaneous,
+    message: request.message,
+    recipients: request.recipients,
+    requireAck: request.require_ack,
+    status: request.status,
+    attempts: request.attempts,
+    dedupeKeys: request.dedupe_keys,
+    ackBy: request.ack_by
+  };
 }
