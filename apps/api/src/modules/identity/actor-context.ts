@@ -24,10 +24,11 @@ export interface ActorContext {
  * Postgres. Dùng chung cho MỌI module cần biết "actor hiện tại là ai, vai
  * trò gì, có đang trực ca/được uỷ quyền không" (An toàn, Lịch công tác).
  *
- * Khác biệt CÓ CHỦ ĐÍCH so với bản gốc: lọc `from_date`/`to_date`/ca trực/
- * uỷ quyền còn hiệu lực NGAY TRONG QUERY SQL (WHERE) thay vì tải hết rồi
- * lọc bằng JS như bản Firestore — tận dụng được điều Firestore không làm
- * tốt (so sánh khoảng ngày kèm NULL) mà Postgres làm tự nhiên.
+ * GIỮ NGUYÊN cách lọc của bản gốc: tải hết `assignments`/`duty_shifts`/
+ * `delegations` theo `perId` rồi lọc còn-hiệu-lực bằng JS (không đẩy điều
+ * kiện ngày xuống `WHERE` SQL) — để hành vi khớp 1-1, dễ đối chiếu khi
+ * review. Có thể tối ưu đẩy xuống SQL sau khi có dữ liệu thật để đo hiệu
+ * năng, không tối ưu sớm khi chưa cần (đã ghi trong README cùng thư mục).
  */
 export async function loadActorContext(
   db: NodePgDatabase<Record<string, never>>,
