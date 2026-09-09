@@ -12,8 +12,16 @@ export const idCounters = pgTable('id_counters', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
 }, (table) => [primaryKey({ columns: [table.prefix, table.period] })]);
 
-/** Mã tiếp nhận công khai (GV-XXXX-XXXX) đã cấp — chỉ để chống trùng, mapping thật gắn ở module report/incident khi port tới. */
+/**
+ * Mã tiếp nhận công khai (GV-XXXX-XXXX) — `allocatePublicCode` chỉ ĐỌC bảng
+ * này để chống trùng (chưa insert); dòng thật được `reports` module ghi
+ * kèm `reportId` ngay khi tạo tin báo (đúng thời điểm bản gốc Firestore
+ * ghi `public_codes/{code}` — xem `safety.js::submitReport`). `reportId`
+ * nullable vì bước allocatePublicCode kiểm tra tồn tại có thể chạy độc
+ * lập trước khi biết reportId (test thuần logic sinh mã, không có DB).
+ */
 export const publicCodes = pgTable('public_codes', {
   code: text('code').primaryKey(),
+  reportId: text('report_id'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
 });

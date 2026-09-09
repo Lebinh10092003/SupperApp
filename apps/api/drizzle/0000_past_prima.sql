@@ -156,6 +156,12 @@ CREATE TABLE "evidence" (
 	"deleted" boolean DEFAULT false NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "idempotency_keys" (
+	"key" text PRIMARY KEY NOT NULL,
+	"result" jsonb,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "id_counters" (
 	"prefix" text NOT NULL,
 	"period" text NOT NULL,
@@ -166,6 +172,7 @@ CREATE TABLE "id_counters" (
 --> statement-breakpoint
 CREATE TABLE "public_codes" (
 	"code" text PRIMARY KEY NOT NULL,
+	"report_id" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
@@ -185,8 +192,61 @@ CREATE TABLE "incidents" (
 	"commander_per_id" text,
 	"assigned_task_per_ids" jsonb,
 	"version" integer DEFAULT 1 NOT NULL,
+	"last_note" text,
+	"close_requested_at" timestamp with time zone,
+	"closed_by" text,
+	"closed_at" timestamp with time zone,
+	"reporter_close_confirmed_at" timestamp with time zone,
+	"reopened_by" text,
+	"reopened_at" timestamp with time zone,
+	"reopen_reason" text,
 	"created_at" timestamp with time zone NOT NULL,
 	"updated_at" timestamp with time zone NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "report_identities" (
+	"report_id" text PRIMARY KEY NOT NULL,
+	"contact_name" text,
+	"contact_channel" text,
+	"safe_contact_time" text,
+	"email" text,
+	"phone" text
+);
+--> statement-breakpoint
+CREATE TABLE "reports" (
+	"report_id" text PRIMARY KEY NOT NULL,
+	"public_code" text NOT NULL,
+	"channel" text DEFAULT 'public_web' NOT NULL,
+	"campus_id" text NOT NULL,
+	"category_code" text NOT NULL,
+	"occurred_at" timestamp with time zone NOT NULL,
+	"occurred_from" timestamp with time zone,
+	"occurred_to" timestamp with time zone,
+	"anonymous" boolean DEFAULT false NOT NULL,
+	"still_dangerous" boolean DEFAULT false NOT NULL,
+	"confidentiality" text NOT NULL,
+	"content" text DEFAULT '' NOT NULL,
+	"class_name" text,
+	"reporter_role" text,
+	"zone_ids" jsonb,
+	"zone_id" text,
+	"merged_into_incident_id" text,
+	"created_by_per_id" text,
+	"suggested_zone_ids" jsonb,
+	"suggested_class_names" jsonb,
+	"created_at" timestamp with time zone NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "sla_clocks" (
+	"object_id" text NOT NULL,
+	"clock_label" text NOT NULL,
+	"priority" text NOT NULL,
+	"start_at" timestamp with time zone NOT NULL,
+	"deadline_at" timestamp with time zone NOT NULL,
+	"status" text DEFAULT 'running' NOT NULL,
+	"paused" boolean DEFAULT false NOT NULL,
+	"pause_history" jsonb DEFAULT '[]'::jsonb NOT NULL,
+	CONSTRAINT "sla_clocks_object_id_clock_label_pk" PRIMARY KEY("object_id","clock_label")
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX "accounts_per_id_idx" ON "accounts" USING btree ("per_id");--> statement-breakpoint
