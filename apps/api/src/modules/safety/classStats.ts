@@ -18,16 +18,14 @@ import { eq } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as catalog from './catalog.js';
 import { incidents } from './incidents.schema.js';
+import { AppError } from './shared.js';
 
 type Db = NodePgDatabase<Record<string, never>>;
 
-export class AppError extends Error {
-  code: string;
-  constructor(code: string, message: string) {
-    super(message);
-    this.code = code;
-  }
-}
+// AppError dùng CHUNG (shared.ts) — xem giải thích ở zoneStats.ts (bug
+// instanceof thật khi route check theo bản shared.ts). Re-export để
+// `classStats.AppError` (test cũ) vẫn cùng 1 class.
+export { AppError };
 
 const VALID_RANGE_DAYS = [7, 30, 90];
 const DEFAULT_RANGE_DAYS = 90;
