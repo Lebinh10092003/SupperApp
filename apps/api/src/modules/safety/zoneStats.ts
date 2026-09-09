@@ -19,16 +19,17 @@ import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as catalog from './catalog.js';
 import { incidents } from './incidents.schema.js';
 import { campusZones, zoneCategories, campusMapMarkers, type PolygonPoint } from './campus-zones.schema.js';
+import { AppError } from './shared.js';
 
 type Db = NodePgDatabase<Record<string, never>>;
 
-export class AppError extends Error {
-  code: string;
-  constructor(code: string, message: string) {
-    super(message);
-    this.code = code;
-  }
-}
+// AppError dùng CHUNG (shared.ts) — trước đây tự định nghĩa riêng ở đây,
+// gây bug thật: route (`safety-stats.routes.ts`) check `instanceof
+// AppError` theo bản shared.ts, nhưng lỗi ném ra từ đây lại là 1 class
+// KHÁC (dù cùng tên) -> instanceof luôn false -> lỗi invalid_input/
+// not_found rơi thành 500 thay vì đúng mã. Re-export để chỗ nào còn gọi
+// `zoneStats.AppError` (VD test cũ) vẫn hoạt động đúng, cùng 1 class.
+export { AppError };
 
 const VALID_RANGE_DAYS = [7, 30, 90];
 const DEFAULT_RANGE_DAYS = 90;

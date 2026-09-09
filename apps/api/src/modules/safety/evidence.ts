@@ -32,6 +32,7 @@ import { allocateRandomEvidenceId } from './ids.js';
 import { checkAuthorization, type Actor } from './authz.js';
 import { writeAuditLog, buildAuditRecord } from './audit.js';
 import { evidence as evidenceTable } from './evidence.schema.js';
+import { AppError } from './shared.js';
 
 type Db = NodePgDatabase<Record<string, never>>;
 
@@ -51,13 +52,11 @@ export interface EvidenceBucket {
   file(path: string): EvidenceFile;
 }
 
-export class AppError extends Error {
-  code: string;
-  constructor(code: string, message: string) {
-    super(message);
-    this.code = code;
-  }
-}
+// AppError dùng CHUNG (shared.ts) — trước đây tự định nghĩa riêng ở đây
+// nhưng KHÔNG hàm nào trong file này thực sự throw nó (dead code); gộp
+// lại cho nhất quán với zoneStats.ts/classStats.ts (cùng lớp lỗi đã gây
+// bug instanceof thật ở đó khi route check theo bản shared.ts).
+export { AppError };
 
 // ---------------------------------------------------------------------------
 // Nhận diện định dạng thật từ magic bytes — KHÔNG bao giờ tin content-type/
