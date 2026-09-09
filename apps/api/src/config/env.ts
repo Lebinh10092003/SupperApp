@@ -28,7 +28,14 @@ const schema = z.object({
   API_BASE_URL: z.string().default('http://localhost:8080'),
   PORT: z.coerce.number().default(8080),
   GOOGLE_SERVICE_ACCOUNT_KEY_PATH: z.string().default(''),
-  GOOGLE_APPLICATION_CREDENTIALS: z.string().default('')
+  GOOGLE_APPLICATION_CREDENTIALS: z.string().default(''),
+
+  // Nền tảng multi-tenant Postgres (schema-per-tenant) — dùng dần cho các module
+  // viết lại từ Firebase (An toàn trường học, Lịch công tác, Classroom Intelligence).
+  // Xem apps/api/src/core/db/ và apps/api/src/core/tenant/.
+  DATABASE_URL: z.string().default('postgres://postgres@localhost:5432/postgres'),
+  DATABASE_POOL_MIN: z.coerce.number().default(0),
+  DATABASE_POOL_MAX: z.coerce.number().default(10)
 });
 
 export const env = schema.parse(process.env);
