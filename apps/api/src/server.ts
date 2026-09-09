@@ -22,6 +22,7 @@ import { connectionsRouter } from './modules/connections/connections.routes.js';
 import { catalogRouter } from './modules/catalog/catalog.routes.js';
 import { analyticsRouter } from './modules/analytics/analytics.routes.js';
 import { auditRouter } from './modules/audit/audit.routes.js';
+import { safetyRouter } from './modules/safety/safety.routes.js';
 import { handleMeetEvent } from './modules/meet/meet.events.js';
 
 const app = express();
@@ -70,6 +71,11 @@ app.use('/api/connections', connectionsRouter);
 app.use('/api/catalog', catalogRouter);
 app.use('/api/analytics', analyticsRouter);
 app.use('/api/audit', auditRouter);
+
+// Module An toàn trường học và giải quyết sự cố (di trú Firebase -> Postgres,
+// xem SUPERAPP_MIGRATION_COORDINATION/TASKS.md) — CHỈ 9 route ứng với 14 hàm
+// safety.js đã port, chưa gồm list/thống kê/quản trị (xem safety.routes.ts).
+app.use('/api/safety', safetyRouter);
 
 app.post(
   '/events/meet',

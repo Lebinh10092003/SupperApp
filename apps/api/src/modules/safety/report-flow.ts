@@ -32,8 +32,12 @@ import { AppError, toJsDate, parseOptionalDate, withIdempotency, adminArrayUnion
 import type { Actor } from './authz.js';
 
 export interface DispatchHook {
-  dispatch?: (db: Db, request: Record<string, unknown>, opts: { now: Date }) => Promise<void>;
-  pushBell?: (db: Db, input: Record<string, unknown>, opts: { now: Date }) => Promise<void>;
+  // Chữ ký lỏng deliberately: hàm THẬT (notify-hooks.ts) trả về dispatch
+  // log/bản ghi đã tạo để tầng route/test có thể kiểm tra lại, nhưng
+  // report-flow.ts/incident-lifecycle.ts không đọc giá trị trả về — chỉ
+  // gọi `await opts.dispatch(...)` cho có thứ tự, không quan tâm kiểu trả.
+  dispatch?: (db: Db, request: Record<string, unknown>, opts: { now: Date }) => Promise<unknown>;
+  pushBell?: (db: Db, input: Record<string, unknown>, opts: { now: Date }) => Promise<unknown>;
   notifyReporter?: (db: Db, input: { reportId?: string; incidentId?: string; eventType: string }, opts: Record<string, unknown> & { now: Date }) => Promise<
     { reportId?: string; sent?: boolean; reason?: string } | Array<{ reportId?: string; sent?: boolean; reason?: string }> | void
   >;
