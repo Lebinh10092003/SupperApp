@@ -22,6 +22,7 @@ import { connectionsRouter } from './modules/connections/connections.routes.js';
 import { catalogRouter } from './modules/catalog/catalog.routes.js';
 import { analyticsRouter } from './modules/analytics/analytics.routes.js';
 import { auditRouter } from './modules/audit/audit.routes.js';
+import { workScheduleRouter } from './modules/work-schedule/work-schedule.routes.js';
 import { handleMeetEvent } from './modules/meet/meet.events.js';
 
 const app = express();
@@ -70,6 +71,10 @@ app.use('/api/connections', connectionsRouter);
 app.use('/api/catalog', catalogRouter);
 app.use('/api/analytics', analyticsRouter);
 app.use('/api/audit', auditRouter);
+
+// Module Lịch công tác và Giao việc (K2: đặt tên "work-schedule" tránh đụng
+// /api/schedules có sẵn — đó là thời khoá biểu lớp học, khác nghiệp vụ).
+app.use('/api/work-schedule', workScheduleRouter);
 
 app.post(
   '/events/meet',
