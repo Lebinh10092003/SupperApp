@@ -8,6 +8,13 @@
       "when": 1788922916208,
       "tag": "0000_public_otto_octavius",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1788924227454,
+      "tag": "0001_hesitant_maggott",
+      "breakpoints": true
     }
   ]
 }
