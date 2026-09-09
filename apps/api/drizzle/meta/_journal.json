@@ -5,29 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1788922916208,
-      "tag": "0000_public_otto_octavius",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1788924227454,
-      "tag": "0001_hesitant_maggott",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1788924710296,
-      "tag": "0002_nappy_zaran",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1788925577093,
-      "tag": "0003_dear_marvex",
+      "when": 1788936238352,
+      "tag": "0000_known_songbird",
       "breakpoints": true
     }
   ]
