@@ -25,6 +25,7 @@ import { auditRouter } from './modules/audit/audit.routes.js';
 import { safetyRouter } from './modules/safety/safety.routes.js';
 import { safetyQueryRouter } from './modules/safety/safety-query.routes.js';
 import { safetyStatsRouter } from './modules/safety/safety-stats.routes.js';
+import { publicCatalogRouter } from './modules/safety/public-catalog.routes.js';
 import { workScheduleRouter } from './modules/work-schedule/work-schedule.routes.js';
 import { handleMeetEvent } from './modules/meet/meet.events.js';
 
@@ -83,6 +84,7 @@ app.use('/api/safety', safetyQueryRouter);
 // Thống kê/tìm người (K7): getIncidentStats/getTrendAlerts/
 // getCampusComparisonStats/getZoneStats/getClassStats/searchPeople.
 app.use('/api/safety', safetyStatsRouter);
+app.use('/api/safety', publicCatalogRouter);
 
 // Module Lịch công tác và Giao việc (K2: đặt tên "work-schedule" tránh đụng
 // /api/schedules có sẵn — đó là thời khoá biểu lớp học, khác nghiệp vụ).
