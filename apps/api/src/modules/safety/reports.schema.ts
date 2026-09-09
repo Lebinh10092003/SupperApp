@@ -46,3 +46,15 @@ export const reportIdentities = pgTable('report_identities', {
   email: text('email'),
   phone: text('phone')
 });
+
+/**
+ * report_supplements — người báo tin (hoặc phụ huynh) bổ sung thông tin sau
+ * khi đã gửi, port 1-1 từ Firestore collection cùng tên. Lưu RIÊNG, KHÔNG
+ * ghi đè lên report gốc — nhân viên xử lý xem qua listReportSupplements.
+ */
+export const reportSupplements = pgTable('report_supplements', {
+  supplementId: text('supplement_id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  reportId: text('report_id').notNull(),
+  content: text('content').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull()
+});

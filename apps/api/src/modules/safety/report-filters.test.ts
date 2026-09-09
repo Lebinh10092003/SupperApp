@@ -38,9 +38,9 @@ test('filterReportItems: lọc theo campusId/categoryCodes/searchText', () => {
 
 test('filterIncidentItems: lọc theo campusId/categoryCodes/priorities/states/searchText', () => {
   const items = [
-    { incident_id: 'SC.1', campus_id: 'MAIN_CAMPUS', category_code: 'fire_explosion', priority: 'P0', state: 'Khẩn cấp đang xử lý', class_name: null, assigned_task_per_ids: ['PER.1'] },
-    { incident_id: 'SC.2', campus_id: 'CAMPUS_1', category_code: 'violence_bullying', priority: 'P1', state: 'Đang xử lý', class_name: '8A2', assigned_task_per_ids: ['PER.2'] },
-    { incident_id: 'SC.3', campus_id: 'MAIN_CAMPUS', category_code: 'facility_general', priority: 'P3', state: 'Đã đóng', class_name: null, assigned_task_per_ids: ['PER.1', 'PER.2'] }
+    { incidentId: 'SC.1', campusId: 'MAIN_CAMPUS', categoryCode: 'fire_explosion', priority: 'P0', state: 'Khẩn cấp đang xử lý', className: null, assignedTaskPerIds: ['PER.1'] },
+    { incidentId: 'SC.2', campusId: 'CAMPUS_1', categoryCode: 'violence_bullying', priority: 'P1', state: 'Đang xử lý', className: '8A2', assignedTaskPerIds: ['PER.2'] },
+    { incidentId: 'SC.3', campusId: 'MAIN_CAMPUS', categoryCode: 'facility_general', priority: 'P3', state: 'Đã đóng', className: null, assignedTaskPerIds: ['PER.1', 'PER.2'] }
   ];
 
   assert.equal(filterIncidentItems(items, { campusId: 'MAIN_CAMPUS' }).length, 2);
@@ -48,40 +48,40 @@ test('filterIncidentItems: lọc theo campusId/categoryCodes/priorities/states/s
 
   const byState = filterIncidentItems(items, { states: ['Đã đóng'] });
   assert.equal(byState.length, 1);
-  assert.equal(byState[0]!.incident_id, 'SC.3');
+  assert.equal(byState[0]!.incidentId, 'SC.3');
 
   const byCategory = filterIncidentItems(items, { categoryCodes: ['violence_bullying'] });
   assert.equal(byCategory.length, 1);
-  assert.equal(byCategory[0]!.incident_id, 'SC.2');
+  assert.equal(byCategory[0]!.incidentId, 'SC.2');
 
   const bySearchId = filterIncidentItems(items, { searchText: 'sc.1' });
   assert.equal(bySearchId.length, 1);
-  assert.equal(bySearchId[0]!.incident_id, 'SC.1');
+  assert.equal(bySearchId[0]!.incidentId, 'SC.1');
 
   const bySearchClass = filterIncidentItems(items, { searchText: '8a2' });
   assert.equal(bySearchClass.length, 1);
-  assert.equal(bySearchClass[0]!.incident_id, 'SC.2');
+  assert.equal(bySearchClass[0]!.incidentId, 'SC.2');
 
   const combined = filterIncidentItems(items, { campusId: 'MAIN_CAMPUS', priorities: ['P3'] });
   assert.equal(combined.length, 1);
-  assert.equal(combined[0]!.incident_id, 'SC.3');
+  assert.equal(combined[0]!.incidentId, 'SC.3');
 
   assert.equal(filterIncidentItems(items, {}).length, 3);
   assert.equal(filterIncidentItems(undefined, {}).length, 0);
 
   const onlyMine1 = filterIncidentItems(items, { onlyMinePerId: 'PER.1' });
   assert.equal(onlyMine1.length, 2);
-  assert.ok(onlyMine1.every((it) => ['SC.1', 'SC.3'].includes(it.incident_id)));
+  assert.ok(onlyMine1.every((it) => ['SC.1', 'SC.3'].includes(it.incidentId)));
 
   assert.equal(filterIncidentItems(items, { onlyMinePerId: 'PER.999' }).length, 0);
 
   const onlyMineCombined = filterIncidentItems(items, { onlyMinePerId: 'PER.1', priorities: ['P3'] });
   assert.equal(onlyMineCombined.length, 1);
-  assert.equal(onlyMineCombined[0]!.incident_id, 'SC.3');
+  assert.equal(onlyMineCombined[0]!.incidentId, 'SC.3');
 
   assert.equal(filterIncidentItems(items, { onlyMinePerId: null }).length, 3);
 
-  const itemsNoAssigned = [{ incident_id: 'SC.9', campus_id: 'MAIN_CAMPUS' }];
+  const itemsNoAssigned = [{ incidentId: 'SC.9', campusId: 'MAIN_CAMPUS', priority: 'P3', state: 'Mới tiếp nhận' }];
   assert.equal(filterIncidentItems(itemsNoAssigned, { onlyMinePerId: 'PER.1' }).length, 0);
 });
 
@@ -139,13 +139,13 @@ test('sortReportItemsDefault: còn nguy hiểm lên đầu, cùng nhóm thì m�
   assert.equal(sortReportItemsDefault(undefined).length, 0);
 });
 
-test('filterIncidentItems: lọc theo khoảng thời gian (created_at)', () => {
+test('filterIncidentItems: lọc theo khoảng thời gian (createdAt)', () => {
   const items = [
-    { incident_id: 'SC.1', created_at: new Date('2026-08-20T08:00:00+07:00') },
-    { incident_id: 'SC.2', created_at: new Date('2026-08-22T08:00:00+07:00') },
-    { incident_id: 'SC.3', created_at: new Date('2026-08-24T08:00:00+07:00') }
+    { incidentId: 'SC.1', campusId: 'MAIN_CAMPUS', priority: 'P3', state: 'Mới tiếp nhận', createdAt: new Date('2026-08-20T08:00:00+07:00') },
+    { incidentId: 'SC.2', campusId: 'MAIN_CAMPUS', priority: 'P3', state: 'Mới tiếp nhận', createdAt: new Date('2026-08-22T08:00:00+07:00') },
+    { incidentId: 'SC.3', campusId: 'MAIN_CAMPUS', priority: 'P3', state: 'Mới tiếp nhận', createdAt: new Date('2026-08-24T08:00:00+07:00') }
   ];
   const byRange = filterIncidentItems(items, { fromDate: '2026-08-21', toDate: '2026-08-23' });
   assert.equal(byRange.length, 1);
-  assert.equal(byRange[0]!.incident_id, 'SC.2');
+  assert.equal(byRange[0]!.incidentId, 'SC.2');
 });
