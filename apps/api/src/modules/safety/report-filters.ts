@@ -43,13 +43,13 @@ export function inDateRange(fieldValue: unknown, fromDate?: string | null, toDat
 }
 
 export interface ReportListItem {
-  reportId: string;
-  publicCode: string;
-  campusId: string;
-  categoryCode: string;
-  content: string | null;
-  stillDangerous: boolean;
-  occurredAt: Date;
+  reportId?: string;
+  publicCode?: string;
+  campusId?: string;
+  categoryCode?: string;
+  content?: string | null;
+  stillDangerous?: boolean;
+  occurredAt?: Date | string | null;
   [key: string]: unknown;
 }
 
@@ -63,11 +63,11 @@ export interface ReportFilterInput {
 }
 
 /** filterReportItems — `stillDangerous` (tuỳ chọn) có truyền thì CHỈ giữ đúng giá trị đó; không truyền = giữ tất cả. */
-export function filterReportItems<T extends ReportListItem>(items: T[], input: ReportFilterInput = {}): T[] {
+export function filterReportItems<T extends ReportListItem>(items: T[] | null | undefined, input: ReportFilterInput = {}): T[] {
   let out = items || [];
   if (input.campusId) out = out.filter((it) => it.campusId === input.campusId);
   if (Array.isArray(input.categoryCodes) && input.categoryCodes.length > 0) {
-    out = out.filter((it) => input.categoryCodes!.includes(it.categoryCode));
+    out = out.filter((it) => !!it.categoryCode && input.categoryCodes!.includes(it.categoryCode));
   }
   if (typeof input.stillDangerous === 'boolean') {
     out = out.filter((it) => !!it.stillDangerous === input.stillDangerous);
@@ -93,26 +93,26 @@ export function filterReportItems<T extends ReportListItem>(items: T[], input: R
  * khác, trong cùng nhóm mới nhất trước — quyết định UX 2026-08-25 (tin
  * khẩn không được chìm dưới tin thường nếu chỉ sắp theo thời gian).
  */
-export function sortReportItemsDefault<T extends ReportListItem>(items: T[]): T[] {
+export function sortReportItemsDefault<T extends ReportListItem>(items: T[] | null | undefined): T[] {
   return (items || []).slice().sort((a, b) => {
     const dangerDiff = (b.stillDangerous ? 1 : 0) - (a.stillDangerous ? 1 : 0);
     if (dangerDiff !== 0) return dangerDiff;
-    const at = (toJsDate(a.occurredAt) || new Date(0)).getTime();
-    const bt = (toJsDate(b.occurredAt) || new Date(0)).getTime();
+    const at = (a.occurredAt ? toJsDate(a.occurredAt) : null)?.getTime() ?? 0;
+    const bt = (b.occurredAt ? toJsDate(b.occurredAt) : null)?.getTime() ?? 0;
     return bt - at;
   });
 }
 
 export interface IncidentListItem {
-  incidentId: string;
-  campusId: string;
-  priority: string;
-  state: string;
+  incidentId?: string;
+  campusId?: string;
+  priority?: string;
+  state?: string;
   // Hồ sơ bị "redacted" (trần bí mật thấp hơn) không còn các field này —
   // để optional thay vì bắt buộc, giống hệt bản gốc JS không typed cứng.
   categoryCode?: string;
   className?: string | null;
-  createdAt?: Date;
+  createdAt?: Date | string | null;
   assignedTaskPerIds?: string[] | null;
   [key: string]: unknown;
 }
@@ -134,18 +134,18 @@ export interface IncidentFilterInput {
  * `items` truyền vào đây PHẢI đã được authz xác định actor có quyền xem từ
  * trước, hàm này chỉ lọc HIỂN THỊ trong tập đã hợp lệ, không tự mở rộng quyền.
  */
-export function filterIncidentItems<T extends IncidentListItem>(items: T[], input: IncidentFilterInput = {}): T[] {
+export function filterIncidentItems<T extends IncidentListItem>(items: T[] | null | undefined, input: IncidentFilterInput = {}): T[] {
   let out = items || [];
   if (input.campusId) out = out.filter((it) => it.campusId === input.campusId);
   if (Array.isArray(input.categoryCodes) && input.categoryCodes.length) out = out.filter((it) => !!it.categoryCode && input.categoryCodes!.includes(it.categoryCode));
-  if (Array.isArray(input.priorities) && input.priorities.length) out = out.filter((it) => input.priorities!.includes(it.priority));
-  if (Array.isArray(input.states) && input.states.length) out = out.filter((it) => input.states!.includes(it.state));
+  if (Array.isArray(input.priorities) && input.priorities.length) out = out.filter((it) => !!it.priority && input.priorities!.includes(it.priority));
+  if (Array.isArray(input.states) && input.states.length) out = out.filter((it) => !!it.state && input.states!.includes(it.state));
   if (input.fromDate || input.toDate) {
     out = out.filter((it) => inDateRange(it.createdAt, input.fromDate, input.toDate));
   }
   if (input.searchText && input.searchText.trim()) {
     const lowerSearch = input.searchText.toLowerCase();
-    out = out.filter((it) => it.incidentId.toLowerCase().includes(lowerSearch) || (it.className && it.className.toLowerCase().includes(lowerSearch)));
+    out = out.filter((it) => (it.incidentId ?? '').toLowerCase().includes(lowerSearch) || (!!it.className && it.className.toLowerCase().includes(lowerSearch)));
   }
   if (input.onlyMinePerId) {
     out = out.filter((it) => Array.isArray(it.assignedTaskPerIds) && it.assignedTaskPerIds.includes(input.onlyMinePerId!));
