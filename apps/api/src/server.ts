@@ -26,6 +26,7 @@ import { safetyRouter } from './modules/safety/safety.routes.js';
 import { safetyQueryRouter } from './modules/safety/safety-query.routes.js';
 import { safetyStatsRouter } from './modules/safety/safety-stats.routes.js';
 import { evidenceRouter } from './modules/safety/evidence.routes.js';
+import { evidenceDownloadRouter } from './modules/safety/evidence-download.routes.js';
 import { workScheduleRouter } from './modules/work-schedule/work-schedule.routes.js';
 import { handleMeetEvent } from './modules/meet/meet.events.js';
 
@@ -85,6 +86,8 @@ app.use('/api/safety', safetyQueryRouter);
 // getCampusComparisonStats/getZoneStats/getClassStats/searchPeople.
 app.use('/api/safety', safetyStatsRouter);
 app.use('/api/safety', evidenceRouter);
+// Cấp signed URL tải minh chứng (S8) — port từ getEvidenceDownloadUrl.
+app.use('/api/safety', evidenceDownloadRouter);
 
 // Module Lịch công tác và Giao việc (K2: đặt tên "work-schedule" tránh đụng
 // /api/schedules có sẵn — đó là thời khoá biểu lớp học, khác nghiệp vụ).
