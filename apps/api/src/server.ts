@@ -29,6 +29,7 @@ import { evidenceRouter } from './modules/safety/evidence.routes.js';
 import { evidenceDownloadRouter } from './modules/safety/evidence-download.routes.js';
 import { publicCatalogRouter } from './modules/safety/public-catalog.routes.js';
 import { directoryAssignmentsRouter } from './modules/safety/directory-assignments.routes.js';
+import { zoneAdminRouter } from './modules/safety/zone-admin.routes.js';
 import { workScheduleRouter } from './modules/work-schedule/work-schedule.routes.js';
 import { handleMeetEvent } from './modules/meet/meet.events.js';
 
@@ -93,6 +94,7 @@ app.use('/api/safety', evidenceDownloadRouter);
 app.use('/api/safety', publicCatalogRouter);
 // CRUD dữ liệu nền: lớp->GVCN, khối->giáo viên phụ trách khối, danh bạ liên hệ.
 app.use('/api/safety', directoryAssignmentsRouter);
+app.use('/api/safety', zoneAdminRouter);
 
 // Module Lịch công tác và Giao việc (K2: đặt tên "work-schedule" tránh đụng
 // /api/schedules có sẵn — đó là thời khoá biểu lớp học, khác nghiệp vụ).

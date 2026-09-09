@@ -15,12 +15,12 @@ import { Router } from 'express';
 import { asyncRoute, HttpError } from '../../core/http.js';
 import { db } from '../../core/db/client.js';
 import { CATEGORY_CATALOG, groupForCategory, groupLabelForCategory } from './catalog.js';
-// `AppError` ở đây PHẢI import từ zoneStats.ts (không phải shared.ts) —
-// zoneStats.ts tự định nghĩa lớp `AppError` RIÊNG (trùng tên/hình dạng với
-// bản ở shared.ts nhưng KHÔNG PHẢI cùng 1 class), nên `listCampusZones`
-// ném ra instance của bản zoneStats.ts. Đã tự phát hiện: dùng nhầm bản
-// shared.ts ở đây sẽ khiến `instanceof AppError` luôn false, lỗi
-// invalid_input rơi vào nhánh `throw e` (500) thay vì trả đúng 400.
+// `AppError` import từ zoneStats.ts — từ PR #7 (gộp AppError về dùng chung
+// shared.ts) đây chỉ là re-export, CÙNG 1 class với `shared.ts`. Trước đó
+// zoneStats.ts tự định nghĩa lớp RIÊNG (bug `instanceof` thật, xem
+// TASKS.md/REVIEW_LOG.md) — giữ import qua zoneStats.ts ở đây chỉ để rõ
+// nguồn gốc lỗi (`listCampusZones` ném ra), không còn ý nghĩa "phải đúng
+// bản nào" như trước nữa.
 import { listCampusZones, AppError } from './zoneStats.js';
 
 export const publicCatalogRouter = Router();
