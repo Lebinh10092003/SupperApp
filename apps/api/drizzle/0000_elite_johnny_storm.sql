@@ -1,3 +1,60 @@
+CREATE TABLE "accounts" (
+	"uid" text PRIMARY KEY NOT NULL,
+	"per_id" text NOT NULL,
+	"display_name" text NOT NULL,
+	"email" text NOT NULL,
+	"created_by_uid" text,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "assignments" (
+	"id" text PRIMARY KEY NOT NULL,
+	"per_id" text NOT NULL,
+	"role_id" text NOT NULL,
+	"campus_id" text,
+	"domain" text,
+	"from_date" timestamp with time zone,
+	"to_date" timestamp with time zone,
+	"ceiling" text,
+	"created_by_uid" text,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_by_uid" text,
+	"updated_at" timestamp with time zone
+);
+--> statement-breakpoint
+CREATE TABLE "delegations" (
+	"id" text PRIMARY KEY NOT NULL,
+	"to_per_id" text NOT NULL,
+	"campus_id" text,
+	"from_at" timestamp with time zone NOT NULL,
+	"to_at" timestamp with time zone NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "duty_shifts" (
+	"id" text PRIMARY KEY NOT NULL,
+	"per_id" text NOT NULL,
+	"from_at" timestamp with time zone NOT NULL,
+	"to_at" timestamp with time zone NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "grade_supervisor_assignments" (
+	"grade" text PRIMARY KEY NOT NULL,
+	"per_id" text NOT NULL,
+	"name" text
+);
+--> statement-breakpoint
+CREATE TABLE "homeroom_assignments" (
+	"class_name" text PRIMARY KEY NOT NULL,
+	"per_id" text NOT NULL,
+	"name" text
+);
+--> statement-breakpoint
+CREATE TABLE "people_directory" (
+	"per_id" text PRIMARY KEY NOT NULL,
+	"email" text,
+	"phone" text
+);
+--> statement-breakpoint
 CREATE TABLE "ltc_audit_logs" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"entity_type" text NOT NULL,
@@ -58,4 +115,10 @@ CREATE TABLE "ltc_tasks" (
 	CONSTRAINT "ltc_tasks_status_check" CHECK ("ltc_tasks"."status" IN ('ASSIGNED', 'ACCEPTED', 'IN_PROGRESS', 'PENDING_ACCEPTANCE', 'COMPLETED', 'RETURNED', 'CANCELLED'))
 );
 --> statement-breakpoint
-ALTER TABLE "ltc_tasks" ADD CONSTRAINT "ltc_tasks_event_id_ltc_events_id_fk" FOREIGN KEY ("event_id") REFERENCES "public"."ltc_events"("id") ON DELETE set null ON UPDATE no action;
+ALTER TABLE "ltc_tasks" ADD CONSTRAINT "ltc_tasks_event_id_ltc_events_id_fk" FOREIGN KEY ("event_id") REFERENCES "public"."ltc_events"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+CREATE UNIQUE INDEX "accounts_per_id_idx" ON "accounts" USING btree ("per_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "assignments_per_role_idx" ON "assignments" USING btree ("per_id","role_id");--> statement-breakpoint
+CREATE INDEX "assignments_per_id_idx" ON "assignments" USING btree ("per_id");--> statement-breakpoint
+CREATE INDEX "assignments_campus_id_idx" ON "assignments" USING btree ("campus_id");--> statement-breakpoint
+CREATE INDEX "delegations_to_per_id_idx" ON "delegations" USING btree ("to_per_id");--> statement-breakpoint
+CREATE INDEX "duty_shifts_per_id_idx" ON "duty_shifts" USING btree ("per_id");
