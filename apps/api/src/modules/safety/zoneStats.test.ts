@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { inArray } from 'drizzle-orm';
 import { db } from '../../core/db/client.js';
 import { incidents } from './incidents.schema.js';
 import { campusZones, zoneCategories, campusMapMarkers } from './campus-zones.schema.js';
@@ -7,11 +8,21 @@ import * as zoneStats from './zoneStats.js';
 
 const skip = !process.env.DATABASE_URL;
 
+// campusId RIÊNG của file này — `incidents`/`campus_zones`/
+// `campus_map_markers` dùng CHUNG với file test khác (report-flow.smoke.test.ts
+// dùng campusId "CS.RF_*", incident-lifecycle.test.ts dùng "CS.01") — xoá
+// CẢ BẢNG (không where) từng gây collision thật khi chạy song song nhiều
+// file (node:test mặc định chạy song song theo file), xem mistake.md. Chỉ
+// xoá đúng phạm vi campusId dùng ở file này. `zone_categories` KHÔNG có
+// cột campusId (dùng chung 3 cơ sở theo thiết kế) nhưng không file nào
+// khác động tới bảng này nên giữ blanket-delete, an toàn.
+const OWN_CAMPUS_IDS = ['MAIN_CAMPUS', 'CAMPUS_1', 'CAMPUS_2'];
+
 async function resetTables() {
-  await db.delete(incidents);
-  await db.delete(campusZones);
+  await db.delete(incidents).where(inArray(incidents.campusId, OWN_CAMPUS_IDS));
+  await db.delete(campusZones).where(inArray(campusZones.campusId, OWN_CAMPUS_IDS));
   await db.delete(zoneCategories);
-  await db.delete(campusMapMarkers);
+  await db.delete(campusMapMarkers).where(inArray(campusMapMarkers.campusId, OWN_CAMPUS_IDS));
 }
 
 let seq = 0;

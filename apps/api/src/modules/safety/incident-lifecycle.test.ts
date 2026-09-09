@@ -15,12 +15,11 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { db } from '../../core/db/client.js';
 import { incidents } from './incidents.schema.js';
 import { reports } from './reports.schema.js';
 import { auditLogs } from './audit.schema.js';
-import { slaClocks } from './sla-clocks.schema.js';
 import { notifyRequests } from './dispatch.schema.js';
 import { assignments, dutyShifts, homeroomAssignments } from '../identity/identity.schema.js';
 import { ROLE, PRIORITY, STATE, REPORTER_CONFIRM_CLOSE_FALLBACK_DAYS } from './catalog.js';
@@ -29,35 +28,60 @@ import { changeIncidentPriority, transitionIncidentStatus, confirmIncidentCloseB
 
 const skip = !process.env.DATABASE_URL;
 
+// Tiền tố RIÊNG cho mọi ID dùng trong file này (perId/className) — đúng
+// quy ước bắt buộc ghi ở `core/db/README.md`: node:test chạy nhiều FILE
+// song song theo mặc định, bảng `assignments`/`duty_shifts`/
+// `homeroom_assignments`/`incidents` dùng CHUNG với các file test khác
+// (report-flow.smoke.test.ts, zoneStats.test.ts...) — TUYỆT ĐỐI không
+// blanket-delete cả bảng (đã tự gây collision thật với dữ liệu
+// PER.RF_*/lớp 38A2 của report-flow.smoke.test.ts, phát hiện khi Hestia
+// báo hazard ids.smoke.test.ts rồi tôi audit lại rộng hơn — xem
+// mistake.md) — CHỈ xoá đúng phạm vi ID tiền tố IL_ của chính file này.
+const IL_PRINCIPAL = 'PER.IL_HIEUTRUONG';
+const IL_DUTY_OFFICER = 'PER.IL_TRUCBAN';
+const IL_TEACHER_OTHER_CAMPUS = 'PER.IL_GV_KHAC_CS';
+const IL_VICE_PRINCIPAL = 'PER.IL_PHOHT';
+const IL_CLASS_NAME = 'IL_8A2';
+const IL_HOMEROOM_PER_ID = 'PER.IL_GVCN_8A2';
+
+// campusId RIÊNG của file này ('CS.01') — không dùng chung với
+// report-flow.smoke.test.ts ('CS.RF_*') hay zoneStats/classStats.test.ts
+// ('MAIN_CAMPUS'/'CAMPUS_1'/'CAMPUS_2'), nhưng vẫn scope tường minh để an
+// toàn với file mới sau này. `sla_clocks` không có cột campusId để scope —
+// KHÔNG blanket-delete nữa (từng gây collision thật, xem mistake.md); ID
+// trong file này đã ngẫu nhiên duy nhất (testId()) nên không cần dọn để
+// đúng đắn, chỉ để gọn — chấp nhận để lại, giống cách audit_logs cũng
+// không dọn giữa các lần chạy.
+const IL_CAMPUS_ID = 'CS.01';
+
 async function resetTables() {
-  await db.delete(incidents);
-  await db.delete(reports);
-  await db.delete(slaClocks);
-  await db.delete(assignments);
-  await db.delete(dutyShifts);
-  await db.delete(homeroomAssignments);
+  await db.delete(incidents).where(eq(incidents.campusId, IL_CAMPUS_ID));
+  await db.delete(reports).where(eq(reports.campusId, IL_CAMPUS_ID));
+  await db.delete(assignments).where(inArray(assignments.perId, [IL_PRINCIPAL, IL_DUTY_OFFICER]));
+  await db.delete(dutyShifts).where(eq(dutyShifts.perId, IL_DUTY_OFFICER));
+  await db.delete(homeroomAssignments).where(eq(homeroomAssignments.className, IL_CLASS_NAME));
 }
 
 /** Seed trực ban + Hiệu trưởng cho 1 cơ sở — cần để activateP0/notifyP1Escalation (escalation-recipients.ts) tự tra ra người nhận, đúng cách test-safety.js gốc làm (seedEscalationFixtures). */
 async function seedEscalationFixtures(campusId: string) {
   await db.insert(assignments).values([
-    { id: crypto.randomUUID(), perId: 'PER.HIEUTRUONG', roleId: ROLE.PRINCIPAL, campusId: null },
-    { id: crypto.randomUUID(), perId: 'PER.TRUCBAN', roleId: ROLE.DUTY_OFFICER, campusId }
+    { id: crypto.randomUUID(), perId: IL_PRINCIPAL, roleId: ROLE.PRINCIPAL, campusId: null },
+    { id: crypto.randomUUID(), perId: IL_DUTY_OFFICER, roleId: ROLE.DUTY_OFFICER, campusId }
   ]);
-  await db.insert(dutyShifts).values({ id: crypto.randomUUID(), perId: 'PER.TRUCBAN', fromAt: new Date('2020-01-01T00:00:00+07:00'), toAt: new Date('2030-01-01T00:00:00+07:00') });
+  await db.insert(dutyShifts).values({ id: crypto.randomUUID(), perId: IL_DUTY_OFFICER, fromAt: new Date('2020-01-01T00:00:00+07:00'), toAt: new Date('2030-01-01T00:00:00+07:00') });
 }
 
 function principal(): Actor {
-  return { perId: 'PER.HIEUTRUONG', session: { valid: true, revoked: false }, roles: [{ roleId: ROLE.PRINCIPAL, ceiling: 'C4' }] };
+  return { perId: IL_PRINCIPAL, session: { valid: true, revoked: false }, roles: [{ roleId: ROLE.PRINCIPAL, ceiling: 'C4' }] };
 }
 function dutyOfficer(campusId: string): Actor {
-  return { perId: 'PER.TRUCBAN', session: { valid: true, revoked: false }, roles: [{ roleId: ROLE.DUTY_OFFICER, campusId, ceiling: 'C2' }], onDutyNow: true };
+  return { perId: IL_DUTY_OFFICER, session: { valid: true, revoked: false }, roles: [{ roleId: ROLE.DUTY_OFFICER, campusId, ceiling: 'C2' }], onDutyNow: true };
 }
 function teacherOtherCampus(): Actor {
-  return { perId: 'PER.GV_KHAC_CS', session: { valid: true, revoked: false }, roles: [{ roleId: ROLE.TEACHER, campusId: 'CS.99', ceiling: 'C1' }] };
+  return { perId: IL_TEACHER_OTHER_CAMPUS, session: { valid: true, revoked: false }, roles: [{ roleId: ROLE.TEACHER, campusId: 'CS.99', ceiling: 'C1' }] };
 }
 function vicePrincipal(campusId: string): Actor {
-  return { perId: 'PER.PHOHT', session: { valid: true, revoked: false }, roles: [{ roleId: ROLE.VICE_PRINCIPAL, campusId, ceiling: 'C3' }] };
+  return { perId: IL_VICE_PRINCIPAL, session: { valid: true, revoked: false }, roles: [{ roleId: ROLE.VICE_PRINCIPAL, campusId, ceiling: 'C3' }] };
 }
 
 // ID sinh ngẫu nhiên (KHÔNG dùng bộ đếm tất định) — audit_logs là bảng
@@ -211,7 +235,7 @@ test('reopenIncident: bắt buộc lý do; Hiệu trưởng mở lại thành c�
   assert.equal(reopened.state, STATE.REOPENED);
 
   const [incAfterReopen] = await db.select().from(incidents).where(eq(incidents.incidentId, incidentId));
-  assert.equal(incAfterReopen!.reopenedBy, 'PER.HIEUTRUONG');
+  assert.equal(incAfterReopen!.reopenedBy, IL_PRINCIPAL);
   assert.match(incAfterReopen!.reopenReason!, /minh chứng/);
 });
 
@@ -256,11 +280,11 @@ test('assignCommander: giáo viên bị từ chối; Hiệu trưởng thiếu l�
   await resetTables();
   const incidentId = await seedIncident({ priority: PRIORITY.P0 });
 
-  const teacherAssign = await throwsWithCode(() => assignCommander(db, { actor: teacherOtherCampus(), incidentId, commanderPerId: 'PER.TRUCBAN' }, {}));
+  const teacherAssign = await throwsWithCode(() => assignCommander(db, { actor: teacherOtherCampus(), incidentId, commanderPerId: IL_DUTY_OFFICER }, {}));
   assert.equal(teacherAssign.threw, true);
   assert.equal(teacherAssign.code, 'forbidden');
 
-  const principalNoReason = await throwsWithCode(() => assignCommander(db, { actor: principal(), incidentId, commanderPerId: 'PER.TRUCBAN' }, {}));
+  const principalNoReason = await throwsWithCode(() => assignCommander(db, { actor: principal(), incidentId, commanderPerId: IL_DUTY_OFFICER }, {}));
   assert.equal(principalNoReason.threw, true);
   assert.equal(principalNoReason.code, 'reason_required');
 
@@ -268,24 +292,24 @@ test('assignCommander: giáo viên bị từ chối; Hiệu trưởng thiếu l�
   const fakeDispatch = async (_db: unknown, request: Record<string, unknown>) => {
     dispatchCalls.push(request);
   };
-  const assigned = await assignCommander(db, { actor: principal(), incidentId, commanderPerId: 'PER.TRUCBAN', reason: 'Trực ban gần hiện trường nhất' }, { dispatch: fakeDispatch as never });
-  assert.equal(assigned.commanderPerId, 'PER.TRUCBAN');
+  const assigned = await assignCommander(db, { actor: principal(), incidentId, commanderPerId: IL_DUTY_OFFICER, reason: 'Trực ban gần hiện trường nhất' }, { dispatch: fakeDispatch as never });
+  assert.equal(assigned.commanderPerId, IL_DUTY_OFFICER);
   assert.equal(assigned.previousCommanderPerId, null);
 
   const [incAfterAssign] = await db.select().from(incidents).where(eq(incidents.incidentId, incidentId));
-  assert.equal(incAfterAssign!.commanderPerId, 'PER.TRUCBAN');
-  assert.ok(incAfterAssign!.assignedTaskPerIds!.includes('PER.TRUCBAN'));
+  assert.equal(incAfterAssign!.commanderPerId, IL_DUTY_OFFICER);
+  assert.ok(incAfterAssign!.assignedTaskPerIds!.includes(IL_DUTY_OFFICER));
 
   const reassignAudit = await db.select().from(auditLogs).where(eq(auditLogs.action, 'incident.reassign_commander'));
   assert.equal(reassignAudit.filter((r) => r.objectId === incidentId).length, 1);
 
-  assert.ok(dispatchCalls.some((r) => r.eventType === 'safety.incident.commander_assigned' && (r.recipients as string[]).includes('PER.TRUCBAN')));
+  assert.ok(dispatchCalls.some((r) => r.eventType === 'safety.incident.commander_assigned' && (r.recipients as string[]).includes(IL_DUTY_OFFICER)));
 });
 
 test('assignCommander: Phó HT cùng cơ sở chỉ định lại KHÔNG cần lý do; chuông thông báo đúng người', { skip }, async () => {
   await resetTables();
   const incidentId = await seedIncident({ priority: PRIORITY.P0 });
-  await assignCommander(db, { actor: principal(), incidentId, commanderPerId: 'PER.TRUCBAN', reason: 'ban đầu' }, {});
+  await assignCommander(db, { actor: principal(), incidentId, commanderPerId: IL_DUTY_OFFICER, reason: 'ban đầu' }, {});
 
   const bellCalls: Record<string, unknown>[] = [];
   const fakePushBell = async (_db: unknown, payload: Record<string, unknown>) => {
@@ -293,28 +317,28 @@ test('assignCommander: Phó HT cùng cơ sở chỉ định lại KHÔNG cần l
   };
   const reassigned = await assignCommander(
     db,
-    { actor: vicePrincipal('CS.01'), incidentId, commanderPerId: 'PER.HIEUTRUONG' },
-    { pushBell: fakePushBell as never, extraRecipients: ['PER.PHOHT_CS01_KHAC'] }
+    { actor: vicePrincipal('CS.01'), incidentId, commanderPerId: IL_PRINCIPAL },
+    { pushBell: fakePushBell as never, extraRecipients: ['PER.IL_PHOHT_CS01_KHAC'] }
   );
-  assert.equal(reassigned.commanderPerId, 'PER.HIEUTRUONG');
-  assert.equal(reassigned.previousCommanderPerId, 'PER.TRUCBAN');
+  assert.equal(reassigned.commanderPerId, IL_PRINCIPAL);
+  assert.equal(reassigned.previousCommanderPerId, IL_DUTY_OFFICER);
 
   const bellRequest = bellCalls.find((b) => b.objectId === incidentId && b.eventType === 'safety.incident.commander_reassigned');
   assert.ok(bellRequest);
   const recipients = bellRequest!.recipients as string[];
-  assert.ok(recipients.includes('PER.PHOHT'));
-  assert.ok(recipients.includes('PER.TRUCBAN'));
-  assert.ok(recipients.includes('PER.HIEUTRUONG'));
-  assert.ok(recipients.includes('PER.PHOHT_CS01_KHAC'));
-  assert.equal(bellRequest!.actorPerId, 'PER.PHOHT');
+  assert.ok(recipients.includes(IL_VICE_PRINCIPAL));
+  assert.ok(recipients.includes(IL_DUTY_OFFICER));
+  assert.ok(recipients.includes(IL_PRINCIPAL));
+  assert.ok(recipients.includes('PER.IL_PHOHT_CS01_KHAC'));
+  assert.equal(bellRequest!.actorPerId, IL_VICE_PRINCIPAL);
   const meta = bellRequest!.meta as Record<string, unknown>;
-  assert.equal(meta.previous_commander_per_id, 'PER.TRUCBAN');
-  assert.equal(meta.commander_per_id, 'PER.HIEUTRUONG');
+  assert.equal(meta.previous_commander_per_id, IL_DUTY_OFFICER);
+  assert.equal(meta.commander_per_id, IL_PRINCIPAL);
 });
 
 test('assignCommander: hồ sơ không tồn tại -> not_found', { skip }, async () => {
   await resetTables();
-  const missingIncident = await throwsWithCode(() => assignCommander(db, { actor: principal(), incidentId: 'SC.KHONG_TON_TAI', commanderPerId: 'PER.TRUCBAN', reason: 'thử' }, {}));
+  const missingIncident = await throwsWithCode(() => assignCommander(db, { actor: principal(), incidentId: 'SC.KHONG_TON_TAI', commanderPerId: IL_DUTY_OFFICER, reason: 'thử' }, {}));
   assert.equal(missingIncident.threw, true);
   assert.equal(missingIncident.code, 'not_found');
 });
@@ -372,7 +396,7 @@ test('changeIncidentPriority: nâng lên P0 -> gọi activateP0 thật, đúng r
   const match = p0Audit.find((r) => r.objectId === incidentId);
   assert.ok(match);
   const recipients = (match!.after as { recipients: string[] }).recipients;
-  assert.deepEqual([...recipients].sort(), ['PER.HIEUTRUONG', 'PER.TRUCBAN']);
+  assert.deepEqual([...recipients].sort(), [IL_PRINCIPAL, IL_DUTY_OFFICER]);
 
   const notifyRows = await db.select().from(notifyRequests).where(eq(notifyRequests.objectId, incidentId));
   assert.ok(notifyRows.some((r) => r.eventType === 'safety.incident.p0_activated'));
@@ -393,16 +417,16 @@ test('changeIncidentPriority: nâng lên P1 -> gọi notifyP1Escalation thật, 
 
 test('updateIncidentClassification: đổi className thật -> resolveClassRelatedPeople tra đúng GVCN, thêm vào newlyAddedPerIds + notify_request homeroom_notified', { skip }, async () => {
   await resetTables();
-  await db.insert(homeroomAssignments).values({ className: '8A2', perId: 'PER.GVCN_8A2', name: 'Cô GVCN 8A2' });
+  await db.insert(homeroomAssignments).values({ className: IL_CLASS_NAME, perId: IL_HOMEROOM_PER_ID, name: 'Cô GVCN thử nghiệm IL' });
   const incidentId = await seedIncident({ campusId: 'CS.01', className: '8A1', zoneIds: [] });
 
-  const updated = await updateIncidentClassification(db, { actor: principal(), incidentId, className: '8A2', reason: 'Sửa đúng lớp theo tin báo bổ sung' }, {});
-  assert.equal(updated.homeroomPerId, 'PER.GVCN_8A2');
-  assert.ok(updated.newlyAddedPerIds.includes('PER.GVCN_8A2'));
-  assert.ok(updated.assignedTaskPerIds.includes('PER.GVCN_8A2'));
+  const updated = await updateIncidentClassification(db, { actor: principal(), incidentId, className: IL_CLASS_NAME, reason: 'Sửa đúng lớp theo tin báo bổ sung' }, {});
+  assert.equal(updated.homeroomPerId, IL_HOMEROOM_PER_ID);
+  assert.ok(updated.newlyAddedPerIds.includes(IL_HOMEROOM_PER_ID));
+  assert.ok(updated.assignedTaskPerIds.includes(IL_HOMEROOM_PER_ID));
 
   const notifyRows = await db.select().from(notifyRequests).where(eq(notifyRequests.objectId, incidentId));
-  assert.ok(notifyRows.some((r) => r.eventType === 'safety.incident.homeroom_notified' && (r.recipients as string[]).includes('PER.GVCN_8A2')));
+  assert.ok(notifyRows.some((r) => r.eventType === 'safety.incident.homeroom_notified' && (r.recipients as string[]).includes(IL_HOMEROOM_PER_ID)));
 
   const homeroomAudit = await db.select().from(auditLogs).where(eq(auditLogs.action, 'safety.incident.homeroom_notified'));
   assert.ok(homeroomAudit.some((r) => r.objectId === incidentId));

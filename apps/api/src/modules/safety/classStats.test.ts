@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { inArray } from 'drizzle-orm';
 import { db } from '../../core/db/client.js';
 import { incidents } from './incidents.schema.js';
 import { checkAuthorization, type Actor } from './authz.js';
@@ -8,8 +9,13 @@ import * as classStats from './classStats.js';
 
 const skip = !process.env.DATABASE_URL;
 
+// `incidents` dùng CHUNG với file test khác — xem chú thích tương tự ở
+// zoneStats.test.ts (mistake.md) — chỉ xoá đúng phạm vi campusId dùng ở
+// file này, không blanket-delete cả bảng.
+const OWN_CAMPUS_IDS = ['MAIN_CAMPUS', 'CAMPUS_1', 'CAMPUS_2'];
+
 async function resetTables() {
-  await db.delete(incidents);
+  await db.delete(incidents).where(inArray(incidents.campusId, OWN_CAMPUS_IDS));
 }
 
 async function seedIncident(fields: Partial<typeof incidents.$inferInsert> & { incidentId: string }) {
