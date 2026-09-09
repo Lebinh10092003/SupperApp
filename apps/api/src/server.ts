@@ -23,6 +23,7 @@ import { catalogRouter } from './modules/catalog/catalog.routes.js';
 import { analyticsRouter } from './modules/analytics/analytics.routes.js';
 import { auditRouter } from './modules/audit/audit.routes.js';
 import { safetyRouter } from './modules/safety/safety.routes.js';
+import { safetyQueryRouter } from './modules/safety/safety-query.routes.js';
 import { workScheduleRouter } from './modules/work-schedule/work-schedule.routes.js';
 import { handleMeetEvent } from './modules/meet/meet.events.js';
 
@@ -77,6 +78,7 @@ app.use('/api/audit', auditRouter);
 // xem SUPERAPP_MIGRATION_COORDINATION/TASKS.md) — CHỈ 9 route ứng với 14 hàm
 // safety.js đã port, chưa gồm list/thống kê/quản trị (xem safety.routes.ts).
 app.use('/api/safety', safetyRouter);
+app.use('/api/safety', safetyQueryRouter);
 
 // Module Lịch công tác và Giao việc (K2: đặt tên "work-schedule" tránh đụng
 // /api/schedules có sẵn — đó là thời khoá biểu lớp học, khác nghiệp vụ).
