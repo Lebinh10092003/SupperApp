@@ -221,7 +221,9 @@ export async function resolveUrgentReportNotify(db: Db, reportId: string, now: D
 // ---------------------------------------------------------------------------
 export interface CreateIncidentFromReportInput {
   reportId: string;
-  priority: catalog.Priority;
+  // Bắt buộc ở nhánh tạo MỚI, bỏ qua ở nhánh gộp (mergeIntoIncidentId) —
+  // hồ sơ đích đã có priority riêng, không đổi khi gộp thêm 1 tin báo vào.
+  priority?: catalog.Priority;
   mergeIntoIncidentId?: string;
   zoneIds?: string[];
   className?: string;
@@ -245,9 +247,12 @@ export async function createIncidentFromReport(db: Db, input: CreateIncidentFrom
     return { incidentId: input.mergeIntoIncidentId, merged: true };
   }
 
+  if (!input.priority) throw new AppError('invalid_input', 'Thiếu priority khi tạo hồ sơ mới (chỉ nhánh gộp mới được bỏ qua).');
+  const priority = input.priority;
+
   const incidentId = await ids.allocateSequentialId(db, catalog.ID_PREFIX.INCIDENT, { now });
   const confidentiality = catalog.effectiveConfidentiality(report.categoryCode, report.confidentiality);
-  const state = input.priority === catalog.PRIORITY.P0 ? catalog.STATE.EMERGENCY : catalog.STATE.NEW;
+  const state = priority === catalog.PRIORITY.P0 ? catalog.STATE.EMERGENCY : catalog.STATE.NEW;
 
   const effectiveClassName = input.className !== undefined ? (input.className || null) : (report.className || null);
   const { homeroomPerId, gradeSupervisorPerId } = await resolveClassRelatedPeople(db, effectiveClassName);
@@ -267,7 +272,7 @@ export async function createIncidentFromReport(db: Db, input: CreateIncidentFrom
     reporterRole: report.reporterRole || null,
     zoneIds: effectiveZoneIds,
     zoneId: effectiveZoneIds[0] || null,
-    priority: input.priority,
+    priority,
     confidentiality,
     state,
     reportIds: [input.reportId],
@@ -282,28 +287,28 @@ export async function createIncidentFromReport(db: Db, input: CreateIncidentFrom
 
   await audit.writeAuditLog(db, audit.buildAuditRecord({
     actorPerId: 'SYSTEM.SAFETY', action: 'safety.incident.created', objectId: incidentId,
-    after: { priority: input.priority, campus_id: report.campusId, category_code: report.categoryCode, class_name: effectiveClassName }, now
+    after: { priority, campus_id: report.campusId, category_code: report.categoryCode, class_name: effectiveClassName }, now
   }));
 
   // Đăng ký CẢ HAI đồng hồ S10: ack + assign.
-  const ackClock = sla.registerSlaClock({ objectId: incidentId, clockLabel: 'ack', priority: input.priority, startAt: now, calendar: opts?.calendar });
+  const ackClock = sla.registerSlaClock({ objectId: incidentId, clockLabel: 'ack', priority, startAt: now, calendar: opts?.calendar });
   await db.insert(slaClocks).values(slaClockToRow(ackClock));
-  const assignClock = sla.registerSlaClock({ objectId: incidentId, clockLabel: 'assign', priority: input.priority, startAt: now, calendar: opts?.calendar });
+  const assignClock = sla.registerSlaClock({ objectId: incidentId, clockLabel: 'assign', priority, startAt: now, calendar: opts?.calendar });
   await db.insert(slaClocks).values(slaClockToRow(assignClock));
 
-  if (input.priority === catalog.PRIORITY.P0) {
+  if (priority === catalog.PRIORITY.P0) {
     await activateP0(db, { incidentId, campusId: report.campusId, categoryCode: report.categoryCode, extraRecipients: classRelatedPerIds }, opts);
   } else {
-    if (input.priority === catalog.PRIORITY.P1) {
+    if (priority === catalog.PRIORITY.P1) {
       await notifyP1Escalation(db, { incidentId, campusId: report.campusId, categoryCode: report.categoryCode }, opts);
     }
     if (classRelatedPerIds.length > 0) {
       const request = notify.buildNotifyRequest({
         recipients: classRelatedPerIds,
-        priority: input.priority,
+        priority,
         objectId: incidentId,
         objectCode: incidentId,
-        levelLabel: catalog.PRIORITY_LABEL[input.priority],
+        levelLabel: catalog.PRIORITY_LABEL[priority],
         actionNeeded: 'Có sự việc liên quan đến lớp/khối bạn phụ trách — xem và phối hợp xử lý',
         deepLink: '/app/incidents/' + incidentId,
         eventType: 'safety.incident.homeroom_notified'
