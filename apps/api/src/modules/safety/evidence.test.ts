@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import sharp from 'sharp';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { db } from '../../core/db/client.js';
 import * as catalog from './catalog.js';
 import { evidence as evidenceTable } from './evidence.schema.js';
@@ -268,7 +268,10 @@ test('evidence: quét mã độc thật (S8) — opts.scanBuffer tiêm được,
   assert.ok(!bucket.store.has(infectedRow!.storagePath));
 
   const { auditLogs } = await import('./audit.schema.js');
-  const auditRows = await db.select().from(auditLogs).where(eq(auditLogs.action, 'evidence.scan_infected_deleted'));
+  const auditRows = await db
+    .select()
+    .from(auditLogs)
+    .where(and(eq(auditLogs.action, 'evidence.scan_infected_deleted'), eq(auditLogs.objectId, (rInfected as any).evidenceId)));
   assert.equal(auditRows.length, 1);
   assert.equal(auditRows[0]!.objectId, (rInfected as any).evidenceId);
 
