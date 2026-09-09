@@ -5,17 +5,12 @@
  * 751-844 updateIncidentClassification).
  *
  * KHÁC bản gốc: bản gốc dựng fixture qua `safety.submitReport` +
- * `safety.createIncidentFromReport` (thuộc phần Hestia code, CHƯA có ở
- * nhánh này) — ở đây seed thẳng bảng `incidents`/`reports` để tạo đúng
- * trạng thái tương đương, thay vì gọi qua chuỗi hàm chưa tồn tại. Assertion
- * giữ nguyên tinh thần bản gốc.
- *
- * CHƯA PORT (chờ Hestia push activateP0/notifyP1Escalation/
- * notifyReporterAndAudit/resolveClassRelatedPeople — xem TODO trong
- * incident-lifecycle.ts): các assertion kiểm tra notify_request/audit log
- * sinh ra TỪ những lệnh gọi chéo đó (VD "nâng lên P1 -> có notify_request
- * p1_escalation_notified", "chuyển Đề nghị đóng -> báo người gửi tin").
- * Phần state machine/authz/DB chính vẫn port đủ và verify thật.
+ * `safety.createIncidentFromReport` (thuộc phần Hestia code) — ở đây seed
+ * thẳng bảng `incidents`/`reports` để tạo đúng trạng thái tương đương,
+ * thay vì gọi qua chuỗi hàm khác cụm. Assertion giữ nguyên tinh thần bản
+ * gốc. Phần gọi chéo activateP0/notifyP1Escalation/notifyReporterAndAudit/
+ * resolveClassRelatedPeople (report-flow.ts, Hestia) đã nối đủ và có test
+ * riêng verify thật bên dưới (không chỉ tin "đã nối").
  */
 
 import { test } from 'node:test';
@@ -26,6 +21,8 @@ import { incidents } from './incidents.schema.js';
 import { reports } from './reports.schema.js';
 import { auditLogs } from './audit.schema.js';
 import { slaClocks } from './sla-clocks.schema.js';
+import { notifyRequests } from './dispatch.schema.js';
+import { assignments, dutyShifts, homeroomAssignments } from '../identity/identity.schema.js';
 import { ROLE, PRIORITY, STATE, REPORTER_CONFIRM_CLOSE_FALLBACK_DAYS } from './catalog.js';
 import type { Actor } from './authz.js';
 import { changeIncidentPriority, transitionIncidentStatus, confirmIncidentCloseByReporter, reopenIncident, assignCommander, updateIncidentClassification } from './incident-lifecycle.js';
@@ -36,6 +33,18 @@ async function resetTables() {
   await db.delete(incidents);
   await db.delete(reports);
   await db.delete(slaClocks);
+  await db.delete(assignments);
+  await db.delete(dutyShifts);
+  await db.delete(homeroomAssignments);
+}
+
+/** Seed trực ban + Hiệu trưởng cho 1 cơ sở — cần để activateP0/notifyP1Escalation (escalation-recipients.ts) tự tra ra người nhận, đúng cách test-safety.js gốc làm (seedEscalationFixtures). */
+async function seedEscalationFixtures(campusId: string) {
+  await db.insert(assignments).values([
+    { id: crypto.randomUUID(), perId: 'PER.HIEUTRUONG', roleId: ROLE.PRINCIPAL, campusId: null },
+    { id: crypto.randomUUID(), perId: 'PER.TRUCBAN', roleId: ROLE.DUTY_OFFICER, campusId }
+  ]);
+  await db.insert(dutyShifts).values({ id: crypto.randomUUID(), perId: 'PER.TRUCBAN', fromAt: new Date('2020-01-01T00:00:00+07:00'), toAt: new Date('2030-01-01T00:00:00+07:00') });
 }
 
 function principal(): Actor {
@@ -270,7 +279,7 @@ test('assignCommander: giáo viên bị từ chối; Hiệu trưởng thiếu l�
   const reassignAudit = await db.select().from(auditLogs).where(eq(auditLogs.action, 'incident.reassign_commander'));
   assert.equal(reassignAudit.filter((r) => r.objectId === incidentId).length, 1);
 
-  assert.ok(dispatchCalls.some((r) => r.event_type === 'safety.incident.commander_assigned' && (r.recipients as string[]).includes('PER.TRUCBAN')));
+  assert.ok(dispatchCalls.some((r) => r.eventType === 'safety.incident.commander_assigned' && (r.recipients as string[]).includes('PER.TRUCBAN')));
 });
 
 test('assignCommander: Phó HT cùng cơ sở chỉ định lại KHÔNG cần lý do; chuông thông báo đúng người', { skip }, async () => {
@@ -341,4 +350,60 @@ test('updateIncidentClassification: không truyền className -> giữ nguyên l
   const updated = await updateIncidentClassification(db, { actor: principal(), incidentId, zoneIds: ['MC_YARD'], reason: 'chỉ sửa khu vực' }, {});
   assert.equal(updated.className, '8A1');
   assert.deepEqual(updated.zoneIds, ['MC_YARD']);
+});
+
+// ---------------------------------------------------------------------
+// Verify thật phần nối chéo sang report-flow.ts (Hestia): activateP0,
+// notifyP1Escalation, resolveClassRelatedPeople — không chỉ tin "đã nối".
+// ---------------------------------------------------------------------
+
+test('changeIncidentPriority: nâng lên P0 -> gọi activateP0 thật, đúng recipients (trực ban + Hiệu trưởng), ghi audit p0_activated', { skip }, async () => {
+  await resetTables();
+  await seedEscalationFixtures('CS.01');
+  const incidentId = await seedIncident({ campusId: 'CS.01', priority: PRIORITY.P2 });
+
+  const raised = await changeIncidentPriority(db, { actor: dutyOfficer('CS.01'), incidentId, toPriority: PRIORITY.P0 }, {});
+  assert.equal(raised.priority, PRIORITY.P0);
+
+  const [row] = await db.select().from(incidents).where(eq(incidents.incidentId, incidentId));
+  assert.equal(row!.state, STATE.EMERGENCY);
+
+  const p0Audit = await db.select().from(auditLogs).where(eq(auditLogs.action, 'safety.incident.p0_activated'));
+  const match = p0Audit.find((r) => r.objectId === incidentId);
+  assert.ok(match);
+  const recipients = (match!.after as { recipients: string[] }).recipients;
+  assert.deepEqual([...recipients].sort(), ['PER.HIEUTRUONG', 'PER.TRUCBAN']);
+
+  const notifyRows = await db.select().from(notifyRequests).where(eq(notifyRequests.objectId, incidentId));
+  assert.ok(notifyRows.some((r) => r.eventType === 'safety.incident.p0_activated'));
+});
+
+test('changeIncidentPriority: nâng lên P1 -> gọi notifyP1Escalation thật, tạo đúng notify_request', { skip }, async () => {
+  await resetTables();
+  await seedEscalationFixtures('CS.01');
+  const incidentId = await seedIncident({ campusId: 'CS.01', priority: PRIORITY.P2 });
+
+  const raised = await changeIncidentPriority(db, { actor: dutyOfficer('CS.01'), incidentId, toPriority: PRIORITY.P1 }, {});
+  assert.equal(raised.priority, PRIORITY.P1);
+
+  const notifyRows = await db.select().from(notifyRequests).where(eq(notifyRequests.objectId, incidentId));
+  const match = notifyRows.filter((r) => r.eventType === 'safety.incident.p1_escalation_notified');
+  assert.equal(match.length, 1);
+});
+
+test('updateIncidentClassification: đổi className thật -> resolveClassRelatedPeople tra đúng GVCN, thêm vào newlyAddedPerIds + notify_request homeroom_notified', { skip }, async () => {
+  await resetTables();
+  await db.insert(homeroomAssignments).values({ className: '8A2', perId: 'PER.GVCN_8A2', name: 'Cô GVCN 8A2' });
+  const incidentId = await seedIncident({ campusId: 'CS.01', className: '8A1', zoneIds: [] });
+
+  const updated = await updateIncidentClassification(db, { actor: principal(), incidentId, className: '8A2', reason: 'Sửa đúng lớp theo tin báo bổ sung' }, {});
+  assert.equal(updated.homeroomPerId, 'PER.GVCN_8A2');
+  assert.ok(updated.newlyAddedPerIds.includes('PER.GVCN_8A2'));
+  assert.ok(updated.assignedTaskPerIds.includes('PER.GVCN_8A2'));
+
+  const notifyRows = await db.select().from(notifyRequests).where(eq(notifyRequests.objectId, incidentId));
+  assert.ok(notifyRows.some((r) => r.eventType === 'safety.incident.homeroom_notified' && (r.recipients as string[]).includes('PER.GVCN_8A2')));
+
+  const homeroomAudit = await db.select().from(auditLogs).where(eq(auditLogs.action, 'safety.incident.homeroom_notified'));
+  assert.ok(homeroomAudit.some((r) => r.objectId === incidentId));
 });

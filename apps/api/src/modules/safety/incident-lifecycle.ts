@@ -22,34 +22,20 @@ import * as sla from './sla.js';
 import { slaClocks } from './sla-clocks.schema.js';
 import * as notify from './notify.js';
 import { notifyRequests } from './dispatch.schema.js';
-import { AppError, toJsDate, adminArrayUnion, type Db } from './shared.js';
+import { AppError, toJsDate, adminArrayUnion, slaClockToRow, notifyRequestToRow, type Db } from './shared.js';
 import { incidents } from './incidents.schema.js';
 import { reports } from './reports.schema.js';
+import { activateP0, notifyP1Escalation, notifyReporterAndAudit, resolveClassRelatedPeople, type SafetyOpts as ReportFlowOpts } from './report-flow.js';
 
 /**
- * `opts` dùng chung cho mọi hàm trong file này — DI theo ĐÚNG quy ước bản
- * gốc: `dispatch`/`pushBell` là hàm gửi thật (tầng route/index.js tiêm
- * vào), KHÔNG tự import `dispatch.ts` trực tiếp ở đây (module thuần, test
- * được bằng cách tiêm hàm giả — xem `test-safety.js` gốc: `fakeDispatch`).
+ * `opts` dùng chung cho mọi hàm trong file này — mở rộng `SafetyOpts` của
+ * report-flow.ts (dùng CHUNG 1 định nghĩa `dispatch`/`pushBell`/
+ * `notifyReporter` cho cả 2 cụm hàm, tránh lệch type khi gọi chéo), chỉ
+ * thêm `extraRecipients` (riêng cho assignCommander — bản gốc
+ * `safety.js::assignCommander` nhận field này qua opts, report-flow.ts
+ * không cần nên không khai báo).
  */
-export interface SafetyOpts {
-  now?: Date;
-  approvedBy?: string;
-  calendar?: sla.Calendar;
-  dispatch?: (db: Db, request: Record<string, unknown>, opts: { now: Date }) => Promise<unknown>;
-  pushBell?: (
-    db: Db,
-    payload: {
-      recipients: string[];
-      title: string;
-      message: string;
-      eventType: string;
-      objectId: string;
-      actorPerId?: string | null;
-      meta?: Record<string, unknown>;
-    },
-    opts: { now: Date }
-  ) => Promise<unknown>;
+export interface SafetyOpts extends ReportFlowOpts {
   extraRecipients?: string[];
 }
 
@@ -79,59 +65,13 @@ async function loadSlaClock(db: Db, objectId: string, clockLabel: 'ack' | 'assig
   };
 }
 
+/** Ghi lại SLA clock đã tính lại (đúng cách Hestia dùng ở report-flow.ts — `slaClockToRow` chuyển snake_case thuần logic sang cột Drizzle). */
 async function saveSlaClock(db: Db, clock: sla.SlaClock) {
-  const storedHistory: StoredPauseEntry[] = clock.pause_history.map((h) => ({ from: h.from.toISOString(), to: h.to ? h.to.toISOString() : null, reason: h.reason, approved_by: h.approved_by }));
+  const row = slaClockToRow(clock);
   await db
     .update(slaClocks)
-    .set({
-      priority: clock.priority,
-      startAt: clock.start_at,
-      deadlineAt: clock.deadline_at,
-      status: clock.status,
-      paused: clock.paused,
-      pauseHistory: storedHistory
-    })
+    .set({ priority: row.priority, startAt: row.startAt, deadlineAt: row.deadlineAt, status: row.status, paused: row.paused, pauseHistory: row.pauseHistory })
     .where(eq(slaClocks.objectId, clock.object_id));
-}
-
-/** Lưu 1 NotifyRequest (đã dựng qua `notify.buildNotifyRequest`) vào bảng `notify_requests`, trả về dòng đã lưu (camelCase) để truyền cho `opts.dispatch`. */
-async function saveNotifyRequest(db: Db, request: notify.NotifyRequest, now: Date) {
-  const notifyRequestId = crypto.randomUUID();
-  await db.insert(notifyRequests).values({
-    notifyRequestId,
-    objectId: request.object_id,
-    eventType: request.event_type,
-    urgency: request.urgency,
-    channels: request.channels,
-    simultaneous: request.simultaneous,
-    message: request.message,
-    recipients: request.recipients,
-    requireAck: request.require_ack,
-    status: request.status,
-    attempts: request.attempts,
-    dedupeKeys: request.dedupe_keys,
-    ackBy: request.ack_by,
-    createdAt: now
-  });
-  // Shape snake_case (khớp bản gốc Firestore) để truyền cho opts.dispatch —
-  // dispatch.ts thật (Hestia) đọc field dạng này (`notify_request_id`,
-  // `object_id`...), KHÔNG phải camelCase Drizzle.
-  return {
-    notify_request_id: notifyRequestId,
-    object_id: request.object_id,
-    event_type: request.event_type,
-    urgency: request.urgency,
-    channels: request.channels,
-    simultaneous: request.simultaneous,
-    message: request.message,
-    recipients: request.recipients,
-    require_ack: request.require_ack,
-    status: request.status,
-    attempts: request.attempts,
-    dedupe_keys: request.dedupe_keys,
-    ack_by: request.ack_by,
-    created_at: now
-  };
 }
 
 // ---------------------------------------------------------------------------
@@ -187,11 +127,12 @@ export async function changeIncidentPriority(
     })
   );
 
-  // TODO(chờ Hestia push activateP0/notifyP1Escalation vào safety.ts —
-  // xem SendMessage 2026-09-09): bản gốc gọi:
-  //   if (toPriority === P0 && incident.priority !== P0) await activateP0(...)
-  //   if (toPriority === P1 && incident.priority !== P1) await notifyP1Escalation(...)
-  // CHƯA nối — KHÔNG bỏ sót khi merge.
+  if (input.toPriority === catalog.PRIORITY.P0 && incident.priority !== catalog.PRIORITY.P0) {
+    await activateP0(db, { incidentId: input.incidentId, campusId: incident.campusId, categoryCode: incident.categoryCode }, opts);
+  }
+  if (input.toPriority === catalog.PRIORITY.P1 && incident.priority !== catalog.PRIORITY.P1) {
+    await notifyP1Escalation(db, { incidentId: input.incidentId, campusId: incident.campusId, categoryCode: incident.categoryCode }, opts);
+  }
 
   if (opts?.pushBell) {
     const bellRecipients = Array.from(
@@ -289,10 +230,15 @@ export async function transitionIncidentStatus(
     })
   );
 
-  // TODO(chờ Hestia push notifyReporterAndAudit vào safety.ts): bản gốc gọi:
-  //   if (isRequestingClose) await notifyReporterAndAudit(db, opts, { incidentId, eventType: 'reporter.confirm_close_requested' }, now)
-  //   if (isClosing) await notifyReporterAndAudit(db, opts, { incidentId, eventType: 'reporter.notified.closed' }, now)
-  // CHƯA nối — KHÔNG bỏ sót khi merge.
+  // "Đề nghị đóng" -> mời NGƯỜI GỬI TIN xác nhận (thay hẳn bước Hiệu
+  // trưởng phê duyệt cũ). Đóng hồ sơ (nhân viên tự đóng sau khi hết hạn
+  // chờ) vẫn báo "đã xử lý xong" như cũ.
+  if (isRequestingClose) {
+    await notifyReporterAndAudit(db, opts, { incidentId: input.incidentId, eventType: 'reporter.confirm_close_requested' }, now);
+  }
+  if (isClosing) {
+    await notifyReporterAndAudit(db, opts, { incidentId: input.incidentId, eventType: 'reporter.notified.closed' }, now);
+  }
 
   return { incidentId: input.incidentId, state: input.toState };
 }
@@ -449,8 +395,8 @@ export async function assignCommander(
     deepLink: '/app/incidents/' + input.incidentId,
     eventType: 'safety.incident.commander_assigned'
   });
-  const savedRequest = await saveNotifyRequest(db, request, now);
-  if (opts?.dispatch) {
+  const [savedRequest] = await db.insert(notifyRequests).values({ ...notifyRequestToRow(request), createdAt: now }).returning();
+  if (opts?.dispatch && savedRequest) {
     await opts.dispatch(db, savedRequest, { now });
   }
 
@@ -522,16 +468,19 @@ export async function updateIncidentClassification(
   let gradeSupervisorPerId: string | null = null;
   const newlyAddedPerIds: string[] = [];
 
-  // TODO(chờ Hestia push resolveClassRelatedPeople vào safety.ts): bản gốc,
-  // CHỈ khi className THỰC SỰ đổi:
-  //   if (className !== undefined && effectiveClassName !== previousClassName) {
-  //     const resolved = await resolveClassRelatedPeople(db, effectiveClassName);
-  //     homeroomPerId = resolved.homeroomPerId; gradeSupervisorPerId = resolved.gradeSupervisorPerId;
-  //     for (perId of [homeroomPerId, gradeSupervisorPerId]) if (perId && chưa có) push vào assignedTaskPerIds + newlyAddedPerIds
-  //   }
-  // CHƯA nối — KHÔNG bỏ sót khi merge.
-  void homeroomPerId;
-  void gradeSupervisorPerId;
+  // CHỈ tra lại người liên quan khi lớp THỰC SỰ đổi (không truyền
+  // className -> giữ nguyên lớp cũ, không tra lại người).
+  if (input.className !== undefined && effectiveClassName !== previousClassName) {
+    const resolved = await resolveClassRelatedPeople(db, effectiveClassName);
+    homeroomPerId = resolved.homeroomPerId;
+    gradeSupervisorPerId = resolved.gradeSupervisorPerId;
+    for (const perId of [homeroomPerId, gradeSupervisorPerId]) {
+      if (perId && !assignedTaskPerIds.includes(perId)) {
+        assignedTaskPerIds.push(perId);
+        newlyAddedPerIds.push(perId);
+      }
+    }
+  }
 
   await db
     .update(incidents)
@@ -559,10 +508,50 @@ export async function updateIncidentClassification(
     })
   );
 
-  // TODO(chờ Hestia push resolveClassRelatedPeople): bản gốc, nếu
-  // newlyAddedPerIds.length > 0, gọi notify.buildNotifyRequest +
-  // saveNotifyRequest + opts.dispatch/opts.pushBell + 1 audit log
-  // safety.incident.homeroom_notified — xem safety.js:1092-1128. CHƯA nối.
+  // Có người MỚI (GVCN/phụ trách khối mới) -> báo ngay, dùng ĐÚNG cơ chế
+  // dispatch/pushBell/audit mà createIncidentFromReport đã dùng khi gắn
+  // người mới liên quan tới lớp.
+  if (newlyAddedPerIds.length > 0) {
+    const request = notify.buildNotifyRequest({
+      recipients: newlyAddedPerIds,
+      priority: incident.priority,
+      objectId: input.incidentId,
+      objectCode: input.incidentId,
+      levelLabel: catalog.PRIORITY_LABEL[incident.priority as catalog.Priority],
+      actionNeeded: 'Hồ sơ vừa được sửa lại lớp, có liên quan đến lớp/khối bạn phụ trách — xem và phối hợp xử lý',
+      deepLink: '/app/incidents/' + input.incidentId,
+      eventType: 'safety.incident.homeroom_notified'
+    });
+    const [savedRequest] = await db.insert(notifyRequests).values({ ...notifyRequestToRow(request), createdAt: now }).returning();
+    if (opts?.dispatch && savedRequest) {
+      await opts.dispatch(db, savedRequest, { now });
+    }
+    if (opts?.pushBell) {
+      await opts.pushBell(
+        db,
+        {
+          recipients: newlyAddedPerIds,
+          title: 'Hồ sơ ' + input.incidentId + ' vừa được sửa lại lớp, có liên quan đến bạn',
+          message: request.message,
+          eventType: 'safety.incident.homeroom_notified',
+          objectId: input.incidentId,
+          actorPerId: input.actor.perId,
+          meta: { class_name: effectiveClassName, homeroom_per_id: homeroomPerId, grade_supervisor_per_id: gradeSupervisorPerId }
+        },
+        { now }
+      );
+    }
+    await writeAuditLog(
+      db,
+      buildAuditRecord({
+        actorPerId: 'SYSTEM.SAFETY',
+        action: 'safety.incident.homeroom_notified',
+        objectId: input.incidentId,
+        after: { homeroom_per_id: homeroomPerId, grade_supervisor_per_id: gradeSupervisorPerId, class_name: effectiveClassName },
+        now
+      })
+    );
+  }
 
   return { incidentId: input.incidentId, className: effectiveClassName, zoneIds: effectiveZoneIds, assignedTaskPerIds, newlyAddedPerIds, homeroomPerId, gradeSupervisorPerId };
 }
