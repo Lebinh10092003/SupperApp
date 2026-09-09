@@ -35,7 +35,12 @@ const schema = z.object({
   // niệm multi-tenant/chọn schema động ở đây. Xem apps/api/src/core/db/.
   DATABASE_URL: z.string().default('postgres://postgres@localhost:5432/postgres'),
   DATABASE_POOL_MIN: z.coerce.number().default(0),
-  DATABASE_POOL_MAX: z.coerce.number().default(10)
+  DATABASE_POOL_MAX: z.coerce.number().default(10),
+
+  // Cloud Storage bucket cho kho minh chứng (S8, module An toàn) — rỗng =
+  // để firebase-admin tự suy bucket mặc định theo PROJECT_ID (đúng hành vi
+  // gốc, KHÔNG hard-code tên bucket).
+  EVIDENCE_STORAGE_BUCKET: z.string().default('')
 });
 
 export const env = schema.parse(process.env);
