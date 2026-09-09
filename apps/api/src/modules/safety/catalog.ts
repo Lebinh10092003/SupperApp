@@ -206,6 +206,17 @@ export function isTerminal(state: IncidentState): boolean {
 }
 
 /**
+ * Đóng hồ sơ P0/P1 cần đi qua action `incident.close_p0_p1` (chỉ Hiệu
+ * trưởng X, Phó HT cần phê duyệt D) — P2/P3 đi qua `incident.close_p2_p3`
+ * (nhẹ hơn). Bị BỎ SÓT khi port `catalog.ts` lần đầu (chỉ dùng ở
+ * `transitionIncidentStatus`, phần K6 mới port tới) — bổ sung ngay khi
+ * phát hiện, port 1-1 từ `catalog.js:240-242`.
+ */
+export function closeRequiresPrincipalApproval(priority: Priority): boolean {
+  return priority === PRIORITY.P0 || priority === PRIORITY.P1;
+}
+
+/**
  * Quyết định họp 07/09/2026: người GỬI TIN BÁO (không phải Hiệu trưởng/Phó
  * HT) xác nhận đã xử lý xong để đóng hồ sơ, áp dụng MỌI mức ưu tiên. Dự
  * phòng: nhân viên có quyền vẫn tự đóng được sau đủ số ngày này kể từ lúc
