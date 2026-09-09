@@ -15,6 +15,13 @@
       "when": 1788924227454,
       "tag": "0001_hesitant_maggott",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788924710296,
+      "tag": "0002_nappy_zaran",
+      "breakpoints": true
     }
   ]
 }
