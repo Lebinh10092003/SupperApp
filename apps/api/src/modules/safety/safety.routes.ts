@@ -148,7 +148,7 @@ safetyRouter.post(
     }
     const row = await createIncidentFromReport(
       db,
-      { reportId: d.reportId, priority: d.priority, mergeIntoIncidentId: d.mergeIntoIncidentId, zoneIds: d.zoneIds, className: d.className },
+      { reportId: d.reportId, priority: d.priority, mergeIntoIncidentId: d.mergeIntoIncidentId, className: d.className },
       { dispatch, pushBell, notifyReporter }
     );
     res.status(201).json(row);
@@ -177,7 +177,6 @@ safetyRouter.post(
         categoryCode: d.categoryCode,
         content: d.content,
         className: d.className,
-        zoneIds: d.zoneIds,
         stillDangerous: d.stillDangerous,
         evidenceIds: d.evidenceIds,
         channel: 'internal_witness',
@@ -193,7 +192,7 @@ safetyRouter.post(
     );
     const { incidentId } = await createIncidentFromReport(
       db,
-      { reportId, priority: d.priority, className: d.className, zoneIds: d.zoneIds },
+      { reportId, priority: d.priority, className: d.className },
       { dispatch, pushBell, notifyReporter }
     );
     res.status(201).json({ reportId, incidentId });
@@ -279,7 +278,7 @@ safetyRouter.patch(
     const d = req.body || {};
     const row = await updateIncidentClassification(
       db,
-      { actor, incidentId: String(req.params.id), className: d.className, zoneIds: d.zoneIds, reason: d.reason },
+      { actor, incidentId: String(req.params.id), className: d.className, reason: d.reason },
       { approvedBy: d.approvedBy, dispatch, pushBell }
     );
     res.json(row);

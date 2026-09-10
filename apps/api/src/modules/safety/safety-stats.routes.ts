@@ -1,8 +1,8 @@
 /**
  * safety-stats.routes.ts — route thống kê/tìm người của module An toàn,
  * port từ `index.js` gốc: `getIncidentStats`, `getTrendAlerts`,
- * `getCampusComparisonStats`, `getZoneStats`, `getClassStats`,
- * `searchPeople`. Tách RIÊNG khỏi `safety.routes.ts` (Hestia đang code
+ * `getCampusComparisonStats`, `getClassStats`, `searchPeople`. Tách RIÊNG
+ * khỏi `safety.routes.ts` (Hestia đang code
  * song song cụm route liệt kê/quản trị khác) để tránh đụng cùng 1 file —
  * gộp lại lúc merge tuỳ Hestia quyết định.
  *
@@ -29,7 +29,6 @@ import { slaClocks } from './sla-clocks.schema.js';
 import { writeAuditLog, buildAuditRecord } from './audit.js';
 import { computeTrendAlerts } from './trend-alerts.js';
 import { computeCampusComparisonStats } from './campus-comparison-stats.js';
-import { computeZoneStats } from './zoneStats.js';
 import { computeClassStats } from './classStats.js';
 import { searchPeopleByName } from './people-search.js';
 
@@ -175,38 +174,6 @@ safetyStatsRouter.get(
       },
       { now: new Date() }
     );
-    res.json(result);
-  })
-);
-
-// Port từ `exports.getZoneStats`.
-safetyStatsRouter.get(
-  '/stats/zones',
-  firebaseAuth,
-  withAppError(async (req, res) => {
-    const actor = await loadActorContext(db, req.appUser!.uid);
-    const decision = checkAuthorization({ actor, action: 'incident.view_zone_map', resource: {} });
-    if (!decision.allowed) throw new HttpError(403, decision.reason || 'Không có quyền.', 'PERMISSION_ERROR');
-    const reason = typeof req.query.reason === 'string' ? req.query.reason : undefined;
-    if (decision.conditions.includes('require_reason') && !reason) {
-      throw new HttpError(400, 'Bắt buộc nhập lý do khi xem bản đồ điểm nóng theo khu vực.', 'REASON_REQUIRED');
-    }
-
-    const { wholeSchool, myCampusIds } = actorCampusScope(actor.roles);
-    const campusId = typeof req.query.campusId === 'string' ? req.query.campusId : null;
-    if (!campusId) throw new HttpError(400, 'Thiếu campusId.', 'INVALID_INPUT');
-    if (!wholeSchool && myCampusIds.indexOf(campusId) === -1) {
-      throw new HttpError(403, 'Cơ sở này không thuộc phạm vi được phân công.', 'PERMISSION_ERROR');
-    }
-
-    const result = await computeZoneStats(
-      db,
-      { campusId, categoryCodes: parseCsv(req.query.categoryCodes), rangeDays: req.query.rangeDays ? Number(req.query.rangeDays) : undefined },
-      { now: new Date() }
-    );
-    if (decision.conditions.includes('require_reason')) {
-      await writeAuditLog(db, buildAuditRecord({ actorPerId: actor.perId, action: 'incident.view_zone_map', objectId: campusId, reason, now: new Date() }));
-    }
     res.json(result);
   })
 );

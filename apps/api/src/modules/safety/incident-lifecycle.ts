@@ -425,17 +425,16 @@ export async function assignCommander(
 }
 
 // ---------------------------------------------------------------------------
-// Sửa tay lớp/khu vực gợi ý cho 1 hồ sơ ĐÃ TẠO.
+// Sửa tay lớp gợi ý cho 1 hồ sơ ĐÃ TẠO.
 // ---------------------------------------------------------------------------
 
 export async function updateIncidentClassification(
   db: Db,
-  input: { actor: Actor; incidentId: string; className?: string | null; zoneIds?: string[]; reason?: string },
+  input: { actor: Actor; incidentId: string; className?: string | null; reason?: string },
   opts?: SafetyOpts
 ): Promise<{
   incidentId: string;
   className: string | null;
-  zoneIds: string[];
   assignedTaskPerIds: string[];
   newlyAddedPerIds: string[];
   homeroomPerId: string | null;
@@ -443,7 +442,7 @@ export async function updateIncidentClassification(
 }> {
   const now = opts?.now || new Date();
   if (!input.reason || !String(input.reason).trim()) {
-    throw new AppError('reason_required', 'Bắt buộc nhập lý do khi sửa lớp/khu vực của hồ sơ.');
+    throw new AppError('reason_required', 'Bắt buộc nhập lý do khi sửa lớp của hồ sơ.');
   }
   const incident = await loadIncident(db, input.incidentId);
 
@@ -458,10 +457,8 @@ export async function updateIncidentClassification(
   }
 
   const previousClassName = incident.className || null;
-  const previousZoneIds = Array.isArray(incident.zoneIds) ? incident.zoneIds.slice() : [];
 
   const effectiveClassName = input.className !== undefined ? input.className || null : previousClassName;
-  const effectiveZoneIds = Array.isArray(input.zoneIds) ? input.zoneIds : previousZoneIds;
 
   const assignedTaskPerIds: string[] = Array.isArray(incident.assignedTaskPerIds) ? incident.assignedTaskPerIds.slice() : [];
   let homeroomPerId: string | null = null;
@@ -486,9 +483,6 @@ export async function updateIncidentClassification(
     .update(incidents)
     .set({
       className: effectiveClassName,
-      zoneIds: effectiveZoneIds,
-      // zone_id (đơn): KHÔNG dùng trong code mới, giữ để tương thích ngược.
-      zoneId: effectiveZoneIds[0] || null,
       assignedTaskPerIds,
       version: incident.version + 1,
       updatedAt: now
@@ -501,8 +495,8 @@ export async function updateIncidentClassification(
       actorPerId: input.actor.perId!,
       action: 'incident.classification_corrected',
       objectId: input.incidentId,
-      before: { class_name: previousClassName, zone_ids: previousZoneIds },
-      after: { class_name: effectiveClassName, zone_ids: effectiveZoneIds },
+      before: { class_name: previousClassName },
+      after: { class_name: effectiveClassName },
       reason: input.reason,
       now
     })
@@ -553,5 +547,5 @@ export async function updateIncidentClassification(
     );
   }
 
-  return { incidentId: input.incidentId, className: effectiveClassName, zoneIds: effectiveZoneIds, assignedTaskPerIds, newlyAddedPerIds, homeroomPerId, gradeSupervisorPerId };
+  return { incidentId: input.incidentId, className: effectiveClassName, assignedTaskPerIds, newlyAddedPerIds, homeroomPerId, gradeSupervisorPerId };
 }

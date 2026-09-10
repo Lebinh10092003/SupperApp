@@ -26,13 +26,6 @@ interface CategoryOption {
   groupLabel: string;
 }
 
-interface ZoneOption {
-  zoneId: string;
-  campusId: string;
-  label: string;
-  order: number;
-}
-
 async function uploadOneEvidence(file: File): Promise<string | null> {
   const baseUrl = (env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
   const form = new FormData();
@@ -45,7 +38,6 @@ async function uploadOneEvidence(file: File): Promise<string | null> {
 
 export default function PublicReportPage() {
   const [categories, setCategories] = useState<CategoryOption[]>([]);
-  const [zones, setZones] = useState<ZoneOption[]>([]);
   const [campusId, setCampusId] = useState('');
   const [categoryCode, setCategoryCode] = useState('');
   const [className, setClassName] = useState('');
@@ -54,7 +46,6 @@ export default function PublicReportPage() {
   const [content, setContent] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [zoneIds, setZoneIds] = useState<string[]>([]);
   const [occurredFrom, setOccurredFrom] = useState('');
   const [occurredTo, setOccurredTo] = useState('');
   const [showMore, setShowMore] = useState(false);
@@ -67,18 +58,6 @@ export default function PublicReportPage() {
     const baseUrl = (env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
     fetch(`${baseUrl}/api/safety/categories`).then((r) => r.json()).then(setCategories).catch(() => setCategories([]));
   }, []);
-
-  useEffect(() => {
-    if (!campusId) {
-      setZones([]);
-      return;
-    }
-    const baseUrl = (env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
-    fetch(`${baseUrl}/api/safety/campus-zones?campusId=${encodeURIComponent(campusId)}`)
-      .then((r) => r.json())
-      .then(setZones)
-      .catch(() => setZones([]));
-  }, [campusId]);
 
   const handleSubmit = async () => {
     setError('');
@@ -114,7 +93,6 @@ export default function PublicReportPage() {
           content: content.trim(),
           email: email.trim() || undefined,
           phone: phone.trim() || undefined,
-          zoneIds,
           occurredFrom: occurredFrom || undefined,
           occurredTo: occurredTo || undefined,
           evidenceIds
@@ -201,7 +179,7 @@ export default function PublicReportPage() {
             </Typography>
 
             <Button variant="text" onClick={() => setShowMore((v) => !v)} sx={{ alignSelf: 'flex-start', textTransform: 'none' }}>
-              {showMore ? '− Thu gọn' : '+ Thêm chi tiết (lớp, khu vực, thời gian, minh chứng)'}
+              {showMore ? '− Thu gọn' : '+ Thêm chi tiết (lớp, thời gian, minh chứng)'}
             </Button>
             {showMore && (
               <Stack spacing={2.5}>
@@ -214,23 +192,6 @@ export default function PublicReportPage() {
                     </MenuItem>
                   ))}
                 </TextField>
-
-                {zones.length > 0 && (
-                  <TextField
-                    select
-                    label="Khu vực xảy ra sự việc"
-                    value={zoneIds}
-                    onChange={(e) => setZoneIds(typeof e.target.value === 'string' ? e.target.value.split(',') : (e.target.value as unknown as string[]))}
-                    fullWidth
-                    slotProps={{ select: { multiple: true } }}
-                  >
-                    {zones.map((z) => (
-                      <MenuItem key={z.zoneId} value={z.zoneId}>
-                        {z.label}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                )}
 
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                   <TextField

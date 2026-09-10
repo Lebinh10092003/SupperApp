@@ -347,22 +347,19 @@ test('assignCommander: hồ sơ không tồn tại -> not_found', { skip }, asyn
 // updateIncidentClassification (phần không phụ thuộc resolveClassRelatedPeople)
 // ---------------------------------------------------------------------
 
-test('updateIncidentClassification: bắt buộc lý do; sửa lớp/khu vực thành công, ghi audit', { skip }, async () => {
+test('updateIncidentClassification: bắt buộc lý do; sửa lớp thành công, ghi audit', { skip }, async () => {
   await resetTables();
-  const incidentId = await seedIncident({ className: '8A1', zoneIds: ['MC_GATE'] });
+  const incidentId = await seedIncident({ className: '8A1' });
 
   const noReason = await throwsWithCode(() => updateIncidentClassification(db, { actor: principal(), incidentId, className: '8A2' }, {}));
   assert.equal(noReason.threw, true);
   assert.equal(noReason.code, 'reason_required');
 
-  const updated = await updateIncidentClassification(db, { actor: principal(), incidentId, className: '8A2', zoneIds: ['MC_YARD'], reason: 'Người báo tin ghi nhầm lớp' }, {});
+  const updated = await updateIncidentClassification(db, { actor: principal(), incidentId, className: '8A2', reason: 'Người báo tin ghi nhầm lớp' }, {});
   assert.equal(updated.className, '8A2');
-  assert.deepEqual(updated.zoneIds, ['MC_YARD']);
 
   const [row] = await db.select().from(incidents).where(eq(incidents.incidentId, incidentId));
   assert.equal(row!.className, '8A2');
-  assert.deepEqual(row!.zoneIds, ['MC_YARD']);
-  assert.equal(row!.zoneId, 'MC_YARD');
 
   const auditRows = await db.select().from(auditLogs).where(eq(auditLogs.action, 'incident.classification_corrected'));
   assert.equal(auditRows.filter((r) => r.objectId === incidentId).length, 1);
@@ -370,10 +367,9 @@ test('updateIncidentClassification: bắt buộc lý do; sửa lớp/khu vực t
 
 test('updateIncidentClassification: không truyền className -> giữ nguyên lớp cũ', { skip }, async () => {
   await resetTables();
-  const incidentId = await seedIncident({ className: '8A1', zoneIds: ['MC_GATE'] });
-  const updated = await updateIncidentClassification(db, { actor: principal(), incidentId, zoneIds: ['MC_YARD'], reason: 'chỉ sửa khu vực' }, {});
+  const incidentId = await seedIncident({ className: '8A1' });
+  const updated = await updateIncidentClassification(db, { actor: principal(), incidentId, reason: 'xác nhận lại không đổi gì' }, {});
   assert.equal(updated.className, '8A1');
-  assert.deepEqual(updated.zoneIds, ['MC_YARD']);
 });
 
 // ---------------------------------------------------------------------
@@ -418,7 +414,7 @@ test('changeIncidentPriority: nâng lên P1 -> gọi notifyP1Escalation thật, 
 test('updateIncidentClassification: đổi className thật -> resolveClassRelatedPeople tra đúng GVCN, thêm vào newlyAddedPerIds + notify_request homeroom_notified', { skip }, async () => {
   await resetTables();
   await db.insert(homeroomAssignments).values({ className: IL_CLASS_NAME, perId: IL_HOMEROOM_PER_ID, name: 'Cô GVCN thử nghiệm IL' });
-  const incidentId = await seedIncident({ campusId: 'CS.01', className: '8A1', zoneIds: [] });
+  const incidentId = await seedIncident({ campusId: 'CS.01', className: '8A1' });
 
   const updated = await updateIncidentClassification(db, { actor: principal(), incidentId, className: IL_CLASS_NAME, reason: 'Sửa đúng lớp theo tin báo bổ sung' }, {});
   assert.equal(updated.homeroomPerId, IL_HOMEROOM_PER_ID);

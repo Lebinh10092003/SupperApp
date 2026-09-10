@@ -24,15 +24,13 @@ import { CAMPUS_IDS, CAMPUS_LABEL } from './constants';
 
 /**
  * Phân tích & thống kê — gộp lại các block đã có backend từ trước
- * (safety-stats.routes.ts: trend-alerts/campus-comparison/zones/classes)
+ * (safety-stats.routes.ts: trend-alerts/campus-comparison/classes)
  * nhưng chưa có UI. Theo đúng mô tả gốc trong CLAUDE.md dự án: pill-tab
  * gộp nhiều khối vào 1 trang thay vì xếp chồng nhiều card riêng.
  *
- * "Bản đồ khu vực" ở đây là BẢNG số liệu theo khu vực (đọc thẳng
- * computeZoneStats), KHÔNG PHẢI bản đồ Konva kéo-thả trực quan như bản
- * Firebase cũ — việc đó lớn hơn nhiều (canvas vẽ tay), chưa làm ở đợt
- * này, cần xác nhận có thực sự cần vẽ lại visual map hay bảng số liệu là
- * đủ trước khi đầu tư thêm.
+ * Tab "Theo khu vực" (bản đồ Konva/bảng zone stats) đã bị BỎ HẲN theo
+ * quyết định của Sin (10/09/2026) — không giữ lại khái niệm "khu vực"
+ * trong app nữa, xem toàn bộ diff xoá zone ở TASKS.md.
  */
 
 interface TrendAlert {
@@ -155,60 +153,6 @@ function CampusComparisonPanel() {
   );
 }
 
-function ZoneStatsPanel() {
-  const [campusId, setCampusId] = useState('MAIN_CAMPUS');
-  const [data, setData] = useState<any>(null);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    api
-      .get(`/api/safety/stats/zones?campusId=${encodeURIComponent(campusId)}`)
-      .then(setData)
-      .catch((e: any) => setError(e.message || 'Không tải được thống kê theo khu vực.'));
-  }, [campusId]);
-
-  return (
-    <Box>
-      <TextField select size="small" label="Cơ sở" value={campusId} onChange={(e) => setCampusId(e.target.value)} sx={{ minWidth: 200, mb: 2 }}>
-        {CAMPUS_IDS.map((c) => (
-          <MenuItem key={c} value={c}>
-            {CAMPUS_LABEL[c]}
-          </MenuItem>
-        ))}
-      </TextField>
-      {error && <Alert severity="error">{error}</Alert>}
-      {data && (
-        <TableContainer component={Paper} sx={{ borderRadius: 2, border: '1px solid #e2e8f0', boxShadow: 'none' }}>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Khu vực</TableCell>
-                <TableCell>Số vụ</TableCell>
-                <TableCell>Cảnh báo</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {(data.zones || []).length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={3} align="center" sx={{ color: 'text.secondary' }}>
-                    Không có dữ liệu.
-                  </TableCell>
-                </TableRow>
-              )}
-              {(data.zones || []).map((z: any) => (
-                <TableRow key={z.zone_id}>
-                  <TableCell>{z.zone_id}</TableCell>
-                  <TableCell>{z.total_count}</TableCell>
-                  <TableCell>{z.severity_flag && <Chip size="small" label="Cần chú ý" sx={{ bgcolor: '#fef2f2', color: '#dc2626' }} />}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      )}
-    </Box>
-  );
-}
 
 function ClassStatsPanel() {
   const [campusId, setCampusId] = useState('MAIN_CAMPUS');
@@ -270,19 +214,17 @@ export default function AnalyticsPage() {
 
   return (
     <Box sx={{ p: { xs: 2, md: 3 } }}>
-      <PageHeader title="Phân tích & thống kê" subtitle="Xu hướng, so sánh cơ sở, thống kê theo khu vực/lớp học" icon={<InsightsRoundedIcon />} />
+      <PageHeader title="Phân tích & thống kê" subtitle="Xu hướng, so sánh cơ sở, thống kê theo lớp học" icon={<InsightsRoundedIcon />} />
 
       <Paper sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none', p: 2.5 }}>
         <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2 }}>
           <Tab label="Đề xuất xử lý" />
           <Tab label="So sánh cơ sở" />
-          <Tab label="Theo khu vực" />
           <Tab label="Theo lớp học" />
         </Tabs>
         {tab === 0 && <TrendAlertsPanel />}
         {tab === 1 && <CampusComparisonPanel />}
-        {tab === 2 && <ZoneStatsPanel />}
-        {tab === 3 && <ClassStatsPanel />}
+        {tab === 2 && <ClassStatsPanel />}
       </Paper>
     </Box>
   );

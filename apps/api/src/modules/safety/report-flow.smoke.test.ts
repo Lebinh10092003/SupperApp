@@ -333,49 +333,6 @@ test('report-flow: notifyP1Escalation — có leadership + trực ban -> notify_
   }
 });
 
-test('report-flow: submitReport — nhiều zoneIds, zone_id deprecated, suggested_zone_ids từ content', { skip }, async () => {
-  await cleanup();
-  const nowZ = new Date();
-  await db.insert(campusZones).values([
-    { zoneId: 'RF_STAGE', campusId: CAMPUS, label: 'Sân khấu', polygonPercent: [], keywords: ['sân khấu', 'san khau'], active: true, createdAt: nowZ, updatedAt: nowZ },
-    { zoneId: 'RF_YARD', campusId: CAMPUS, label: 'Sân', polygonPercent: [], keywords: ['sân trường'], active: true, createdAt: nowZ, updatedAt: nowZ },
-    { zoneId: 'RF_INACTIVE', campusId: CAMPUS, label: 'Không active', polygonPercent: [], keywords: [], active: false, createdAt: nowZ, updatedAt: nowZ },
-    { zoneId: 'RF_OTHER_CAMPUS', campusId: 'CS.RF_99', label: 'Khác cơ sở', polygonPercent: [], keywords: [], active: true, createdAt: nowZ, updatedAt: nowZ }
-  ]);
-  try {
-    const now = new Date('2026-08-21T09:00:00+07:00');
-    const repMulti = await submitReportT({
-      campusId: CAMPUS, categoryCode: 'facility_general',
-      content: 'Có vết nứt lớn gần sân khấu, học sinh chạy ngang qua rất nguy hiểm',
-      zoneIds: ['RF_STAGE', 'RF_YARD', 'RF_INACTIVE', 'RF_OTHER_CAMPUS', 'RF_KHONG_TON_TAI'],
-      idempotencyKey: 'rf-idem-zone-1'
-    }, { now });
-    const [repMultiDoc] = await db.select().from(reports).where(eq(reports.reportId, repMulti.reportId));
-    assert.ok(repMultiDoc);
-    assert.deepEqual(repMultiDoc.zoneIds, ['RF_STAGE', 'RF_YARD']);
-    assert.equal(repMultiDoc.zoneId, 'RF_STAGE');
-    assert.ok(repMultiDoc.suggestedZoneIds?.includes('RF_STAGE'));
-    assert.ok(repMulti.suggestedZoneIds.includes('RF_STAGE'));
-
-    const repLegacy = await submitReportT({
-      campusId: CAMPUS, categoryCode: 'facility_general', content: 'test tương thích ngược', zoneId: 'RF_YARD',
-      idempotencyKey: 'rf-idem-zone-legacy'
-    }, { now });
-    const [repLegacyDoc] = await db.select().from(reports).where(eq(reports.reportId, repLegacy.reportId));
-    assert.ok(repLegacyDoc);
-    assert.deepEqual(repLegacyDoc.zoneIds, ['RF_YARD']);
-    assert.equal(repLegacyDoc.zoneId, 'RF_YARD');
-
-    const created = await createIncidentFromReport(db, { reportId: repMulti.reportId, priority: PRIORITY.P2 }, { now });
-    const [incDoc] = await db.select().from(incidents).where(eq(incidents.incidentId, created.incidentId));
-    assert.ok(incDoc);
-    assert.deepEqual(incDoc.zoneIds, ['RF_STAGE', 'RF_YARD']);
-    assert.equal(incDoc.zoneId, 'RF_STAGE');
-  } finally {
-    await cleanup();
-  }
-});
-
 test('report-flow: submitReport — suggested_class_names từ content, KHÔNG tự gán class_name', { skip }, async () => {
   await cleanup();
   try {

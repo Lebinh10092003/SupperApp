@@ -69,9 +69,6 @@ export const PERMISSION_MATRIX: Record<string, Partial<Record<RoleId, GrantLevel
   'incident.view_trend_alerts': { [ROLE.PRINCIPAL]: 'X', [ROLE.VICE_PRINCIPAL]: 'X' },
   // So sánh 3 cơ sở cùng lúc — CHỈ Hiệu trưởng (Phó HT chỉ phụ trách 1 cơ sở).
   'incident.view_campus_comparison': { [ROLE.PRINCIPAL]: 'X' },
-  // Bản đồ khu vực — Trực ban/Tổ trưởng chỉ trong PHẠM VI CƠ SỞ mình (XR —
-  // bắt buộc lý do + audit); Hiệu trưởng/Phó HT không cần lý do.
-  'incident.view_zone_map': { [ROLE.PRINCIPAL]: 'X', [ROLE.VICE_PRINCIPAL]: 'X', [ROLE.DUTY_OFFICER]: 'XR', [ROLE.DEPT_HEAD]: 'XR' },
   'incident.view_class_stats': { [ROLE.PRINCIPAL]: 'X', [ROLE.VICE_PRINCIPAL]: 'X', [ROLE.DUTY_OFFICER]: 'XR', [ROLE.DEPT_HEAD]: 'XR' },
   'notify.run_escalation_check': { [ROLE.PRINCIPAL]: 'X', [ROLE.VICE_PRINCIPAL]: 'X', [ROLE.DUTY_OFFICER]: 'X' }
 };

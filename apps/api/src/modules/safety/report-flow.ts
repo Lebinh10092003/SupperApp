@@ -19,10 +19,8 @@ import * as sla from './sla.js';
 import * as notify from './notify.js';
 import * as escalationRecipients from './escalation-recipients.js';
 import { linkEvidenceToReport } from './evidence.js';
-import { suggestZonesForReport } from './zoneStats.js';
 import { detectClassNamesFromContent } from './classStats.js';
 import { homeroomAssignments, gradeSupervisorAssignments } from '../identity/identity.schema.js';
-import { campusZones } from './campus-zones.schema.js';
 import { reports, reportIdentities } from './reports.schema.js';
 import { publicCodes } from './ids.schema.js';
 import { incidents } from './incidents.schema.js';
@@ -67,8 +65,6 @@ export interface SubmitReportInput {
   content?: string;
   className?: string;
   reporterRole?: string;
-  zoneIds?: string[];
-  zoneId?: string;
   channel?: string;
   createdByPerId?: string;
   contactName?: string;
@@ -107,20 +103,6 @@ export async function submitReport(db: Db, input: SubmitReportInput, opts?: Safe
 
     const confidentiality = catalog.effectiveConfidentiality(input.categoryCode, input.requestedConfidentiality);
 
-    // Khu vực trong khuôn viên (tuỳ chọn) — hỗ trợ NHIỀU zoneIds, vẫn chấp
-    // nhận zoneId cũ (đơn) để tương thích ngược.
-    const rawZoneIds = Array.isArray(input.zoneIds) ? input.zoneIds : (input.zoneId ? [input.zoneId] : []);
-    const zoneIds: string[] = [];
-    for (const candidateZoneId of rawZoneIds) {
-      if (!candidateZoneId) continue;
-      const [zone] = await db.select().from(campusZones).where(eq(campusZones.zoneId, candidateZoneId)).limit(1);
-      if (zone && zone.active === true && zone.campusId === input.campusId) {
-        zoneIds.push(candidateZoneId);
-      } else {
-        console.warn(`[submitReport] zoneId "${candidateZoneId}" không hợp lệ (không tồn tại/khác cơ sở/không active) — bỏ qua, KHÔNG chặn tạo tin báo.`);
-      }
-    }
-
     await db.insert(reports).values({
       reportId,
       publicCode,
@@ -136,8 +118,6 @@ export async function submitReport(db: Db, input: SubmitReportInput, opts?: Safe
       content: input.content || '',
       className: input.className || null,
       reporterRole: catalog.isValidReporterRole(input.reporterRole) ? input.reporterRole : null,
-      zoneIds,
-      zoneId: zoneIds[0] || null,
       mergedIntoIncidentId: null,
       createdByPerId: input.createdByPerId || null,
       createdAt: now
@@ -176,17 +156,15 @@ export async function submitReport(db: Db, input: SubmitReportInput, opts?: Safe
 
     const linkedEvidenceIds = await linkEvidenceToReport(db, { evidenceIds: input.evidenceIds || [], reportId }, { now });
 
-    const suggestedZoneIds = await suggestZonesForReport(db, { campusId: input.campusId, content: input.content }).catch(() => [] as string[]);
-
     const suggestedClassNames = detectClassNamesFromContent(input.content);
-    await db.update(reports).set({ suggestedZoneIds, suggestedClassNames }).where(eq(reports.reportId, reportId));
+    await db.update(reports).set({ suggestedClassNames }).where(eq(reports.reportId, reportId));
 
     if (input.stillDangerous) {
       await notifyUrgentReport(db, { reportId, publicCode, campusId: input.campusId, categoryCode: input.categoryCode }, opts)
         .catch((e) => console.error('[submitReport] notifyUrgentReport thất bại, KHÔNG chặn gửi tin báo:', e instanceof Error ? e.message : e));
     }
 
-    return { reportId, publicCode, confidentiality, initialPriority, linkedEvidenceIds, suggestedZoneIds, suggestedClassNames };
+    return { reportId, publicCode, confidentiality, initialPriority, linkedEvidenceIds, suggestedClassNames };
   });
 }
 
@@ -229,7 +207,6 @@ export interface CreateIncidentFromReportInput {
   // hồ sơ đích đã có priority riêng, không đổi khi gộp thêm 1 tin báo vào.
   priority?: catalog.Priority;
   mergeIntoIncidentId?: string;
-  zoneIds?: string[];
   className?: string;
 }
 
@@ -263,10 +240,6 @@ export async function createIncidentFromReport(db: Db, input: CreateIncidentFrom
   const classRelatedPerIds = Array.from(new Set([homeroomPerId, gradeSupervisorPerId].filter((v): v is string => !!v)));
   const assignedTaskPerIds = classRelatedPerIds;
 
-  const effectiveZoneIds = Array.isArray(input.zoneIds)
-    ? input.zoneIds
-    : (report.zoneIds || (report.zoneId ? [report.zoneId] : []));
-
   await db.insert(incidents).values({
     incidentId,
     campusId: report.campusId,
@@ -274,8 +247,6 @@ export async function createIncidentFromReport(db: Db, input: CreateIncidentFrom
     className: effectiveClassName,
     suggestedClassNames: report.suggestedClassNames || [],
     reporterRole: report.reporterRole || null,
-    zoneIds: effectiveZoneIds,
-    zoneId: effectiveZoneIds[0] || null,
     priority,
     confidentiality,
     state,

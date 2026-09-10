@@ -56,7 +56,6 @@ interface IncidentDetail {
   categoryCode?: string;
   categoryLabel?: string | null;
   className?: string | null;
-  zoneIds?: string[] | null;
   commanderPerId?: string | null;
   commanderName?: string | null;
   lastNote?: string | null;
@@ -189,9 +188,6 @@ export default function IncidentDetailPage() {
                   <Typography variant="body2">
                     Lớp liên quan: <strong>{incident.className}</strong>
                   </Typography>
-                )}
-                {incident.zoneIds && incident.zoneIds.length > 0 && (
-                  <Typography variant="body2">Khu vực: {incident.zoneIds.join(', ')}</Typography>
                 )}
                 <Typography variant="body2">
                   Chỉ huy: <strong>{incident.commanderName || 'Chưa chỉ định'}</strong>
