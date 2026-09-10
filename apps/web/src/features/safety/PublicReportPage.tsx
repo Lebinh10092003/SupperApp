@@ -155,7 +155,7 @@ export default function PublicReportPage() {
   }
 
   return (
-    <PublicLayout title="Báo cáo sự cố an toàn trường học" subtitle="Mọi thông tin được bảo mật, chỉ người có thẩm quyền mới được xem">
+    <PublicLayout title="Cảnh Báo An Toàn và Xử Lý Sự Cố" subtitle="Mọi thông tin được bảo mật, chỉ người có thẩm quyền mới được xem">
       <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: '0 4px 15px -1px rgba(15, 23, 42, 0.06)' }}>
         <CardContent sx={{ p: { xs: 2.5, sm: 3.5 } }}>
           <Stack spacing={2.5}>

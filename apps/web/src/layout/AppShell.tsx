@@ -51,6 +51,7 @@ import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { api } from '../services/api';
+import { NotificationBell } from '../features/safety/components/NotificationBell';
 
 const DRAWER_WIDTH = 270;
 
@@ -181,7 +182,7 @@ const navGroups: NavGroup[] = [
     ]
   },
   {
-    groupTitle: 'AN TOÀN TRƯỜNG HỌC',
+    groupTitle: 'CẢNH BÁO AN TOÀN VÀ XỬ LÝ SỰ CỐ',
     items: [
       {
         path: '/safety',
@@ -207,6 +208,12 @@ const navGroups: NavGroup[] = [
         icon: <WarningAmberIcon fontSize="small" />,
         badge: 'P0/P1',
         roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'DEPARTMENT_HEAD', 'TEACHER', 'HOMEROOM']
+      },
+      {
+        path: '/safety/audit-logs',
+        label: 'Nhật ký kiểm toán',
+        icon: <HistoryIcon fontSize="small" />,
+        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'DEPARTMENT_HEAD']
       }
     ]
   },
@@ -635,6 +642,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                 fontSize: '0.75rem'
               }}
             />
+
+            <NotificationBell />
 
             <Tooltip title="Đăng xuất">
               <IconButton onClick={logout} size="small" sx={{ color: '#64748b', '&:hover': { color: '#ef4444', bgcolor: '#fef2f2' } }}>
