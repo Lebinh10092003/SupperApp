@@ -4,65 +4,20 @@
  * KHÔNG có SLA countdown live/websocket (theo chốt của Hestia) — chỉ hiện
  * tĩnh `slaClocks.deadlineAt`, tự poll lại danh sách mỗi 30s.
  *
- * Dùng `useIncidentsTemp` (TẠM THỜI, cùng interface `useIncidents.ts` thật
- * của Chunk A) — đổi sang `import { useIncidents } from
- * './hooks/useIncidents'` khi 2 nhánh merge, xem ghi chú dưới.
+ * Dùng `useIncidents` thật (`./hooks/useIncidents`, Chunk A/Hestia,
+ * PR #12) — trước đó dùng `useIncidentsTemp` tạm thời cùng interface,
+ * đã xoá sau khi Chunk A merge.
  */
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Alert, Box, Card, CardContent, Chip, CircularProgress, Stack, Typography } from '@mui/material';
 import WarningAmberIcon from '@mui/icons-material/WarningAmberRounded';
 
 import { PageHeader } from '../../components/PageHeader';
-import { api } from '../../services/api';
-import { StatusChip, PriorityChip, ConfidentialityBadge } from './temp-chips';
-
-interface IncidentListItem {
-  incidentId: string;
-  priority: 'P0' | 'P1' | 'P2' | 'P3';
-  confidentiality: 'C1' | 'C2' | 'C3' | 'C4';
-  state: string;
-  campusId: string;
-  redacted?: boolean;
-  categoryLabel?: string | null;
-  commanderName?: string | null;
-  className?: string | null;
-  slaClocks?: Record<string, { deadlineAt: string; status: string; paused: boolean }> | null;
-}
-
-/** TẠM THỜI — khớp đúng interface `useIncidents.ts` thật (Chunk A) đã chốt, xem ghi chú đầu file. */
-function useIncidentsTemp(params: { priorities?: string[] }) {
-  const [items, setItems] = useState<IncidentListItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [tick, setTick] = useState(0);
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    const qs = params.priorities?.length ? `?priorities=${params.priorities.join(',')}` : '';
-    api
-      .get<IncidentListItem[]>(`/api/safety/incidents${qs}`)
-      .then((rows) => {
-        if (!cancelled) {
-          setItems(rows);
-          setError(null);
-        }
-      })
-      .catch((e: any) => {
-        if (!cancelled) setError(e.message);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tick, JSON.stringify(params.priorities)]);
-
-  return { items, loading, error, refetch: () => setTick((t) => t + 1) };
-}
+import { StatusChip } from './components/StatusChip';
+import { PriorityChip } from './components/PriorityChip';
+import { ConfidentialityBadge } from './components/ConfidentialityBadge';
+import { useIncidents } from './hooks/useIncidents';
 
 function formatDateTime(iso?: string) {
   if (!iso) return '—';
@@ -74,7 +29,7 @@ function formatDateTime(iso?: string) {
 }
 
 export default function EmergencyCockpitPage() {
-  const { items, loading, error, refetch } = useIncidentsTemp({ priorities: ['P0', 'P1'] });
+  const { items, loading, error, refetch } = useIncidents({ priorities: ['P0', 'P1'] });
 
   // Poll lại mỗi 30s — Phase 1 chưa có websocket/live update.
   useEffect(() => {
