@@ -28,6 +28,8 @@ import TeacherAnalyticsPage from "../features/teachers/TeacherAnalyticsPage";
 import GoogleConnectionPage from "../features/connections/GoogleConnectionPage";
 import CatalogMappingPage from "../features/catalog/CatalogMappingPage";
 import ClassroomAuditPage from "../features/audit/ClassroomAuditPage";
+import IncidentDetailPage from "../features/safety/IncidentDetailPage";
+import EmergencyCockpitPage from "../features/safety/EmergencyCockpitPage";
 
 const p = (x: ReactNode, allowedRoles?: string[]) => (
   <ProtectedRoute>
@@ -55,6 +57,12 @@ export function App() {
       <Route path="/connections" element={p(<GoogleConnectionPage />, ROLES_LEADERSHIP)} />
       <Route path="/catalog/mapping" element={p(<CatalogMappingPage />, ROLES_LEADERSHIP)} />
       <Route path="/audit/classroom" element={p(<ClassroomAuditPage />, ROLES_ADMIN_PLUS)} />
+      {/* Module An toàn trường học — hệ quyền R.* (16 role) tách biệt hệ
+          role app-level dùng ở p(...)/allowedRoles, nên KHÔNG áp allowedRoles
+          ở đây; phân quyền thật nằm ở authz.ts (server) + GET /api/safety/me
+          (ẩn/hiện nút, không phải lớp chặn). */}
+      <Route path="/safety/incidents/:id" element={p(<IncidentDetailPage />)} />
+      <Route path="/safety/cockpit" element={p(<EmergencyCockpitPage />)} />
       <Route path="/today" element={p(<TodayPage />)} />
       <Route path="/classes" element={p(<ClassesPage />)} />
       <Route path="/classroom" element={p(<ClassroomPage />)} />
