@@ -38,26 +38,52 @@ interface AuditLogEntry {
  * (GET /api/safety/audit-logs). Server tự chặn theo action `audit.read`
  * nếu vai trò không đủ, không cần UI tự kiểm tra thêm.
  */
+const PAGE_SIZE = 50;
+
 export default function AuditLogPage() {
   const [objectId, setObjectId] = useState('');
   const [items, setItems] = useState<AuditLogEntry[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
   const [detail, setDetail] = useState<AuditLogEntry | null>(null);
   const [searched, setSearched] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
 
   const load = () => {
     setLoading(true);
     setError('');
-    const qs = objectId.trim() ? `?objectId=${encodeURIComponent(objectId.trim())}&limit=100` : '?limit=100';
+    const qs = objectId.trim() ? `?objectId=${encodeURIComponent(objectId.trim())}&limit=${PAGE_SIZE}` : `?limit=${PAGE_SIZE}`;
     api
-      .get<{ items: AuditLogEntry[] }>(`/api/safety/audit-logs${qs}`)
+      .get<{ items: AuditLogEntry[]; hasMore: boolean }>(`/api/safety/audit-logs${qs}`)
       .then((res) => {
         setItems(res.items || []);
+        setHasMore(!!res.hasMore);
         setSearched(true);
       })
       .catch((e: any) => setError(e.message || 'Không tải được nhật ký kiểm toán (có thể vai trò của bạn không đủ quyền xem).'))
       .finally(() => setLoading(false));
+  };
+
+  // "Tải thêm" — con trỏ (cursor) là occurredAt của bản ghi cuối trang
+  // hiện tại, KHÔNG dùng offset số vì nhật ký liên tục có bản ghi mới
+  // chèn vào đầu danh sách (offset sẽ lệch/trùng nếu vừa tải vừa ghi mới).
+  const loadMore = () => {
+    const last = items[items.length - 1];
+    if (!last) return;
+    setLoadingMore(true);
+    const params = new URLSearchParams();
+    if (objectId.trim()) params.set('objectId', objectId.trim());
+    params.set('limit', String(PAGE_SIZE));
+    params.set('before', last.occurredAt);
+    api
+      .get<{ items: AuditLogEntry[]; hasMore: boolean }>(`/api/safety/audit-logs?${params.toString()}`)
+      .then((res) => {
+        setItems((prev) => [...prev, ...(res.items || [])]);
+        setHasMore(!!res.hasMore);
+      })
+      .catch((e: any) => setError(e.message || 'Không tải thêm được.'))
+      .finally(() => setLoadingMore(false));
   };
 
   return (
@@ -118,6 +144,14 @@ export default function AuditLogPage() {
             </TableBody>
           </Table>
         </TableContainer>
+      )}
+
+      {searched && hasMore && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+          <Button variant="outlined" onClick={loadMore} disabled={loadingMore}>
+            {loadingMore ? 'Đang tải...' : 'Tải thêm'}
+          </Button>
+        </Box>
       )}
 
       <Dialog open={!!detail} onClose={() => setDetail(null)} maxWidth="sm" fullWidth>

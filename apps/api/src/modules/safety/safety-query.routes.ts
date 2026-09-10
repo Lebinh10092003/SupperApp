@@ -25,7 +25,7 @@
  */
 
 import { Router } from 'express';
-import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, lt } from 'drizzle-orm';
 import { firebaseAuth } from '../../auth/middleware.js';
 import { asyncRoute, HttpError } from '../../core/http.js';
 import { db } from '../../core/db/client.js';
@@ -359,10 +359,21 @@ safetyQueryRouter.get(
     if (!decision.allowed) throw new HttpError(403, decision.reason ?? 'Không đủ quyền.', 'PERMISSION_ERROR');
     const objectId = typeof req.query.objectId === 'string' ? req.query.objectId : undefined;
     const limit = req.query.limit ? Number(req.query.limit) : 50;
-    const rows = objectId
-      ? await db.select().from(auditLogs).where(eq(auditLogs.objectId, objectId)).orderBy(desc(auditLogs.occurredAt)).limit(limit)
-      : await db.select().from(auditLogs).orderBy(desc(auditLogs.occurredAt)).limit(limit);
-    res.json({ items: rows });
+    // `before` — con trỏ phân trang kiểu cursor (occurredAt của bản ghi
+    // cuối trang trước), KHÔNG dùng offset số vì nhật ký kiểm toán liên
+    // tục có bản ghi mới chèn vào đầu — offset sẽ bị lệch/trùng khi vừa
+    // tải vừa có ghi mới. "Tải thêm" ở UI truyền lại giá trị này.
+    const before = typeof req.query.before === 'string' ? new Date(req.query.before) : undefined;
+    const conditions = [objectId ? eq(auditLogs.objectId, objectId) : undefined, before && !isNaN(before.getTime()) ? lt(auditLogs.occurredAt, before) : undefined].filter(
+      (c): c is NonNullable<typeof c> => c !== undefined
+    );
+    const rows = await db
+      .select()
+      .from(auditLogs)
+      .where(conditions.length ? and(...conditions) : undefined)
+      .orderBy(desc(auditLogs.occurredAt))
+      .limit(limit);
+    res.json({ items: rows, hasMore: rows.length === limit });
   })
 );
 
