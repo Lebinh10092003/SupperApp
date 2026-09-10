@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Box, Typography } from '@mui/material';
+import { Link } from 'react-router-dom';
 import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined';
 
 /**
@@ -13,9 +14,20 @@ export function PublicLayout({ title, subtitle, children }: { title: string; sub
         minHeight: '100vh',
         background: 'radial-gradient(ellipse at 50% -10%, #dbeafe 0%, #eff6ff 40%, #f8fafc 100%)',
         py: { xs: 3, md: 5 },
-        px: 2
+        px: 2,
+        position: 'relative'
       }}
     >
+      <Box sx={{ position: 'absolute', top: { xs: 12, md: 20 }, right: { xs: 12, md: 24 } }}>
+        <Typography
+          component={Link}
+          to="/login"
+          variant="caption"
+          sx={{ color: '#64748b', fontWeight: 600, textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
+        >
+          Đăng nhập nội bộ →
+        </Typography>
+      </Box>
       <Box sx={{ maxWidth: 720, mx: 'auto' }}>
         <Box sx={{ textAlign: 'center', mb: 3.5 }}>
           <Box
