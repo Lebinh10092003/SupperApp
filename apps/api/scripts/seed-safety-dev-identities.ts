@@ -44,7 +44,21 @@ const SEED_IDENTITIES: SeedIdentity[] = [
   { email: 'seed.principal@thcsgiangvo.edu.vn', displayName: 'Hiệu trưởng (seed)', perId: 'PER.SEED_PRINCIPAL', roleId: ROLE.PRINCIPAL, campusId: null },
   { email: 'seed.vice-principal@thcsgiangvo.edu.vn', displayName: 'Phó Hiệu trưởng (seed)', perId: 'PER.SEED_VICE_PRINCIPAL', roleId: ROLE.VICE_PRINCIPAL, campusId: 'MAIN_CAMPUS' },
   { email: 'seed.duty-officer@thcsgiangvo.edu.vn', displayName: 'Trực ban (seed)', perId: 'PER.SEED_DUTY_OFFICER', roleId: ROLE.DUTY_OFFICER, campusId: 'MAIN_CAMPUS' },
-  { email: 'seed.teacher@thcsgiangvo.edu.vn', displayName: 'Giáo viên (seed)', perId: 'PER.SEED_TEACHER', roleId: ROLE.TEACHER, campusId: 'MAIN_CAMPUS' }
+  { email: 'seed.teacher@thcsgiangvo.edu.vn', displayName: 'Giáo viên (seed)', perId: 'PER.SEED_TEACHER', roleId: ROLE.TEACHER, campusId: 'MAIN_CAMPUS' },
+  // 10/09/2026 — 4 nút "trải nghiệm nhanh theo vai trò" ở LoginPage.tsx
+  // (loginDemo) dùng CÁC EMAIL KHÁC HẲN 4 dòng seed.* ở trên (xem
+  // apps/web/src/features/login/LoginPage.tsx) — actor-context.ts tra
+  // theo email/uid thật của token dev, nên đăng nhập bằng 4 nút đó vào
+  // app An toàn trước đây LUÔN báo "tài khoản chưa được phân vai trò" vì
+  // không có dòng assignments nào khớp uid của chúng. Thêm đúng 4 email
+  // đó vào đây, map role App-level (SUPER_ADMIN/Hiệu trưởng/Tổ trưởng/
+  // Giáo viên) sang role R.* gần nghĩa nhất để bất kỳ nút demo nào ở
+  // LoginPage cũng dùng được ngay app An toàn, không cần biết email
+  // seed.* riêng.
+  { email: '09.levanbinh2003@gmail.com', displayName: 'Lê Văn Bình (Super Admin)', perId: 'PER.DEMO_SUPER_ADMIN', roleId: ROLE.SYS_ADMIN, campusId: null },
+  { email: 'hieutruong@thcs-giangvo.edu.vn', displayName: 'Thầy Hiệu Trưởng — THCS Giảng Võ', perId: 'PER.DEMO_PRINCIPAL', roleId: ROLE.PRINCIPAL, campusId: null },
+  { email: 'totruong.toan@thcs-giangvo.edu.vn', displayName: 'Cô Tổ Trưởng Chuyên Môn Toán - Tin', perId: 'PER.DEMO_DEPT_HEAD', roleId: ROLE.DEPT_HEAD, campusId: 'MAIN_CAMPUS' },
+  { email: 'giaovien.toan@thcs-giangvo.edu.vn', displayName: 'Thầy Giáo Viên Toán (6A1, 6A2)', perId: 'PER.DEMO_TEACHER', roleId: ROLE.TEACHER, campusId: 'MAIN_CAMPUS' }
 ];
 
 async function main() {
