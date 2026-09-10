@@ -46,6 +46,7 @@ import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined';
 import PendingActionsIcon from '@mui/icons-material/PendingActionsRounded';
 import ListAltIcon from '@mui/icons-material/ListAltRounded';
 import WarningAmberIcon from '@mui/icons-material/WarningAmberRounded';
+import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
 
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
@@ -206,6 +207,29 @@ const navGroups: NavGroup[] = [
         icon: <WarningAmberIcon fontSize="small" />,
         badge: 'P0/P1',
         roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'DEPARTMENT_HEAD', 'TEACHER', 'HOMEROOM']
+      }
+    ]
+  },
+  {
+    groupTitle: 'LỊCH CÔNG TÁC',
+    items: [
+      {
+        path: '/work-schedule',
+        label: 'Lịch công tác',
+        icon: <ScheduleIcon fontSize="small" />,
+        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'DEPARTMENT_HEAD', 'TEACHER', 'HOMEROOM']
+      },
+      {
+        path: '/work-schedule/tasks',
+        label: 'Giao việc',
+        icon: <AttendanceIcon fontSize="small" />,
+        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'DEPARTMENT_HEAD', 'TEACHER', 'HOMEROOM']
+      },
+      {
+        path: '/work-schedule/approvals',
+        label: 'Trung tâm phê duyệt',
+        icon: <FactCheckOutlinedIcon fontSize="small" />,
+        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'DEPARTMENT_HEAD']
       }
     ]
   }

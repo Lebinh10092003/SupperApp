@@ -35,6 +35,9 @@ import PublicLookupPage from "../features/safety/PublicLookupPage";
 import SafetyDashboardPage from "../features/safety/SafetyDashboardPage";
 import PendingReportsPage from "../features/safety/PendingReportsPage";
 import IncidentsListPage from "../features/safety/IncidentsListPage";
+import EventsListPage from "../features/work-schedule/EventsListPage";
+import TasksListPage from "../features/work-schedule/TasksListPage";
+import ApprovalCenterPage from "../features/work-schedule/ApprovalCenterPage";
 
 const p = (x: ReactNode, allowedRoles?: string[]) => (
   <ProtectedRoute>
@@ -52,6 +55,9 @@ const ROLES_DEPARTMENT_PLUS = ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADM
 // lớp phân quyền (đó là authz.ts 9 bước ở server, hệ role R.* riêng biệt
 // hoàn toàn với hệ role này — xem plan Phase 1 §0).
 const ROLES_SAFETY_STAFF = ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'DEPARTMENT_HEAD', 'TEACHER', 'HOMEROOM'];
+// Cùng tinh thần ROLES_SAFETY_STAFF — module Lịch công tác cũng dùng hệ
+// role R.* riêng (work-schedule.authz.ts), gate này chỉ advisory nav/route.
+const ROLES_WORK_SCHEDULE_STAFF = ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'DEPARTMENT_HEAD', 'TEACHER', 'HOMEROOM'];
 
 export function App() {
   return (
@@ -79,6 +85,12 @@ export function App() {
       <Route path="/safety/incidents" element={p(<IncidentsListPage />, ROLES_SAFETY_STAFF)} />
       <Route path="/safety/incidents/:id" element={p(<IncidentDetailPage />, ROLES_SAFETY_STAFF)} />
       <Route path="/safety/cockpit" element={p(<EmergencyCockpitPage />, ROLES_SAFETY_STAFF)} />
+      {/* Module Lịch công tác và Giao việc — hệ quyền R.* riêng
+          (work-schedule.authz.ts), khớp thiết kế của Mr Tiến (nguyên văn
+          trong TICH_HOP_MODULE_LICH_CONG_TAC.md). Gate advisory only. */}
+      <Route path="/work-schedule" element={p(<EventsListPage />, ROLES_WORK_SCHEDULE_STAFF)} />
+      <Route path="/work-schedule/tasks" element={p(<TasksListPage />, ROLES_WORK_SCHEDULE_STAFF)} />
+      <Route path="/work-schedule/approvals" element={p(<ApprovalCenterPage />, ROLES_WORK_SCHEDULE_STAFF)} />
       <Route path="/today" element={p(<TodayPage />)} />
       <Route path="/classes" element={p(<ClassesPage />)} />
       <Route path="/classroom" element={p(<ClassroomPage />)} />
