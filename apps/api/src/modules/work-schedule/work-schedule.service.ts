@@ -17,7 +17,7 @@
  *   - Migrate dữ liệu thật từ data_only.sql.
  */
 
-import { and, eq, inArray, type SQL } from 'drizzle-orm';
+import { and, desc, eq, inArray, type SQL } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import {
   ltcEvents,
@@ -413,4 +413,26 @@ export async function listTasks(db: Db, filter: { campusId?: string; assigneePer
   if (filter.statuses?.length) conditions.push(inArray(ltcTasks.status, filter.statuses));
   if (!conditions.length) return db.select().from(ltcTasks);
   return db.select().from(ltcTasks).where(and(...conditions));
+}
+
+// ---------------------------------------------------------------------
+// Nhật ký kiểm toán (ltc_audit_logs) — CHỈ đọc, ghi đã có sẵn trong mọi
+// hàm đổi trạng thái ở trên (`writeAuditLog`). Trước đây KHÔNG có route
+// HTTP nào đọc lại bảng này — bổ sung để frontend hiển thị panel lịch sử.
+// ---------------------------------------------------------------------
+
+export interface GetAuditLogsFilter {
+  entityType?: string;
+  entityId?: string;
+  limit?: number;
+}
+
+export async function getAuditLogs(db: Db, filter: GetAuditLogsFilter = {}) {
+  const conditions: SQL[] = [];
+  if (filter.entityType) conditions.push(eq(ltcAuditLogs.entityType, filter.entityType));
+  if (filter.entityId) conditions.push(eq(ltcAuditLogs.entityId, filter.entityId));
+  const limit = filter.limit && filter.limit > 0 ? Math.min(filter.limit, 200) : 50;
+  const base = db.select().from(ltcAuditLogs);
+  const query = conditions.length ? base.where(and(...conditions)) : base;
+  return query.orderBy(desc(ltcAuditLogs.createdAt)).limit(limit);
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Alert,
   Box,
@@ -23,16 +23,20 @@ import {
   TableHead,
   TableRow,
   TextField,
+  Tooltip,
   Typography
 } from '@mui/material';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutlineRounded';
 import EventIcon from '@mui/icons-material/EventRounded';
+import FileDownloadIcon from '@mui/icons-material/FileDownloadRounded';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
+import { env } from '../../config/env';
 import { useEvents, type WorkEvent } from './hooks/useEvents';
 import { useActor } from './hooks/useActor';
 import { PeopleMultiPicker } from './components/PeopleMultiPicker';
-import type { PersonOption } from '../safety/PersonPicker';
+import { PersonPicker, type PersonOption } from '../safety/PersonPicker';
+import { AuditTrailPanel } from './AuditTrailPanel';
 import {
   CAMPUS_IDS,
   CAMPUS_LABEL,
@@ -75,11 +79,33 @@ const STATUS_FILTER_OPTIONS = ['DRAFT', 'PENDING_APPROVAL', 'PUBLISHED', 'REVISI
 export default function EventsListPage() {
   const [campusFilter, setCampusFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [searchText, setSearchText] = useState('');
+  const [personFilter, setPersonFilter] = useState<PersonOption | null>(null);
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
   const { items, loading, error, refetch } = useEvents({
     campusId: campusFilter || undefined,
     statuses: statusFilter ? [statusFilter] : undefined
   });
   const { actor, hasRole } = useActor();
+
+  // Lọc thêm ở client (tìm theo tên/username người + khoảng ngày) — KHÔNG
+  // đụng `useEvents.ts`/route GET /events (server chỉ lọc cơ sở/trạng
+  // thái, đủ cho quy mô 1 trường). Tìm theo tên: gõ tiêu đề TRỰC TIẾP,
+  // hoặc chọn đúng 1 người qua `PersonPicker` (khớp chủ trì/thành phần).
+  const filteredItems = useMemo(() => {
+    const text = searchText.trim().toLowerCase();
+    const from = fromDate ? new Date(fromDate).getTime() : null;
+    const to = toDate ? new Date(toDate).getTime() : null;
+    return items.filter((ev) => {
+      if (text && !ev.title.toLowerCase().includes(text)) return false;
+      if (personFilter && ev.chairPerId !== personFilter.perId && !ev.participantPerIds.includes(personFilter.perId)) return false;
+      const startMs = new Date(ev.startAt).getTime();
+      if (from !== null && startMs < from) return false;
+      if (to !== null && startMs > to) return false;
+      return true;
+    });
+  }, [items, searchText, personFilter, fromDate, toDate]);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [detail, setDetail] = useState<WorkEvent | null>(null);
@@ -162,19 +188,55 @@ export default function EventsListPage() {
         subtitle="Lịch họp/công tác của trường — dự thảo, chờ duyệt, đã ban hành"
         icon={<EventIcon />}
         action={
-          <Button
-            variant="contained"
-            startIcon={<AddCircleOutlineIcon />}
-            onClick={() => setCreateOpen(true)}
-            sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' }, textTransform: 'none', fontWeight: 700 }}
-          >
-            Tạo lịch
-          </Button>
+          <Stack direction="row" spacing={1}>
+            <Button
+              variant="outlined"
+              startIcon={<FileDownloadIcon />}
+              component="a"
+              href={`${(env.VITE_API_BASE_URL || '').replace(/\/+$/, '')}/api/work-schedule/calendar.ics${campusFilter ? `?campusId=${campusFilter}` : ''}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              sx={{ textTransform: 'none', fontWeight: 600 }}
+            >
+              Xuất .ics
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<AddCircleOutlineIcon />}
+              onClick={() => setCreateOpen(true)}
+              sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' }, textTransform: 'none', fontWeight: 700 }}
+            >
+              Tạo lịch
+            </Button>
+          </Stack>
         }
       />
 
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2 }}>
-        <TextField select label="Cơ sở" value={campusFilter} onChange={(e) => setCampusFilter(e.target.value)} sx={{ minWidth: 200 }}>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2 }} useFlexGap flexWrap="wrap">
+        <TextField
+          label="Tìm theo tiêu đề"
+          value={searchText}
+          onChange={(e) => setSearchText(e.target.value)}
+          sx={{ minWidth: 200 }}
+        />
+        <PersonPicker label="Người tham gia (username)" value={personFilter} onChange={setPersonFilter} />
+        <TextField
+          label="Từ ngày"
+          type="date"
+          value={fromDate}
+          onChange={(e) => setFromDate(e.target.value)}
+          slotProps={{ inputLabel: { shrink: true } }}
+          sx={{ minWidth: 160 }}
+        />
+        <TextField
+          label="Đến ngày"
+          type="date"
+          value={toDate}
+          onChange={(e) => setToDate(e.target.value)}
+          slotProps={{ inputLabel: { shrink: true } }}
+          sx={{ minWidth: 160 }}
+        />
+        <TextField select label="Cơ sở" value={campusFilter} onChange={(e) => setCampusFilter(e.target.value)} sx={{ minWidth: 180 }}>
           <MenuItem value="">Tất cả</MenuItem>
           {CAMPUS_IDS.map((c) => (
             <MenuItem key={c} value={c}>
@@ -182,7 +244,7 @@ export default function EventsListPage() {
             </MenuItem>
           ))}
         </TextField>
-        <TextField select label="Trạng thái" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} sx={{ minWidth: 200 }}>
+        <TextField select label="Trạng thái" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} sx={{ minWidth: 180 }}>
           <MenuItem value="">Tất cả</MenuItem>
           {STATUS_FILTER_OPTIONS.map((s) => (
             <MenuItem key={s} value={s}>
@@ -206,14 +268,14 @@ export default function EventsListPage() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {!loading && items.length === 0 && (
+            {!loading && filteredItems.length === 0 && (
               <TableRow>
                 <TableCell colSpan={5} align="center" sx={{ py: 4, color: 'text.secondary' }}>
-                  Không có lịch nào.
+                  Không có lịch nào khớp bộ lọc.
                 </TableCell>
               </TableRow>
             )}
-            {items.map((ev) => (
+            {filteredItems.map((ev) => (
               <TableRow key={ev.id} hover sx={{ cursor: 'pointer' }} onClick={() => setDetail(ev)}>
                 <TableCell>{ev.title}</TableCell>
                 <TableCell>{CAMPUS_LABEL[ev.campusId] || ev.campusId}</TableCell>
@@ -222,7 +284,9 @@ export default function EventsListPage() {
                 <TableCell>
                   <EventStatusChip status={ev.status} />
                   {ev.conflictNote && (
-                    <Chip size="small" label="Trùng lịch" sx={{ ml: 1, bgcolor: '#fef2f2', color: '#dc2626', fontWeight: 700 }} />
+                    <Tooltip title={ev.conflictNote}>
+                      <Chip size="small" label="Trùng lịch" sx={{ ml: 1, bgcolor: '#fef2f2', color: '#dc2626', fontWeight: 700 }} />
+                    </Tooltip>
                   )}
                 </TableCell>
               </TableRow>
@@ -422,6 +486,8 @@ export function EventDetailDialog({
               Đã duyệt: {event.approvals.map((a) => `${a.role === 'R.VICE_PRINCIPAL' ? 'Hiệu phó' : 'Hiệu trưởng'}`).join(', ')}
             </Alert>
           )}
+
+          <AuditTrailPanel entityType="event" entityId={event.id} />
         </Stack>
       </DialogContent>
       <DialogActions sx={{ flexWrap: 'wrap', gap: 1 }}>
