@@ -40,7 +40,17 @@ const schema = z.object({
   // Cloud Storage bucket cho kho minh chứng (S8, module An toàn) — rỗng =
   // để firebase-admin tự suy bucket mặc định theo PROJECT_ID (đúng hành vi
   // gốc, KHÔNG hard-code tên bucket).
-  EVIDENCE_STORAGE_BUCKET: z.string().default('')
+  EVIDENCE_STORAGE_BUCKET: z.string().default(''),
+
+  // Cờ AN NINH — bật mới cho phép bearer token `dev:<email>:<role>` bỏ qua
+  // xác thực Firebase thật (xem auth/middleware.ts). Mặc định TẮT (false)
+  // — PHẢI để tắt ở production, chỉ bật thủ công (=true) trên máy dev/CI.
+  // Nếu bật nhầm ở production, bất kỳ ai cũng đăng nhập giả mạo được bằng
+  // cách tự gửi header này, không cần mật khẩu/tài khoản Google thật.
+  ALLOW_DEV_AUTH_BYPASS: z
+    .string()
+    .default('false')
+    .transform((v) => v.toLowerCase() === 'true')
 });
 
 export const env = schema.parse(process.env);
