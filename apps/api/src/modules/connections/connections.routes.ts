@@ -452,8 +452,185 @@ connectionsRouter.post(
       await col('courses').doc(c.id).set(c, { merge: true });
     }
 
+    // --- Mở rộng demo-seed (10/09/2026): trước đây CHỈ nạp `courses`, mọi
+    // trang khác (Học sinh/Giáo viên/Lớp/Điểm danh/TKB/Cảnh báo/Chuẩn hóa
+    // dữ liệu/Audit) vẫn trống vì không có collection nào khác được nạp.
+    // Firestore ở dev local là `localStore.ts` — mock IN-MEMORY THUẦN TÚY,
+    // không ghi file — nên PHẢI nạp qua chính route này (chạy trong tiến
+    // trình server đang sống), không thể nạp bằng script `tsx` riêng (sẽ
+    // ghi vào 1 instance bộ nhớ khác, biến mất ngay khi script thoát).
+    const classDefs = [
+      { classId: '6A1', className: 'Lớp 6A1', grade: 6, subjectId: 'TOAN', subjectName: 'Toán Học', courseId: 'gv-demo-toan-6a1', teacher: { name: 'Nguyễn Văn A', email: 'nguyenvana@thcsgiangvo.edu.vn' } },
+      { classId: '7A2', className: 'Lớp 7A2', grade: 7, subjectId: 'VAN', subjectName: 'Ngữ Văn', courseId: 'gv-demo-van-7a2', teacher: { name: 'Trần Thị B', email: 'tranthib@thcsgiangvo.edu.vn' } },
+      { classId: '8A3', className: 'Lớp 8A3', grade: 8, subjectId: 'ANH', subjectName: 'Tiếng Anh', courseId: 'gv-demo-anh-8a3', teacher: { name: 'Lê Văn C', email: 'levanc@thcsgiangvo.edu.vn' } },
+      { classId: '6A2', className: 'Lớp 6A2', grade: 6, subjectId: 'TIN', subjectName: 'Tin Học', courseId: 'gv-demo-tin-6a2', teacher: { name: 'Phạm Thị D', email: 'phamthid@thcsgiangvo.edu.vn' } }
+    ];
+    const studentFirstNames = ['An', 'Bình', 'Chi', 'Dũng', 'Giang', 'Hà', 'Khôi', 'Linh', 'Minh', 'Nam'];
+    const studentLastNames = ['Nguyễn', 'Trần', 'Lê', 'Phạm', 'Hoàng', 'Vũ', 'Đặng', 'Bùi'];
+    const now = new Date();
+    const nowIso = now.toISOString();
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+
+    let peopleCount = 0;
+    for (const cd of classDefs) {
+      const teacherId = `demo-teacher-${cd.classId.toLowerCase()}`;
+      await col('people').doc(teacherId).set({
+        personType: 'TEACHER',
+        displayName: cd.teacher.name,
+        name: cd.teacher.name,
+        email: cd.teacher.email,
+        personId: teacherId,
+        photoUrl: null,
+        orgUnitPath: '/Giáo viên',
+        className: cd.className,
+        classId: cd.classId,
+        courses: [cd.courseId],
+        updatedAt: nowIso
+      }, { merge: true });
+      peopleCount++;
+
+      await col('classes').doc(cd.classId).set({
+        classId: cd.classId,
+        className: cd.className,
+        grade: cd.grade,
+        active: true,
+        homeroomTeacher: cd.teacher.name,
+        courseCount: 1,
+        courses: [cd.courseId],
+        subjects: [cd.subjectName],
+        studentCount: 8,
+        totalCoursework: 10,
+        submissionsTotal: 80,
+        submissionsTurnedIn: 74,
+        completionRate: 92.5,
+        onTimeRate: 88,
+        averageScore: 8.1,
+        expectedStudents: 8,
+        updatedAt: nowIso
+      }, { merge: true });
+
+      for (let i = 0; i < 8; i++) {
+        const sid = `demo-student-${cd.classId.toLowerCase()}-${i + 1}`;
+        const last = studentLastNames[(i + classDefs.indexOf(cd)) % studentLastNames.length];
+        const first = studentFirstNames[i % studentFirstNames.length];
+        await col('people').doc(sid).set({
+          personType: 'STUDENT',
+          displayName: `${last} ${first}`,
+          name: `${last} ${first}`,
+          email: `${sid}@thcsgiangvo.edu.vn`,
+          personId: sid,
+          photoUrl: null,
+          orgUnitPath: '/Học sinh',
+          className: cd.className,
+          classId: cd.classId,
+          courses: [cd.courseId],
+          updatedAt: nowIso
+        }, { merge: true });
+        peopleCount++;
+      }
+
+      // Thời khóa biểu: 1 tiết/lớp vào thứ 2 (dayOfWeek=2, theo đúng quy
+      // ước SchedulesPage.tsx: 2=Thứ 2 ... 7=Thứ 7).
+      const periodIdx = classDefs.indexOf(cd);
+      const startHour = 7 + periodIdx;
+      await col('schedules').doc(`demo-sched-${cd.classId.toLowerCase()}`).set({
+        dayOfWeek: 2,
+        period: periodIdx + 1,
+        startTime: `${String(startHour).padStart(2, '0')}:00`,
+        endTime: `${String(startHour).padStart(2, '0')}:45`,
+        classId: cd.classId,
+        className: cd.className,
+        subject: cd.subjectName,
+        teacherEmail: cd.teacher.email,
+        courseId: cd.courseId,
+        meetingCode: null,
+        spaceName: `spaces/demo-${cd.classId.toLowerCase()}`,
+        schoolYear: '2025-2026',
+        semester: 'HK1',
+        expectedStudents: 8,
+        lateMinutes: 10,
+        source: 'MANUAL',
+        createdAt: nowIso,
+        updatedAt: nowIso
+      }, { merge: true });
+
+      // Buổi học hôm nay đã kết thúc, có điểm danh đầy đủ.
+      const present = 6, late = 1, absent = 1;
+      await col('meetSessions').doc(`demo-meet-${cd.classId.toLowerCase()}-${today}`).set({
+        date: today,
+        conferenceName: `spaces/demo-${cd.classId.toLowerCase()}/conferenceRecords/demo`,
+        scheduleId: `demo-sched-${cd.classId.toLowerCase()}`,
+        classId: cd.classId,
+        className: cd.className,
+        subject: cd.subjectName,
+        teacherEmail: cd.teacher.email,
+        onlineStudents: present + late,
+        joinedStudents: present + late,
+        status: 'FINISHED',
+        dataStatus: 'COMPLETE',
+        attendanceStatus: 'COMPLETE',
+        present,
+        late,
+        absent,
+        rosterSize: present + late + absent,
+        attendanceRate: Math.round(((present + late) / (present + late + absent)) * 1000) / 10,
+        lateRate: Math.round((late / (present + late + absent)) * 1000) / 10,
+        updatedAt: nowIso
+      }, { merge: true });
+    }
+
+    // 1 buổi đang diễn ra trực tiếp (cho badge LIVE ở "Hoạt động hôm nay").
+    await col('liveSessions').doc('demo-live-6a1').set({
+      date: today,
+      conferenceName: 'spaces/demo-6a1/conferenceRecords/live-now',
+      classId: '6A1',
+      className: 'Lớp 6A1',
+      subject: 'Toán Học',
+      teacherEmail: 'nguyenvana@thcsgiangvo.edu.vn',
+      onlineStudents: 7,
+      joinedStudents: 7,
+      status: 'LIVE',
+      dataStatus: 'COMPLETE',
+      updatedAt: nowIso
+    }, { merge: true });
+
+    // Cảnh báo mẫu — đa dạng mức độ/loại quy tắc, để trung tâm cảnh báo
+    // không trống khi test.
+    const demoAlerts = [
+      { id: 'demo-alert-inactive-6a2', ruleId: 'RULE_INACTIVE_CLASS', title: 'Lớp 6A2 ít hoạt động gần đây', severity: 'WARNING', category: 'CLASSROOM', targetId: '6A2', targetName: 'Lớp 6A2', classId: '6A2', message: 'Không có bài tập/thông báo mới trong 14 ngày qua.', action: 'Liên hệ giáo viên phụ trách để kiểm tra.' },
+      { id: 'demo-alert-late-7a2', ruleId: 'RULE_SUBMISSION_LATE', title: 'Tỷ lệ nộp bài trễ cao ở 7A2', severity: 'HIGH', category: 'CLASSROOM', targetId: '7A2', targetName: 'Lớp 7A2', classId: '7A2', message: '24/400 bài nộp trễ hạn trong tháng.', action: 'Nhắc nhở học sinh qua GVCN.' },
+      { id: 'demo-alert-absence-8a3', ruleId: 'RULE_ABSENCE_HIGH', title: 'Tỷ lệ vắng mặt bất thường ở 8A3', severity: 'CRITICAL', category: 'CLASSROOM', targetId: '8A3', targetName: 'Lớp 8A3', classId: '8A3', message: 'Vắng mặt vượt ngưỡng cảnh báo trong buổi học hôm nay.', action: 'Xác minh với GVCN và phụ huynh.' }
+    ];
+    for (const a of demoAlerts) {
+      await col('alerts').doc(a.id).set({
+        ...a,
+        resolved: false,
+        status: 'NEW',
+        createdAt: nowIso,
+        updatedAt: nowIso
+      }, { merge: true });
+    }
+
+    // Danh mục chuẩn hóa dữ liệu mẫu.
+    const demoMappings = [
+      { id: 'demo-map-6a1', rawName: '6A1 - Toán', normalizedName: '6A1', type: 'CLASS', grade: 6, subject: 'Toán Học' },
+      { id: 'demo-map-7a2', rawName: '7A2-Van', normalizedName: '7A2', type: 'CLASS', grade: 7, subject: 'Ngữ Văn' }
+    ];
+    for (const m of demoMappings) {
+      await col('catalogMappings').doc(m.id).set({ ...m, updatedAt: nowIso }, { merge: true });
+    }
+
+    // Nhật ký kiểm toán chung mẫu (module Classroom Audit).
+    const demoAudit = [
+      { id: 'demo-audit-1', action: 'classroom.sync_run', actor: 'admin@thcsgiangvo.edu.vn', status: 'SUCCESS', entityType: 'sync', entityId: 'demo-sync-1', message: 'Đồng bộ dữ liệu mẫu (DEMO_SEED)', timestamp: nowIso },
+      { id: 'demo-audit-2', action: 'alert.created', actor: 'SYSTEM', status: 'SUCCESS', entityType: 'alert', entityId: 'demo-alert-absence-8a3', message: 'Cảnh báo vắng mặt bất thường được tạo tự động.', timestamp: nowIso }
+    ];
+    for (const a of demoAudit) {
+      await col('auditLogs').doc(a.id).set(a, { merge: true });
+    }
+
     await col('system').doc('syncStatus').set({
-      lastSyncAt: new Date().toISOString(),
+      lastSyncAt: nowIso,
       mode: 'DEMO_SEED',
       totalCourses: demoCourses.length
     }, { merge: true });
@@ -462,7 +639,7 @@ connectionsRouter.post(
 
     res.json({
       ok: true,
-      message: `Đã nạp thành công ${demoCourses.length} khóa học Google Classroom mẫu chuẩn cho THCS Giảng Võ!`,
+      message: `Đã nạp dữ liệu mẫu đầy đủ: ${demoCourses.length} khóa học, ${peopleCount} người (giáo viên+học sinh), ${classDefs.length} lớp, thời khóa biểu, điểm danh hôm nay, ${demoAlerts.length} cảnh báo, chuẩn hóa danh mục, nhật ký kiểm toán.`,
       count: demoCourses.length
     });
   })
