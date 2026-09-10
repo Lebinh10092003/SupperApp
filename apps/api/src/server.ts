@@ -30,6 +30,7 @@ import { evidenceDownloadRouter } from './modules/safety/evidence-download.route
 import { publicCatalogRouter } from './modules/safety/public-catalog.routes.js';
 import { directoryAssignmentsRouter } from './modules/safety/directory-assignments.routes.js';
 import { zoneAdminRouter } from './modules/safety/zone-admin.routes.js';
+import { meRouter } from './modules/safety/me.routes.js';
 import { workScheduleRouter } from './modules/work-schedule/work-schedule.routes.js';
 import { handleMeetEvent } from './modules/meet/meet.events.js';
 
@@ -95,6 +96,9 @@ app.use('/api/safety', publicCatalogRouter);
 // CRUD dữ liệu nền: lớp->GVCN, khối->giáo viên phụ trách khối, danh bạ liên hệ.
 app.use('/api/safety', directoryAssignmentsRouter);
 app.use('/api/safety', zoneAdminRouter);
+// GET /api/safety/me — actor context (perId/roles/onDutyNow) cho frontend
+// mới ẩn/hiện nút hành động; KHÔNG phải lớp phân quyền (xem me.routes.ts).
+app.use('/api/safety', meRouter);
 
 // Module Lịch công tác và Giao việc (K2: đặt tên "work-schedule" tránh đụng
 // /api/schedules có sẵn — đó là thời khoá biểu lớp học, khác nghiệp vụ).
