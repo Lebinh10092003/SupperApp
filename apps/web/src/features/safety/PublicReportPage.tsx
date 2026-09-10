@@ -91,7 +91,15 @@ export default function PublicReportPage() {
       let evidenceIds: string[] = [];
       if (file) {
         const evidenceId = await uploadOneEvidence(file);
-        if (evidenceId) evidenceIds = [evidenceId];
+        // Tải minh chứng thất bại (mạng lỗi, file bị từ chối, quét virus...) —
+        // DỪNG LẠI và báo rõ, không được âm thầm gửi tin báo thiếu minh chứng
+        // rồi vẫn báo "thành công" như không có gì xảy ra.
+        if (!evidenceId) {
+          setError('Không tải lên được minh chứng đính kèm. Vui lòng thử lại, hoặc bấm "Bỏ file này" để gửi tin báo không kèm minh chứng.');
+          setSubmitting(false);
+          return;
+        }
+        evidenceIds = [evidenceId];
       }
       const baseUrl = (env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
       const r = await fetch(`${baseUrl}/api/safety/reports`, {
@@ -244,16 +252,23 @@ export default function PublicReportPage() {
                   />
                 </Stack>
 
-                <Button component="label" variant="outlined" startIcon={<UploadFileIcon />} sx={{ alignSelf: 'flex-start', textTransform: 'none' }}>
-                  {file ? file.name : 'Đính kèm ảnh/video minh chứng (tuỳ chọn)'}
-                  <input
-                    type="file"
-                    hidden
-                    accept="image/*,video/*,audio/*"
-                    capture="environment"
-                    onChange={(e) => setFile(e.target.files?.[0] || null)}
-                  />
-                </Button>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Button component="label" variant="outlined" startIcon={<UploadFileIcon />} sx={{ alignSelf: 'flex-start', textTransform: 'none' }}>
+                    {file ? file.name : 'Đính kèm ảnh/video minh chứng (tuỳ chọn)'}
+                    <input
+                      type="file"
+                      hidden
+                      accept="image/*,video/*,audio/*"
+                      capture="environment"
+                      onChange={(e) => setFile(e.target.files?.[0] || null)}
+                    />
+                  </Button>
+                  {file && (
+                    <Button size="small" onClick={() => setFile(null)} sx={{ textTransform: 'none', color: '#64748b' }}>
+                      Bỏ file này
+                    </Button>
+                  )}
+                </Stack>
               </Stack>
             )}
 
