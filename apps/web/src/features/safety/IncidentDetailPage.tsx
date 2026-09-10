@@ -5,9 +5,9 @@
  * — route list->detail lồng nhau ĐẦU TIÊN trong app (không có tiền lệ để
  * copy quy ước `useParams`).
  *
- * StatusChip/PriorityChip/ConfidentialityBadge hiện import từ
- * `./temp-chips` (TẠM THỜI) — đổi sang `./components/StatusChip` v.v. (bản
- * thật của Hestia, Chunk A) khi 2 nhánh merge, xem ghi chú ở temp-chips.tsx.
+ * StatusChip/PriorityChip/ConfidentialityBadge import từ `./components/*`
+ * (bản thật, Chunk A/Hestia, PR #12) — trước đó dùng stub `./temp-chips`
+ * tạm thời, đã xoá sau khi Chunk A merge.
  */
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
@@ -31,7 +31,9 @@ import DownloadIcon from '@mui/icons-material/DownloadRounded';
 
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
-import { StatusChip, PriorityChip, ConfidentialityBadge } from './temp-chips';
+import { StatusChip } from './components/StatusChip';
+import { PriorityChip } from './components/PriorityChip';
+import { ConfidentialityBadge } from './components/ConfidentialityBadge';
 import { ChangeStatusDialog, type ChangeStatusTarget } from './dialogs/ChangeStatusDialog';
 import { ChangePriorityDialog, type ChangePriorityTarget } from './dialogs/ChangePriorityDialog';
 import { ReopenIncidentDialog, type ReopenIncidentTarget } from './dialogs/ReopenIncidentDialog';
@@ -46,8 +48,8 @@ interface EvidenceSummary {
 
 interface IncidentDetail {
   incidentId: string;
-  priority: string;
-  confidentiality: string;
+  priority: 'P0' | 'P1' | 'P2' | 'P3';
+  confidentiality: 'C1' | 'C2' | 'C3' | 'C4';
   state: string;
   campusId: string;
   redacted?: boolean;
@@ -305,7 +307,7 @@ export default function IncidentDetailPage() {
       <ChangePriorityDialog
         target={priorityTarget}
         onClose={() => setPriorityTarget(null)}
-        onChanged={(result) => setIncident((prev) => (prev ? { ...prev, priority: result.priority } : prev))}
+        onChanged={(result) => setIncident((prev) => (prev ? { ...prev, priority: result.priority as IncidentDetail['priority'] } : prev))}
       />
       <ReopenIncidentDialog target={reopenTarget} onClose={() => setReopenTarget(null)} onChanged={() => load()} />
       <AssignCommanderDialog target={commanderTarget} onClose={() => setCommanderTarget(null)} onChanged={() => load()} />
