@@ -1,0 +1,60 @@
+# Template Nginx cho triển khai 1 VPS / 1 trường (single-tenant per
+# deployment — xem SUPERAPP_MIGRATION_COORDINATION/DECISIONS.md).
+#
+# Cách dùng:
+#   1. Thay YOUR_DOMAIN bằng domain thật (VD app.thcsgiangvo.edu.vn).
+#   2. Copy file này (bỏ đuôi .example) vào /etc/nginx/sites-available/,
+#      symlink sang /etc/nginx/sites-enabled/, `nginx -t` rồi reload.
+#   3. Chạy certbot SAU KHI site đã bật ở cổng 80 (certbot cần domain trỏ
+#      đúng IP + Nginx đang chạy để verify) — certbot sẽ tự thêm block 443
+#      + chứng chỉ, không cần tự viết block HTTPS tay ở đây.
+#
+# Không có gì trong repo tự động render/deploy file này — đây là điểm bắt
+# đầu để chỉnh tay theo domain/đường dẫn thật của bạn.
+
+server {
+    listen 80;
+    server_name YOUR_DOMAIN;
+
+    # Static frontend đã build (`cd apps/web && npm run build` → dist/).
+    root /var/www/superapp/apps/web/dist;
+    index index.html;
+
+    # React Router: mọi route không khớp file tĩnh đều trả về index.html,
+    # để react-router-dom tự xử lý phía client (khớp `rewrites` trong
+    # firebase.json cũ, nếu sau này đổi lại dùng Firebase Hosting).
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Cache dài hạn cho asset đã hash tên file (Vite build ra tên kèm hash).
+    location /assets/ {
+        add_header Cache-Control "public, max-age=31536000, immutable";
+    }
+
+    # Reverse-proxy toàn bộ /api/* sang Express (apps/api), mặc định lắng
+    # cổng 8080 — đổi lại nếu PORT trong .env production khác 8080.
+    location /api/ {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        # Upload minh chứng (evidence.routes.ts, 1 file/request) — trần
+        # thật là video 50MB (EVIDENCE_LIMITS.MAX_SIZE_BYTES.video trong
+        # catalog.ts), nới quá mức mặc định 1m của Nginx để không chặn
+        # nhầm trước khi tới được validate thật ở tầng ứng dụng.
+        client_max_body_size 55m;
+    }
+
+    # Health check — không cần proxy qua /api, /health mount thẳng gốc.
+    location /health {
+        proxy_pass http://127.0.0.1:8080;
+    }
+
+    # Header an ninh cơ bản, khớp header đã có sẵn ở firebase.json cũ.
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+}
