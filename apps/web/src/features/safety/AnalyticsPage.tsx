@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   Alert,
   Box,
+  Button,
   Chip,
   MenuItem,
   Paper,
@@ -156,26 +157,45 @@ function CampusComparisonPanel() {
 
 function ClassStatsPanel() {
   const [campusId, setCampusId] = useState('MAIN_CAMPUS');
+  const [reason, setReason] = useState('');
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState('');
 
-  useEffect(() => {
+  const load = () => {
+    const qs = reason.trim() ? `&reason=${encodeURIComponent(reason.trim())}` : '';
     api
-      .get(`/api/safety/stats/classes?campusId=${encodeURIComponent(campusId)}`)
-      .then(setData)
+      .get(`/api/safety/stats/classes?campusId=${encodeURIComponent(campusId)}${qs}`)
+      .then((d) => {
+        setData(d);
+        setError('');
+      })
       .catch((e: any) => setError(e.message || 'Không tải được thống kê theo lớp.'));
-  }, [campusId]);
+  };
+
+  useEffect(load, [campusId]);
 
   return (
     <Box>
-      <TextField select size="small" label="Cơ sở" value={campusId} onChange={(e) => setCampusId(e.target.value)} sx={{ minWidth: 200, mb: 2 }}>
-        {CAMPUS_IDS.map((c) => (
-          <MenuItem key={c} value={c}>
-            {CAMPUS_LABEL[c]}
-          </MenuItem>
-        ))}
-      </TextField>
-      {error && <Alert severity="error">{error}</Alert>}
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2 }} alignItems={{ sm: 'flex-end' }}>
+        <TextField select size="small" label="Cơ sở" value={campusId} onChange={(e) => setCampusId(e.target.value)} sx={{ minWidth: 200 }}>
+          {CAMPUS_IDS.map((c) => (
+            <MenuItem key={c} value={c}>
+              {CAMPUS_LABEL[c]}
+            </MenuItem>
+          ))}
+        </TextField>
+        <TextField
+          size="small"
+          label="Lý do xem (bắt buộc với Trực ban/Tổ trưởng)"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          sx={{ minWidth: 280, flex: 1 }}
+        />
+        <Button variant="outlined" size="small" onClick={load} sx={{ height: 40 }}>
+          Xem
+        </Button>
+      </Stack>
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {data && (
         <TableContainer component={Paper} sx={{ borderRadius: 2, border: '1px solid #e2e8f0', boxShadow: 'none' }}>
           <Table size="small">

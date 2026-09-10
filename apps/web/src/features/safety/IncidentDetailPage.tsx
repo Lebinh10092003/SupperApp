@@ -28,6 +28,7 @@ import PriorityHighIcon from '@mui/icons-material/PriorityHighRounded';
 import RestartAltIcon from '@mui/icons-material/RestartAltRounded';
 import PersonAddAlt1Icon from '@mui/icons-material/PersonAddAlt1Rounded';
 import DownloadIcon from '@mui/icons-material/DownloadRounded';
+import EditIcon from '@mui/icons-material/EditRounded';
 
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
@@ -38,6 +39,7 @@ import { ChangeStatusDialog, type ChangeStatusTarget } from './dialogs/ChangeSta
 import { ChangePriorityDialog, type ChangePriorityTarget } from './dialogs/ChangePriorityDialog';
 import { ReopenIncidentDialog, type ReopenIncidentTarget } from './dialogs/ReopenIncidentDialog';
 import { AssignCommanderDialog, type AssignCommanderTarget } from './dialogs/AssignCommanderDialog';
+import { CorrectClassificationDialog, type CorrectClassificationTarget } from './dialogs/CorrectClassificationDialog';
 
 interface EvidenceSummary {
   evidenceId: string;
@@ -90,6 +92,7 @@ export default function IncidentDetailPage() {
   const [statusTarget, setStatusTarget] = useState<ChangeStatusTarget | null>(null);
   const [priorityTarget, setPriorityTarget] = useState<ChangePriorityTarget | null>(null);
   const [reopenTarget, setReopenTarget] = useState<ReopenIncidentTarget | null>(null);
+  const [classificationTarget, setClassificationTarget] = useState<CorrectClassificationTarget | null>(null);
   const [commanderTarget, setCommanderTarget] = useState<AssignCommanderTarget | null>(null);
 
   const load = () => {
@@ -293,6 +296,14 @@ export default function IncidentDetailPage() {
         >
           Chỉ định chỉ huy
         </Button>
+        <Button
+          variant="outlined"
+          startIcon={<EditIcon />}
+          onClick={() => setClassificationTarget({ incidentId: incident.incidentId, currentClassName: incident.className || null })}
+          sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
+        >
+          Sửa lớp liên quan
+        </Button>
       </Stack>
 
       <ChangeStatusDialog
@@ -307,6 +318,7 @@ export default function IncidentDetailPage() {
       />
       <ReopenIncidentDialog target={reopenTarget} onClose={() => setReopenTarget(null)} onChanged={() => load()} />
       <AssignCommanderDialog target={commanderTarget} onClose={() => setCommanderTarget(null)} onChanged={() => load()} />
+      <CorrectClassificationDialog target={classificationTarget} onClose={() => setClassificationTarget(null)} onChanged={() => load()} />
     </Box>
   );
 }
