@@ -42,6 +42,10 @@ import CompareArrowsIcon from '@mui/icons-material/CompareArrowsRounded';
 import LinkIcon from '@mui/icons-material/LinkRounded';
 import HistoryIcon from '@mui/icons-material/HistoryRounded';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHighRounded';
+import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined';
+import PendingActionsIcon from '@mui/icons-material/PendingActionsRounded';
+import ListAltIcon from '@mui/icons-material/ListAltRounded';
+import WarningAmberIcon from '@mui/icons-material/WarningAmberRounded';
 
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
@@ -172,6 +176,36 @@ const navGroups: NavGroup[] = [
         label: 'Tình trạng hệ thống',
         icon: <SystemIcon fontSize="small" />,
         roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN']
+      }
+    ]
+  },
+  {
+    groupTitle: 'AN TOÀN TRƯỜNG HỌC',
+    items: [
+      {
+        path: '/safety',
+        label: 'Tổng quan An toàn',
+        icon: <ShieldOutlinedIcon fontSize="small" />,
+        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'DEPARTMENT_HEAD', 'TEACHER', 'HOMEROOM']
+      },
+      {
+        path: '/safety/reports/pending',
+        label: 'Tin báo chờ xử lý',
+        icon: <PendingActionsIcon fontSize="small" />,
+        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'DEPARTMENT_HEAD', 'TEACHER', 'HOMEROOM']
+      },
+      {
+        path: '/safety/incidents',
+        label: 'Hồ sơ sự cố',
+        icon: <ListAltIcon fontSize="small" />,
+        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'DEPARTMENT_HEAD', 'TEACHER', 'HOMEROOM']
+      },
+      {
+        path: '/safety/cockpit',
+        label: 'Cần xử lý ngay',
+        icon: <WarningAmberIcon fontSize="small" />,
+        badge: 'P0/P1',
+        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'DEPARTMENT_HEAD', 'TEACHER', 'HOMEROOM']
       }
     ]
   }

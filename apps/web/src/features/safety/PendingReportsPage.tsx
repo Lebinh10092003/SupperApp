@@ -4,13 +4,20 @@ import {
   Box,
   Button,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  MenuItem,
   Paper,
+  Stack,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
+  TextField,
   Typography
 } from '@mui/material';
 import ReportProblemIcon from '@mui/icons-material/ReportProblemRounded';
@@ -29,12 +36,16 @@ interface PendingReportItem {
   redacted: boolean;
 }
 
+const PRIORITY_OPTIONS = ['P0', 'P1', 'P2', 'P3'];
+
 export default function PendingReportsPage() {
   const [items, setItems] = useState<PendingReportItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [creatingId, setCreatingId] = useState<string | null>(null);
   const [toast, setToast] = useState('');
+  const [priorityTarget, setPriorityTarget] = useState<PendingReportItem | null>(null);
+  const [priorityChoice, setPriorityChoice] = useState('');
 
   const load = () => {
     setLoading(true);
@@ -49,11 +60,21 @@ export default function PendingReportsPage() {
     load();
   }, []);
 
-  const handleCreateIncident = async (reportId: string) => {
-    setCreatingId(reportId);
+  // POST /api/safety/incidents BẮT BUỘC có `priority` khi tạo hồ sơ mới
+  // (không phải nhánh gộp vào hồ sơ có sẵn) — xem report-flow.ts
+  // `createIncidentFromReport`. Mở dialog chọn mức thay vì đoán/hardcode.
+  const openPriorityDialog = (item: PendingReportItem) => {
+    setPriorityTarget(item);
+    setPriorityChoice(item.stillDangerous ? 'P0' : '');
+  };
+
+  const handleCreateIncident = async () => {
+    if (!priorityTarget || !priorityChoice) return;
+    setCreatingId(priorityTarget.reportId);
     try {
-      await api.post('/api/safety/incidents', { reportId });
+      await api.post('/api/safety/incidents', { reportId: priorityTarget.reportId, priority: priorityChoice });
       setToast('Đã chuyển tin báo thành hồ sơ sự cố.');
+      setPriorityTarget(null);
       load();
     } catch (e: any) {
       setError(e.message || 'Chuyển thành hồ sơ thất bại.');
@@ -107,7 +128,7 @@ export default function PendingReportsPage() {
                     size="small"
                     variant="contained"
                     disabled={creatingId === it.reportId}
-                    onClick={() => handleCreateIncident(it.reportId)}
+                    onClick={() => openPriorityDialog(it)}
                     sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' }, textTransform: 'none' }}
                   >
                     Chuyển thành hồ sơ
@@ -118,6 +139,30 @@ export default function PendingReportsPage() {
           </TableBody>
         </Table>
       </TableContainer>
+
+      <Dialog open={Boolean(priorityTarget)} onClose={() => setPriorityTarget(null)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>Chuyển thành hồ sơ sự cố</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <Typography variant="body2" color="text.secondary">
+              Chọn mức ưu tiên xử lý cho hồ sơ mới ({priorityTarget?.publicCode}):
+            </Typography>
+            <TextField select label="Mức ưu tiên *" value={priorityChoice} onChange={(e) => setPriorityChoice(e.target.value)} fullWidth>
+              {PRIORITY_OPTIONS.map((p) => (
+                <MenuItem key={p} value={p}>
+                  {p}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPriorityTarget(null)}>Hủy</Button>
+          <Button variant="contained" onClick={handleCreateIncident} disabled={!priorityChoice || creatingId === priorityTarget?.reportId}>
+            Tạo hồ sơ
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

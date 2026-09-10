@@ -30,6 +30,11 @@ import CatalogMappingPage from "../features/catalog/CatalogMappingPage";
 import ClassroomAuditPage from "../features/audit/ClassroomAuditPage";
 import IncidentDetailPage from "../features/safety/IncidentDetailPage";
 import EmergencyCockpitPage from "../features/safety/EmergencyCockpitPage";
+import PublicReportPage from "../features/safety/PublicReportPage";
+import PublicLookupPage from "../features/safety/PublicLookupPage";
+import SafetyDashboardPage from "../features/safety/SafetyDashboardPage";
+import PendingReportsPage from "../features/safety/PendingReportsPage";
+import IncidentsListPage from "../features/safety/IncidentsListPage";
 
 const p = (x: ReactNode, allowedRoles?: string[]) => (
   <ProtectedRoute>
@@ -43,6 +48,10 @@ const ROLES_SUPER = ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN'];
 const ROLES_LEADERSHIP = ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL'];
 const ROLES_ADMIN_PLUS = ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL'];
 const ROLES_DEPARTMENT_PLUS = ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'DEPARTMENT_HEAD'];
+// "Ai plausibly là nhân viên" — advisory only, nav/route-level, KHÔNG phải
+// lớp phân quyền (đó là authz.ts 9 bước ở server, hệ role R.* riêng biệt
+// hoàn toàn với hệ role này — xem plan Phase 1 §0).
+const ROLES_SAFETY_STAFF = ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'DEPARTMENT_HEAD', 'TEACHER', 'HOMEROOM'];
 
 export function App() {
   return (
@@ -57,12 +66,19 @@ export function App() {
       <Route path="/connections" element={p(<GoogleConnectionPage />, ROLES_LEADERSHIP)} />
       <Route path="/catalog/mapping" element={p(<CatalogMappingPage />, ROLES_LEADERSHIP)} />
       <Route path="/audit/classroom" element={p(<ClassroomAuditPage />, ROLES_ADMIN_PLUS)} />
-      {/* Module An toàn trường học — hệ quyền R.* (16 role) tách biệt hệ
-          role app-level dùng ở p(...)/allowedRoles, nên KHÔNG áp allowedRoles
-          ở đây; phân quyền thật nằm ở authz.ts (server) + GET /api/safety/me
-          (ẩn/hiện nút, không phải lớp chặn). */}
-      <Route path="/safety/incidents/:id" element={p(<IncidentDetailPage />)} />
-      <Route path="/safety/cockpit" element={p(<EmergencyCockpitPage />)} />
+      {/* Module An toàn trường học — hệ quyền R.* (16 role) tách biệt hoàn
+          toàn hệ role app-level dùng ở ROLES_SAFETY_STAFF/allowedRoles,
+          nên gate này CHỈ advisory (ẩn/hiện nav+route); phân quyền thật
+          luôn nằm ở authz.ts 9 bước (server) + GET /api/safety/me (ẩn/hiện
+          nút hành động, không phải lớp chặn) — xem plan Phase 1 §0. 2 route
+          công khai (report/lookup) KHÔNG qua p(), giống /login. */}
+      <Route path="/safety/report" element={<PublicReportPage />} />
+      <Route path="/safety/lookup" element={<PublicLookupPage />} />
+      <Route path="/safety" element={p(<SafetyDashboardPage />, ROLES_SAFETY_STAFF)} />
+      <Route path="/safety/reports/pending" element={p(<PendingReportsPage />, ROLES_SAFETY_STAFF)} />
+      <Route path="/safety/incidents" element={p(<IncidentsListPage />, ROLES_SAFETY_STAFF)} />
+      <Route path="/safety/incidents/:id" element={p(<IncidentDetailPage />, ROLES_SAFETY_STAFF)} />
+      <Route path="/safety/cockpit" element={p(<EmergencyCockpitPage />, ROLES_SAFETY_STAFF)} />
       <Route path="/today" element={p(<TodayPage />)} />
       <Route path="/classes" element={p(<ClassesPage />)} />
       <Route path="/classroom" element={p(<ClassroomPage />)} />
