@@ -47,6 +47,7 @@ import PendingActionsIcon from '@mui/icons-material/PendingActionsRounded';
 import ListAltIcon from '@mui/icons-material/ListAltRounded';
 import WarningAmberIcon from '@mui/icons-material/WarningAmberRounded';
 import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
+import InsightsRoundedIcon from '@mui/icons-material/InsightsRounded';
 
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
@@ -213,6 +214,12 @@ const navGroups: NavGroup[] = [
         path: '/safety/audit-logs',
         label: 'Nhật ký kiểm toán',
         icon: <HistoryIcon fontSize="small" />,
+        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'DEPARTMENT_HEAD']
+      },
+      {
+        path: '/safety/analytics',
+        label: 'Phân tích & thống kê',
+        icon: <InsightsRoundedIcon fontSize="small" />,
         roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'DEPARTMENT_HEAD']
       }
     ]
