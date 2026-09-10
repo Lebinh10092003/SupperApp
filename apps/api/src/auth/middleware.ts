@@ -3,7 +3,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { adminAuth, col } from '../core/firebase.js';
 import { HttpError } from '../core/http.js';
 import { can, type Capability, type Role, type UserScope } from './roles.js';
-import { bootstrapSuperAdminEmails, bootstrapSuperAdminDomains } from '../config/env.js';
+import { bootstrapSuperAdminEmails, bootstrapSuperAdminDomains, env } from '../config/env.js';
 
 export interface AppUser {
   uid: string;
@@ -38,8 +38,11 @@ export async function firebaseAuth(req: Request, _res: Response, next: NextFunct
     }
     const token = h.slice(7);
 
-    // Support dev tokens in local development
-    if (token.startsWith('dev:')) {
+    // Bearer `dev:<email>:<role>` bỏ qua xác thực Firebase thật — CHỈ hoạt
+    // động khi ALLOW_DEV_AUTH_BYPASS=true (mặc định false, xem config/env.ts).
+    // Token dạng này gửi vào production (cờ tắt) sẽ rơi thẳng xuống nhánh
+    // verifyIdToken bên dưới và bị Firebase từ chối như token thật không hợp lệ.
+    if (env.ALLOW_DEV_AUTH_BYPASS && token.startsWith('dev:')) {
       const parts = token.split(':');
       const email = (parts[1] || '09.levanbinh2003@gmail.com').toLowerCase();
       const role = (parts[2] as Role) || (isBootstrapSuperAdmin(email) ? 'SYSTEM_SUPER_ADMIN' : 'SCHOOL_ADMIN');
@@ -53,7 +56,9 @@ export async function firebaseAuth(req: Request, _res: Response, next: NextFunct
       return next();
     }
 
-    const d = await adminAuth.verifyIdToken(token);
+    const d = await adminAuth.verifyIdToken(token).catch(() => {
+      throw new HttpError(401, 'Phiên đăng nhập không hợp lệ hoặc đã hết hạn', 'AUTH_ERROR');
+    });
     const email = (d.email || '').toLowerCase();
     const userRef = col('users').doc(d.uid);
     const s = await userRef.get();
