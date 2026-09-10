@@ -37,7 +37,6 @@ import PendingReportsPage from "../features/safety/PendingReportsPage";
 import IncidentsListPage from "../features/safety/IncidentsListPage";
 import AuditLogPage from "../features/safety/AuditLogPage";
 import AnalyticsPage from "../features/safety/AnalyticsPage";
-import ZoneAdminPage from "../features/safety/ZoneAdminPage";
 import EventsListPage from "../features/work-schedule/EventsListPage";
 import TasksListPage from "../features/work-schedule/TasksListPage";
 import ApprovalCenterPage from "../features/work-schedule/ApprovalCenterPage";
@@ -91,7 +90,6 @@ export function App() {
       <Route path="/safety/cockpit" element={p(<EmergencyCockpitPage />, ROLES_SAFETY_STAFF)} />
       <Route path="/safety/audit-logs" element={p(<AuditLogPage />, ROLES_SAFETY_STAFF)} />
       <Route path="/safety/analytics" element={p(<AnalyticsPage />, ROLES_SAFETY_STAFF)} />
-      <Route path="/safety/zone-admin" element={p(<ZoneAdminPage />, ROLES_SAFETY_STAFF)} />
       {/* Module Lịch công tác và Giao việc — hệ quyền R.* riêng
           (work-schedule.authz.ts), khớp thiết kế của Mr Tiến (nguyên văn
           trong TICH_HOP_MODULE_LICH_CONG_TAC.md). Gate advisory only. */}

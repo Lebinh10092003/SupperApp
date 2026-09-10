@@ -173,8 +173,6 @@ safetyQueryRouter.get(
       occurredFrom: r.occurredFrom,
       occurredTo: r.occurredTo,
       channel: r.channel,
-      zoneIds: r.zoneIds || (r.zoneId ? [r.zoneId] : []),
-      suggestedZoneIds: r.suggestedZoneIds || [],
       className: r.className,
       suggestedClassNames: r.suggestedClassNames || [],
       redacted: false as boolean,
@@ -198,8 +196,6 @@ safetyQueryRouter.get(
         it.content = '';
         it.className = null;
         it.suggestedClassNames = [];
-        it.zoneIds = [];
-        it.suggestedZoneIds = [];
         it.redacted = true;
       }
       it.canViewEvidence = canViewEvidence(actor, { campus_id: it.campusId, confidentiality: it.confidentiality });

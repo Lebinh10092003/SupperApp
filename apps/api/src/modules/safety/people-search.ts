@@ -11,7 +11,7 @@
 
 import { inArray } from 'drizzle-orm';
 import { accounts } from '../identity/identity.schema.js';
-import { normalizeForMatch } from './zoneStats.js';
+import { normalizeForMatch } from './text-match.js';
 import type { Db } from './shared.js';
 
 const MIN_QUERY_LEN = 2;

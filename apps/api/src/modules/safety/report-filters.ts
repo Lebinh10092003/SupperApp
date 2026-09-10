@@ -8,7 +8,7 @@
  */
 
 import { toJsDate } from './shared.js';
-import { normalizeForMatch } from './zoneStats.js';
+import { normalizeForMatch } from './text-match.js';
 
 function parseDateInput(v: unknown): Date | null {
   if (!v) return null;
