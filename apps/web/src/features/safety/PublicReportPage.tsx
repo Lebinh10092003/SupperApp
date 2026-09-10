@@ -156,8 +156,8 @@ export default function PublicReportPage() {
 
   return (
     <PublicLayout title="Báo cáo sự cố an toàn trường học" subtitle="Mọi thông tin được bảo mật, chỉ người có thẩm quyền mới được xem">
-      <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: '0 4px 15px -1px rgba(15, 23, 42, 0.06)' }}>
-        <CardContent sx={{ p: { xs: 2.5, sm: 3.5 } }}>
+      <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: '0 4px 15px -1px rgba(15, 23, 42, 0.06)', overflow: 'visible' }}>
+        <CardContent sx={{ p: { xs: 2.5, sm: 3.5 }, pb: { xs: 0, sm: 3.5 } }}>
           <Stack spacing={2.5}>
             {error && <Alert severity="error">{error}</Alert>}
 
@@ -271,23 +271,42 @@ export default function PublicReportPage() {
               </Stack>
             )}
 
-            <Button
-              variant="contained"
-              size="large"
-              onClick={handleSubmit}
-              disabled={submitting}
+            {/* Nút gửi "dính" đáy màn hình trên di động — không bắt người báo tin
+                phải cuộn hết cả biểu mẫu mới thấy nút gửi (nguyên tắc vùng ngón
+                tay cái dễ chạm tới, khớp quy ước gốc ở public/index.html cũ).
+                overflow:'visible' ở Card phía trên BẮT BUỘC phải có, nếu không
+                sticky sẽ bị chính Card của MUI (mặc định overflow:hidden để bo
+                góc) vô hiệu hoá âm thầm — đã từng gặp lỗi này thật. */}
+            <Box
               sx={{
-                bgcolor: '#dc2626',
-                '&:hover': { bgcolor: '#b91c1c' },
-                fontWeight: 700,
-                borderRadius: 2,
-                py: 1.25,
                 position: { xs: 'sticky', sm: 'static' },
-                bottom: { xs: 0 }
+                bottom: 0,
+                mx: { xs: -2.5, sm: 0 },
+                px: { xs: 2.5, sm: 0 },
+                pb: { xs: 'calc(12px + env(safe-area-inset-bottom))', sm: 0 },
+                pt: { xs: 1.5, sm: 0 },
+                background: { xs: 'linear-gradient(to top, #ffffff 60%, rgba(255,255,255,0))', sm: 'none' },
+                zIndex: 2
               }}
             >
-              {submitting ? <CircularProgress size={22} sx={{ color: '#fff' }} /> : 'Gửi tin báo'}
-            </Button>
+              <Button
+                variant="contained"
+                size="large"
+                fullWidth
+                onClick={handleSubmit}
+                disabled={submitting}
+                sx={{
+                  bgcolor: '#dc2626',
+                  '&:hover': { bgcolor: '#b91c1c' },
+                  fontWeight: 700,
+                  borderRadius: 2,
+                  py: 1.25,
+                  minHeight: 44
+                }}
+              >
+                {submitting ? <CircularProgress size={22} sx={{ color: '#fff' }} /> : 'Gửi tin báo'}
+              </Button>
+            </Box>
 
             <Box sx={{ textAlign: 'center' }}>
               <Typography variant="caption" color="text.secondary">
