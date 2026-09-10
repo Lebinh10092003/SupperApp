@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Box, Button, Card, CardContent, Typography, Stack, Chip, Divider, TextField } from '@mui/material';
-import { Navigate } from 'react-router-dom';
+import { Link as RouterLink, Navigate } from 'react-router-dom';
 import SchoolIcon from '@mui/icons-material/SchoolRounded';
 import GoogleIcon from '@mui/icons-material/Google';
 import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined';
@@ -376,13 +376,25 @@ export default function LoginPage() {
           </CardContent>
         </Card>
 
+        <Typography
+          variant="body2"
+          sx={{ textAlign: 'center', mt: 2.5 }}
+        >
+          <RouterLink
+            to="/safety/report"
+            style={{ color: '#dc2626', fontWeight: 700, textDecoration: 'none', fontSize: '0.84rem' }}
+          >
+            ← Quay lại báo cáo sự cố an toàn (không cần đăng nhập)
+          </RouterLink>
+        </Typography>
+
         {/* Footer */}
         <Typography
           variant="caption"
           sx={{
             display: 'block',
             textAlign: 'center',
-            mt: 3,
+            mt: 1.5,
             color: '#64748b',
             fontSize: '0.75rem'
           }}
