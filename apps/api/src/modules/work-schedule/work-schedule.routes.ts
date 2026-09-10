@@ -38,8 +38,10 @@ import {
   createTask,
   changeTaskStatus,
   acceptOrReturnTask,
-  listTasks
+  listTasks,
+  getAuditLogs
 } from './work-schedule.service.js';
+import { buildIcsCalendar } from './ics.js';
 
 export const workScheduleRouter = Router();
 
@@ -223,5 +225,56 @@ workScheduleRouter.get(
       statuses: parseStatuses(req.query.statuses)
     });
     res.json({ items: rows });
+  })
+);
+
+// ---------------------------------------------------------------------
+// Nhật ký kiểm toán — trước đây bảng `ltc_audit_logs` chỉ được GHI (mọi
+// hàm đổi trạng thái ở service), chưa có route nào ĐỌC lại. Theo đúng
+// khuôn `safety-query.routes.ts::/audit-logs`, chỉ cần đăng nhập (không
+// thêm lớp phân quyền riêng — lịch sử thao tác không nhạy cảm hơn chính
+// nội dung lịch/việc mà mọi nhân viên đã xem được).
+// ---------------------------------------------------------------------
+
+workScheduleRouter.get(
+  '/audit-logs',
+  firebaseAuth,
+  withAppError(async (req, res) => {
+    const entityType = typeof req.query.entityType === 'string' ? req.query.entityType : undefined;
+    const entityId = typeof req.query.entityId === 'string' ? req.query.entityId : undefined;
+    const rows = await getAuditLogs(db, { entityType, entityId });
+    res.json({ items: rows });
+  })
+);
+
+// ---------------------------------------------------------------------
+// Xuất lịch .ics — khớp `/api/calendar.ics` bản gốc, LỆCH đường dẫn CÓ CHỦ
+// Ý (gộp vào chung tiền tố `/api/work-schedule` cho nhất quán routing của
+// cả app, không phải quên). CỐ TÌNH KHÔNG `firebaseAuth` — đây là link
+// "đăng ký lịch" để mở trực tiếp bằng ứng dụng lịch ngoài (Google
+// Calendar/Outlook...), các app đó KHÔNG gửi kèm Bearer token của hệ
+// thống. An toàn vì chỉ xuất lịch đã PUBLISHED (không phải nội dung nội
+// bộ DRAFT/PENDING_APPROVAL) — xem `ics.ts`.
+// ---------------------------------------------------------------------
+
+workScheduleRouter.get(
+  '/calendar.ics',
+  withAppError(async (req, res) => {
+    const campusId = typeof req.query.campusId === 'string' ? req.query.campusId : undefined;
+    const rows = await listEvents(db, { campusId, statuses: ['PUBLISHED'] });
+    const ics = buildIcsCalendar(
+      rows.map((r) => ({
+        id: r.id,
+        title: r.title,
+        description: r.description,
+        location: r.location,
+        startAt: r.startAt,
+        endAt: r.endAt,
+        updatedAt: r.updatedAt
+      }))
+    );
+    res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="lich-cong-tac.ics"');
+    res.send(ics);
   })
 );

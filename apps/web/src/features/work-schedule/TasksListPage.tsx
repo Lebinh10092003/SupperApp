@@ -27,6 +27,7 @@ import { api } from '../../services/api';
 import { useTasks, type WorkTask } from './hooks/useTasks';
 import { useActor } from './hooks/useActor';
 import { PersonPicker, type PersonOption } from '../safety/PersonPicker';
+import { AuditTrailPanel } from './AuditTrailPanel';
 import { CAMPUS_IDS, CAMPUS_LABEL, TASK_STATUS_LABEL, TASK_STATUS_COLOR, PRIORITY_LABEL } from './constants';
 
 function TaskStatusChip({ status }: { status: string }) {
@@ -53,10 +54,28 @@ export default function TasksListPage() {
     assigneePerId: relation === 'MINE' ? actor?.perId : undefined
   });
 
+  const [searchText, setSearchText] = useState('');
+  const [personFilter, setPersonFilter] = useState<PersonOption | null>(null);
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+
+  // Lọc thêm ở client (tìm theo tiêu đề/username người + khoảng ngày hạn)
+  // — cùng cách tiếp cận với EventsListPage.tsx, không đụng useTasks.ts.
   const filteredItems = useMemo(() => {
-    if (relation === 'ASSIGNED_BY_ME' && actor) return items.filter((t) => t.createdByPerId === actor.perId);
-    return items;
-  }, [items, relation, actor]);
+    let out = items;
+    if (relation === 'ASSIGNED_BY_ME' && actor) out = out.filter((t) => t.createdByPerId === actor.perId);
+    const text = searchText.trim().toLowerCase();
+    const from = fromDate ? new Date(fromDate).getTime() : null;
+    const to = toDate ? new Date(toDate).getTime() : null;
+    return out.filter((t) => {
+      if (text && !t.title.toLowerCase().includes(text)) return false;
+      if (personFilter && t.assigneePerId !== personFilter.perId && !t.collaboratorPerIds.includes(personFilter.perId)) return false;
+      const dueMs = new Date(t.dueAt).getTime();
+      if (from !== null && dueMs < from) return false;
+      if (to !== null && dueMs > to) return false;
+      return true;
+    });
+  }, [items, relation, actor, searchText, personFilter, fromDate, toDate]);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [detail, setDetail] = useState<WorkTask | null>(null);
@@ -124,7 +143,30 @@ export default function TasksListPage() {
         }
       />
 
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2 }}>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2 }} useFlexGap flexWrap="wrap">
+        <TextField
+          label="Tìm theo tiêu đề"
+          value={searchText}
+          onChange={(e) => setSearchText(e.target.value)}
+          sx={{ minWidth: 200 }}
+        />
+        <PersonPicker label="Người thực hiện (username)" value={personFilter} onChange={setPersonFilter} />
+        <TextField
+          label="Hạn từ ngày"
+          type="date"
+          value={fromDate}
+          onChange={(e) => setFromDate(e.target.value)}
+          slotProps={{ inputLabel: { shrink: true } }}
+          sx={{ minWidth: 160 }}
+        />
+        <TextField
+          label="Hạn đến ngày"
+          type="date"
+          value={toDate}
+          onChange={(e) => setToDate(e.target.value)}
+          slotProps={{ inputLabel: { shrink: true } }}
+          sx={{ minWidth: 160 }}
+        />
         <TextField select label="Quan hệ" value={relation} onChange={(e) => setRelation(e.target.value as any)} sx={{ minWidth: 180 }}>
           <MenuItem value="MINE">Của tôi</MenuItem>
           <MenuItem value="ASSIGNED_BY_ME">Tôi giao</MenuItem>
@@ -301,6 +343,8 @@ export function TaskDetailDialog({
           {task.status === 'RETURNED' && task.acceptanceNote && <Alert severity="warning">Lý do trả lại: {task.acceptanceNote}</Alert>}
           {task.status === 'CANCELLED' && task.cancellationReason && <Alert severity="info">Lý do hủy: {task.cancellationReason}</Alert>}
           {task.status === 'COMPLETED' && task.acceptanceNote && <Alert severity="success">Ghi chú nghiệm thu: {task.acceptanceNote}</Alert>}
+
+          <AuditTrailPanel entityType="task" entityId={task.id} />
         </Stack>
       </DialogContent>
       <DialogActions sx={{ flexWrap: 'wrap', gap: 1 }}>

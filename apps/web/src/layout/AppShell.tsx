@@ -230,6 +230,12 @@ const navGroups: NavGroup[] = [
         label: 'Trung tâm phê duyệt',
         icon: <FactCheckOutlinedIcon fontSize="small" />,
         roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'DEPARTMENT_HEAD']
+      },
+      {
+        path: '/work-schedule/reminders',
+        label: 'Nhắc nhở',
+        icon: <AlertsIcon fontSize="small" />,
+        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'DEPARTMENT_HEAD', 'TEACHER', 'HOMEROOM']
       }
     ]
   }

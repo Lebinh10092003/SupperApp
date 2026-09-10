@@ -38,6 +38,7 @@ import IncidentsListPage from "../features/safety/IncidentsListPage";
 import EventsListPage from "../features/work-schedule/EventsListPage";
 import TasksListPage from "../features/work-schedule/TasksListPage";
 import ApprovalCenterPage from "../features/work-schedule/ApprovalCenterPage";
+import RemindersPage from "../features/work-schedule/RemindersPage";
 
 const p = (x: ReactNode, allowedRoles?: string[]) => (
   <ProtectedRoute>
@@ -91,6 +92,7 @@ export function App() {
       <Route path="/work-schedule" element={p(<EventsListPage />, ROLES_WORK_SCHEDULE_STAFF)} />
       <Route path="/work-schedule/tasks" element={p(<TasksListPage />, ROLES_WORK_SCHEDULE_STAFF)} />
       <Route path="/work-schedule/approvals" element={p(<ApprovalCenterPage />, ROLES_WORK_SCHEDULE_STAFF)} />
+      <Route path="/work-schedule/reminders" element={p(<RemindersPage />, ROLES_WORK_SCHEDULE_STAFF)} />
       <Route path="/today" element={p(<TodayPage />)} />
       <Route path="/classes" element={p(<ClassesPage />)} />
       <Route path="/classroom" element={p(<ClassroomPage />)} />

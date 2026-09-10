@@ -12,6 +12,7 @@ import {
   changeTaskStatus,
   acceptOrReturnTask,
   listTasks,
+  getAuditLogs,
   AppError
 } from './work-schedule.service.js';
 
@@ -201,4 +202,42 @@ test('work-schedule: người tạo == người được giao thì task tự ACC
     createdByPerId: 'per-a'
   });
   assert.equal(task.status, 'ACCEPTED');
+});
+
+test('work-schedule: getAuditLogs đọc đúng nhật ký đã ghi, lọc theo entityType/entityId, mới nhất trước', { skip }, async (t) => {
+  t.after(cleanup);
+  await cleanup();
+
+  const event = await createEvent(db, {
+    title: 'Họp giao ban',
+    campusId: 'CAMPUS_1',
+    startAt: new Date('2026-10-05T08:00:00+07:00'),
+    endAt: new Date('2026-10-05T09:00:00+07:00'),
+    chairPerId: 'per-a',
+    createdByPerId: 'per-a'
+  });
+  await changeEventStatus(db, { eventId: event.id, nextStatus: 'PENDING_APPROVAL', actorPerId: 'per-a' });
+
+  const task = await createTask(db, {
+    title: 'Chuẩn bị phòng họp',
+    campusId: 'CAMPUS_1',
+    assigneePerId: 'per-b',
+    dueAt: new Date('2026-10-05T07:30:00+07:00'),
+    createdByPerId: 'per-a'
+  });
+
+  const eventLogs = await getAuditLogs(db, { entityType: 'event', entityId: event.id });
+  assert.equal(eventLogs.length, 2);
+  assert.equal(eventLogs[0]?.action, 'event.status_changed', 'mới nhất trước');
+  assert.equal(eventLogs[1]?.action, 'event.created');
+
+  const taskLogs = await getAuditLogs(db, { entityType: 'task', entityId: task.id });
+  assert.equal(taskLogs.length, 1);
+  assert.equal(taskLogs[0]?.action, 'task.created');
+
+  const allLogs = await getAuditLogs(db, {});
+  assert.equal(allLogs.length, 3, 'không lọc entity -> trả hết');
+
+  const noMatch = await getAuditLogs(db, { entityType: 'event', entityId: 'khong-ton-tai' });
+  assert.equal(noMatch.length, 0);
 });
