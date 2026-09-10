@@ -13,6 +13,22 @@ export const CAMPUS_LABEL: Record<string, string> = {
 
 export const CAMPUS_IDS = ['MAIN_CAMPUS', 'CAMPUS_1', 'CAMPUS_2'] as const;
 
+/** 12 trạng thái chuẩn (STATE trong catalog.ts) — dùng cho dropdown lọc trạng thái. */
+export const STATE_OPTIONS: string[] = [
+  'Mới tiếp nhận',
+  'Đang phân loại',
+  'Khẩn cấp đang xử lý',
+  'Đã giao',
+  'Đang xử lý',
+  'Chờ bên ngoài',
+  'Đang theo dõi',
+  'Đề nghị đóng',
+  'Đã đóng',
+  'Mở lại',
+  'Trùng',
+  'Tin rác'
+];
+
 export const REPORTER_ROLE_OPTIONS: Array<{ value: string; label: string }> = [
   { value: 'victim', label: 'Người trực tiếp gặp sự cố' },
   { value: 'witness', label: 'Người chứng kiến' },
