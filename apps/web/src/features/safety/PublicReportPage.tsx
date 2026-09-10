@@ -200,11 +200,10 @@ export default function PublicReportPage() {
               Cần để lại ít nhất 1 trong 2 kênh trên để nhà trường liên hệ lại khi cần xác nhận.
             </Typography>
 
-            {!showMore ? (
-              <Button variant="text" onClick={() => setShowMore(true)} sx={{ alignSelf: 'flex-start', textTransform: 'none' }}>
-                + Thêm chi tiết (lớp, khu vực, thời gian, minh chứng)
-              </Button>
-            ) : (
+            <Button variant="text" onClick={() => setShowMore((v) => !v)} sx={{ alignSelf: 'flex-start', textTransform: 'none' }}>
+              {showMore ? '− Thu gọn' : '+ Thêm chi tiết (lớp, khu vực, thời gian, minh chứng)'}
+            </Button>
+            {showMore && (
               <Stack spacing={2.5}>
                 <TextField label="Lớp liên quan (nếu có)" value={className} onChange={(e) => setClassName(e.target.value)} placeholder="VD: 8A3" fullWidth />
 
