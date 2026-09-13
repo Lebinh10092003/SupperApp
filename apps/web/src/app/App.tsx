@@ -51,6 +51,12 @@ const p = (x: ReactNode, allowedRoles?: string[]) => (
 );
 
 const ROLES_SUPER = ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN'];
+// Khớp đúng danh sách vai trò có capability MANAGE_USERS ở backend
+// (roles.ts) — trước đây /admin chỉ cho ROLES_SUPER vào, khiến Hiệu
+// trưởng/SCHOOL_ADMIN (có quyền thật ở backend) không vào được trang quản
+// trị người dùng (Sin phát hiện 13/09/2026: tạo xong 249 tài khoản module
+// An toàn nhưng Hiệu trưởng không có chỗ tự quản lý).
+const ROLES_USER_MANAGEMENT = ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL'];
 const ROLES_LEADERSHIP = ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL'];
 const ROLES_ADMIN_PLUS = ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL'];
 const ROLES_DEPARTMENT_PLUS = ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'DEPARTMENT_HEAD'];
@@ -109,7 +115,7 @@ export function App() {
       <Route path="/reports" element={p(<ReportsPage />)} />
       <Route path="/data-quality" element={p(<DataQualityPage />, ROLES_LEADERSHIP)} />
       <Route path="/system" element={p(<SystemPage />, ROLES_SUPER)} />
-      <Route path="/admin" element={p(<AdminPage />, ROLES_SUPER)} />
+      <Route path="/admin" element={p(<AdminPage />, ROLES_USER_MANAGEMENT)} />
     </Routes>
   );
 }
