@@ -16,8 +16,11 @@ import {
   Tooltip,
   Divider,
   Button,
-  CircularProgress
+  CircularProgress,
+  Dialog,
+  InputBase
 } from '@mui/material';
+import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 import SyncIcon from '@mui/icons-material/SyncRounded';
 import MenuIcon from '@mui/icons-material/Menu';
 import LogoutIcon from '@mui/icons-material/LogoutRounded';
@@ -37,8 +40,6 @@ import SystemIcon from '@mui/icons-material/DnsRounded';
 import AdminIcon from '@mui/icons-material/AdminPanelSettingsRounded';
 
 import GridViewIcon from '@mui/icons-material/GridViewRounded';
-import PersonSearchIcon from '@mui/icons-material/PersonSearchRounded';
-import CompareArrowsIcon from '@mui/icons-material/CompareArrowsRounded';
 import LinkIcon from '@mui/icons-material/LinkRounded';
 import HistoryIcon from '@mui/icons-material/HistoryRounded';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHighRounded';
@@ -192,35 +193,12 @@ const navGroups: NavGroup[] = [
         badge: 'BI',
         roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL']
       },
-      { path: '/reports', label: 'Báo cáo số liệu', icon: <ReportsIcon fontSize="small" /> },
-      {
-        path: '/students/360',
-        label: 'Hồ sơ 360° Học sinh',
-        icon: <PersonSearchIcon fontSize="small" />,
-        badge: 'BETA',
-        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'DEPARTMENT_HEAD', 'TEACHER', 'HOMEROOM']
-      },
-      {
-        path: '/classes/compare',
-        label: 'So sánh Lớp đối đầu',
-        icon: <CompareArrowsIcon fontSize="small" />,
-        badge: 'BETA',
-        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'DEPARTMENT_HEAD']
-      },
-      {
-        path: '/subjects/analytics',
-        label: 'Phân tích Môn học',
-        icon: <ClassroomIcon fontSize="small" />,
-        badge: 'BETA',
-        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'DEPARTMENT_HEAD']
-      },
-      {
-        path: '/teachers/analytics',
-        label: 'Hoạt động Giáo viên',
-        icon: <TeachersIcon fontSize="small" />,
-        badge: 'BETA',
-        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'DEPARTMENT_HEAD']
-      }
+      { path: '/reports', label: 'Báo cáo số liệu', icon: <ReportsIcon fontSize="small" /> }
+      // 4 mục BETA (Hồ sơ 360°/So sánh Lớp/Phân tích Môn học/Hoạt động Giáo
+      // viên) tạm ẩn khỏi nav 2026-09-12 theo yêu cầu Sin — chỉ tái dùng
+      // API trang danh sách gốc, chưa có phép tính phân tích/so sánh/360°
+      // thật (xem comment ở đầu navGroups). Route trong App.tsx vẫn còn,
+      // chỉ ẩn lối vào từ sidebar.
     ]
   },
   {
@@ -240,7 +218,7 @@ const navGroups: NavGroup[] = [
       },
       {
         path: '/audit/classroom',
-        label: 'Classroom Audit (Reports)',
+        label: 'Nhật ký kiểm toán Classroom',
         icon: <HistoryIcon fontSize="small" />,
         roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL']
       },
@@ -254,7 +232,10 @@ const navGroups: NavGroup[] = [
         path: '/admin',
         label: 'Phân quyền Quản trị',
         icon: <AdminIcon fontSize="small" />,
-        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN']
+        // Khớp ROLES_USER_MANAGEMENT ở App.tsx / capability MANAGE_USERS
+        // thật ở backend (roles.ts) — trước chỉ cho SUPER_ADMIN/SYSTEM_ADMIN
+        // thấy, khiến Hiệu trưởng có quyền thật nhưng không thấy mục này.
+        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL']
       },
       {
         path: '/system',
@@ -321,6 +302,52 @@ export function AppShell({ children }: { children: ReactNode }) {
     }))
     .filter((group) => group.items.length > 0);
 
+  // Tìm kiếm điều hành (⌘K/Ctrl+K) — trước đây chỉ là ô tĩnh không bấm
+  // được, không có chức năng gì. Tìm trong đúng các mục nav thật ng dùng
+  // này đang thấy (visibleGroups, đã lọc theo vai trò) — không lục thêm
+  // nguồn nào khác.
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchActiveIndex, setSearchActiveIndex] = useState(0);
+
+  const normalizeSearch = (s: string) =>
+    s
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .replace(/đ/g, 'd');
+
+  const searchableItems = visibleGroups.flatMap((g) => g.items.map((item) => ({ ...item, groupTitle: g.groupTitle })));
+  const filteredSearchItems = searchQuery.trim()
+    ? searchableItems.filter((item) => normalizeSearch(item.label).includes(normalizeSearch(searchQuery.trim())))
+    : searchableItems;
+
+  const openSearch = () => {
+    setSearchOpen(true);
+    setSearchQuery('');
+    setSearchActiveIndex(0);
+  };
+  const closeSearch = () => setSearchOpen(false);
+
+  const goToSearchItem = (path: string) => {
+    navigate(path);
+    setMobileOpen(false);
+    closeSearch();
+  };
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        openSearch();
+      } else if (e.key === 'Escape' && searchOpen) {
+        closeSearch();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [searchOpen]);
+
   const allNavItems = navGroups.flatMap((g) => g.items);
   const currentNav = allNavItems.find((it) => it.path === location.pathname);
   const currentPageTitle = currentNav ? currentNav.label : 'Trang chủ';
@@ -380,6 +407,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Quick Search Trigger */}
       <Box sx={{ px: 2, pt: 1.5, pb: 0.5 }}>
         <Box
+          onClick={openSearch}
           sx={{
             display: 'flex',
             alignItems: 'center',
@@ -391,7 +419,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             py: 0.85,
             color: '#64748b',
             fontSize: '0.78rem',
-            cursor: 'default',
+            cursor: 'pointer',
             transition: 'border-color 0.15s ease',
             '&:hover': {
               borderColor: '#cbd5e1'
@@ -668,12 +696,6 @@ export function AppShell({ children }: { children: ReactNode }) {
             />
 
             <NotificationBell />
-
-            <Tooltip title="Đăng xuất">
-              <IconButton onClick={logout} size="small" sx={{ color: '#64748b', '&:hover': { color: '#ef4444', bgcolor: '#fef2f2' } }}>
-                <LogoutIcon sx={{ fontSize: 18 }} />
-              </IconButton>
-            </Tooltip>
           </Box>
         </Toolbar>
       </AppBar>
@@ -733,6 +755,72 @@ export function AppShell({ children }: { children: ReactNode }) {
           {children}
         </Box>
       </Box>
+
+      {/* Command palette tìm kiếm điều hành (⌘K/Ctrl+K) */}
+      <Dialog
+        open={searchOpen}
+        onClose={closeSearch}
+        maxWidth="sm"
+        fullWidth
+        slotProps={{ paper: { sx: { borderRadius: 3, mt: '-20vh' } } }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 2, py: 1.5, borderBottom: '1px solid #e2e8f0' }}>
+          <SearchRoundedIcon sx={{ color: '#94a3b8', fontSize: 20 }} />
+          <InputBase
+            autoFocus
+            fullWidth
+            placeholder="Tìm trang, chức năng..."
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setSearchActiveIndex(0);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                setSearchActiveIndex((i) => Math.min(i + 1, filteredSearchItems.length - 1));
+              } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                setSearchActiveIndex((i) => Math.max(i - 1, 0));
+              } else if (e.key === 'Enter') {
+                const item = filteredSearchItems[searchActiveIndex];
+                if (item) goToSearchItem(item.path);
+              }
+            }}
+            sx={{ fontSize: '0.9rem' }}
+          />
+          <Chip label="ESC" size="small" sx={{ height: 20, fontSize: '0.65rem', bgcolor: '#f1f5f9', color: '#64748b', fontWeight: 600 }} />
+        </Box>
+        <List sx={{ maxHeight: 420, overflowY: 'auto', py: 1 }}>
+          {filteredSearchItems.length === 0 && (
+            <Typography variant="body2" sx={{ px: 2, py: 3, textAlign: 'center', color: '#94a3b8' }}>
+              Không tìm thấy mục nào khớp "{searchQuery}".
+            </Typography>
+          )}
+          {filteredSearchItems.map((item, i) => (
+            <ListItemButton
+              key={item.path}
+              selected={i === searchActiveIndex}
+              onMouseEnter={() => setSearchActiveIndex(i)}
+              onClick={() => goToSearchItem(item.path)}
+              sx={{
+                mx: 1,
+                borderRadius: 2,
+                '&.Mui-selected': { bgcolor: '#eff6ff' },
+                '&.Mui-selected:hover': { bgcolor: '#eff6ff' }
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: 32, color: '#64748b' }}>{item.icon}</ListItemIcon>
+              <ListItemText
+                primary={item.label}
+                secondary={item.groupTitle}
+                primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 600 }}
+                secondaryTypographyProps={{ fontSize: '0.7rem' }}
+              />
+            </ListItemButton>
+          ))}
+        </List>
+      </Dialog>
     </Box>
   );
 }

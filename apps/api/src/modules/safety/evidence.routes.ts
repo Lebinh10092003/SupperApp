@@ -24,10 +24,13 @@
 import { Router } from 'express';
 import type { Request } from 'express';
 import Busboy from 'busboy';
+import { eq } from 'drizzle-orm';
 import { EVIDENCE_LIMITS } from './catalog.js';
 import { validateAndStoreEvidence, type EvidenceBucket } from './evidence.js';
+import { evidence as evidenceTable } from './evidence.schema.js';
 import { db } from '../../core/db/client.js';
 import { getEvidenceBucket } from '../../core/firebase.js';
+import { verifyEvidenceToken, readEvidenceFileFromDisk, evidenceFileExistsOnDisk } from '../../core/localEvidenceStorage.js';
 
 export const evidenceRouter = Router();
 
@@ -121,4 +124,28 @@ evidenceRouter.post('/evidence/upload', async (req, res) => {
     console.error('uploadEvidence lỗi:', e);
     res.status(500).json({ error: 'internal', message: 'Có lỗi hệ thống, thử lại sau.' });
   }
+});
+
+/**
+ * Tải file khi dùng kho đĩa cục bộ (`localEvidenceStorage.ts`) — TƯƠNG
+ * ĐƯƠNG signed URL của GCS nhưng tự ký/verify bằng HMAC. KHÔNG dùng route
+ * này khi `EVIDENCE_STORAGE_BUCKET` đã trỏ GCS thật (getSignedDownloadUrl
+ * lúc đó trả thẳng URL của Google, không đi qua route này).
+ */
+evidenceRouter.get('/evidence-file', async (req, res) => {
+  const storagePath = typeof req.query.path === 'string' ? req.query.path : '';
+  const expires = Number(req.query.expires);
+  const token = typeof req.query.token === 'string' ? req.query.token : '';
+  if (!storagePath || !Number.isFinite(expires) || !token || !verifyEvidenceToken(storagePath, expires, token)) {
+    res.status(403).json({ error: 'invalid_or_expired_link' });
+    return;
+  }
+  if (!evidenceFileExistsOnDisk(storagePath)) {
+    res.status(404).json({ error: 'not_found' });
+    return;
+  }
+  const [row] = await db.select().from(evidenceTable).where(eq(evidenceTable.storagePath, storagePath)).limit(1);
+  res.setHeader('Content-Type', row?.mimeType || 'application/octet-stream');
+  res.setHeader('Content-Disposition', 'attachment');
+  res.send(readEvidenceFileFromDisk(storagePath));
 });

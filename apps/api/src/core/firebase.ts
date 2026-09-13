@@ -6,6 +6,7 @@ import { env } from '../config/env.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import { localDb } from './localStore.js';
+import { getLocalEvidenceBucket } from './localEvidenceStorage.js';
 
 export interface ServiceAccountMetadata {
   path: string;
@@ -66,7 +67,11 @@ export const adminAuth = getAuth();
  * `getStorage()` ở nơi khác.
  */
 export function getEvidenceBucket() {
-  return env.EVIDENCE_STORAGE_BUCKET ? getStorage().bucket(env.EVIDENCE_STORAGE_BUCKET) : getStorage().bucket();
+  // EVIDENCE_STORAGE_BUCKET rỗng (mặc định, chưa gắn billing thật) -> dùng
+  // đĩa cục bộ miễn phí thay thế — xem localEvidenceStorage.ts. Chỉ dùng
+  // GCS thật khi đã điền tên bucket rõ ràng.
+  if (!env.EVIDENCE_STORAGE_BUCKET) return getLocalEvidenceBucket();
+  return getStorage().bucket(env.EVIDENCE_STORAGE_BUCKET);
 }
 export const schoolRef = () => db.collection('siSchools').doc(env.SCHOOL_ID);
 export const col = (name: string): any => {

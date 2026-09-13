@@ -38,9 +38,14 @@ const schema = z.object({
   DATABASE_POOL_MAX: z.coerce.number().default(10),
 
   // Cloud Storage bucket cho kho minh chứng (S8, module An toàn) — rỗng =
-  // để firebase-admin tự suy bucket mặc định theo PROJECT_ID (đúng hành vi
-  // gốc, KHÔNG hard-code tên bucket).
+  // dùng đĩa cục bộ MIỄN PHÍ thay thế (xem core/localEvidenceStorage.ts),
+  // chỉ điền tên bucket GCS thật ở đây sau khi project đã gắn billing thật
+  // và cố ý muốn chuyển sang Cloud Storage.
   EVIDENCE_STORAGE_BUCKET: z.string().default(''),
+  // Khoá ký HMAC cho URL tải minh chứng khi dùng đĩa cục bộ (không cần khi
+  // dùng GCS thật — Cloud Storage tự ký). PHẢI đổi giá trị thật trước khi
+  // deploy production nếu vẫn dùng đĩa cục bộ ở đó.
+  EVIDENCE_SIGN_SECRET: z.string().default('dev-only-insecure-evidence-secret'),
 
   // Cờ AN NINH — bật mới cho phép bearer token `dev:<email>:<role>` bỏ qua
   // xác thực Firebase thật (xem auth/middleware.ts). Mặc định TẮT (false)
