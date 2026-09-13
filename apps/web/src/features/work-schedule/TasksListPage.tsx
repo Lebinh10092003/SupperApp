@@ -30,7 +30,7 @@ import { PersonPicker, type PersonOption } from '../safety/PersonPicker';
 import { AuditTrailPanel } from './AuditTrailPanel';
 import { CAMPUS_IDS, CAMPUS_LABEL, TASK_STATUS_LABEL, TASK_STATUS_COLOR, PRIORITY_LABEL } from './constants';
 
-function TaskStatusChip({ status }: { status: string }) {
+export function TaskStatusChip({ status }: { status: string }) {
   const c = TASK_STATUS_COLOR[status] || { bg: '#f1f5f9', fg: '#334155', border: '#e2e8f0' };
   return (
     <Chip
@@ -215,7 +215,7 @@ export default function TasksListPage() {
               <TableRow key={t.id} hover sx={{ cursor: 'pointer' }} onClick={() => setDetail(t)}>
                 <TableCell>{t.title}</TableCell>
                 <TableCell>{CAMPUS_LABEL[t.campusId] || t.campusId}</TableCell>
-                <TableCell>{t.assigneePerId}</TableCell>
+                <TableCell>{t.assigneeName || t.assigneePerId}</TableCell>
                 <TableCell>{new Date(t.dueAt).toLocaleString('vi-VN')}</TableCell>
                 <TableCell>
                   <TaskStatusChip status={t.status} />
@@ -294,6 +294,10 @@ export function TaskDetailDialog({
   const [actionError, setActionError] = useState('');
   const [reasonOpen, setReasonOpen] = useState<'CANCELLED' | 'RETURNED' | null>(null);
   const [reason, setReason] = useState('');
+  // Đếm số lần thao tác thành công — truyền vào AuditTrailPanel làm
+  // refreshKey để buộc tải lại "Lịch sử" ngay trong phiên mở dialog hiện
+  // tại (xem chú thích trong AuditTrailPanel.tsx).
+  const [historyVersion, setHistoryVersion] = useState(0);
 
   if (!task) return null;
   const isAssignee = task.assigneePerId === actorPerId;
@@ -304,6 +308,7 @@ export function TaskDetailDialog({
     setActionError('');
     try {
       onChanged(await fn());
+      setHistoryVersion((v) => v + 1);
     } catch (e: any) {
       setActionError(e.message || 'Thao tác thất bại.');
     } finally {
@@ -336,7 +341,7 @@ export function TaskDetailDialog({
           <TaskStatusChip status={task.status} />
           <Stack spacing={0.5}>
             <Typography variant="body2">Cơ sở: <strong>{CAMPUS_LABEL[task.campusId] || task.campusId}</strong></Typography>
-            <Typography variant="body2">Người giao: {task.createdByPerId} — Người thực hiện: {task.assigneePerId}</Typography>
+            <Typography variant="body2">Người giao: {task.createdByName || task.createdByPerId} — Người thực hiện: {task.assigneeName || task.assigneePerId}</Typography>
             <Typography variant="body2">Hạn: {new Date(task.dueAt).toLocaleString('vi-VN')}</Typography>
             {task.description && <Typography variant="body2" color="text.secondary">{task.description}</Typography>}
           </Stack>
@@ -344,7 +349,7 @@ export function TaskDetailDialog({
           {task.status === 'CANCELLED' && task.cancellationReason && <Alert severity="info">Lý do hủy: {task.cancellationReason}</Alert>}
           {task.status === 'COMPLETED' && task.acceptanceNote && <Alert severity="success">Ghi chú nghiệm thu: {task.acceptanceNote}</Alert>}
 
-          <AuditTrailPanel entityType="task" entityId={task.id} />
+          <AuditTrailPanel entityType="task" entityId={task.id} refreshKey={historyVersion} />
         </Stack>
       </DialogContent>
       <DialogActions sx={{ flexWrap: 'wrap', gap: 1 }}>

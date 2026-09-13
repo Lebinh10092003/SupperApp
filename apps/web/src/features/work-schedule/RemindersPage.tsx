@@ -112,7 +112,7 @@ export default function RemindersPage() {
                       <TableRow key={t.id} hover sx={{ cursor: 'pointer' }} onClick={() => setTaskDetail(t)}>
                         <TableCell>{t.title}</TableCell>
                         <TableCell>{CAMPUS_LABEL[t.campusId] || t.campusId}</TableCell>
-                        <TableCell>{t.assigneePerId}</TableCell>
+                        <TableCell>{t.assigneeName || t.assigneePerId}</TableCell>
                         <TableCell>
                           <Chip size="small" label={new Date(t.dueAt).toLocaleString('vi-VN')} sx={{ bgcolor: '#fff7ed', color: '#c2410c', fontWeight: 600 }} />
                         </TableCell>

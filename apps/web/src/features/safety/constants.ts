@@ -36,3 +36,17 @@ export const REPORTER_ROLE_OPTIONS: Array<{ value: string; label: string }> = [
   { value: 'staff', label: 'Giáo viên/nhân viên trường' },
   { value: 'other', label: 'Khác' }
 ];
+
+/** 2 đồng hồ SLA song song mỗi mức (ack/assign) — khớp key thật trong incident.slaClocks. */
+export const SLA_CLOCK_LABEL: Record<string, string> = {
+  ack: 'Xác nhận tiếp nhận',
+  assign: 'Phân công'
+};
+
+/** SlaClockStatus (sla.ts backend): 'running' | 'paused' | 'met' | 'overdue'. */
+export const SLA_STATUS_LABEL: Record<string, string> = {
+  running: 'Đang chạy',
+  paused: 'Đang tạm dừng',
+  met: 'Đã hoàn thành đúng hạn',
+  overdue: 'Đã quá hạn'
+};

@@ -18,6 +18,7 @@ import { StatusChip } from './components/StatusChip';
 import { PriorityChip } from './components/PriorityChip';
 import { ConfidentialityBadge } from './components/ConfidentialityBadge';
 import { useIncidents } from './hooks/useIncidents';
+import { CAMPUS_LABEL } from './constants';
 
 function formatDateTime(iso?: string) {
   if (!iso) return '—';
@@ -89,7 +90,7 @@ export default function EmergencyCockpitPage() {
                   <PriorityChip priority={it.priority} />
                   <StatusChip state={it.state} />
                   <ConfidentialityBadge confidentiality={it.confidentiality} redacted={it.redacted} />
-                  <Chip size="small" label={it.campusId} sx={{ bgcolor: '#f8fafc', color: '#334155', fontWeight: 600, height: 24 }} />
+                  <Chip size="small" label={CAMPUS_LABEL[it.campusId] || it.campusId} sx={{ bgcolor: '#f8fafc', color: '#334155', fontWeight: 600, height: 24 }} />
                 </Stack>
                 <Typography variant="subtitle2" fontWeight={700} color="#0f172a">
                   {it.incidentId} {it.categoryLabel ? `— ${it.categoryLabel}` : ''}

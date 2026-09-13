@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Alert,
   Box,
@@ -26,6 +27,13 @@ interface CategoryOption {
   groupLabel: string;
 }
 
+// Khớp `catalog.EVIDENCE_LIMITS.MAX_FILES_PER_SUBMISSION` (backend) — trước
+// đây form CHỈ cho chọn ĐÚNG 1 file (`useState<File | null>`, `files[0]`),
+// dù backend đã hỗ trợ nhiều minh chứng/tin báo từ đầu (Sin phản hồi
+// 2026-09-11: "có đính kèm được cả video và đính kèm nhiều mục một lúc
+// không").
+const MAX_EVIDENCE_FILES = 5;
+
 async function uploadOneEvidence(file: File): Promise<string | null> {
   const baseUrl = (env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
   const form = new FormData();
@@ -37,6 +45,7 @@ async function uploadOneEvidence(file: File): Promise<string | null> {
 }
 
 export default function PublicReportPage() {
+  const navigate = useNavigate();
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [campusId, setCampusId] = useState('');
   const [categoryCode, setCategoryCode] = useState('');
@@ -49,7 +58,7 @@ export default function PublicReportPage() {
   const [occurredFrom, setOccurredFrom] = useState('');
   const [occurredTo, setOccurredTo] = useState('');
   const [showMore, setShowMore] = useState(false);
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [publicCode, setPublicCode] = useState('');
@@ -67,18 +76,21 @@ export default function PublicReportPage() {
 
     setSubmitting(true);
     try {
-      let evidenceIds: string[] = [];
-      if (file) {
-        const evidenceId = await uploadOneEvidence(file);
-        // Tải minh chứng thất bại (mạng lỗi, file bị từ chối, quét virus...) —
-        // DỪNG LẠI và báo rõ, không được âm thầm gửi tin báo thiếu minh chứng
-        // rồi vẫn báo "thành công" như không có gì xảy ra.
+      // Tải LẦN LƯỢT từng file — backend chỉ nhận 1 file/request
+      // (`evidence.routes.ts`: busboy `limits.files: 1`, cố ý theo thiết kế
+      // gốc "1 file/request — client tự gọi"), không phải giới hạn thật sự
+      // chỉ-1-file-mỗi-tin-báo (submitReport đã nhận `evidenceIds: string[]`
+      // từ đầu). Dừng NGAY khi 1 file lỗi — không gửi tin báo thiếu minh
+      // chứng mà vẫn báo "thành công" như không có gì xảy ra.
+      const evidenceIds: string[] = [];
+      for (const f of files) {
+        const evidenceId = await uploadOneEvidence(f);
         if (!evidenceId) {
-          setError('Không tải lên được minh chứng đính kèm. Vui lòng thử lại, hoặc bấm "Bỏ file này" để gửi tin báo không kèm minh chứng.');
+          setError(`Không tải lên được minh chứng "${f.name}". Vui lòng thử lại, hoặc bỏ file này rồi gửi lại.`);
           setSubmitting(false);
           return;
         }
-        evidenceIds = [evidenceId];
+        evidenceIds.push(evidenceId);
       }
       const baseUrl = (env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
       const r = await fetch(`${baseUrl}/api/safety/reports`, {
@@ -124,8 +136,31 @@ export default function PublicReportPage() {
               sx={{ fontSize: '1.1rem', fontWeight: 800, height: 44, px: 2, bgcolor: '#ffffff', border: '1px solid #86efac', color: '#166534' }}
             />
             <Typography variant="caption" display="block" sx={{ mt: 2, color: '#166534' }}>
-              Truy cập trang "Tra cứu tin báo" và nhập mã này để xem trạng thái xử lý.
+              Lưu lại mã này để theo dõi tình trạng xử lý.
             </Typography>
+
+            {/* Trước đây chỉ có dòng chữ nhắc "xem tab Tra cứu" (không bấm
+                được, không nổi bật) — Sin phản hồi 2026-09-11: "nút điều
+                hướng đang hơi khó để ý". Thêm 2 nút bấm được, cùng mức nổi
+                bật, đưa thẳng sang tra cứu (tự điền sẵn mã) hoặc gửi tiếp. */}
+            <Stack spacing={1.25} sx={{ mt: 3 }}>
+              <Button
+                variant="contained"
+                size="large"
+                onClick={() => navigate(`/safety/lookup?code=${encodeURIComponent(publicCode)}`)}
+                sx={{ bgcolor: '#166534', '&:hover': { bgcolor: '#14532d' }, fontWeight: 700, borderRadius: 2, py: 1.1 }}
+              >
+                Tra cứu / bổ sung tin báo này
+              </Button>
+              <Button
+                variant="outlined"
+                size="large"
+                onClick={() => setPublicCode('')}
+                sx={{ borderColor: '#86efac', color: '#166534', fontWeight: 700, borderRadius: 2, py: 1.1, '&:hover': { borderColor: '#4ade80', bgcolor: '#f0fdf4' } }}
+              >
+                Gửi tin báo khác
+              </Button>
+            </Stack>
           </CardContent>
         </Card>
       </PublicLayout>
@@ -212,21 +247,47 @@ export default function PublicReportPage() {
                   />
                 </Stack>
 
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Button component="label" variant="outlined" startIcon={<UploadFileIcon />} sx={{ alignSelf: 'flex-start', textTransform: 'none' }}>
-                    {file ? file.name : 'Đính kèm ảnh/video minh chứng (tuỳ chọn)'}
+                <Stack spacing={1}>
+                  <Button
+                    component="label"
+                    variant="outlined"
+                    startIcon={<UploadFileIcon />}
+                    disabled={files.length >= MAX_EVIDENCE_FILES}
+                    sx={{ alignSelf: 'flex-start', textTransform: 'none' }}
+                  >
+                    {files.length === 0
+                      ? 'Đính kèm ảnh/video minh chứng (tuỳ chọn)'
+                      : `Thêm file (${files.length}/${MAX_EVIDENCE_FILES})`}
                     <input
                       type="file"
                       hidden
+                      multiple
                       accept="image/*,video/*,audio/*"
-                      capture="environment"
-                      onChange={(e) => setFile(e.target.files?.[0] || null)}
+                      onChange={(e) => {
+                        const picked = Array.from(e.target.files || []);
+                        setFiles((prev) => [...prev, ...picked].slice(0, MAX_EVIDENCE_FILES));
+                        e.target.value = '';
+                      }}
                     />
                   </Button>
-                  {file && (
-                    <Button size="small" onClick={() => setFile(null)} sx={{ textTransform: 'none', color: '#64748b' }}>
-                      Bỏ file này
-                    </Button>
+                  {files.length > 0 && (
+                    <Stack spacing={0.5}>
+                      {files.map((f, i) => (
+                        <Stack key={`${f.name}-${f.lastModified}-${i}`} direction="row" spacing={1} alignItems="center">
+                          <Typography variant="body2" sx={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {f.name}
+                          </Typography>
+                          <Button size="small" onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))} sx={{ textTransform: 'none', color: '#64748b' }}>
+                            Bỏ
+                          </Button>
+                        </Stack>
+                      ))}
+                    </Stack>
+                  )}
+                  {files.length >= MAX_EVIDENCE_FILES && (
+                    <Typography variant="caption" color="text.secondary">
+                      Tối đa {MAX_EVIDENCE_FILES} file mỗi tin báo.
+                    </Typography>
                   )}
                 </Stack>
               </Stack>

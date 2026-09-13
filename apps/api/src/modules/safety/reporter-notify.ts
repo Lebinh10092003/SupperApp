@@ -20,7 +20,13 @@ export const REPORTER_EVENT = {
   CLOSED: 'reporter.notified.closed',
   // Quyết định họp 07/09/2026: người gửi tin báo là người XÁC NHẬN đóng hồ
   // sơ (thay hẳn phê duyệt Hiệu trưởng/Phó HT cũ, áp dụng mọi mức ưu tiên).
-  CONFIRM_CLOSE_REQUESTED: 'reporter.confirm_close_requested'
+  CONFIRM_CLOSE_REQUESTED: 'reporter.confirm_close_requested',
+  // Thêm 2026-09-11 theo phản hồi test thật: trước đây người báo tin chỉ
+  // nhận đúng 2 email (tiếp nhận + đóng), không biết gì ở giữa — dễ hiểu
+  // nhầm "trường bỏ qua". Gửi thêm 1 email khi hồ sơ CHUYỂN SANG "Đang xử
+  // lý" (mọi lần chuyển vào trạng thái này, kể cả sau khi mở lại/hết chờ
+  // bên ngoài — không chỉ lần đầu). Xem incident-lifecycle.ts.
+  IN_PROGRESS: 'reporter.notified.in_progress'
 } as const;
 
 export function renderReporterMessage(eventType: string, publicCode: string): string {
@@ -32,6 +38,9 @@ export function renderReporterMessage(eventType: string, publicCode: string): st
   }
   if (eventType === REPORTER_EVENT.CLOSED) {
     return 'Sự việc bạn báo (mã tra cứu: ' + publicCode + ') đã được đóng. Cảm ơn bạn đã báo cáo để giúp trường an toàn hơn. Nếu vấn đề vẫn còn tiếp diễn, vui lòng bổ sung thông tin qua cổng tra cứu bằng đúng mã này.';
+  }
+  if (eventType === REPORTER_EVENT.IN_PROGRESS) {
+    return 'Nhà trường đang xử lý sự việc bạn báo (mã tra cứu: ' + publicCode + '). Bạn có thể tra cứu trạng thái mới nhất bất cứ lúc nào tại cổng thông tin bằng mã này.';
   }
   throw new Error('reporterNotify.renderReporterMessage: eventType không hợp lệ: ' + eventType);
 }

@@ -47,7 +47,7 @@ import {
   PRIORITY_LABEL
 } from './constants';
 
-function EventStatusChip({ status }: { status: string }) {
+export function EventStatusChip({ status }: { status: string }) {
   const c = EVENT_STATUS_COLOR[status] || { bg: '#f1f5f9', fg: '#334155', border: '#e2e8f0' };
   return (
     <Chip
@@ -405,6 +405,10 @@ export function EventDetailDialog({
   const [actionError, setActionError] = useState('');
   const [reasonOpen, setReasonOpen] = useState<'REVISION_REQUIRED' | 'CANCELLED' | null>(null);
   const [reason, setReason] = useState('');
+  // Đếm số lần thao tác thành công — truyền vào AuditTrailPanel làm
+  // refreshKey để buộc tải lại "Lịch sử" ngay trong phiên mở dialog hiện
+  // tại (xem chú thích trong AuditTrailPanel.tsx).
+  const [historyVersion, setHistoryVersion] = useState(0);
 
   if (!event) return null;
   const isCreator = event.createdByPerId === actorPerId;
@@ -417,6 +421,7 @@ export function EventDetailDialog({
     try {
       const updated = await fn();
       onChanged(updated);
+      setHistoryVersion((v) => v + 1);
     } catch (e: any) {
       setActionError(e.message || 'Thao tác thất bại.');
     } finally {
@@ -487,7 +492,7 @@ export function EventDetailDialog({
             </Alert>
           )}
 
-          <AuditTrailPanel entityType="event" entityId={event.id} />
+          <AuditTrailPanel entityType="event" entityId={event.id} refreshKey={historyVersion} />
         </Stack>
       </DialogContent>
       <DialogActions sx={{ flexWrap: 'wrap', gap: 1 }}>

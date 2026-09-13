@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Alert, Box, Button, Card, CardContent, CircularProgress, Stack, TextField, Typography } from '@mui/material';
 import { PublicLayout } from './PublicLayout';
 import { env } from '../../config/env';
@@ -15,7 +16,12 @@ function baseUrl() {
 }
 
 export default function PublicLookupPage() {
-  const [codeInput, setCodeInput] = useState('');
+  // Đọc `?code=` từ URL để tự điền sẵn mã tra cứu — dùng khi
+  // PublicReportPage điều hướng sang đây ngay sau khi gửi tin báo thành
+  // công (Sin phản hồi 2026-09-11: nút quay lại trước đây khó nhận ra,
+  // và người dùng phải chép tay lại mã vừa nhận).
+  const [searchParams] = useSearchParams();
+  const [codeInput, setCodeInput] = useState(() => searchParams.get('code') || '');
   const [result, setResult] = useState<LookupResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -42,6 +48,11 @@ export default function PublicLookupPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (searchParams.get('code')) handleLookup();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSupplement = async () => {
     if (!result || !supplementText.trim()) return;
@@ -145,6 +156,19 @@ export default function PublicLookupPage() {
                 </Box>
               </Box>
             )}
+
+            {/* Trước đây trang này KHÔNG có đường nào quay lại trang gửi
+                tin báo — chỉ có 1 chiều (PublicReportPage -> đây), không có
+                chiều ngược lại (Sin phản hồi 2026-09-11: "bấm vào tra cứu
+                tin báo thì nó không back về được trang đăng tin báo"). */}
+            <Box sx={{ textAlign: 'center' }}>
+              <Typography variant="caption" color="text.secondary">
+                Cần báo sự việc khác?{' '}
+                <a href="/safety/report" style={{ color: '#2563eb', fontWeight: 600 }}>
+                  Gửi tin báo mới
+                </a>
+              </Typography>
+            </Box>
           </Stack>
         </CardContent>
       </Card>

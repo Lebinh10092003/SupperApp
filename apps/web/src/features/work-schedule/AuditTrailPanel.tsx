@@ -34,7 +34,23 @@ const ACTION_LABEL: Record<string, string> = {
   'task.returned': 'Trả lại'
 };
 
-export function AuditTrailPanel({ entityType, entityId }: { entityType: 'event' | 'task'; entityId: string }) {
+export function AuditTrailPanel({
+  entityType,
+  entityId,
+  refreshKey
+}: {
+  entityType: 'event' | 'task';
+  entityId: string;
+  /** Tăng giá trị này (VD đếm số lần đã thao tác thành công) để buộc tải
+   * lại lịch sử — MUI Accordion KHÔNG unmount khi thu gọn/mở lại, nên nếu
+   * chỉ phụ thuộc [entityType, entityId] (không đổi khi đổi trạng thái
+   * trong cùng 1 phiên mở dialog), danh sách hiển thị sẽ bị CŨ sau khi
+   * thực hiện hành động mà không đóng-mở lại dialog (Sin phản hồi
+   * 2026-09-11, phát hiện qua verify thật: Lịch sử (3) không đổi sau 2
+   * hành động, dù backend đã ghi đủ (5) — chỉ đóng-mở lại dialog mới
+   * đúng). */
+  refreshKey?: number | string;
+}) {
   const [items, setItems] = useState<AuditLogEntry[] | null>(null);
   const [error, setError] = useState('');
 
@@ -53,7 +69,7 @@ export function AuditTrailPanel({ entityType, entityId }: { entityType: 'event' 
     return () => {
       cancelled = true;
     };
-  }, [entityType, entityId]);
+  }, [entityType, entityId, refreshKey]);
 
   return (
     <Accordion sx={{ boxShadow: 'none', border: '1px solid #e2e8f0', borderRadius: 2, '&:before': { display: 'none' } }}>

@@ -5,7 +5,7 @@ import { PageHeader } from '../../components/PageHeader';
 import { useEvents, type WorkEvent } from './hooks/useEvents';
 import { useTasks, type WorkTask } from './hooks/useTasks';
 import { useActor } from './hooks/useActor';
-import { EventDetailDialog, canApproveClientSide } from './EventsListPage';
+import { EventDetailDialog, canApproveClientSide, EventStatusChip } from './EventsListPage';
 import { TaskDetailDialog } from './TasksListPage';
 import { CAMPUS_LABEL } from './constants';
 
@@ -73,7 +73,7 @@ export default function ApprovalCenterPage() {
                     <TableCell>{ev.title}</TableCell>
                     <TableCell>{CAMPUS_LABEL[ev.campusId] || ev.campusId}</TableCell>
                     <TableCell>{new Date(ev.startAt).toLocaleString('vi-VN')}</TableCell>
-                    <TableCell>{ev.status}</TableCell>
+                    <TableCell><EventStatusChip status={ev.status} /></TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -107,7 +107,7 @@ export default function ApprovalCenterPage() {
                   <TableRow key={t.id} hover sx={{ cursor: 'pointer' }} onClick={() => setTaskDetail(t)}>
                     <TableCell>{t.title}</TableCell>
                     <TableCell>{CAMPUS_LABEL[t.campusId] || t.campusId}</TableCell>
-                    <TableCell>{t.assigneePerId}</TableCell>
+                    <TableCell>{t.assigneeName || t.assigneePerId}</TableCell>
                     <TableCell>{new Date(t.dueAt).toLocaleString('vi-VN')}</TableCell>
                   </TableRow>
                 ))}

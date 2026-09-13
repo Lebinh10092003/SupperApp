@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Alert,
   Box,
@@ -44,6 +45,12 @@ const PRIORITY_OPTIONS = ['P0', 'P1', 'P2', 'P3'];
 type SortKey = 'reportId' | 'campusId' | 'categoryLabel' | 'occurredAt';
 
 export default function PendingReportsPage() {
+  // Đọc `?q=` từ URL để lọc sẵn xuống đúng 1 tin báo cụ thể — dùng khi
+  // chuông thông báo nội bộ (NotificationBell.tsx) điều hướng tới đây (chưa
+  // có trang chi tiết riêng cho tin báo, bảng lọc này là điểm đến gần nhất
+  // có thể "trỏ tới đúng mục" thay vì chỉ mở trang danh sách trống thông
+  // tin). Chỉ đọc 1 LẦN lúc mount — không đồng bộ 2 chiều với URL sau đó.
+  const [searchParams] = useSearchParams();
   const [items, setItems] = useState<PendingReportItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -52,7 +59,7 @@ export default function PendingReportsPage() {
   const [priorityTarget, setPriorityTarget] = useState<PendingReportItem | null>(null);
   const [priorityChoice, setPriorityChoice] = useState('');
 
-  const [searchText, setSearchText] = useState('');
+  const [searchText, setSearchText] = useState(() => searchParams.get('q') || '');
   const [campusFilter, setCampusFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [dangerFilter, setDangerFilter] = useState('');
@@ -206,13 +213,22 @@ export default function PendingReportsPage() {
               <TableCell>Lớp</TableCell>
               <TableCell>Nội dung</TableCell>
               <TableCell>Khẩn cấp</TableCell>
+              <TableCell>
+                {/* Trước đây KHÔNG có cột thời gian — `occurredAt` đã là
+                    sortKey mặc định (sort ngầm chạy đúng) nhưng không có cột
+                    hiển thị giá trị lẫn tiêu đề bấm được (Sin phản hồi
+                    2026-09-11: "thiếu hiển thị tg... chưa có sort theo tg"). */}
+                <TableSortLabel active={sortKey === 'occurredAt'} direction={sortKey === 'occurredAt' ? sortDir : 'desc'} onClick={() => handleSort('occurredAt')}>
+                  Thời gian
+                </TableSortLabel>
+              </TableCell>
               <TableCell align="right">Hành động</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {!loading && items.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                <TableCell colSpan={8} align="center" sx={{ py: 4, color: 'text.secondary' }}>
                   Không có tin báo nào đang chờ xử lý.
                 </TableCell>
               </TableRow>
@@ -229,6 +245,7 @@ export default function PendingReportsPage() {
                 <TableCell>
                   {it.stillDangerous && <Chip size="small" label="Khẩn cấp" sx={{ bgcolor: '#fef2f2', color: '#dc2626', fontWeight: 700 }} />}
                 </TableCell>
+                <TableCell>{it.occurredAt ? new Date(it.occurredAt).toLocaleString('vi-VN') : '—'}</TableCell>
                 <TableCell align="right">
                   <Button
                     size="small"

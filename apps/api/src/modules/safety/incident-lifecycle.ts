@@ -239,6 +239,13 @@ export async function transitionIncidentStatus(
   if (isClosing) {
     await notifyReporterAndAudit(db, opts, { incidentId: input.incidentId, eventType: 'reporter.notified.closed' }, now);
   }
+  // Thêm 2026-09-11: người báo tin trước đây chỉ nhận email lúc tiếp nhận
+  // và lúc đóng, không biết gì ở giữa. Gửi thêm khi chuyển ĐÚNG vào "Đang
+  // xử lý" — mọi lần (kể cả sau khi mở lại/hết chờ bên ngoài), không chỉ
+  // lần đầu, vì mỗi lần đều là tin thật đáng báo "đang có người xử lý".
+  if (input.toState === catalog.STATE.IN_PROGRESS) {
+    await notifyReporterAndAudit(db, opts, { incidentId: input.incidentId, eventType: 'reporter.notified.in_progress' }, now);
+  }
 
   return { incidentId: input.incidentId, state: input.toState };
 }

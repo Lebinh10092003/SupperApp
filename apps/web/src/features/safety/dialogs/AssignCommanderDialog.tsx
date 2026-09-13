@@ -82,7 +82,19 @@ export function AssignCommanderDialog({
               )}
             </Typography>
             <PersonPicker label="Chỉ huy mới" value={commander} onChange={setCommander} />
-            <TextField label="Lý do (tuỳ chọn)" value={reason} onChange={(e) => setReason(e.target.value)} multiline rows={2} fullWidth />
+            {/* Trước đây ghi "(tuỳ chọn)" nhưng backend bắt buộc theo vai
+                trò (`PERMISSION_MATRIX['incident.assign_commander']`:
+                Hiệu trưởng = XR → bắt buộc nhập lý do, Phó Hiệu trưởng =
+                X → không bắt buộc) — nhãn cũ sai, gây bấm Xác nhận bị
+                chặn bất ngờ (Sin phản hồi 2026-09-11). */}
+            <TextField
+              label="Lý do (bắt buộc với Hiệu trưởng)"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              multiline
+              rows={2}
+              fullWidth
+            />
             {needsApproval && (
               <TextField
                 label="Mã người phê duyệt (perId của cấp trên)"

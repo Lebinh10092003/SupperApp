@@ -45,12 +45,17 @@ interface TrendAlert {
 function TrendAlertsPanel() {
   const [alerts, setAlerts] = useState<TrendAlert[]>([]);
   const [error, setError] = useState('');
+  const [categoryLabel, setCategoryLabel] = useState<Record<string, string>>({});
 
   useEffect(() => {
     api
       .get<{ alerts: TrendAlert[] }>('/api/safety/stats/trend-alerts')
       .then((res) => setAlerts(res.alerts || []))
       .catch((e: any) => setError(e.message || 'Không tải được cảnh báo xu hướng.'));
+    api
+      .get<{ code: string; label: string }[]>('/api/safety/categories')
+      .then((cats) => setCategoryLabel(Object.fromEntries((cats || []).map((c) => [c.code, c.label]))))
+      .catch(() => setCategoryLabel({}));
   }, []);
 
   return (
@@ -74,7 +79,7 @@ function TrendAlertsPanel() {
             }}
           >
             <Typography variant="body2" fontWeight={700}>
-              {CAMPUS_LABEL[a.campus_id] || a.campus_id} — {a.category_code}
+              {CAMPUS_LABEL[a.campus_id] || a.campus_id} — {categoryLabel[a.category_code] || a.category_code}
             </Typography>
             <Typography variant="caption" color="text.secondary">
               {a.count} vụ trong {a.window_days} ngày gần đây — mức {a.severity === 'critical' ? 'nghiêm trọng' : 'cảnh báo'}
@@ -87,19 +92,65 @@ function TrendAlertsPanel() {
 }
 
 function CampusComparisonPanel() {
+  // Backend (`safety-stats.routes.ts` /stats/campus-comparison) đã nhận
+  // sẵn `fromMonth`/`toMonth` từ đầu — trước đây chỉ CHƯA nối vào UI (Sin
+  // phản hồi 2026-09-11: "thống kê cảnh báo an toàn... có sort và check
+  // theo thời gian được không, đó là thông tin quan trọng").
+  const [fromMonth, setFromMonth] = useState('');
+  const [toMonth, setToMonth] = useState('');
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState('');
 
-  useEffect(() => {
+  const load = () => {
+    const qs = new URLSearchParams();
+    if (fromMonth) qs.set('fromMonth', fromMonth);
+    if (toMonth) qs.set('toMonth', toMonth);
     api
-      .get('/api/safety/stats/campus-comparison')
-      .then(setData)
+      .get(`/api/safety/stats/campus-comparison${qs.toString() ? `?${qs}` : ''}`)
+      .then((d) => {
+        setData(d);
+        setError('');
+      })
       .catch((e: any) => setError(e.message || 'Không tải được so sánh cơ sở.'));
-  }, []);
+  };
 
-  if (error) return <Alert severity="error">{error}</Alert>;
+  useEffect(load, []);
+
+  return (
+    <Box>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2 }} alignItems={{ sm: 'flex-end' }}>
+        <TextField
+          label="Từ tháng"
+          type="month"
+          size="small"
+          value={fromMonth}
+          onChange={(e) => setFromMonth(e.target.value)}
+          slotProps={{ inputLabel: { shrink: true } }}
+          sx={{ minWidth: 160 }}
+        />
+        <TextField
+          label="Đến tháng"
+          type="month"
+          size="small"
+          value={toMonth}
+          onChange={(e) => setToMonth(e.target.value)}
+          slotProps={{ inputLabel: { shrink: true } }}
+          sx={{ minWidth: 160 }}
+        />
+        <Button variant="outlined" size="small" onClick={load} sx={{ height: 40 }}>
+          Xem
+        </Button>
+      </Stack>
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      {!data && !error ? null : (
+        <CampusComparisonTable data={data} />
+      )}
+    </Box>
+  );
+}
+
+function CampusComparisonTable({ data }: { data: any }) {
   if (!data) return null;
-
   const campusIds = Object.keys(data.campuses || {});
 
   return (
@@ -155,16 +206,33 @@ function CampusComparisonPanel() {
 }
 
 
+// value rỗng '' cho "Toàn bộ thời gian" khiến MUI Select không hiện được
+// nhãn đã chọn (coi "" là "chưa chọn gì") — dùng sentinel 'all' thay vì
+// rỗng, chỉ bỏ qua khi build query string.
+const RANGE_DAYS_OPTIONS = [
+  { value: '7', label: '7 ngày gần đây' },
+  { value: '30', label: '30 ngày gần đây' },
+  { value: '90', label: '90 ngày gần đây' },
+  { value: '365', label: '365 ngày gần đây' },
+  { value: 'all', label: 'Toàn bộ thời gian' }
+];
+
 function ClassStatsPanel() {
   const [campusId, setCampusId] = useState('MAIN_CAMPUS');
   const [reason, setReason] = useState('');
+  // Backend (`/stats/classes`) đã nhận sẵn `rangeDays` từ đầu — trước đây
+  // CHƯA nối vào UI (Sin phản hồi 2026-09-11: cần lọc/kiểm tra theo thời
+  // gian ở phần thống kê).
+  const [rangeDays, setRangeDays] = useState('30');
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState('');
 
   const load = () => {
-    const qs = reason.trim() ? `&reason=${encodeURIComponent(reason.trim())}` : '';
+    const qs = new URLSearchParams({ campusId });
+    if (reason.trim()) qs.set('reason', reason.trim());
+    if (rangeDays && rangeDays !== 'all') qs.set('rangeDays', rangeDays);
     api
-      .get(`/api/safety/stats/classes?campusId=${encodeURIComponent(campusId)}${qs}`)
+      .get(`/api/safety/stats/classes?${qs}`)
       .then((d) => {
         setData(d);
         setError('');
@@ -172,7 +240,7 @@ function ClassStatsPanel() {
       .catch((e: any) => setError(e.message || 'Không tải được thống kê theo lớp.'));
   };
 
-  useEffect(load, [campusId]);
+  useEffect(load, [campusId, rangeDays]);
 
   return (
     <Box>
@@ -181,6 +249,13 @@ function ClassStatsPanel() {
           {CAMPUS_IDS.map((c) => (
             <MenuItem key={c} value={c}>
               {CAMPUS_LABEL[c]}
+            </MenuItem>
+          ))}
+        </TextField>
+        <TextField select size="small" label="Khoảng thời gian" value={rangeDays} onChange={(e) => setRangeDays(e.target.value)} sx={{ minWidth: 190 }}>
+          {RANGE_DAYS_OPTIONS.map((o) => (
+            <MenuItem key={o.value} value={o.value}>
+              {o.label}
             </MenuItem>
           ))}
         </TextField>

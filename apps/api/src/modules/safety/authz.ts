@@ -220,11 +220,21 @@ export function checkAuthorization(input: { actor: Actor; action: string; resour
     if (orgOk && domainOk) grantedVia = 'role';
   }
 
-  // Bước 7 — Quan hệ/thời gian: CHỈ xét khi đường vai trò CHƯA cho phép.
-  let relational: RelationalGrant | null = null;
-  if (!grantedVia) {
-    relational = relationalGrant(actor, action, resource);
-    if (relational.granted) grantedVia = 'relation';
+  // Bước 7 — Quan hệ/thời gian: LUÔN tính `relationalGrant()`, KHÔNG chỉ
+  // khi đường vai trò chưa cấp quyền. Sửa lỗi 2026-09-11 (Sin phản hồi
+  // sau khi verify thật): trước đây chỉ tính khi `!grantedVia`, khiến
+  // bypassCeiling (chỉ huy vụ việc/được giao nhiệm vụ trên đúng hồ sơ)
+  // KHÔNG BAO GIỜ áp dụng cho actor đã có sẵn quyền role-based ở mức
+  // ceiling thấp hơn hồ sơ — mà đây là trường hợp PHỔ BIẾN NHẤT (mọi
+  // R.TEACHER đều có baseline quyền xem C1/C2), không phải trường hợp
+  // hiếm không có role nào cả. Hệ quả cũ: chỉ huy/người được giao việc
+  // vẫn bị redact ngay với chính hồ sơ mình đang xử lý. bypassCeiling
+  // giờ được xét ĐỘC LẬP với việc đường vai trò đã cấp quyền hay chưa —
+  // vẫn giữ đúng thứ tự 9 bước (7 rồi mới 6), chỉ sửa ĐIỀU KIỆN chạy
+  // bước 7, không đảo thứ tự.
+  const relational = relationalGrant(actor, action, resource);
+  if (!grantedVia && relational.granted) {
+    grantedVia = 'relation';
   }
 
   if (!grantedVia) {
@@ -234,8 +244,10 @@ export function checkAuthorization(input: { actor: Actor; action: string; resour
     return decide(false, 'Không có vai trò nào cho phép thực hiện hành động này, và không có quyền tạm thời theo quan hệ/thời gian.');
   }
 
-  // Bước 6 — Mức bí mật (áp dụng cả 2 đường, TRỪ quan hệ tạm thời bypassCeiling).
-  const skipCeiling = grantedVia === 'relation' && relational?.bypassCeiling;
+  // Bước 6 — Mức bí mật (áp dụng cả 2 đường, TRỪ khi có bypassCeiling từ
+  // quan hệ tạm thời — dù đường cấp quyền CHÍNH là 'role', bypassCeiling
+  // của quan hệ tạm thời vẫn áp dụng nếu actor thoả điều kiện đó).
+  const skipCeiling = relational.granted && relational.bypassCeiling;
   if (!skipCeiling && resource.confidentiality && isValidConfidentiality(resource.confidentiality)) {
     const ceiling = actorCeiling(actor);
     if (confidentialityRank(ceiling) < confidentialityRank(resource.confidentiality)) {

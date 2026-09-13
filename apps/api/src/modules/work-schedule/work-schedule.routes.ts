@@ -25,10 +25,12 @@
 
 import { Router } from 'express';
 import type { Request, Response, NextFunction } from 'express';
+import { inArray } from 'drizzle-orm';
 import { firebaseAuth } from '../../auth/middleware.js';
 import { asyncRoute, HttpError } from '../../core/http.js';
 import { db } from '../../core/db/client.js';
 import { loadActorContext } from '../identity/actor-context.js';
+import { accounts } from '../identity/identity.schema.js';
 import {
   AppError,
   createEvent,
@@ -224,7 +226,20 @@ workScheduleRouter.get(
       assigneePerId: typeof req.query.assigneePerId === 'string' ? req.query.assigneePerId : undefined,
       statuses: parseStatuses(req.query.statuses)
     });
-    res.json({ items: rows });
+    // Bổ sung tên hiển thị của người được giao — trước đây frontend chỉ có
+    // assigneePerId (mã nội bộ), phải tự hiện thẳng mã đó lên UI cho người
+    // dùng thật (Sin phát hiện 13/09/2026, trang Trung tâm phê duyệt).
+    const perIds = [...new Set(rows.flatMap((r) => [r.assigneePerId, r.createdByPerId]))];
+    const nameByPerId = perIds.length
+      ? Object.fromEntries((await db.select().from(accounts).where(inArray(accounts.perId, perIds))).map((a) => [a.perId, a.displayName]))
+      : {};
+    res.json({
+      items: rows.map((r) => ({
+        ...r,
+        assigneeName: nameByPerId[r.assigneePerId] ?? null,
+        createdByName: nameByPerId[r.createdByPerId] ?? null
+      }))
+    });
   })
 );
 

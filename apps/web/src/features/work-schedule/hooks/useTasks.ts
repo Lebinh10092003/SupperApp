@@ -9,6 +9,7 @@ export interface WorkTask {
   priority: string;
   campusId: string;
   assigneePerId: string;
+  assigneeName: string | null;
   collaboratorPerIds: string[];
   dueAt: string;
   status: string;
@@ -16,6 +17,7 @@ export interface WorkTask {
   acceptanceNote: string;
   cancellationReason: string | null;
   createdByPerId: string;
+  createdByName: string | null;
   createdAt: string;
   updatedAt: string;
 }

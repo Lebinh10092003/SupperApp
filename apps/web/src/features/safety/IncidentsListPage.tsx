@@ -226,12 +226,22 @@ export default function IncidentsListPage() {
               </TableCell>
               <TableCell>Bí mật</TableCell>
               <TableCell>Chỉ huy</TableCell>
+              <TableCell>
+                {/* Trước đây KHÔNG có cột thời gian nào — `sortKey` mặc định
+                    đã LÀ 'updatedAt' và sort THẬT SỰ chạy đúng, nhưng không
+                    có cột hiển thị giá trị lẫn tiêu đề bấm được (Sin phản hồi
+                    2026-09-11: "thiếu hiển thị tg... chưa có sort theo tg" —
+                    sort ngầm có sẵn nhưng không thấy/không điều khiển được). */}
+                <TableSortLabel active={sortKey === 'updatedAt'} direction={sortKey === 'updatedAt' ? sortDir : 'desc'} onClick={() => handleSort('updatedAt')}>
+                  Cập nhật
+                </TableSortLabel>
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {!loading && items.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                <TableCell colSpan={8} align="center" sx={{ py: 4, color: 'text.secondary' }}>
                   Không có hồ sơ nào.
                 </TableCell>
               </TableRow>
@@ -251,6 +261,7 @@ export default function IncidentsListPage() {
                   <ConfidentialityBadge confidentiality={it.confidentiality} redacted={it.redacted} />
                 </TableCell>
                 <TableCell>{it.redacted ? '—' : it.commanderName || '—'}</TableCell>
+                <TableCell>{it.updatedAt ? new Date(it.updatedAt).toLocaleString('vi-VN') : '—'}</TableCell>
               </TableRow>
             ))}
           </TableBody>

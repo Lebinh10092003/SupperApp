@@ -219,6 +219,67 @@ safetyQueryRouter.get(
   })
 );
 
+// Lấy ĐÚNG 1 tin báo theo id, KHÔNG giới hạn "còn đang chờ xử lý" như
+// GET /reports/pending (chỉ where mergedIntoIncidentId IS NULL). Thêm
+// 2026-09-11 vì chuông thông báo nội bộ (NotificationBell.tsx) có thể trỏ
+// tới 1 tin báo ĐÃ được gộp vào hồ sơ trước khi actor bấm xem — trước đây
+// bấm vào thông báo dạng "TB." không làm gì cả (chỉ nhận SC.), người dùng
+// tưởng không có phản ứng gì. Trả thêm `mergedIntoIncidentId` để client tự
+// điều hướng sang đúng hồ sơ đã gộp thay vì cố hiển thị tin báo không còn
+// "sống" nữa.
+safetyQueryRouter.get(
+  '/reports/:id',
+  firebaseAuth,
+  asyncRoute(async (req, res) => {
+    const actor = await loadActorContext(db, req.appUser!.uid);
+    if (!actor.roles || actor.roles.length === 0) {
+      throw new HttpError(403, 'Tài khoản chưa được phân vai trò nào trong hệ thống — liên hệ quản trị.', 'PERMISSION_ERROR');
+    }
+    const reportId = String(req.params.id);
+    const [r] = await db.select().from(reports).where(eq(reports.reportId, reportId)).limit(1);
+    if (!r) throw new HttpError(404, 'Không tìm thấy tin báo ' + reportId, 'NOT_FOUND');
+    if (!inOrgScope(actor, { campusId: r.campusId })) {
+      throw new HttpError(403, 'Không có quyền xem tin báo thuộc cơ sở khác.', 'PERMISSION_ERROR');
+    }
+
+    const item = {
+      reportId: r.reportId,
+      publicCode: r.publicCode,
+      campusId: r.campusId,
+      categoryCode: r.categoryCode,
+      categoryLabel: CATEGORY_CATALOG[r.categoryCode]?.label || r.categoryCode,
+      stillDangerous: !!r.stillDangerous,
+      reporterRole: r.reporterRole,
+      confidentiality: r.confidentiality as Confidentiality,
+      content: r.content || '',
+      occurredAt: r.occurredAt,
+      occurredFrom: r.occurredFrom,
+      occurredTo: r.occurredTo,
+      channel: r.channel,
+      className: r.className,
+      suggestedClassNames: r.suggestedClassNames || [],
+      mergedIntoIncidentId: r.mergedIntoIncidentId,
+      redacted: false as boolean,
+      canViewEvidence: false as boolean,
+      evidenceList: [] as Array<{ evidenceId: string; fileType: string; sizeBytes: number; scanStatus: string }>
+    };
+
+    const ceiling = actorCeiling(actor);
+    if (confidentialityRank(item.confidentiality) > confidentialityRank(ceiling)) {
+      item.content = '';
+      item.className = null;
+      item.suggestedClassNames = [];
+      item.redacted = true;
+    }
+    item.canViewEvidence = canViewEvidence(actor, { campus_id: item.campusId, confidentiality: item.confidentiality });
+    item.evidenceList = item.canViewEvidence ? await listEvidenceSummaryForReportIds([item.reportId]) : [];
+
+    await db.insert(auditLogs).values({ occurredAt: new Date(), actorPerId: actor.perId, action: 'safety.report.view', objectId: item.reportId });
+
+    res.json(item);
+  })
+);
+
 // Port từ `exports.listIncidents`.
 safetyQueryRouter.get(
   '/incidents',

@@ -40,6 +40,15 @@ import { ChangePriorityDialog, type ChangePriorityTarget } from './dialogs/Chang
 import { ReopenIncidentDialog, type ReopenIncidentTarget } from './dialogs/ReopenIncidentDialog';
 import { AssignCommanderDialog, type AssignCommanderTarget } from './dialogs/AssignCommanderDialog';
 import { CorrectClassificationDialog, type CorrectClassificationTarget } from './dialogs/CorrectClassificationDialog';
+import { CAMPUS_LABEL, SLA_CLOCK_LABEL, SLA_STATUS_LABEL } from './constants';
+
+/** EVIDENCE_SCAN_STATUS (catalog.ts backend): pending_scan/rejected/clear/infected. */
+const EVIDENCE_SCAN_STATUS_LABEL: Record<string, string> = {
+  pending_scan: 'Đang quét virus',
+  rejected: 'Bị từ chối',
+  clear: 'An toàn',
+  infected: 'Nhiễm mã độc'
+};
 
 interface EvidenceSummary {
   evidenceId: string;
@@ -185,7 +194,7 @@ export default function IncidentDetailPage() {
               </Typography>
               <Stack spacing={1}>
                 <Typography variant="body2">
-                  Cơ sở: <strong>{incident.campusId}</strong>
+                  Cơ sở: <strong>{CAMPUS_LABEL[incident.campusId] || incident.campusId}</strong>
                 </Typography>
                 {incident.className && (
                   <Typography variant="body2">
@@ -213,7 +222,7 @@ export default function IncidentDetailPage() {
                 <Stack spacing={1}>
                   {Object.entries(incident.slaClocks).map(([label, clock]) => (
                     <Typography key={label} variant="body2">
-                      {label}: hạn {formatDateTime(clock.deadlineAt)} — {clock.status}
+                      {SLA_CLOCK_LABEL[label] || label}: hạn {formatDateTime(clock.deadlineAt)} — {SLA_STATUS_LABEL[clock.status] || clock.status}
                       {clock.paused ? ' (đang tạm dừng)' : ''}
                     </Typography>
                   ))}
@@ -232,7 +241,7 @@ export default function IncidentDetailPage() {
                   {incident.evidenceList.map((ev) => (
                     <Box key={ev.evidenceId} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
                       <Typography variant="body2">
-                        {ev.evidenceId} — {ev.fileType} ({Math.round(ev.sizeBytes / 1024)} KB) — {ev.scanStatus}
+                        {ev.evidenceId} — {ev.fileType} ({Math.round(ev.sizeBytes / 1024)} KB) — {EVIDENCE_SCAN_STATUS_LABEL[ev.scanStatus] || ev.scanStatus}
                       </Typography>
                       <Button
                         size="small"
