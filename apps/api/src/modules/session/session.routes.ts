@@ -1,10 +1,12 @@
 import { Router } from 'express';
-import { FieldValue } from 'firebase-admin/firestore';
-import { adminAuth, col } from '../../core/firebase.js';
+import { eq } from 'drizzle-orm';
+import { adminAuth } from '../../core/firebase.js';
+import { db } from '../../core/db/client.js';
 import { asyncRoute, HttpError } from '../../core/http.js';
 import { bootstrapEmails } from '../../config/env.js';
 import { firebaseAuth } from '../../auth/middleware.js';
 import { safeId } from '../../core/ids.js';
+import { users, accessAllowlist } from './session.schema.js';
 
 export const sessionRouter = Router();
 
@@ -22,37 +24,40 @@ sessionRouter.post(
       return r.json({ ok: true });
     }
 
-    const d = await adminAuth.verifyIdToken(token),
-      email = (d.email || '').toLowerCase(),
-      ref = col('users').doc(d.uid),
-      s = await ref.get();
+    const d = await adminAuth.verifyIdToken(token);
+    const email = (d.email || '').toLowerCase();
+    const existing = await db.select().from(users).where(eq(users.uid, d.uid)).then((rows) => rows[0] ?? null);
 
-    if (!s.exists) {
-      let role = 'VIEWER',
-        allowed = false;
+    if (!existing) {
+      let role = 'VIEWER';
+      let allowed = false;
       if (bootstrapEmails.has(email)) {
         role = 'SYSTEM_ADMIN';
         allowed = true;
       } else {
-        const g = await col('accessAllowlist').doc(safeId(email)).get();
-        if (g.exists && g.data()?.active !== false) {
+        const grant = await db
+          .select()
+          .from(accessAllowlist)
+          .where(eq(accessAllowlist.id, safeId(email)))
+          .then((rows) => rows[0] ?? null);
+        if (grant && grant.active !== false) {
           allowed = true;
-          role = g.data()?.role || 'VIEWER';
+          role = grant.role || 'VIEWER';
         }
       }
       if (!allowed) {
         throw new HttpError(403, 'Tài khoản chưa được cấp quyền', 'PERMISSION_ERROR');
       }
-      await ref.set({
+      await db.insert(users).values({
+        uid: d.uid,
         email,
         displayName: d.name || email,
         role,
         active: true,
-        createdAt: FieldValue.serverTimestamp(),
-        lastLogin: FieldValue.serverTimestamp()
+        lastLogin: new Date()
       });
     } else {
-      await ref.set({ lastLogin: FieldValue.serverTimestamp() }, { merge: true });
+      await db.update(users).set({ lastLogin: new Date() }).where(eq(users.uid, d.uid));
     }
     r.json({ ok: true });
   })

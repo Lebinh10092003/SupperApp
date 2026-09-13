@@ -1,14 +1,28 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { FieldValue } from 'firebase-admin/firestore';
+import { eq, count, sql } from 'drizzle-orm';
 import { firebaseAuth, requireCapability } from '../../auth/middleware.js';
 import { asyncRoute } from '../../core/http.js';
-import { col, resolveServiceAccount } from '../../core/firebase.js';
+import { db } from '../../core/db/client.js';
+import { resolveServiceAccount } from '../../core/firebase.js';
 import { env } from '../../config/env.js';
 import { syncAllCourses } from './classroom.service.js';
 import { rebuildDashboard } from '../dashboard/dashboard.service.js';
+import { courses } from './classroom.schema.js';
+import { classes } from '../classes/classes.schema.js';
+import { googleConnections } from '../connections/connections.schema.js';
+import { systemConfig } from '../system/system.schema.js';
 
 export const classroomRouter = Router();
+
+async function getConnection(id: string) {
+  return db.select().from(googleConnections).where(eq(googleConnections.id, id)).then((r) => r[0] ?? null);
+}
+
+async function getSystemConfig<T = any>(key: string): Promise<T | null> {
+  const row = await db.select().from(systemConfig).where(eq(systemConfig.key, key)).then((r) => r[0] ?? null);
+  return (row?.value as T) ?? null;
+}
 
 // Kiểm tra trạng thái kết nối và số lượng khóa học Google Classroom
 classroomRouter.get(
@@ -16,18 +30,17 @@ classroomRouter.get(
   firebaseAuth,
   requireCapability('VIEW_DASHBOARD'),
   asyncRoute(async (_q, r) => {
-    const [coursesSnap, syncDoc, connDoc] = await Promise.all([
-      col('courses').count().get().catch(() => ({ data: () => ({ count: 0 }) })),
-      col('system').doc('syncStatus').get().catch(() => null),
-      col('googleConnections').doc('current').get().catch(() => null)
+    const [[courseCountRow], syncStatus, conn] = await Promise.all([
+      db.select({ n: count() }).from(courses),
+      getSystemConfig<{ lastSyncAt?: string }>('syncStatus'),
+      getConnection('current')
     ]);
-    const courseCount = coursesSnap.data().count;
-    const isConnected = !!(connDoc?.exists && connDoc.data()?.accessToken);
-    const lastSync = syncDoc?.exists ? syncDoc.data()?.lastSyncAt : null;
+    const courseCount = courseCountRow?.n ?? 0;
+    const isConnected = Boolean(conn?.accessToken);
     r.json({
       connected: isConnected,
       courseCount,
-      lastSync,
+      lastSync: syncStatus?.lastSyncAt ?? null,
       isSynced: courseCount > 0
     });
   })
@@ -39,8 +52,7 @@ classroomRouter.get(
   firebaseAuth,
   requireCapability('VIEW_DASHBOARD'),
   asyncRoute(async (_q, r) => {
-    const s = await col('courses').get();
-    const items = s.docs.map(d => ({ id: d.id, ...d.data() }));
+    const items = await db.select().from(courses);
     r.json({ total: items.length, items });
   })
 );
@@ -52,21 +64,18 @@ classroomRouter.post(
   requireCapability('RUN_SYNC'),
   asyncRoute(async (req, res) => {
     // 1. Kiểm tra Mode A (Tài khoản Google OAuth đã liên kết)
-    const [userConnDoc, currentConnDoc] = await Promise.all([
-      col('googleConnections').doc(req.appUser!.uid).get(),
-      col('googleConnections').doc('current').get()
+    const [userConn, currentConn] = await Promise.all([
+      getConnection(req.appUser!.uid),
+      getConnection('current')
     ]);
-    const conn = userConnDoc.exists && userConnDoc.data()?.accessToken
-      ? userConnDoc.data()
-      : (currentConnDoc.exists && currentConnDoc.data()?.accessToken ? currentConnDoc.data() : null);
+    const conn = userConn?.accessToken ? userConn : currentConn?.accessToken ? currentConn : null;
 
     if (conn && conn.accessToken) {
       let activeToken = conn.accessToken;
-      const isExpired = conn.expiresAt && Date.now() > Number(conn.expiresAt) - 60000;
+      const isExpired = conn.expiresAt && Date.now() > conn.expiresAt.getTime() - 60000;
       if (isExpired && conn.refreshToken) {
         try {
-          const cfgDoc = await col('system').doc('oauthConfig').get();
-          const cfg = cfgDoc.exists ? cfgDoc.data() : null;
+          const cfg = await getSystemConfig<{ clientId?: string; clientSecret?: string }>('oauthConfig');
           const clientId = cfg?.clientId || env.GOOGLE_OAUTH_CLIENT_ID;
           const clientSecret = cfg?.clientSecret || env.GOOGLE_OAUTH_CLIENT_SECRET;
           if (clientId && clientSecret && !clientId.includes('your-client-id')) {
@@ -83,15 +92,15 @@ classroomRouter.post(
             if (refreshRes.ok) {
               const refreshData = (await refreshRes.json()) as any;
               activeToken = refreshData.access_token;
-              const updateData = {
-                accessToken: activeToken,
-                expiresAt: Date.now() + (refreshData.expires_in || 3600) * 1000,
-                tokenExpiresAt: Date.now() + (refreshData.expires_in || 3600) * 1000
-              };
-              await Promise.all([
-                col('googleConnections').doc(req.appUser!.uid).set(updateData, { merge: true }),
-                col('googleConnections').doc('current').set(updateData, { merge: true })
-              ]);
+              const newExpiresAt = new Date(Date.now() + (refreshData.expires_in || 3600) * 1000);
+              await Promise.all(
+                [req.appUser!.uid, 'current'].map((id) =>
+                  db
+                    .update(googleConnections)
+                    .set({ accessToken: activeToken, expiresAt: newExpiresAt, tokenExpiresAt: newExpiresAt, updatedAt: new Date() })
+                    .where(eq(googleConnections.id, id))
+                )
+              );
             }
           }
         } catch (e: any) {
@@ -147,19 +156,25 @@ classroomRouter.patch(
         className: z.string().min(1)
       })
       .parse(q.body);
-    await col('courses').doc(String(q.params.id)).set(
-      { ...b, updatedAt: FieldValue.serverTimestamp() },
-      { merge: true }
-    );
-    await col('classes').doc(b.classId).set(
-      {
-        ...b,
-        classroomCourseIds: FieldValue.arrayUnion(String(q.params.id)),
-        updatedAt: FieldValue.serverTimestamp()
-      },
-      { merge: true }
-    );
+    const courseId = String(q.params.id);
+
+    await db.update(courses).set({ classId: b.classId, className: b.className, updatedAt: new Date() }).where(eq(courses.id, courseId));
+
+    await db
+      .insert(classes)
+      .values({ classId: b.classId, className: b.className, courses: [courseId] })
+      .onConflictDoUpdate({
+        target: classes.classId,
+        set: {
+          className: b.className,
+          courses: sql`(
+            SELECT jsonb_agg(DISTINCT value)
+            FROM jsonb_array_elements(COALESCE(${classes.courses}, '[]'::jsonb) || ${JSON.stringify([courseId])}::jsonb) AS value
+          )`,
+          updatedAt: new Date()
+        }
+      });
+
     r.json({ ok: true });
   })
 );
-

@@ -1,7 +1,11 @@
 import { Router } from 'express';
+import { desc } from 'drizzle-orm';
 import { firebaseAuth, requireCapability } from '../../auth/middleware.js';
 import { asyncRoute } from '../../core/http.js';
-import { col } from '../../core/firebase.js';
+import { db } from '../../core/db/client.js';
+import { metricsDaily } from '../dashboard/dashboard.schema.js';
+import { courses } from '../classroom/classroom.schema.js';
+import { meetSessions } from '../meet/meet.schema.js';
 
 const cell = (value: unknown) => `"${String(value ?? '').replaceAll('"', '""')}"`;
 
@@ -13,17 +17,20 @@ reportsRouter.get(
   requireCapability('VIEW_DASHBOARD'),
   asyncRoute(async (req, res) => {
     const days = Math.min(Number(req.query.days || 30), 365);
-    const snap = await col('metricsDaily').orderBy('date', 'desc').limit(days).get();
-    const headers = ['Ngày', 'Tỷ lệ chuyên cần (%)', 'Tỷ lệ đi muộn (%)', 'Số phiên Meet', 'Lớp học hoạt động', 'Tỷ lệ nộp bài (%)'];
-    const fields = ['date', 'attendanceRate', 'lateRate', 'meetSessions', 'activeClassrooms', 'submissionRate'];
+    const rows = await db.select().from(metricsDaily).orderBy(desc(metricsDaily.date)).limit(days);
+    // metrics_daily bản Postgres KHÔNG lưu lateRate/số phiên Meet mỗi ngày
+    // (quyết định thu gọn schema khi migrate) — bỏ hẳn 2 cột đó khỏi báo
+    // cáo thay vì hiện "0" gây hiểu nhầm "không có phiên nào".
+    const headers = ['Ngày', 'Tỷ lệ chuyên cần (%)', 'Lớp học hoạt động', 'Tỷ lệ nộp bài (%)'];
+
     const lines = [
       headers.map(cell).join(','),
-      ...snap.docs.map((doc) => fields.map((h) => cell(h === 'date' ? doc.id : doc.data()[h] ?? 0)).join(',')),
+      ...rows.map((r) => [cell(r.date), cell(r.attendanceRate ?? 0), cell(r.activeCourses ?? 0), cell(r.submissionRate ?? 0)].join(','))
     ];
     res.header('content-type', 'text/csv; charset=utf-8');
     res.header('content-disposition', 'attachment; filename="bao-cao-chuyen-can-thcs-giang-vo.csv"');
-    res.send('\uFEFF' + lines.join('\n'));
-  }),
+    res.send('﻿' + lines.join('\n'));
+  })
 );
 
 reportsRouter.get(
@@ -31,7 +38,7 @@ reportsRouter.get(
   firebaseAuth,
   requireCapability('VIEW_DASHBOARD'),
   asyncRoute(async (_req, res) => {
-    const snap = await col('courses').get();
+    const rows = await db.select().from(courses);
     const headers = [
       'Mã khóa học',
       'Tên khóa học Google Classroom',
@@ -51,37 +58,34 @@ reportsRouter.get(
 
     const lines = [
       headers.map(cell).join(','),
-      ...snap.docs.map((doc) => {
-        const d = doc.data();
-        const content = d.content || {};
-        const roster = d.roster || {};
-        const turnedIn = Number(content.submissionsTurnedIn || 0);
-        const late = Number(content.submissionsLate || 0);
+      ...rows.map((c) => {
+        const turnedIn = c.submissionsTurnedIn;
+        const late = c.submissionsLate;
         const onTime = Math.max(0, turnedIn - late);
 
         return [
-          cell(doc.id),
-          cell(d.name || ''),
-          cell(d.grade || ''),
-          cell(d.className || d.classId || ''),
-          cell(d.subjectName || ''),
-          cell(roster.students || 0),
-          cell(content.coursework || content.courseWorkTotal || 0),
-          cell(content.submissionsTotal || 0),
+          cell(c.id),
+          cell(c.name || ''),
+          cell(c.grade || ''),
+          cell(c.className || c.classId || ''),
+          cell(c.subjectName || ''),
+          cell(c.rosterStudents || 0),
+          cell(c.contentCoursework || 0),
+          cell(c.submissionsTotal || 0),
           cell(onTime),
           cell(late),
-          cell(content.completionRate != null ? `${content.completionRate}%` : 'Chưa có'),
-          cell(content.onTimeRate != null ? `${content.onTimeRate}%` : 'Chưa có'),
-          cell(content.averageScore != null ? content.averageScore : 'Chưa chấm'),
-          cell(d.courseState || 'ACTIVE')
+          cell(c.completionRate != null ? `${c.completionRate}%` : 'Chưa có'),
+          cell(c.onTimeRate != null ? `${c.onTimeRate}%` : 'Chưa có'),
+          cell(c.averageScore != null ? c.averageScore : 'Chưa chấm'),
+          cell(c.courseState || 'ACTIVE')
         ].join(',');
       })
     ];
 
     res.header('content-type', 'text/csv; charset=utf-8');
     res.header('content-disposition', 'attachment; filename="bao-cao-google-classroom.csv"');
-    res.send('\uFEFF' + lines.join('\n'));
-  }),
+    res.send('﻿' + lines.join('\n'));
+  })
 );
 
 reportsRouter.get(
@@ -89,7 +93,7 @@ reportsRouter.get(
   firebaseAuth,
   requireCapability('VIEW_DASHBOARD'),
   asyncRoute(async (_req, res) => {
-    const snap = await col('meetSessions').get();
+    const rows = await db.select().from(meetSessions);
     const headers = [
       'Mã phiên',
       'Ngày',
@@ -105,26 +109,24 @@ reportsRouter.get(
 
     const lines = [
       headers.map(cell).join(','),
-      ...snap.docs.map((doc) => {
-        const d = doc.data();
-        return [
-          cell(doc.id),
-          cell(d.date || ''),
-          cell(d.className || d.spaceName || doc.id),
-          cell(d.hostEmail || ''),
-          cell(d.rosterSize || 0),
-          cell(d.present || 0),
-          cell(d.late || 0),
-          cell(d.absent || 0),
-          cell(d.durationMinutes || 45),
-          cell(d.attendanceStatus || 'COMPLETED')
-        ].join(',');
-      })
+      ...rows.map((s) =>
+        [
+          cell(s.id),
+          cell(s.date || ''),
+          cell(s.className || s.conferenceName || s.id),
+          cell(s.teacherEmail || ''),
+          cell(s.rosterSize || 0),
+          cell(s.present || 0),
+          cell(s.late || 0),
+          cell(s.absent || 0),
+          cell(45),
+          cell(s.attendanceStatus || 'COMPLETED')
+        ].join(',')
+      )
     ];
 
     res.header('content-type', 'text/csv; charset=utf-8');
     res.header('content-disposition', 'attachment; filename="bao-cao-phien-hoc-google-meet.csv"');
-    res.send('\uFEFF' + lines.join('\n'));
-  }),
+    res.send('﻿' + lines.join('\n'));
+  })
 );
-

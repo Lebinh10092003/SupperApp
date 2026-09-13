@@ -1,1 +1,26 @@
-import 'dotenv/config';import {FieldValue} from 'firebase-admin/firestore';import {col} from '../core/firebase.js';import {syncDirectory,teacherEmails} from '../modules/directory/directory.service.js';import {syncAllCourses} from '../modules/classroom/classroom.service.js';import {rebuildDashboard} from '../modules/dashboard/dashboard.service.js';const run=col('syncRuns').doc();try{await run.set({type:'FULL_SYNC',status:'RUNNING',startedAt:FieldValue.serverTimestamp()});const directory=await syncDirectory(),classroom=await syncAllCourses(await teacherEmails());await rebuildDashboard();await run.set({status:'DONE',directory,classroom,finishedAt:FieldValue.serverTimestamp()},{merge:true})}catch(e){await run.set({status:'ERROR',error:e instanceof Error?e.message:String(e),finishedAt:FieldValue.serverTimestamp()},{merge:true});process.exitCode=1}
+import 'dotenv/config';
+import { db } from '../core/db/client.js';
+import { syncRuns } from '../modules/classroom/classroom.schema.js';
+import { syncDirectory, teacherEmails } from '../modules/directory/directory.service.js';
+import { syncAllCourses } from '../modules/classroom/classroom.service.js';
+import { rebuildDashboard } from '../modules/dashboard/dashboard.service.js';
+import { eq } from 'drizzle-orm';
+
+const runId = `fullsync_${Date.now()}`;
+
+try {
+  await db.insert(syncRuns).values({ id: runId, type: 'FULL_SYNC', status: 'IN_PROGRESS' });
+  const directory = await syncDirectory();
+  const classroom = await syncAllCourses(await teacherEmails());
+  await rebuildDashboard();
+  await db
+    .update(syncRuns)
+    .set({ status: 'COMPLETED', note: JSON.stringify({ directory, classroom }), finishedAt: new Date() })
+    .where(eq(syncRuns.id, runId));
+} catch (e) {
+  await db
+    .update(syncRuns)
+    .set({ status: 'FAILED', note: e instanceof Error ? e.message : String(e), finishedAt: new Date() })
+    .where(eq(syncRuns.id, runId));
+  process.exitCode = 1;
+}

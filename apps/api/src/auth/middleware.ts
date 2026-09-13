@@ -1,6 +1,8 @@
 import type { Request, Response, NextFunction } from 'express';
-import { FieldValue } from 'firebase-admin/firestore';
-import { adminAuth, col } from '../core/firebase.js';
+import { eq } from 'drizzle-orm';
+import { adminAuth } from '../core/firebase.js';
+import { db } from '../core/db/client.js';
+import { users } from '../modules/session/session.schema.js';
 import { HttpError } from '../core/http.js';
 import { can, type Capability, type Role, type UserScope } from './roles.js';
 import { bootstrapSuperAdminEmails, bootstrapSuperAdminDomains, env } from '../config/env.js';
@@ -22,7 +24,7 @@ declare global {
   }
 }
 
-function isBootstrapSuperAdmin(email: string): boolean {
+export function isBootstrapSuperAdmin(email: string): boolean {
   const lower = email.toLowerCase();
   if (bootstrapSuperAdminEmails.has(lower)) return true;
   const domain = lower.split('@')[1];
@@ -60,48 +62,38 @@ export async function firebaseAuth(req: Request, _res: Response, next: NextFunct
       throw new HttpError(401, 'Phiên đăng nhập không hợp lệ hoặc đã hết hạn', 'AUTH_ERROR');
     });
     const email = (d.email || '').toLowerCase();
-    const userRef = col('users').doc(d.uid);
-    const s = await userRef.get();
+    const existing = await db.select().from(users).where(eq(users.uid, d.uid)).then((r) => r[0] ?? null);
 
     // Tự động cấp SYSTEM_SUPER_ADMIN cho email trong bootstrap config
     if (isBootstrapSuperAdmin(email)) {
-      if (!s.exists) {
-        await userRef.set({
+      if (!existing) {
+        await db.insert(users).values({
           uid: d.uid,
           email,
           role: 'SYSTEM_SUPER_ADMIN',
           active: true,
-          displayName: d.name || email,
-          createdAt: FieldValue.serverTimestamp(),
-          updatedAt: FieldValue.serverTimestamp()
+          displayName: d.name || email
         });
       }
-      req.appUser = {
-        uid: d.uid,
-        email,
-        role: 'SYSTEM_SUPER_ADMIN',
-        active: true,
-        displayName: d.name || email
-      };
+      req.appUser = { uid: d.uid, email, role: 'SYSTEM_SUPER_ADMIN', active: true, displayName: d.name || email };
       return next();
     }
 
-    if (!s.exists) {
+    if (!existing) {
       throw new HttpError(403, 'Tài khoản chưa được cấp quyền truy cập hệ thống', 'PERMISSION_ERROR');
     }
 
-    const p = s.data()!;
-    if (p.active !== true) {
+    if (existing.active !== true) {
       throw new HttpError(403, 'Tài khoản đã bị tạm khóa bởi Quản trị viên', 'PERMISSION_ERROR');
     }
 
     req.appUser = {
       uid: d.uid,
       email,
-      role: (p.role as Role) || 'TEACHER',
+      role: (existing.role as Role) || 'TEACHER',
       active: true,
-      displayName: p.displayName || d.name,
-      scope: p.scope
+      displayName: existing.displayName || d.name,
+      scope: (existing.scope as UserScope) ?? undefined
     };
     next();
   } catch (e) {
@@ -128,4 +120,3 @@ export function checkUserScope(user: AppUser, target: { grade?: number; classId?
   if (target.courseId && user.scope.courseIds?.length && !user.scope.courseIds.includes(target.courseId)) return false;
   return true;
 }
-

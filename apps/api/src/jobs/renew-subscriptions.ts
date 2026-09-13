@@ -1,1 +1,11 @@
-import 'dotenv/config';import {FieldValue} from 'firebase-admin/firestore';import {col} from '../core/firebase.js';const run=col('syncRuns').doc();await run.set({type:'RENEW_SUBSCRIPTIONS',status:'DONE',note:'Cấu hình Classroom Push/Meet subscriptions sau OAuth consent theo docs/DEPLOYMENT.md',startedAt:FieldValue.serverTimestamp(),finishedAt:FieldValue.serverTimestamp()});
+import 'dotenv/config';
+import { db } from '../core/db/client.js';
+import { syncRuns } from '../modules/classroom/classroom.schema.js';
+
+await db.insert(syncRuns).values({
+  id: `renew_${Date.now()}`,
+  type: 'RENEW_SUBSCRIPTIONS',
+  status: 'DONE',
+  note: 'Cấu hình Classroom Push/Meet subscriptions sau OAuth consent theo docs/DEPLOYMENT.md',
+  finishedAt: new Date()
+});

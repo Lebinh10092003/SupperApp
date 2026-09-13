@@ -1,9 +1,10 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { FieldValue } from 'firebase-admin/firestore';
+import { and, eq, type SQL } from 'drizzle-orm';
 import { firebaseAuth, requireCapability } from '../../auth/middleware.js';
 import { asyncRoute } from '../../core/http.js';
-import { col } from '../../core/firebase.js';
+import { db } from '../../core/db/client.js';
+import { alerts } from './alerts.schema.js';
 import {
   getAlertRules,
   updateAlertRule,
@@ -18,23 +19,16 @@ alertsRouter.get(
   firebaseAuth,
   requireCapability('VIEW_DASHBOARD'),
   asyncRoute(async (req, res) => {
-    let query: any = col('alerts');
+    const conditions: SQL[] = [];
+    if (req.query.open === 'true') conditions.push(eq(alerts.resolved, false));
+    if (req.query.severity) conditions.push(eq(alerts.severity, String(req.query.severity)));
+    if (req.query.status) conditions.push(eq(alerts.status, String(req.query.status)));
 
-    if (req.query.open === 'true') {
-      query = query.where('resolved', '==', false);
-    }
-    if (req.query.severity) {
-      query = query.where('severity', '==', String(req.query.severity));
-    }
-    if (req.query.status) {
-      query = query.where('status', '==', String(req.query.status));
-    }
+    const items = conditions.length
+      ? await db.select().from(alerts).where(and(...conditions))
+      : await db.select().from(alerts);
 
-    const snap = await query.get();
-    res.json({
-      total: snap.size,
-      items: snap.docs.map((d: any) => ({ id: d.id, ...d.data() }))
-    });
+    res.json({ total: items.length, items });
   })
 );
 
@@ -94,19 +88,19 @@ alertsRouter.patch(
       })
       .parse(req.body);
 
-    await col('alerts').doc(String(req.params.id)).set(
-      {
+    await db
+      .update(alerts)
+      .set({
         resolved: true,
         status: 'RESOLVED',
         resolution: body.resolution,
         principalNotes: body.notes || null,
         assigneeEmail: body.assigneeEmail || null,
         resolvedBy: req.appUser!.email,
-        resolvedAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp()
-      },
-      { merge: true }
-    );
+        resolvedAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(alerts.id, String(req.params.id)));
 
     res.json({ ok: true });
   })
@@ -126,17 +120,17 @@ alertsRouter.patch(
       })
       .parse(req.body);
 
-    await col('alerts').doc(String(req.params.id)).set(
-      {
+    await db
+      .update(alerts)
+      .set({
         status: body.status,
         resolved: body.status === 'RESOLVED',
         principalNotes: body.principalNotes || null,
         assigneeEmail: body.assigneeEmail || null,
         updatedBy: req.appUser!.email,
-        updatedAt: FieldValue.serverTimestamp()
-      },
-      { merge: true }
-    );
+        updatedAt: new Date()
+      })
+      .where(eq(alerts.id, String(req.params.id)));
 
     res.json({ ok: true });
   })
