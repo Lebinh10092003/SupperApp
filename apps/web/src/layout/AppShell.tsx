@@ -18,9 +18,23 @@ import {
   Button,
   CircularProgress,
   Dialog,
-  InputBase
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  InputBase,
+  TextField,
+  InputAdornment,
+  Alert,
+  Menu,
+  MenuItem,
+  ListItemIcon as MenuItemIcon
 } from '@mui/material';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
+import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded';
+import VisibilityOffRoundedIcon from '@mui/icons-material/VisibilityOffRounded';
+import KeyRoundedIcon from '@mui/icons-material/KeyRounded';
+import PersonRoundedIcon from '@mui/icons-material/PersonRounded';
+import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
 import SyncIcon from '@mui/icons-material/SyncRounded';
 import MenuIcon from '@mui/icons-material/Menu';
 import LogoutIcon from '@mui/icons-material/LogoutRounded';
@@ -253,7 +267,76 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [isSyncing, setIsSyncing] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { profile, logout } = useAuth();
+  const { profile, user, logout, changePassword, updateDisplayName } = useAuth();
+  const [accountMenuAnchor, setAccountMenuAnchor] = useState<null | HTMLElement>(null);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [profileName, setProfileName] = useState('');
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileError, setProfileError] = useState('');
+  const [profileSuccess, setProfileSuccess] = useState(false);
+  const [pwdOpen, setPwdOpen] = useState(false);
+  const [currentPwd, setCurrentPwd] = useState('');
+  const [newPwd, setNewPwd] = useState('');
+  const [showCurrentPwd, setShowCurrentPwd] = useState(false);
+  const [showNewPwd, setShowNewPwd] = useState(false);
+  const [pwdSaving, setPwdSaving] = useState(false);
+  const [pwdError, setPwdError] = useState('');
+  const [pwdSuccess, setPwdSuccess] = useState(false);
+  const hasPasswordProvider = !!user?.providerData?.some((p) => p.providerId === 'password');
+
+  const closePwdDialog = () => {
+    setPwdOpen(false);
+    setCurrentPwd('');
+    setNewPwd('');
+    setShowCurrentPwd(false);
+    setShowNewPwd(false);
+    setPwdError('');
+    setPwdSuccess(false);
+  };
+
+  const handleChangePassword = async () => {
+    if (!currentPwd || newPwd.length < 6) return;
+    setPwdError('');
+    setPwdSaving(true);
+    try {
+      await changePassword(currentPwd, newPwd);
+      setPwdSuccess(true);
+      setCurrentPwd('');
+      setNewPwd('');
+    } catch (e: any) {
+      const code = e?.code || '';
+      if (code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
+        setPwdError('Mật khẩu hiện tại không đúng.');
+      } else if (code === 'auth/weak-password') {
+        setPwdError('Mật khẩu mới quá ngắn — cần tối thiểu 6 ký tự.');
+      } else {
+        setPwdError('Đổi mật khẩu không thành công. Vui lòng thử lại.');
+      }
+    } finally {
+      setPwdSaving(false);
+    }
+  };
+
+  const openProfileDialog = () => {
+    setProfileName(profile?.displayName || '');
+    setProfileError('');
+    setProfileSuccess(false);
+    setProfileOpen(true);
+  };
+
+  const handleSaveProfile = async () => {
+    if (!profileName.trim()) return;
+    setProfileError('');
+    setProfileSaving(true);
+    try {
+      await updateDisplayName(profileName.trim());
+      setProfileSuccess(true);
+    } catch {
+      setProfileError('Cập nhật không thành công. Vui lòng thử lại.');
+    } finally {
+      setProfileSaving(false);
+    }
+  };
 
   const fetchStatus = () => {
     api<any>('/api/classroom/status')
@@ -365,19 +448,16 @@ export function AppShell({ children }: { children: ReactNode }) {
         }}
       >
         <Box
+          component="img"
+          src="/logo-truong.jpg"
+          alt="Logo trường"
           sx={{
-            width: 38,
-            height: 38,
-            borderRadius: 2,
-            background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-            boxShadow: '0 4px 10px rgba(37, 99, 235, 0.25)',
-            display: 'grid',
-            placeItems: 'center',
+            width: 'auto',
+            height: 40,
+            objectFit: 'contain',
             flexShrink: 0
           }}
-        >
-          <SchoolIcon sx={{ color: '#ffffff', fontSize: 22 }} />
-        </Box>
+        />
         <Box sx={{ overflow: 'hidden' }}>
           <Typography variant="subtitle2" fontWeight={800} noWrap sx={{ color: '#0f172a', letterSpacing: '-0.02em', lineHeight: 1.2 }}>
             THCS Giảng Võ
@@ -521,47 +601,200 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* User Session Footer */}
       <Box
         sx={{
-          p: 1.75,
+          p: 1,
           borderTop: '1px solid #e2e8f0',
           bgcolor: '#f8fafc'
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, minWidth: 0, flex: 1, overflow: 'hidden' }}>
-            <Avatar
-              sx={{
-                width: 34,
-                height: 34,
-                background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-                color: '#ffffff',
-                boxShadow: '0 2px 5px rgba(37, 99, 235, 0.25)',
-                fontSize: '0.82rem',
-                fontWeight: 700,
-                flexShrink: 0
-              }}
-            >
-              {profile?.displayName?.[0] || 'G'}
-            </Avatar>
-            <Box sx={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
-              <Typography variant="body2" fontWeight={700} sx={{ color: '#0f172a', fontSize: '0.8125rem' }} noWrap>
-                {profile?.displayName || 'Người dùng'}
-              </Typography>
-              <Typography variant="caption" sx={{ color: '#64748b', display: 'block', fontSize: '0.7rem' }} noWrap>
-                {roleLabelMap[profile?.role || ''] || profile?.role || 'Hệ thống'}
-              </Typography>
-            </Box>
+        <Box
+          onClick={(e) => setAccountMenuAnchor(e.currentTarget)}
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.2,
+            cursor: 'pointer',
+            borderRadius: '8px',
+            py: 0.85,
+            px: 0.85,
+            border: '1px solid transparent',
+            transition: 'all 0.15s ease',
+            '&:hover': { bgcolor: '#f1f5f9' }
+          }}
+        >
+          <Avatar
+            sx={{
+              width: 34,
+              height: 34,
+              background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+              color: '#ffffff',
+              boxShadow: '0 2px 5px rgba(37, 99, 235, 0.25)',
+              fontSize: '0.82rem',
+              fontWeight: 700,
+              flexShrink: 0
+            }}
+          >
+            {profile?.displayName?.[0] || 'G'}
+          </Avatar>
+          <Box sx={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
+            <Typography variant="body2" fontWeight={700} sx={{ color: '#0f172a', fontSize: '0.8125rem' }} noWrap>
+              {profile?.displayName || 'Người dùng'}
+            </Typography>
+            <Typography variant="caption" sx={{ color: '#64748b', display: 'block', fontSize: '0.7rem' }} noWrap>
+              {roleLabelMap[profile?.role || ''] || profile?.role || 'Hệ thống'}
+            </Typography>
           </Box>
-          <Tooltip title="Đăng xuất">
-            <IconButton
-              size="small"
-              onClick={logout}
-              sx={{ color: '#64748b', flexShrink: 0, '&:hover': { color: '#ef4444', bgcolor: '#fef2f2' } }}
-            >
-              <LogoutIcon sx={{ fontSize: 18 }} />
-            </IconButton>
-          </Tooltip>
+          <ExpandMoreRoundedIcon sx={{ fontSize: 20, color: '#94a3b8', flexShrink: 0 }} />
         </Box>
       </Box>
+
+      <Menu
+        anchorEl={accountMenuAnchor}
+        open={!!accountMenuAnchor}
+        onClose={() => setAccountMenuAnchor(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        transformOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <MenuItem
+          onClick={() => {
+            setAccountMenuAnchor(null);
+            openProfileDialog();
+          }}
+        >
+          <MenuItemIcon>
+            <PersonRoundedIcon fontSize="small" />
+          </MenuItemIcon>
+          Sửa thông tin cá nhân
+        </MenuItem>
+        {hasPasswordProvider && (
+          <MenuItem
+            onClick={() => {
+              setAccountMenuAnchor(null);
+              setPwdOpen(true);
+            }}
+          >
+            <MenuItemIcon>
+              <KeyRoundedIcon fontSize="small" />
+            </MenuItemIcon>
+            Đổi mật khẩu
+          </MenuItem>
+        )}
+        <MenuItem
+          onClick={() => {
+            setAccountMenuAnchor(null);
+            logout();
+          }}
+          sx={{ color: '#ef4444' }}
+        >
+          <MenuItemIcon>
+            <LogoutIcon fontSize="small" sx={{ color: '#ef4444' }} />
+          </MenuItemIcon>
+          Đăng xuất
+        </MenuItem>
+      </Menu>
+
+      <Dialog open={profileOpen} onClose={() => setProfileOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>Sửa thông tin cá nhân</DialogTitle>
+        <DialogContent>
+          {profileSuccess ? (
+            <Alert severity="success" sx={{ mt: 1 }}>
+              Đã cập nhật thông tin cá nhân.
+            </Alert>
+          ) : (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+              {profileError && <Alert severity="error">{profileError}</Alert>}
+              <TextField
+                fullWidth
+                size="small"
+                label="Tên hiển thị"
+                value={profileName}
+                onChange={(e) => setProfileName(e.target.value)}
+              />
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button onClick={() => setProfileOpen(false)}>{profileSuccess ? 'Đóng' : 'Huỷ'}</Button>
+          {!profileSuccess && (
+            <Button
+              variant="contained"
+              onClick={handleSaveProfile}
+              disabled={profileSaving || !profileName.trim()}
+              startIcon={profileSaving ? <CircularProgress size={16} color="inherit" /> : undefined}
+            >
+              {profileSaving ? 'Đang lưu...' : 'Lưu'}
+            </Button>
+          )}
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={pwdOpen} onClose={closePwdDialog} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>Đổi mật khẩu</DialogTitle>
+        <DialogContent>
+          {pwdSuccess ? (
+            <Alert severity="success" sx={{ mt: 1 }}>
+              Đã đổi mật khẩu thành công.
+            </Alert>
+          ) : (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+              {pwdError && <Alert severity="error">{pwdError}</Alert>}
+              <TextField
+                fullWidth
+                size="small"
+                label="Mật khẩu hiện tại"
+                type={showCurrentPwd ? 'text' : 'password'}
+                value={currentPwd}
+                onChange={(e) => setCurrentPwd(e.target.value)}
+                autoComplete="current-password"
+                slotProps={{
+                  input: {
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton size="small" onClick={() => setShowCurrentPwd((v) => !v)} edge="end" tabIndex={-1}>
+                          {showCurrentPwd ? <VisibilityOffRoundedIcon fontSize="small" /> : <VisibilityRoundedIcon fontSize="small" />}
+                        </IconButton>
+                      </InputAdornment>
+                    )
+                  }
+                }}
+              />
+              <TextField
+                fullWidth
+                size="small"
+                label="Mật khẩu mới"
+                type={showNewPwd ? 'text' : 'password'}
+                value={newPwd}
+                onChange={(e) => setNewPwd(e.target.value)}
+                autoComplete="new-password"
+                helperText="Tối thiểu 6 ký tự"
+                slotProps={{
+                  input: {
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton size="small" onClick={() => setShowNewPwd((v) => !v)} edge="end" tabIndex={-1}>
+                          {showNewPwd ? <VisibilityOffRoundedIcon fontSize="small" /> : <VisibilityRoundedIcon fontSize="small" />}
+                        </IconButton>
+                      </InputAdornment>
+                    )
+                  }
+                }}
+              />
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button onClick={closePwdDialog}>{pwdSuccess ? 'Đóng' : 'Huỷ'}</Button>
+          {!pwdSuccess && (
+            <Button
+              variant="contained"
+              onClick={handleChangePassword}
+              disabled={pwdSaving || !currentPwd || newPwd.length < 6}
+              startIcon={pwdSaving ? <CircularProgress size={16} color="inherit" /> : undefined}
+            >
+              {pwdSaving ? 'Đang xử lý...' : 'Đổi mật khẩu'}
+            </Button>
+          )}
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 
@@ -682,18 +915,6 @@ export function AppShell({ children }: { children: ReactNode }) {
                 Học kỳ II • 2025–2026
               </Typography>
             </Box>
-
-            <Chip
-              size="small"
-              label={roleLabelMap[profile?.role || ''] || profile?.role || 'Khách'}
-              sx={{
-                bgcolor: '#f1f5f9',
-                color: '#334155',
-                border: '1px solid #e2e8f0',
-                fontWeight: 700,
-                fontSize: '0.75rem'
-              }}
-            />
 
             <NotificationBell />
           </Box>

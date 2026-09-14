@@ -1,5 +1,15 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { onAuthStateChanged, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, type User } from 'firebase/auth';
+import {
+  onAuthStateChanged,
+  signInWithPopup,
+  signInWithEmailAndPassword,
+  sendPasswordResetEmail,
+  updatePassword,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
+  signOut,
+  type User
+} from 'firebase/auth';
 import { auth, googleProvider, hasValidFirebaseConfig } from '../config/firebase';
 import { api } from '../services/api';
 
@@ -17,7 +27,9 @@ export type Ctx = {
   loading: boolean;
   login: () => Promise<void>;
   loginWithPassword: (email: string, password: string) => Promise<void>;
-  registerWithPassword: (email: string, password: string) => Promise<void>;
+  resetPasswordEmail: (email: string) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  updateDisplayName: (displayName: string) => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -107,9 +119,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await completeLogin();
   };
 
-  const registerWithPassword = async (email: string, password: string) => {
-    await createUserWithEmailAndPassword(auth, email, password);
-    await completeLogin();
+  // Firebase tự gửi email đặt lại mật khẩu thật (không cần cấu hình SMTP
+  // riêng — khác hẳn kênh thông báo tự viết của module An toàn) — chỉ hoạt
+  // động cho tài khoản ĐÃ ĐĂNG KÝ bằng email/mật khẩu (không áp dụng cho
+  // tài khoản chỉ đăng nhập Google).
+  const resetPasswordEmail = async (email: string) => {
+    await sendPasswordResetEmail(auth, email);
+  };
+
+  // Đổi mật khẩu ngay trong phiên đang đăng nhập — Firebase yêu cầu
+  // reauthenticate bằng mật khẩu hiện tại trước khi cho updatePassword nếu
+  // phiên đăng nhập không còn "recent" (thường quá 5 phút), nên luôn xác
+  // thực lại bằng mật khẩu hiện tại trước cho chắc, không phụ thuộc thời
+  // gian phiên. Chỉ áp dụng cho tài khoản có provider email/mật khẩu (tài
+  // khoản chỉ đăng nhập Google không có mật khẩu để đổi).
+  const changePassword = async (currentPassword: string, newPassword: string) => {
+    if (!auth.currentUser || !auth.currentUser.email) {
+      throw new Error('Không xác định được tài khoản đang đăng nhập.');
+    }
+    const credential = EmailAuthProvider.credential(auth.currentUser.email, currentPassword);
+    await reauthenticateWithCredential(auth.currentUser, credential);
+    await updatePassword(auth.currentUser, newPassword);
+  };
+
+  const updateDisplayName = async (displayName: string) => {
+    const updated = await api<Profile>('/api/session/me', {
+      method: 'PATCH',
+      body: JSON.stringify({ displayName })
+    });
+    setProfile(updated);
   };
 
   const value = useMemo(
@@ -119,7 +157,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading,
       login,
       loginWithPassword,
-      registerWithPassword,
+      resetPasswordEmail,
+      changePassword,
+      updateDisplayName,
       logout
     }),
     [user, profile, loading]

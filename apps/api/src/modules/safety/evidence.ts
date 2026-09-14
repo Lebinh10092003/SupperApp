@@ -123,7 +123,7 @@ function toJsDate(v: unknown): Date | null {
   return new Date(v as string);
 }
 
-// Timeout gọi service quét (ms) — có margin cho cold start container.
+// Timeout quét (ms) — margin cho file lớn/daemon bận.
 const SCAN_TIMEOUT_MS = 90 * 1000;
 
 export interface ScanResult {
@@ -132,51 +132,72 @@ export interface ScanResult {
 }
 export type ScanBufferFn = (buffer: Buffer, opts?: ScanOpts) => Promise<ScanResult>;
 
-/**
- * scanBuffer — gọi Cloud Run service `evidence-scanner` (ClamAV thật, tự
- * host) để quét 1 buffer file nhị phân. URL lấy từ `EVIDENCE_SCANNER_URL`.
- * Dùng `google-auth-library` để tự lấy ID token đúng audience = URL service
- * (Cloud Run deploy `--no-allow-unauthenticated`).
- *
- * KHÔNG BAO GIỜ throw ra ngoài — mọi lỗi trả về { status: 'scan_error' }.
- */
-export const scanBuffer: ScanBufferFn = async (buffer, opts) => {
-  const scannerUrl = opts?.scannerUrl || process.env.EVIDENCE_SCANNER_URL;
-  if (!scannerUrl) {
-    return { status: 'scan_error', detail: 'EVIDENCE_SCANNER_URL chưa được cấu hình.' };
-  }
-  try {
-    const { GoogleAuth } = await import('google-auth-library');
-    const auth = new GoogleAuth();
-    const client = await auth.getIdTokenClient(scannerUrl);
+// Cache 1 instance NodeClam theo tiến trình — mỗi lần init lại tốn thời
+// gian bắt tay với clamd, không cần làm lại cho mỗi request.
+let clamInstance: any = null;
+let clamInitError: string | null = null;
 
+async function getClamInstance(): Promise<any> {
+  if (clamInstance) return clamInstance;
+  if (clamInitError) throw new Error(clamInitError);
+  try {
+    const { default: NodeClam } = await import('clamscan');
+    const host = process.env.CLAMD_HOST || '127.0.0.1';
+    const port = Number(process.env.CLAMD_PORT || 3310);
+    const socket = process.env.CLAMD_SOCKET || undefined;
+    clamInstance = await new NodeClam().init({
+      removeInfected: false,
+      clamdscan: {
+        socket,
+        host: socket ? undefined : host,
+        port: socket ? undefined : port,
+        timeout: SCAN_TIMEOUT_MS,
+        localFallback: false
+      },
+      preference: 'clamdscan'
+    });
+    return clamInstance;
+  } catch (e) {
+    clamInitError = e instanceof Error ? e.message : String(e);
+    throw e;
+  }
+}
+
+/**
+ * scanBuffer — quét 1 buffer file nhị phân bằng ClamAV THẬT chạy ngay
+ * trên máy chủ (clamd daemon cùng VPS với API — cài `apt install
+ * clamav-daemon`, miễn phí, không cần dịch vụ Cloud Run riêng). Cấu hình
+ * qua CLAMD_HOST/CLAMD_PORT (mặc định 127.0.0.1:3310) hoặc CLAMD_SOCKET
+ * (Unix socket, ưu tiên nếu có).
+ *
+ * KHÔNG BAO GIỜ throw ra ngoài — mọi lỗi (kể cả chưa cài/chưa chạy clamd,
+ * như trên máy dev hiện tại) trả về { status: 'scan_error' }, file GIỮ
+ * NGUYÊN 'pending_scan' — không bao giờ tự coi là 'clean' khi chưa quét
+ * được thật.
+ */
+export const scanBuffer: ScanBufferFn = async (buffer) => {
+  try {
+    const clam = await getClamInstance();
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), SCAN_TIMEOUT_MS);
-    let res;
+    let result: { isInfected: boolean | null; viruses: string[] };
     try {
-      res = await client.request<{ status?: string; detail?: string }>({
-        url: scannerUrl.replace(/\/$/, '') + '/scan',
-        method: 'POST',
-        data: buffer,
-        headers: { 'Content-Type': 'application/octet-stream' },
-        signal: controller.signal as any,
-        responseType: 'json'
-      });
+      result = await clam.scanBuffer(buffer, SCAN_TIMEOUT_MS);
     } finally {
       clearTimeout(timer);
     }
-    const body = res?.data;
-    if (!body || typeof body.status !== 'string') {
-      return { status: 'scan_error', detail: 'Phản hồi không hợp lệ từ dịch vụ quét.' };
+    if (result.isInfected === null) {
+      return { status: 'scan_error', detail: 'ClamAV không trả kết quả xác định.' };
     }
-    return { status: body.status, detail: body.detail };
+    return result.isInfected
+      ? { status: 'infected', detail: result.viruses.join(', ') || undefined }
+      : { status: 'clean' };
   } catch (e) {
-    return { status: 'scan_error', detail: 'Gọi dịch vụ quét thất bại: ' + (e instanceof Error ? e.message : String(e)) };
+    return { status: 'scan_error', detail: 'Quét ClamAV thất bại (có thể clamd chưa được cài/chạy): ' + (e instanceof Error ? e.message : String(e)) };
   }
 };
 
 interface ScanOpts {
-  scannerUrl?: string;
   now?: Date;
   scanBuffer?: ScanBufferFn;
   deferScan?: boolean;

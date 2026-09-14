@@ -17,6 +17,7 @@
     "@google-cloud/firestore": "^9.0.1",
     "@google-cloud/secret-manager": "6.1.0",
     "busboy": "^1.6.0",
+    "clamscan": "^2.4.0",
     "cors": "2.8.5",
     "dotenv": "16.5.0",
     "drizzle-orm": "0.44.6",

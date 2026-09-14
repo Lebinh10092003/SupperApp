@@ -294,10 +294,7 @@ test('evidence: quét mã độc thật (S8) — opts.scanBuffer tiêm được,
   await clearEvidence();
 });
 
-test('evidence: scanBuffer thật — thiếu EVIDENCE_SCANNER_URL trả scan_error, KHÔNG throw', async () => {
-  const savedScannerUrl = process.env.EVIDENCE_SCANNER_URL;
-  delete process.env.EVIDENCE_SCANNER_URL;
-  const noUrlResult = await scanBuffer(Buffer.from('x'));
-  assert.equal(noUrlResult.status, 'scan_error');
-  if (savedScannerUrl !== undefined) process.env.EVIDENCE_SCANNER_URL = savedScannerUrl;
+test('evidence: scanBuffer thật — clamd chưa cài/chưa chạy trả scan_error, KHÔNG throw', async () => {
+  const noDaemonResult = await scanBuffer(Buffer.from('x'));
+  assert.equal(noDaemonResult.status, 'scan_error');
 });

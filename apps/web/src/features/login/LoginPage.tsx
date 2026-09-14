@@ -1,8 +1,9 @@
-import { useState } from 'react';
-import { Box, Button, Card, CardContent, Typography, Stack, Divider, TextField, Alert, CircularProgress } from '@mui/material';
+import { useState, useRef, useEffect } from 'react';
+import { Box, Button, Card, CardContent, Typography, Stack, Divider, TextField, Alert, CircularProgress, InputAdornment, IconButton, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 import { Link as RouterLink, Navigate } from 'react-router-dom';
-import SchoolIcon from '@mui/icons-material/SchoolRounded';
 import GoogleIcon from '@mui/icons-material/Google';
+import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded';
+import VisibilityOffRoundedIcon from '@mui/icons-material/VisibilityOffRounded';
 import { useAuth } from '../../auth/AuthProvider';
 
 function friendlyAuthError(e: any): string {
@@ -34,14 +35,55 @@ function friendlyAuthError(e: any): string {
 }
 
 export default function LoginPage() {
-  const { profile, login, loginWithPassword, registerWithPassword } = useAuth();
-  const [mode, setMode] = useState<'signin' | 'register'>('signin');
+  const { profile, login, loginWithPassword, resetPasswordEmail } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
   const [googleLoading, setGoogleLoading] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotSending, setForgotSending] = useState(false);
+  const [forgotError, setForgotError] = useState('');
+  const [forgotSent, setForgotSent] = useState(false);
+  const emailInputRef = useRef<HTMLInputElement>(null);
+  const passwordInputRef = useRef<HTMLInputElement>(null);
+
+  // Chrome/Safari tự điền email+mật khẩu đã lưu THẲNG vào DOM khi tải lại
+  // trang, không bắn sự kiện onChange của React — nên state (và nút "Đăng
+  // nhập" khoá theo state) không hay biết gì, trông như nút bị "kẹt" disable
+  // cho tới khi người dùng bấm/gõ lại. Đọc thẳng giá trị DOM ngay sau khi
+  // mount để đồng bộ lại state, khớp với autofill.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (emailInputRef.current?.value) setEmail(emailInputRef.current.value);
+      if (passwordInputRef.current?.value) setPassword(passwordInputRef.current.value);
+    }, 300);
+    return () => clearTimeout(t);
+  }, []);
+
+  const handleForgotPassword = async () => {
+    if (!forgotEmail.trim()) return;
+    setForgotError('');
+    setForgotSending(true);
+    try {
+      await resetPasswordEmail(forgotEmail.trim());
+      setForgotSent(true);
+    } catch (e: any) {
+      setForgotError(friendlyAuthError(e));
+    } finally {
+      setForgotSending(false);
+    }
+  };
+
+  const closeForgotDialog = () => {
+    setForgotOpen(false);
+    setForgotEmail('');
+    setForgotError('');
+    setForgotSent(false);
+  };
 
   const handleGoogleLogin = async () => {
     setError('');
@@ -58,26 +100,16 @@ export default function LoginPage() {
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || !password) return;
+    const emailVal = emailInputRef.current?.value ?? email;
+    const passwordVal = passwordInputRef.current?.value ?? password;
+    if (!emailVal.trim() || !passwordVal) return;
     setError('');
     setInfo('');
     setPasswordLoading(true);
     try {
-      if (mode === 'register') {
-        await registerWithPassword(email.trim(), password);
-      } else {
-        await loginWithPassword(email.trim(), password);
-      }
+      await loginWithPassword(emailVal.trim(), passwordVal);
     } catch (e: any) {
-      if (mode === 'register' && e?.message && !e?.code) {
-        // Tài khoản Firebase (email+mật khẩu) đã tạo thành công, chỉ là
-        // chưa nằm trong accessAllowlist — báo rõ để người dùng biết cần
-        // làm gì tiếp, không hiểu nhầm là "tạo tài khoản thất bại".
-        setInfo('Đã tạo tài khoản, nhưng email này chưa được cấp quyền truy cập. Liên hệ Quản trị viên hệ thống để được duyệt, sau đó quay lại đăng nhập.');
-        setMode('signin');
-      } else {
-        setError(friendlyAuthError(e));
-      }
+      setError(friendlyAuthError(e));
     } finally {
       setPasswordLoading(false);
     }
@@ -103,21 +135,17 @@ export default function LoginPage() {
         {/* Brand Header */}
         <Box sx={{ textAlign: 'center', mb: 3.5 }}>
           <Box
+            component="img"
+            src="/logo-truong.jpg"
+            alt="Logo trường"
             sx={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: 52,
-              height: 52,
-              borderRadius: 3,
-              background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-              color: '#ffffff',
-              mb: 2,
-              boxShadow: '0 6px 16px rgba(37, 99, 235, 0.3)'
+              display: 'inline-block',
+              width: 'auto',
+              height: 72,
+              objectFit: 'contain',
+              mb: 2
             }}
-          >
-            <SchoolIcon sx={{ fontSize: 30 }} />
-          </Box>
+          />
           <Typography variant="h4" sx={{ fontWeight: 800, color: '#0f172a', letterSpacing: '-0.03em', lineHeight: 1.2 }}>
             THCS Giảng Võ
           </Typography>
@@ -206,22 +234,34 @@ export default function LoginPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     autoComplete="username"
+                    inputRef={emailInputRef}
                   />
                   <TextField
                     fullWidth
                     size="small"
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     label="Mật khẩu"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
-                    helperText={mode === 'register' ? 'Tối thiểu 6 ký tự' : ' '}
+                    autoComplete="current-password"
+                    inputRef={passwordInputRef}
+                    slotProps={{
+                      input: {
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <IconButton size="small" onClick={() => setShowPassword((v) => !v)} edge="end" tabIndex={-1}>
+                              {showPassword ? <VisibilityOffRoundedIcon fontSize="small" /> : <VisibilityRoundedIcon fontSize="small" />}
+                            </IconButton>
+                          </InputAdornment>
+                        )
+                      }
+                    }}
                   />
                   <Button
                     type="submit"
                     variant="outlined"
                     fullWidth
-                    disabled={passwordLoading || !email.trim() || !password}
+                    disabled={passwordLoading}
                     startIcon={passwordLoading ? <CircularProgress size={16} /> : undefined}
                     sx={{
                       py: 1.1,
@@ -231,44 +271,23 @@ export default function LoginPage() {
                       borderRadius: 2
                     }}
                   >
-                    {passwordLoading ? 'Đang xử lý...' : mode === 'register' ? 'Tạo tài khoản' : 'Đăng nhập'}
+                    {passwordLoading ? 'Đang xử lý...' : 'Đăng nhập'}
                   </Button>
                 </Stack>
               </Box>
 
               <Typography variant="caption" sx={{ color: '#94a3b8', fontSize: '0.72rem', textAlign: 'center' }}>
-                {mode === 'signin' ? (
-                  <>
-                    Chưa có tài khoản email/mật khẩu?{' '}
-                    <Box
-                      component="span"
-                      onClick={() => {
-                        setMode('register');
-                        setError('');
-                        setInfo('');
-                      }}
-                      sx={{ color: '#2563eb', fontWeight: 700, cursor: 'pointer' }}
-                    >
-                      Tạo tài khoản mới
-                    </Box>
-                    . Quên mật khẩu hoặc chưa được cấp quyền? Liên hệ Quản trị viên hệ thống.
-                  </>
-                ) : (
-                  <>
-                    Tạo tài khoản xong vẫn cần Quản trị viên hệ thống duyệt quyền truy cập.{' '}
-                    <Box
-                      component="span"
-                      onClick={() => {
-                        setMode('signin');
-                        setError('');
-                        setInfo('');
-                      }}
-                      sx={{ color: '#2563eb', fontWeight: 700, cursor: 'pointer' }}
-                    >
-                      Quay lại đăng nhập
-                    </Box>
-                  </>
-                )}
+                <Box
+                  component="span"
+                  onClick={() => {
+                    setForgotEmail(email);
+                    setForgotOpen(true);
+                  }}
+                  sx={{ color: '#2563eb', fontWeight: 700, cursor: 'pointer' }}
+                >
+                  Quên mật khẩu?
+                </Box>{' '}
+                Chưa được cấp quyền? Liên hệ Quản trị viên hệ thống.
               </Typography>
             </Stack>
           </CardContent>
@@ -288,6 +307,50 @@ export default function LoginPage() {
           Trường THCS Giảng Võ — Ba Đình, Hà Nội • School Intelligence System
         </Typography>
       </Box>
+
+      <Dialog open={forgotOpen} onClose={closeForgotDialog} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>Quên mật khẩu</DialogTitle>
+        <DialogContent dividers sx={{ borderColor: '#e2e8f0' }}>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            {forgotSent ? (
+              <Alert severity="success">
+                Đã gửi email đặt lại mật khẩu tới <strong>{forgotEmail}</strong> (nếu email này có tài khoản). Kiểm tra hộp thư (kể cả mục Spam) và làm theo hướng dẫn trong email.
+              </Alert>
+            ) : (
+              <>
+                <Typography variant="body2" color="text.secondary">
+                  Nhập email đã đăng ký bằng mật khẩu (không áp dụng cho tài khoản chỉ đăng nhập Google) — hệ thống sẽ gửi link đặt lại mật khẩu qua email.
+                </Typography>
+                {forgotError && <Alert severity="error">{forgotError}</Alert>}
+                <TextField
+                  label="Email"
+                  type="email"
+                  size="small"
+                  fullWidth
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                  autoFocus
+                />
+              </>
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ p: 2, borderTop: '1px solid #e2e8f0' }}>
+          <Button onClick={closeForgotDialog} sx={{ textTransform: 'none', color: '#64748b' }}>
+            {forgotSent ? 'Đóng' : 'Huỷ'}
+          </Button>
+          {!forgotSent && (
+            <Button
+              variant="contained"
+              disabled={forgotSending || !forgotEmail.trim()}
+              onClick={handleForgotPassword}
+              sx={{ bgcolor: '#2563eb', color: '#fff', '&:hover': { bgcolor: '#1d4ed8' }, textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
+            >
+              {forgotSending ? 'Đang gửi...' : 'Gửi email đặt lại'}
+            </Button>
+          )}
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

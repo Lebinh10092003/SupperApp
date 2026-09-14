@@ -68,3 +68,23 @@ sessionRouter.get(
   firebaseAuth,
   asyncRoute(async (q, r) => r.json(q.appUser))
 );
+
+// Tự sửa thông tin cá nhân của chính mình (chỉ tên hiển thị — email/vai
+// trò/cơ sở vẫn phải qua Quản trị viên ở trang /admin để tránh người dùng
+// tự nâng quyền hoặc đổi email gắn với accessAllowlist).
+sessionRouter.patch(
+  '/me',
+  firebaseAuth,
+  asyncRoute(async (q, r) => {
+    if (!q.appUser) {
+      throw new HttpError(401, 'Chưa đăng nhập', 'AUTH_ERROR');
+    }
+    const displayName = String(q.body?.displayName || '').trim();
+    if (!displayName) {
+      throw new HttpError(400, 'Tên hiển thị không được để trống', 'VALIDATION_ERROR');
+    }
+    await db.update(users).set({ displayName, updatedAt: new Date() }).where(eq(users.uid, q.appUser.uid));
+    await adminAuth.updateUser(q.appUser.uid, { displayName }).catch(() => {});
+    r.json({ ...q.appUser, displayName });
+  })
+);

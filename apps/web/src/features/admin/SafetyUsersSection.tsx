@@ -33,13 +33,16 @@ import {
   Stack,
   Alert,
   CircularProgress,
-  Pagination
+  Pagination,
+  InputAdornment
 } from '@mui/material';
 import PersonAddIcon from '@mui/icons-material/PersonAddRounded';
 import EditIcon from '@mui/icons-material/EditRounded';
 import LockResetIcon from '@mui/icons-material/LockResetRounded';
 import BlockIcon from '@mui/icons-material/BlockRounded';
 import CheckCircleIcon from '@mui/icons-material/CheckCircleRounded';
+import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded';
+import VisibilityOffRoundedIcon from '@mui/icons-material/VisibilityOffRounded';
 import { api } from '../../services/api';
 
 const ROLE_LABEL: Record<string, string> = {
@@ -364,6 +367,7 @@ function EditUserDialog({ user, onClose, onSaved }: { user: SafetyUser | null; o
   const [displayName, setDisplayName] = useState(user?.displayName || '');
   const [email, setEmail] = useState(user?.email || '');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [roleId, setRoleId] = useState(user?.roleId || 'R.TEACHER');
   const [campusId, setCampusId] = useState(user?.campusId || '');
   const [domain, setDomain] = useState(user?.domain || '');
@@ -428,7 +432,25 @@ function EditUserDialog({ user, onClose, onSaved }: { user: SafetyUser | null; o
           <TextField label="Tên hiển thị" size="small" fullWidth value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
           <TextField label="Email" size="small" fullWidth value={email} disabled={isEdit} onChange={(e) => setEmail(e.target.value)} />
           {!isEdit && (
-            <TextField label="Mật khẩu tạm (tối thiểu 6 ký tự)" size="small" fullWidth value={password} onChange={(e) => setPassword(e.target.value)} />
+            <TextField
+              label="Mật khẩu tạm (tối thiểu 6 ký tự)"
+              size="small"
+              fullWidth
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              slotProps={{
+                input: {
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton size="small" onClick={() => setShowPassword((v) => !v)} edge="end" tabIndex={-1}>
+                        {showPassword ? <VisibilityOffRoundedIcon fontSize="small" /> : <VisibilityRoundedIcon fontSize="small" />}
+                      </IconButton>
+                    </InputAdornment>
+                  )
+                }
+              }}
+            />
           )}
           <TextField select label="Vai trò" size="small" fullWidth value={roleId} onChange={(e) => setRoleId(e.target.value)}>
             {ASSIGNABLE_ROLES.map((r) => (
@@ -477,6 +499,7 @@ function EditUserDialog({ user, onClose, onSaved }: { user: SafetyUser | null; o
 
 function ResetPasswordDialog({ user, onClose, onDone }: { user: SafetyUser; onClose: () => void; onDone: (msg: string) => void }) {
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -502,7 +525,26 @@ function ResetPasswordDialog({ user, onClose, onDone }: { user: SafetyUser; onCl
       <DialogContent dividers sx={{ borderColor: '#e2e8f0' }}>
         <Stack spacing={2} sx={{ pt: 1 }}>
           {error && <Alert severity="error">{error}</Alert>}
-          <TextField label="Mật khẩu mới (tối thiểu 6 ký tự)" size="small" fullWidth value={password} onChange={(e) => setPassword(e.target.value)} autoFocus />
+          <TextField
+            label="Mật khẩu mới (tối thiểu 6 ký tự)"
+            size="small"
+            fullWidth
+            type={showPassword ? 'text' : 'password'}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoFocus
+            slotProps={{
+              input: {
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={() => setShowPassword((v) => !v)} edge="end" tabIndex={-1}>
+                      {showPassword ? <VisibilityOffRoundedIcon fontSize="small" /> : <VisibilityRoundedIcon fontSize="small" />}
+                    </IconButton>
+                  </InputAdornment>
+                )
+              }
+            }}
+          />
         </Stack>
       </DialogContent>
       <DialogActions sx={{ p: 2, borderTop: '1px solid #e2e8f0' }}>
