@@ -255,21 +255,29 @@ export async function validateAndStoreEvidence(
   }
 
   let finalBuffer = buffer;
+  let finalExtension = extension;
+  let finalMimeType = spec.mime;
   if (spec.fileType === catalog.EVIDENCE_FILE_TYPE.IMAGE) {
     try {
       // sharp() KHÔNG giữ lại EXIF/metadata theo mặc định (chỉ giữ khi gọi
       // .withMetadata(), CỐ Ý không gọi) — .rotate() không tham số tự áp
-      // orientation từ EXIF trước khi metadata bị bỏ đi.
-      finalBuffer = await sharp(buffer).rotate().toBuffer();
+      // orientation từ EXIF trước khi metadata bị bỏ đi. Sau đó LUÔN
+      // chuyển sang WebP (kể cả ảnh upload gốc đã là webp) để toàn bộ
+      // minh chứng ảnh dùng thống nhất 1 định dạng, giảm dung lượng lưu
+      // trữ đĩa cục bộ — quality 90 (lossy) để không ảnh hưởng đáng kể
+      // chất lượng thị giác của ảnh minh chứng.
+      finalBuffer = await sharp(buffer).rotate().webp({ quality: 90 }).toBuffer();
+      finalExtension = 'webp';
+      finalMimeType = 'image/webp';
     } catch {
       return { rejected: true, reason: 'image_processing_failed' };
     }
   }
 
   const evidenceId = allocateRandomEvidenceId();
-  const storagePath = 'evidence_uploads/' + evidenceId + '/file.' + extension;
+  const storagePath = 'evidence_uploads/' + evidenceId + '/file.' + finalExtension;
 
-  await bucket.file(storagePath).save(finalBuffer, { contentType: spec.mime, resumable: false });
+  await bucket.file(storagePath).save(finalBuffer, { contentType: finalMimeType, resumable: false });
 
   const expiresUnlinkedAt = new Date(now.getTime() + catalog.EVIDENCE_ORPHAN_TTL_MS);
   await db.insert(evidenceTable).values({
@@ -277,8 +285,8 @@ export async function validateAndStoreEvidence(
     reportId: null,
     storagePath,
     fileType: spec.fileType,
-    mimeType: spec.mime,
-    extension,
+    mimeType: finalMimeType,
+    extension: finalExtension,
     sizeBytes: finalBuffer.length,
     scanStatus: catalog.EVIDENCE_SCAN_STATUS.PENDING_SCAN,
     uploadedAt: now,
