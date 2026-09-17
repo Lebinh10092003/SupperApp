@@ -388,7 +388,14 @@ export async function syncCourse(course: Course, subject = env.WORKSPACE_ADMIN_S
       for (const s of subs) {
         const isTurnedIn = ['TURNED_IN', 'RETURNED'].includes(s.state);
         if (isTurnedIn) submissionsTurnedIn++;
-        if (s.late) submissionsLate++;
+        // Google Classroom đánh dấu `late=true` khi đã QUÁ HẠN, kể cả khi
+        // học sinh CHƯA TỪNG nộp (state CREATED/NEW) — late không phải là
+        // tập con của turnedIn như code cũ ngầm giả định. Chỉ tính "nộp
+        // muộn" khi CẢ 2 đúng: đã nộp thật (isTurnedIn) VÀ Google đánh dấu
+        // late — nếu không, submissionsLate có thể VƯỢT submissionsTurnedIn
+        // (đã xảy ra thật: 971/692 = 140%), kéo theo onTimeRate âm và cảnh
+        // báo RULE_SUBMISSION_LATE sai lệch nghiêm trọng.
+        if (isTurnedIn && s.late) submissionsLate++;
         if (s.assignedGrade != null) {
           submissionsGraded++;
           totalScoreAssigned += Number(s.assignedGrade);
