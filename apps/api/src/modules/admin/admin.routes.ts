@@ -288,7 +288,20 @@ adminRouter.post(
       throw new HttpError(409, 'Email này đã có tài khoản trong hệ thống', 'INVALID_OPERATION');
     }
 
-    const created = await adminAuth.createUser({ email, password: b.password, displayName: b.displayName, disabled: false });
+    // Cần Firebase Admin credentials thật (service account) để tạo tài
+    // khoản trực tiếp — môi trường CHƯA có (xem README bàn giao). Với
+    // người đã có trong danh sách trường cấp quyền (access_allowlist),
+    // dùng route PATCH /safety-users/pending/:email thay vì route này —
+    // không cần tạo tài khoản Firebase mới, chỉ gán vai trò trước, tài
+    // khoản thật tự sinh khi chính người đó đăng nhập bằng Google.
+    const created = await adminAuth.createUser({ email, password: b.password, displayName: b.displayName, disabled: false }).catch((e) => {
+      throw new HttpError(
+        503,
+        'Chưa thể tạo tài khoản mới trực tiếp — hệ thống thiếu cấu hình Firebase Admin (service account) thật. Nếu người này đã có trong danh sách trường cấp quyền, hãy gán vai trò trước qua mục "Chưa đăng nhập" thay vì tạo mới ở đây.',
+        'FIREBASE_ADMIN_UNAVAILABLE',
+        e instanceof Error ? e.message : String(e)
+      );
+    });
     const perId = genPerId();
     const campusId = b.campusId ?? null;
     const domain = b.roleId === ROLE.DEPT_HEAD ? b.domain!.trim() : null;
