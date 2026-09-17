@@ -5,7 +5,7 @@ import { ApiTablePage } from '../../components/ApiTablePage';
 export default function MeetPage() {
   return (
     <ApiTablePage
-      title="Google Meet — THCS Giảng Võ"
+      title="Google Meet — Trường THCS Giảng Võ"
       subtitle="Giám sát phiên phòng học trực tuyến, thời lượng tham gia và nhật ký chuyên cần tự động"
       path="/api/meet/sessions"
       columns={[

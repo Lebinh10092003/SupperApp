@@ -153,8 +153,7 @@ export default function AlertsPage() {
   return (
     <Box sx={{ p: { xs: 2, md: 3 } }}>
       <PageHeader
-        title="Trung Tâm Cảnh Báo Sớm — Ban Giám Hiệu"
-        subtitle="Hệ thống tự động phát hiện và cảnh báo theo các quy tắc động về nguy cơ học tập, tỷ lệ nộp bài và lớp học ngủ đông"
+        title="Trung tâm Cảnh báo sớm"
         action={
           <Box sx={{ display: 'flex', gap: 1 }}>
             <Button

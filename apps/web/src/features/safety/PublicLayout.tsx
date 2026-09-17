@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import { Box, Typography } from '@mui/material';
 import { Link } from 'react-router-dom';
-import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined';
 
 const EMERGENCY_NUMBERS = [
   { num: '112', label: 'Khẩn cấp' },
@@ -72,13 +71,13 @@ export function PublicLayout({ title, subtitle, children }: { title: string; sub
       sx={{
         minHeight: '100vh',
         background: 'radial-gradient(ellipse at 50% -10%, #dbeafe 0%, #eff6ff 40%, #f8fafc 100%)',
-        py: { xs: 3, md: 5 },
+        py: { xs: 1.25, md: 2 },
         px: 2,
         position: 'relative'
       }}
     >
       <EmergencyFab />
-      <Box sx={{ position: 'absolute', top: { xs: 12, md: 20 }, right: { xs: 12, md: 24 } }}>
+      <Box sx={{ position: 'absolute', top: { xs: 10, md: 14 }, right: { xs: 12, md: 24 } }}>
         <Typography
           component={Link}
           to="/login"
@@ -89,31 +88,21 @@ export function PublicLayout({ title, subtitle, children }: { title: string; sub
         </Typography>
       </Box>
       <Box sx={{ maxWidth: 720, mx: 'auto' }}>
-        <Box sx={{ textAlign: 'center', mb: 3.5 }}>
+        <Box sx={{ textAlign: 'center', mb: 1.25 }}>
           <Box
-            sx={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: 52,
-              height: 52,
-              borderRadius: 3,
-              background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
-              color: '#ffffff',
-              mb: 2,
-              boxShadow: '0 6px 16px rgba(220, 38, 38, 0.28)'
-            }}
-          >
-            <ShieldOutlinedIcon sx={{ fontSize: 28 }} />
-          </Box>
-          <Typography variant="h4" sx={{ fontWeight: 800, color: '#0f172a', letterSpacing: '-0.03em', lineHeight: 1.2 }}>
-            THCS Giảng Võ
+            component="img"
+            src="/logo-truong.jpg"
+            alt="Logo trường"
+            sx={{ display: 'inline-block', width: 'auto', height: 44, objectFit: 'contain', mb: 0.75 }}
+          />
+          <Typography variant="h6" sx={{ fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em', lineHeight: 1.2 }}>
+            Trường THCS Giảng Võ
           </Typography>
-          <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#dc2626', mt: 0.5, fontSize: '1rem' }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#dc2626', mt: 0.25, fontSize: '0.9rem' }}>
             {title}
           </Typography>
           {subtitle && (
-            <Typography variant="body2" sx={{ color: '#64748b', mt: 0.5, fontSize: '0.84rem' }}>
+            <Typography variant="caption" sx={{ color: '#64748b', mt: 0.25, display: 'block' }}>
               {subtitle}
             </Typography>
           )}

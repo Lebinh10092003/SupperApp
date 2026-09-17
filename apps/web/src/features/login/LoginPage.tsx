@@ -35,7 +35,7 @@ function friendlyAuthError(e: any): string {
 }
 
 export default function LoginPage() {
-  const { profile, login, loginWithPassword, resetPasswordEmail } = useAuth();
+  const { profile, login, loginWithPassword, resetPasswordEmail, authError, clearAuthError } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -63,6 +63,17 @@ export default function LoginPage() {
     }, 300);
     return () => clearTimeout(t);
   }, []);
+
+  // Kết quả đăng nhập Google (signInWithRedirect) chỉ có được SAU KHI trang
+  // tải lại — AuthProvider tự kiểm tra qua getRedirectResult() và đẩy lỗi
+  // (nếu có) ra đây qua context, vì handleGoogleLogin() bên dưới không còn
+  // "chờ được" tới lúc xong như kiểu popup cũ nữa.
+  useEffect(() => {
+    if (authError) {
+      setError(friendlyAuthError(authError.startsWith('auth/') ? { code: authError } : { message: authError }));
+      clearAuthError();
+    }
+  }, [authError, clearAuthError]);
 
   const handleForgotPassword = async () => {
     if (!forgotEmail.trim()) return;
@@ -147,13 +158,7 @@ export default function LoginPage() {
             }}
           />
           <Typography variant="h4" sx={{ fontWeight: 800, color: '#0f172a', letterSpacing: '-0.03em', lineHeight: 1.2 }}>
-            THCS Giảng Võ
-          </Typography>
-          <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#2563eb', mt: 0.5, fontSize: '1rem', letterSpacing: '-0.01em' }}>
-            School Intelligence Portal
-          </Typography>
-          <Typography variant="body2" sx={{ color: '#64748b', mt: 0.5, fontSize: '0.84rem' }}>
-            Nền tảng quản trị điều hành lớp học số & phân tích sư phạm thông minh
+            Trường THCS Giảng Võ
           </Typography>
         </Box>
 
@@ -298,7 +303,7 @@ export default function LoginPage() {
             to="/safety/report"
             style={{ color: '#dc2626', fontWeight: 700, textDecoration: 'none', fontSize: '0.84rem' }}
           >
-            ← Quay lại báo cáo sự cố an toàn (không cần đăng nhập)
+            ← Quay lại báo cáo sự cố an toàn
           </RouterLink>
         </Typography>
 

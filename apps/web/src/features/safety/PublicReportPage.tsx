@@ -168,13 +168,13 @@ export default function PublicReportPage() {
   }
 
   return (
-    <PublicLayout title="Cảnh Báo An Toàn và Xử Lý Sự Cố" subtitle="Mọi thông tin được bảo mật, chỉ người có thẩm quyền mới được xem">
+    <PublicLayout title="Cảnh báo an toàn và Xử lý sự cố">
       <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: '0 4px 15px -1px rgba(15, 23, 42, 0.06)' }}>
-        <CardContent sx={{ p: { xs: 2.5, sm: 3.5 } }}>
-          <Stack spacing={2.5}>
+        <CardContent sx={{ p: { xs: 1.5, sm: 2 } }}>
+          <Stack spacing={1.25}>
             {error && <Alert severity="error">{error}</Alert>}
 
-            <TextField select label="Cơ sở xảy ra sự việc *" value={campusId} onChange={(e) => setCampusId(e.target.value)} fullWidth>
+            <TextField select size="small" label="Cơ sở xảy ra sự việc *" value={campusId} onChange={(e) => setCampusId(e.target.value)} fullWidth>
               {CAMPUS_IDS.map((c) => (
                 <MenuItem key={c} value={c}>
                   {CAMPUS_LABEL[c]}
@@ -182,7 +182,7 @@ export default function PublicReportPage() {
               ))}
             </TextField>
 
-            <TextField select label="Nhóm sự cố *" value={categoryCode} onChange={(e) => setCategoryCode(e.target.value)} fullWidth>
+            <TextField select size="small" label="Nhóm sự cố *" value={categoryCode} onChange={(e) => setCategoryCode(e.target.value)} fullWidth>
               {categories.map((c) => (
                 <MenuItem key={c.code} value={c.code}>
                   {c.label}
@@ -191,36 +191,38 @@ export default function PublicReportPage() {
             </TextField>
 
             <FormControlLabel
-              control={<Checkbox checked={stillDangerous} onChange={(e) => setStillDangerous(e.target.checked)} color="error" />}
-              label="Sự việc vẫn đang tiếp diễn / nguy hiểm ngay lúc này"
+              sx={{ ml: 0 }}
+              control={<Checkbox size="small" checked={stillDangerous} onChange={(e) => setStillDangerous(e.target.checked)} color="error" />}
+              label={<Typography variant="body2">Sự việc vẫn đang tiếp diễn / nguy hiểm ngay lúc này</Typography>}
             />
 
             <TextField
+              size="small"
               label="Nội dung sự việc *"
               value={content}
               onChange={(e) => setContent(e.target.value)}
               multiline
-              rows={4}
+              rows={3}
               fullWidth
               placeholder="Mô tả những gì đã xảy ra, thời gian, những ai liên quan..."
             />
 
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-              <TextField label="Email liên hệ" value={email} onChange={(e) => setEmail(e.target.value)} fullWidth />
-              <TextField label="Số điện thoại liên hệ" value={phone} onChange={(e) => setPhone(e.target.value)} fullWidth />
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25}>
+              <TextField size="small" label="Email liên hệ" value={email} onChange={(e) => setEmail(e.target.value)} fullWidth />
+              <TextField size="small" label="Số điện thoại liên hệ" value={phone} onChange={(e) => setPhone(e.target.value)} fullWidth />
             </Stack>
             <Typography variant="caption" color="text.secondary">
               Cần để lại ít nhất 1 trong 2 kênh trên để nhà trường liên hệ lại khi cần xác nhận.
             </Typography>
 
-            <Button variant="text" onClick={() => setShowMore((v) => !v)} sx={{ alignSelf: 'flex-start', textTransform: 'none' }}>
+            <Button variant="text" size="small" onClick={() => setShowMore((v) => !v)} sx={{ alignSelf: 'flex-start', textTransform: 'none' }}>
               {showMore ? '− Thu gọn' : '+ Thêm chi tiết (lớp, thời gian, minh chứng)'}
             </Button>
             {showMore && (
-              <Stack spacing={2.5}>
-                <TextField label="Lớp liên quan (nếu có)" value={className} onChange={(e) => setClassName(e.target.value)} placeholder="VD: 8A3" fullWidth />
+              <Stack spacing={1.25}>
+                <TextField size="small" label="Lớp liên quan (nếu có)" value={className} onChange={(e) => setClassName(e.target.value)} placeholder="VD: 8A3" fullWidth />
 
-                <TextField select label="Bạn là ai trong sự việc này" value={reporterRole} onChange={(e) => setReporterRole(e.target.value)} fullWidth>
+                <TextField select size="small" label="Bạn là ai trong sự việc này" value={reporterRole} onChange={(e) => setReporterRole(e.target.value)} fullWidth>
                   {REPORTER_ROLE_OPTIONS.map((r) => (
                     <MenuItem key={r.value} value={r.value}>
                       {r.label}
@@ -228,8 +230,9 @@ export default function PublicReportPage() {
                   ))}
                 </TextField>
 
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25}>
                   <TextField
+                    size="small"
                     label="Xảy ra từ"
                     type="datetime-local"
                     value={occurredFrom}
@@ -238,6 +241,7 @@ export default function PublicReportPage() {
                     fullWidth
                   />
                   <TextField
+                    size="small"
                     label="Đến"
                     type="datetime-local"
                     value={occurredTo}
@@ -247,10 +251,11 @@ export default function PublicReportPage() {
                   />
                 </Stack>
 
-                <Stack spacing={1}>
+                <Stack spacing={0.75}>
                   <Button
                     component="label"
                     variant="outlined"
+                    size="small"
                     startIcon={<UploadFileIcon />}
                     disabled={files.length >= MAX_EVIDENCE_FILES}
                     sx={{ alignSelf: 'flex-start', textTransform: 'none' }}
@@ -295,7 +300,6 @@ export default function PublicReportPage() {
 
             <Button
               variant="contained"
-              size="large"
               onClick={handleSubmit}
               disabled={submitting}
               sx={{
@@ -303,12 +307,12 @@ export default function PublicReportPage() {
                 '&:hover': { bgcolor: '#b91c1c' },
                 fontWeight: 700,
                 borderRadius: 2,
-                py: 1.25,
+                py: 0.85,
                 position: { xs: 'sticky', sm: 'static' },
                 bottom: { xs: 0 }
               }}
             >
-              {submitting ? <CircularProgress size={22} sx={{ color: '#fff' }} /> : 'Gửi tin báo'}
+              {submitting ? <CircularProgress size={20} sx={{ color: '#fff' }} /> : 'Gửi tin báo'}
             </Button>
 
             <Box sx={{ textAlign: 'center' }}>

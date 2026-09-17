@@ -6,7 +6,7 @@ export default function TodayPage() {
   return (
     <ApiTablePage
       title="Hoạt động Hôm nay — Live School Monitor"
-      subtitle="Theo dõi thời gian thực các phiên Google Meet và điểm danh số trong ngày tại THCS Giảng Võ"
+      subtitle="Theo dõi thời gian thực các phiên Google Meet và điểm danh số trong ngày tại Trường THCS Giảng Võ"
       path="/api/meet/live"
       columns={[
         {

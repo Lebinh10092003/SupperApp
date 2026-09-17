@@ -4,7 +4,7 @@ import { ApiTablePage } from '../../components/ApiTablePage';
 export default function TeachersPage() {
   return (
     <ApiTablePage
-      title="Danh bạ Giáo viên — THCS Giảng Võ"
+      title="Danh bạ Giáo viên — Trường THCS Giảng Võ"
       subtitle="Đồng bộ tự động từ Google Workspace & Google Classroom theo tổ chuyên môn"
       path="/api/people/teachers"
       columns={[

@@ -114,7 +114,7 @@ export default function SystemPage() {
   return (
     <>
       <PageHeader
-        title="Tình trạng hệ thống — THCS Giảng Võ"
+        title="Tình trạng hệ thống — Trường THCS Giảng Võ"
         subtitle="Trạng thái thật của backend, cơ sở dữ liệu và các tích hợp — không phải số liệu minh hoạ"
         icon={<DnsIcon />}
         action={

@@ -26,7 +26,7 @@ export default function AdminPage() {
   return (
     <>
       <PageHeader
-        title="Quản trị & Phân quyền — THCS Giảng Võ"
+        title="Quản trị & Phân quyền — Trường THCS Giảng Võ"
         subtitle="Quản lý người dùng — 1 vai trò dùng chung cho toàn hệ thống (module An toàn, Lịch công tác...), và đồng bộ dữ liệu tổng thể"
         icon={<AdminPanelSettingsIcon />}
         action={

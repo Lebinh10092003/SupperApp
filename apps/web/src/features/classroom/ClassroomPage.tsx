@@ -141,7 +141,7 @@ export default function ClassroomPage() {
   return (
     <>
       <PageHeader
-        title="Google Classroom — THCS Giảng Võ"
+        title="Google Classroom — Trường THCS Giảng Võ"
         subtitle="Quản lý đồng bộ khóa học, danh sách học sinh (Roster) và mapping với lớp hành chính"
         icon={<SchoolIcon />}
         action={
@@ -276,7 +276,7 @@ export default function ClassroomPage() {
               Chưa có khóa học nào được đồng bộ từ Google Classroom
             </Typography>
             <Typography variant="body2" color="#64748b" sx={{ maxWidth: 580, mx: 'auto', mb: 3 }}>
-              Hệ thống THCS Giảng Võ tuân thủ nguyên tắc 100% dữ liệu thực tế từ Google Classroom API chính thức, tuyệt đối không dùng dữ liệu giả lập. Vui lòng kết nối tài khoản Google để nạp toàn bộ danh sách lớp học và bài nộp thực tế.
+              Hệ thống Trường THCS Giảng Võ tuân thủ nguyên tắc 100% dữ liệu thực tế từ Google Classroom API chính thức, tuyệt đối không dùng dữ liệu giả lập. Vui lòng kết nối tài khoản Google để nạp toàn bộ danh sách lớp học và bài nộp thực tế.
             </Typography>
             <Stack direction="row" spacing={1.5} justifyContent="center">
               <Button

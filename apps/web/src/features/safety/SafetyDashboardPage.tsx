@@ -45,7 +45,7 @@ export default function SafetyDashboardPage() {
   return (
     <Box sx={{ p: { xs: 2, md: 3 } }}>
       <PageHeader
-        title="Cảnh Báo An Toàn và Xử Lý Sự Cố"
+        title="Cảnh báo an toàn và Xử lý sự cố"
         subtitle="Ghi nhận, phân loại và xử lý sự cố an toàn trường học"
         icon={<ShieldOutlinedIcon />}
       />

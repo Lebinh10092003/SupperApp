@@ -261,6 +261,20 @@ const navGroups: NavGroup[] = [
   }
 ];
 
+// Học kỳ I: tháng 9 năm N -> tháng 1 năm N+1 (năm học N-N+1).
+// Học kỳ II: tháng 2 -> tháng 8 năm N+1 (cùng năm học N-N+1, gồm cả hè).
+function getCurrentSemesterLabel(now: Date = new Date()): string {
+  const month = now.getMonth() + 1;
+  const year = now.getFullYear();
+  if (month >= 9) {
+    return `Học kỳ I • ${year}–${year + 1}`;
+  }
+  if (month === 1) {
+    return `Học kỳ I • ${year - 1}–${year}`;
+  }
+  return `Học kỳ II • ${year - 1}–${year}`;
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [syncStatus, setSyncStatus] = useState<{ connected: boolean; isSynced: boolean; courseCount: number } | null>(null);
@@ -460,7 +474,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         />
         <Box sx={{ overflow: 'hidden' }}>
           <Typography variant="subtitle2" fontWeight={800} noWrap sx={{ color: '#0f172a', letterSpacing: '-0.02em', lineHeight: 1.2 }}>
-            THCS Giảng Võ
+            Trường THCS Giảng Võ
           </Typography>
           <Typography
             component="span"
@@ -507,7 +521,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           }}
         >
           <span>Tìm kiếm điều hành...</span>
-          <Chip label="⌘K" size="small" sx={{ height: 18, fontSize: '0.65rem', bgcolor: '#ffffff', color: '#64748b', border: '1px solid #cbd5e1', fontWeight: 600 }} />
         </Box>
       </Box>
 
@@ -912,7 +925,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               }}
             >
               <Typography variant="caption" fontWeight={700} sx={{ color: '#1d4ed8', fontSize: '0.75rem' }}>
-                Học kỳ II • 2025–2026
+                {getCurrentSemesterLabel()}
               </Typography>
             </Box>
 

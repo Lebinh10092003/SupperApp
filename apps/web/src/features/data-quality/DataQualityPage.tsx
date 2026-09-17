@@ -52,7 +52,7 @@ export default function DataQualityPage() {
   return (
     <>
       <PageHeader
-        title="Chất lượng Dữ liệu — THCS Giảng Võ"
+        title="Chất lượng Dữ liệu — Trường THCS Giảng Võ"
         subtitle="Đánh giá độ đầy đủ, tính toàn vẹn và mức độ chuẩn hóa dữ liệu thực tế từ Google Classroom"
         icon={<VerifiedIcon />}
         action={

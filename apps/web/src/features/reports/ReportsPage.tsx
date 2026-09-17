@@ -75,7 +75,7 @@ export default function ReportsPage() {
   return (
     <>
       <PageHeader
-        title="Trung tâm Báo cáo & Xuất số liệu — THCS Giảng Võ"
+        title="Trung tâm Báo cáo & Xuất số liệu — Trường THCS Giảng Võ"
         subtitle="Xuất các báo cáo thống kê chuyên cần, tình hình học tập và dữ liệu tổng hợp phục vụ điều hành"
         icon={<AssessmentIcon />}
       />

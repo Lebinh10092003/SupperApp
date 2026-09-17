@@ -5,7 +5,7 @@ import { ApiTablePage } from '../../components/ApiTablePage';
 export default function ClassesPage() {
   return (
     <ApiTablePage
-      title="Danh sách Lớp học — THCS Giảng Võ"
+      title="Danh sách Lớp học — Trường THCS Giảng Võ"
       subtitle="Quản lý thông tin lớp hành chính, phân bổ khối lớp và giáo viên chủ nhiệm"
       path="/api/classes"
       columns={[

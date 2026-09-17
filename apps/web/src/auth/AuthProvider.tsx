@@ -1,7 +1,8 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   onAuthStateChanged,
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
   updatePassword,
@@ -26,6 +27,8 @@ export type Ctx = {
   profile: Profile | null;
   loading: boolean;
   login: () => Promise<void>;
+  authError: string | null;
+  clearAuthError: () => void;
   loginWithPassword: (email: string, password: string) => Promise<void>;
   resetPasswordEmail: (email: string) => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
@@ -39,6 +42,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const clearAuthError = () => setAuthError(null);
 
   useEffect(() => {
     if (!hasValidFirebaseConfig) {
@@ -109,9 +114,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Bắt kết quả sau khi Google đưa trang quay lại (signInWithRedirect
+  // không có promise "chờ tới lúc xong" như popup — phải tự kiểm tra ở đây
+  // mỗi khi app tải lên). result === null nghĩa là trang tải bình thường,
+  // không phải vừa quay về từ redirect đăng nhập — bỏ qua, không phải lỗi.
+  useEffect(() => {
+    if (!hasValidFirebaseConfig) return;
+    getRedirectResult(auth)
+      .then(async (result) => {
+        if (!result) return;
+        try {
+          await completeLogin();
+        } catch (e: any) {
+          console.error('[Auth] completeLogin() sau redirect thất bại:', e);
+          setAuthError(e?.message && !e?.code ? e.message : e?.code || 'Đăng nhập không thành công.');
+        }
+      })
+      .catch((e: any) => {
+        console.error('[Auth] getRedirectResult() lỗi:', e);
+        setAuthError(e?.code || e?.message || 'Đăng nhập không thành công.');
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Đổi từ signInWithPopup sang signInWithRedirect (Sin phản hồi 2026-09-14:
+  // popup báo lỗi "đã bị đóng trước khi hoàn tất" — auth/popup-closed-by-user).
+  // Nguyên nhân phổ biến: Chrome ngày càng chặn cookie bên thứ 3 theo mặc
+  // định, mà popup của Firebase cần cookie đó để giao tiếp ngược lại tab
+  // gốc. signInWithRedirect điều hướng thẳng cả trang, không cần cookie
+  // bên thứ 3, nên không dính lỗi này — đánh đổi là rời trang tạm thời rồi
+  // quay lại (thay vì mở cửa sổ con), xử lý kết quả ở effect bên dưới qua
+  // getRedirectResult() khi trang tải lại sau khi Google trả về.
   const login = async () => {
-    await signInWithPopup(auth, googleProvider);
-    await completeLogin();
+    setAuthError(null);
+    await signInWithRedirect(auth, googleProvider);
   };
 
   const loginWithPassword = async (email: string, password: string) => {
@@ -156,13 +192,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       profile,
       loading,
       login,
+      authError,
+      clearAuthError,
       loginWithPassword,
       resetPasswordEmail,
       changePassword,
       updateDisplayName,
       logout
     }),
-    [user, profile, loading]
+    [user, profile, loading, authError]
   );
 
   return <C.Provider value={value}>{children}</C.Provider>;

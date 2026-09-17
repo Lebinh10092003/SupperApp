@@ -234,7 +234,7 @@ export default function GoogleConnectionPage() {
     setSeedLoading(true);
     try {
       const res = await api<any>('/api/connections/demo-seed', { method: 'POST' });
-      setMsg({ text: res.message || 'Đã nạp thành công bộ lớp học mẫu THCS Giảng Võ!', type: 'success' });
+      setMsg({ text: res.message || 'Đã nạp thành công bộ lớp học mẫu Trường THCS Giảng Võ!', type: 'success' });
       loadStatus();
     } catch (err: any) {
       setMsg({ text: err.message || 'Lỗi khi nạp dữ liệu mẫu', type: 'error' });
@@ -281,7 +281,7 @@ export default function GoogleConnectionPage() {
     <Box sx={{ p: { xs: 2, md: 3 } }}>
       <PageHeader
         title="Quản Lý Kết Nối Google Classroom & Dữ Liệu Thực Tế"
-        subtitle="Cung cấp quyền truy cập để hệ thống tự động nạp 100% dữ liệu thực tế từ Google Classroom cho THCS Giảng Võ"
+        subtitle="Cung cấp quyền truy cập để hệ thống tự động nạp 100% dữ liệu thực tế từ Google Classroom cho Trường THCS Giảng Võ"
         action={
           <Stack direction="row" spacing={1.5} flexWrap="wrap" gap={1}>
             <Button
@@ -302,7 +302,7 @@ export default function GoogleConnectionPage() {
               disabled={seedLoading}
               sx={{ fontWeight: 600 }}
             >
-              Nạp lớp học mẫu THCS Giảng Võ
+              Nạp lớp học mẫu Trường THCS Giảng Võ
             </Button>
             <Button variant="outlined" startIcon={<RefreshIcon />} onClick={loadStatus} disabled={loading}>
               Làm mới
