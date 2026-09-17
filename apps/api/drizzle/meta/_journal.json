@@ -43,6 +43,13 @@
       "when": 1789094542509,
       "tag": "0005_lively_echo",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789632102469,
+      "tag": "0006_perfect_living_mummy",
+      "breakpoints": true
     }
   ]
 }

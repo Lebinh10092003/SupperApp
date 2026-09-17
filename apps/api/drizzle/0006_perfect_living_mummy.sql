@@ -1,0 +1,1 @@
+ALTER TABLE "people_directory" ADD COLUMN "display_name" text;

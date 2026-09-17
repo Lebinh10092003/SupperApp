@@ -69,8 +69,11 @@ const CAMPUS_LABEL: Record<string, string> = {
 };
 
 interface SafetyUser {
-  uid: string;
-  perId: string;
+  // null = CHƯA từng đăng nhập (chỉ có sẵn trong access_allowlist +
+  // (có thể) đã được admin gán vai trò trước qua perId) — không có tài
+  // khoản Firebase thật nên không đổi mật khẩu/khoá được, chỉ sửa vai trò.
+  uid: string | null;
+  perId: string | null;
   displayName: string;
   email: string;
   phone: string | null;
@@ -78,6 +81,7 @@ interface SafetyUser {
   campusId: string | null;
   domain: string | null;
   disabled: boolean;
+  loggedInBefore: boolean;
 }
 
 const PAGE_SIZE = 10;
@@ -117,6 +121,7 @@ export function SafetyUsersSection() {
       if (statusFilter === 'disabled' && !u.disabled) return false;
       if (statusFilter === 'active' && u.disabled) return false;
       if (statusFilter === 'unmanaged' && u.roleId) return false;
+      if (statusFilter === 'pending' && u.loggedInBefore) return false;
       return true;
     });
     rows = [...rows].sort((a, b) => {
@@ -139,6 +144,7 @@ export function SafetyUsersSection() {
   };
 
   const handleToggleDisable = async (u: SafetyUser) => {
+    if (!u.uid) return; // chưa đăng nhập -> chưa có tài khoản Firebase thật để khoá
     try {
       await api.post(`/api/admin/safety-users/${u.uid}/toggle-disable`, { disabled: !u.disabled });
       setToast({ text: `Đã ${u.disabled ? 'mở khoá' : 'khoá'} tài khoản ${u.displayName}.`, severity: 'success' });
@@ -220,6 +226,7 @@ export function SafetyUsersSection() {
             <MenuItem value="active">Đang hoạt động</MenuItem>
             <MenuItem value="disabled">Đã khoá</MenuItem>
             <MenuItem value="unmanaged">Chưa cấp vai trò</MenuItem>
+            <MenuItem value="pending">Chưa đăng nhập</MenuItem>
           </TextField>
         </Stack>
 
@@ -261,7 +268,7 @@ export function SafetyUsersSection() {
                 </TableRow>
               ) : (
                 pageRows.map((u) => (
-                  <TableRow key={u.uid} hover>
+                  <TableRow key={u.uid || u.perId || u.email} hover>
                     <TableCell>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
                         <Avatar sx={{ width: 28, height: 28, fontSize: '0.75rem', bgcolor: '#2563eb', color: '#fff', fontWeight: 700 }}>
@@ -293,17 +300,25 @@ export function SafetyUsersSection() {
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Chip
-                        label={u.disabled ? 'Đã khoá' : 'Đang hoạt động'}
-                        size="small"
-                        sx={{
-                          bgcolor: u.disabled ? '#f8fafc' : '#ecfdf5',
-                          color: u.disabled ? '#64748b' : '#059669',
-                          border: u.disabled ? '1px solid #e2e8f0' : '1px solid #a7f3d0',
-                          fontWeight: 700,
-                          fontSize: '0.7rem'
-                        }}
-                      />
+                      {!u.loggedInBefore ? (
+                        <Chip
+                          label="Chưa đăng nhập"
+                          size="small"
+                          sx={{ bgcolor: '#fffbeb', color: '#b45309', border: '1px solid #fde68a', fontWeight: 700, fontSize: '0.7rem' }}
+                        />
+                      ) : (
+                        <Chip
+                          label={u.disabled ? 'Đã khoá' : 'Đang hoạt động'}
+                          size="small"
+                          sx={{
+                            bgcolor: u.disabled ? '#f8fafc' : '#ecfdf5',
+                            color: u.disabled ? '#64748b' : '#059669',
+                            border: u.disabled ? '1px solid #e2e8f0' : '1px solid #a7f3d0',
+                            fontWeight: 700,
+                            fontSize: '0.7rem'
+                          }}
+                        />
+                      )}
                     </TableCell>
                     <TableCell align="right">
                       <Tooltip title="Sửa vai trò/cơ sở">
@@ -311,16 +326,20 @@ export function SafetyUsersSection() {
                           <EditIcon sx={{ fontSize: 18 }} />
                         </IconButton>
                       </Tooltip>
-                      <Tooltip title="Reset mật khẩu">
-                        <IconButton size="small" onClick={() => setResetTarget(u)}>
-                          <LockResetIcon sx={{ fontSize: 18 }} />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title={u.disabled ? 'Mở khoá' : 'Khoá tài khoản'}>
-                        <IconButton size="small" onClick={() => handleToggleDisable(u)} sx={{ color: u.disabled ? '#059669' : '#dc2626' }}>
-                          {u.disabled ? <CheckCircleIcon sx={{ fontSize: 18 }} /> : <BlockIcon sx={{ fontSize: 18 }} />}
-                        </IconButton>
-                      </Tooltip>
+                      {u.loggedInBefore && (
+                        <>
+                          <Tooltip title="Reset mật khẩu">
+                            <IconButton size="small" onClick={() => setResetTarget(u)}>
+                              <LockResetIcon sx={{ fontSize: 18 }} />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title={u.disabled ? 'Mở khoá' : 'Khoá tài khoản'}>
+                            <IconButton size="small" onClick={() => handleToggleDisable(u)} sx={{ color: u.disabled ? '#059669' : '#dc2626' }}>
+                              {u.disabled ? <CheckCircleIcon sx={{ fontSize: 18 }} /> : <BlockIcon sx={{ fontSize: 18 }} />}
+                            </IconButton>
+                          </Tooltip>
+                        </>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))
@@ -396,7 +415,7 @@ function EditUserDialog({ user, onClose, onSaved }: { user: SafetyUser | null; o
     }
     setSaving(true);
     try {
-      if (isEdit) {
+      if (isEdit && user!.uid) {
         await api.patch(`/api/admin/safety-users/${user!.uid}`, {
           displayName: displayName.trim(),
           roleId,
@@ -405,6 +424,18 @@ function EditUserDialog({ user, onClose, onSaved }: { user: SafetyUser | null; o
           domain: roleId === 'R.DEPT_HEAD' ? domain.trim() : null
         });
         onSaved(`Đã cập nhật ${displayName}.`);
+      } else if (isEdit) {
+        // Chưa từng đăng nhập -> không có uid, định danh bằng email (đã
+        // có sẵn trong access_allowlist). Chưa có tài khoản Firebase thật
+        // nên không sửa được ở đây — chỉ sửa vai trò/cơ sở/tổ.
+        await api.patch(`/api/admin/safety-users/pending/${encodeURIComponent(user!.email)}`, {
+          displayName: displayName.trim(),
+          roleId,
+          oldRoleId: user!.roleId,
+          campusId: campusId || null,
+          domain: roleId === 'R.DEPT_HEAD' ? domain.trim() : null
+        });
+        onSaved(`Đã gán vai trò cho ${displayName} (sẽ có hiệu lực ngay khi họ đăng nhập lần đầu).`);
       } else {
         await api.post('/api/admin/safety-users', {
           displayName: displayName.trim(),

@@ -197,37 +197,64 @@ adminRouter.get(
   firebaseAuth,
   requireCapability('MANAGE_USERS'),
   asyncRoute(async (_q, r) => {
-    const [accountRows, assignmentRows, directoryRows] = await Promise.all([
+    // Nguồn DANH SÁCH GỐC đổi từ `accounts` (chỉ có người ĐÃ đăng nhập ít
+    // nhất 1 lần) sang `access_allowlist` (toàn bộ người trường cấp quyền,
+    // kể cả CHƯA từng đăng nhập) — để admin xem/gán vai trò trước cho cả
+    // người chưa đăng nhập (xem README + auto-link.ts). `accounts`/
+    // `assignments`/`people_directory` giờ chỉ là dữ liệu LEFT JOIN thêm
+    // vào, không còn là gốc.
+    const [allowlistRows, accountRows, assignmentRows, directoryRows] = await Promise.all([
+      db.select().from(accessAllowlist),
       db.select().from(accounts),
       db.select().from(assignments),
       db.select().from(peopleDirectory)
     ]);
     const assignmentByPerId = new Map(assignmentRows.map((a) => [a.perId, a]));
-    const phoneByPerId = new Map(directoryRows.map((d) => [d.perId, d.phone]));
+    const directoryByPerId = new Map(directoryRows.map((d) => [d.perId, d]));
+    const directoryByEmail = new Map(directoryRows.map((d) => [(d.email || '').toLowerCase(), d]));
+    const accountByEmail = new Map(accountRows.map((a) => [a.email.toLowerCase(), a]));
 
     // Trạng thái khoá đọc thẳng từ Firebase Auth (KHÔNG lưu lại ở Postgres
     // — tránh 2 nguồn sự thật lệch nhau). listUsers phân trang 1000/lần,
     // quy mô trường hiện tại (<1000 tài khoản) chỉ cần 1 lần gọi.
+    //
+    // Best-effort: môi trường CHƯA có Firebase service account thật (VPS
+    // này) khiến lệnh này LUÔN lỗi app/invalid-credential — trước đây lỗi
+    // này ném thẳng ra ngoài, sập NGUYÊN route (kể cả phần dữ liệu Postgres
+    // đọc thành công ở trên cũng mất theo). Giờ bọc try/catch, fallback
+    // disabled=false cho mọi người khi không đọc được, không chặn hiển thị
+    // danh sách vì đây chỉ là 1 trường bổ sung, không phải dữ liệu gốc.
     const disabledByUid = new Map<string, boolean>();
-    let pageToken: string | undefined;
-    do {
-      const page = await adminAuth.listUsers(1000, pageToken);
-      for (const u of page.users) disabledByUid.set(u.uid, u.disabled);
-      pageToken = page.pageToken;
-    } while (pageToken);
+    try {
+      let pageToken: string | undefined;
+      do {
+        const page = await adminAuth.listUsers(1000, pageToken);
+        for (const u of page.users) disabledByUid.set(u.uid, u.disabled);
+        pageToken = page.pageToken;
+      } while (pageToken);
+    } catch (e) {
+      console.error('[admin/safety-users] adminAuth.listUsers() lỗi, bỏ qua trạng thái khoá:', e);
+    }
 
-    const result = accountRows.map((acc) => {
-      const a = assignmentByPerId.get(acc.perId);
+    const result = allowlistRows.map((al) => {
+      const email = al.email.toLowerCase();
+      const acc = accountByEmail.get(email);
+      const dir = acc ? directoryByPerId.get(acc.perId) : directoryByEmail.get(email);
+      const perId = acc?.perId ?? dir?.perId ?? null;
+      const a = perId ? assignmentByPerId.get(perId) : undefined;
       return {
-        uid: acc.uid,
-        perId: acc.perId,
-        displayName: acc.displayName,
-        email: acc.email,
-        phone: phoneByPerId.get(acc.perId) ?? null,
+        // uid null = CHƯA từng đăng nhập — FE phải tự xử lý (không có các
+        // hành động cần Firebase Auth thật: đổi mật khẩu/khoá tài khoản).
+        uid: acc?.uid ?? null,
+        perId,
+        displayName: acc?.displayName || dir?.displayName || al.email,
+        email: al.email,
+        phone: dir?.phone ?? null,
         roleId: a?.roleId ?? null,
         campusId: a?.campusId ?? null,
         domain: a?.domain ?? null,
-        disabled: disabledByUid.get(acc.uid) ?? false
+        disabled: acc ? (disabledByUid.get(acc.uid) ?? false) : false,
+        loggedInBefore: !!acc
       };
     });
 
@@ -342,6 +369,84 @@ adminRouter.patch(
     });
 
     r.json({ ok: true });
+  })
+);
+
+/**
+ * Gán/sửa vai trò An toàn cho người CHƯA TỪNG đăng nhập — không có uid
+ * Firebase để định danh (khác route PATCH /safety-users/:uid ở trên,
+ * dành cho người đã có `accounts`). Định danh bằng EMAIL (đã có sẵn từ
+ * access_allowlist, biết trước không cần đăng nhập). Tự tạo
+ * `people_directory` nếu người này lần đầu được gán vai trò. KHÔNG đụng
+ * `accounts`/Firebase Auth — tài khoản Firebase thật chỉ sinh ra khi
+ * chính người đó đăng nhập, lúc đó `auto-link.ts` tự nối uid vào đúng
+ * `perId` đã gán sẵn ở đây.
+ */
+adminRouter.patch(
+  '/safety-users/pending/:email',
+  firebaseAuth,
+  requireCapability('MANAGE_USERS'),
+  asyncRoute(async (q, r) => {
+    const email = String(q.params.email).toLowerCase();
+    const b = z
+      .object({
+        displayName: z.string().min(1).optional(),
+        roleId: z.enum(ASSIGNABLE_SAFETY_ROLES),
+        oldRoleId: z.string().nullable().optional(),
+        campusId: z.enum(CAMPUS_IDS).nullable().optional(),
+        domain: z.string().nullable().optional()
+      })
+      .parse(q.body);
+
+    if (b.roleId === ROLE.DEPT_HEAD && !b.domain?.trim()) {
+      throw new HttpError(400, 'Vai trò Tổ trưởng bắt buộc nhập Lĩnh vực/Tổ', 'INVALID_INPUT');
+    }
+
+    const [allowlistEntry] = await db.select().from(accessAllowlist).where(eq(accessAllowlist.id, safeId(email))).limit(1);
+    if (!allowlistEntry) {
+      throw new HttpError(404, 'Email này chưa có trong danh sách được cấp quyền (access allowlist)', 'NOT_FOUND');
+    }
+
+    const [existingAccount] = await db.select().from(accounts).where(eq(accounts.email, email)).limit(1);
+    if (existingAccount) {
+      throw new HttpError(409, 'Người này đã đăng nhập rồi — sửa qua route quản lý theo tài khoản, không phải route này', 'INVALID_OPERATION');
+    }
+
+    let [dir] = await db.select().from(peopleDirectory).where(eq(peopleDirectory.email, email)).limit(1);
+    if (!dir) {
+      const perId = genPerId();
+      await db.insert(peopleDirectory).values({ perId, email, phone: null, displayName: b.displayName || email });
+      dir = { perId, email, phone: null, displayName: b.displayName || email };
+    } else if (b.displayName && b.displayName !== dir.displayName) {
+      await db.update(peopleDirectory).set({ displayName: b.displayName }).where(eq(peopleDirectory.perId, dir.perId));
+    }
+
+    const campusId = b.campusId ?? null;
+    const domain = b.roleId === ROLE.DEPT_HEAD ? b.domain!.trim() : null;
+
+    if (b.oldRoleId && b.oldRoleId !== b.roleId) {
+      await db.delete(assignments).where(and(eq(assignments.perId, dir.perId), eq(assignments.roleId, b.oldRoleId)));
+    }
+    await db
+      .insert(assignments)
+      .values({ perId: dir.perId, roleId: b.roleId, campusId, domain, createdByUid: q.appUser!.uid, updatedByUid: q.appUser!.uid, updatedAt: new Date() })
+      .onConflictDoUpdate({ target: [assignments.perId, assignments.roleId], set: { campusId, domain, updatedByUid: q.appUser!.uid, updatedAt: new Date() } });
+
+    const appRole = mapSafetyRoleToAppRole(b.roleId, false);
+    await db
+      .insert(accessAllowlist)
+      .values({ id: safeId(email), email, role: appRole, active: true })
+      .onConflictDoUpdate({ target: accessAllowlist.id, set: { role: appRole } });
+
+    await db.insert(generalAuditLogs).values({
+      action: 'UPDATE_SAFETY_USER_PENDING',
+      actor: q.appUser!.email,
+      entityType: 'safety_user',
+      entityId: email,
+      message: `roleId=${b.roleId} campusId=${campusId ?? ''} domain=${domain ?? ''} (chưa đăng nhập)`
+    });
+
+    r.json({ ok: true, perId: dir.perId });
   })
 );
 

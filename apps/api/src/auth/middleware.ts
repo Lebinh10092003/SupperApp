@@ -6,6 +6,7 @@ import { users } from '../modules/session/session.schema.js';
 import { HttpError } from '../core/http.js';
 import { can, type Capability, type Role, type UserScope } from './roles.js';
 import { bootstrapSuperAdminEmails, bootstrapSuperAdminDomains, env } from '../config/env.js';
+import { ensureSafetyAccountLinked } from '../modules/identity/auto-link.js';
 
 export interface AppUser {
   uid: string;
@@ -63,6 +64,14 @@ export async function firebaseAuth(req: Request, _res: Response, next: NextFunct
     });
     const email = (d.email || '').toLowerCase();
     const existing = await db.select().from(users).where(eq(users.uid, d.uid)).then((r) => r[0] ?? null);
+
+    // Tự động link tài khoản An toàn (accounts, khoá theo uid) nếu email
+    // này đã được admin gán vai trò sẵn từ trước qua perId (chưa từng
+    // đăng nhập nên hệ thống chưa biết uid) — best-effort, không chặn
+    // đăng nhập nếu lỗi (vd DB tạm gián đoạn). Xem auto-link.ts.
+    ensureSafetyAccountLinked(db, d.uid, email, d.name).catch((e) => {
+      console.error('[Auth] ensureSafetyAccountLinked lỗi (bỏ qua, không chặn đăng nhập):', e);
+    });
 
     // Tự động cấp SYSTEM_SUPER_ADMIN cho email trong bootstrap config
     if (isBootstrapSuperAdmin(email)) {

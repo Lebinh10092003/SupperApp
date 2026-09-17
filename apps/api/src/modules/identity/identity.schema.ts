@@ -49,7 +49,11 @@ export const assignments = pgTable('assignments', {
 export const peopleDirectory = pgTable('people_directory', {
   perId: text('per_id').primaryKey(),
   email: text('email'),
-  phone: text('phone') // giữ lại vì field cũ vẫn còn ghi khi tạo user, dù kênh SMS đã bỏ dùng
+  phone: text('phone'), // giữ lại vì field cũ vẫn còn ghi khi tạo user, dù kênh SMS đã bỏ dùng
+  // Tên hiển thị cho người CHƯA từng đăng nhập (chưa có accounts.display_name
+  // thật từ Firebase) — cho phép admin xem/quản lý người dùng An toàn TRƯỚC
+  // khi họ tự đăng nhập lần đầu (gán vai trò sẵn theo danh sách trường cấp).
+  displayName: text('display_name')
 });
 
 export const dutyShifts = pgTable('duty_shifts', {
