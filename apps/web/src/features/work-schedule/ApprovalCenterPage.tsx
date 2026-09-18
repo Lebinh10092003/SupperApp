@@ -39,8 +39,8 @@ export default function ApprovalCenterPage() {
   const [taskDetail, setTaskDetail] = useState<WorkTask | null>(null);
 
   return (
-    <Box sx={{ p: { xs: 2, md: 3 } }}>
-      <PageHeader title="Trung tâm phê duyệt" subtitle="Lịch cần xử lý và công việc chờ nghiệm thu của bạn" icon={<FactCheckIcon />} />
+    <>
+      <PageHeader title="Trung tâm phê duyệt" icon={<FactCheckIcon />} />
 
       {eventsError && <Alert severity="error" sx={{ mb: 2 }}>{eventsError}</Alert>}
       {tasksError && <Alert severity="error" sx={{ mb: 2 }}>{tasksError}</Alert>}
@@ -137,6 +137,6 @@ export default function ApprovalCenterPage() {
           refetchTasks();
         }}
       />
-    </Box>
+    </>
   );
 }

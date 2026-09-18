@@ -128,10 +128,9 @@ export default function AuditLogPage() {
   };
 
   return (
-    <Box sx={{ p: { xs: 2, md: 3 } }}>
+    <>
       <PageHeader
         title="Nhật ký kiểm toán"
-        subtitle="Ghi lại mọi thao tác quan trọng — chỉ đọc, không thể sửa/xoá"
         icon={<HistoryRoundedIcon />}
       />
 
@@ -226,6 +225,6 @@ export default function AuditLogPage() {
           <Button onClick={() => setDetail(null)}>Đóng</Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </>
   );
 }

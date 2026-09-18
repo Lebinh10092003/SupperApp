@@ -308,8 +308,8 @@ export default function AnalyticsPage() {
   const [tab, setTab] = useState(0);
 
   return (
-    <Box sx={{ p: { xs: 2, md: 3 } }}>
-      <PageHeader title="Phân tích & thống kê" subtitle="Xu hướng, so sánh cơ sở, thống kê theo lớp học" icon={<InsightsRoundedIcon />} />
+    <>
+      <PageHeader title="Phân tích & thống kê" icon={<InsightsRoundedIcon />} />
 
       <Paper sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none', p: 2.5 }}>
         <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2 }}>
@@ -321,6 +321,6 @@ export default function AnalyticsPage() {
         {tab === 1 && <CampusComparisonPanel />}
         {tab === 2 && <ClassStatsPanel />}
       </Paper>
-    </Box>
+    </>
   );
 }

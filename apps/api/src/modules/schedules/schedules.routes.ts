@@ -68,14 +68,14 @@ schedulesRouter.post(
       .values({
         classId: x.classId,
         className: x.className,
-        grade: Number(x.className.match(/^[6789]/)?.[0] || 0) || null,
+        grade: Number(x.classId.match(/^[6789]/)?.[0] || 0) || null,
         expectedStudents: x.expectedStudents ?? null
       })
       .onConflictDoUpdate({
         target: classes.classId,
         set: {
           className: x.className,
-          grade: Number(x.className.match(/^[6789]/)?.[0] || 0) || null,
+          grade: Number(x.classId.match(/^[6789]/)?.[0] || 0) || null,
           expectedStudents: x.expectedStudents ?? null,
           updatedAt: new Date()
         }

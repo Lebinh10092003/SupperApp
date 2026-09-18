@@ -5,8 +5,7 @@ import { ApiTablePage } from '../../components/ApiTablePage';
 export default function TeacherAnalyticsPage() {
   return (
     <ApiTablePage
-      title="Hoạt Động Giảng Dạy Của Giáo Viên — Teacher Analytics"
-      subtitle="Theo dõi phân công giảng dạy, số lượng lớp phụ trách và tình hình tương tác trên Google Classroom"
+      title="Hoạt động giảng dạy của giáo viên"
       path="/api/people/teachers"
       columns={[
         {

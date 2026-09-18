@@ -5,8 +5,7 @@ import { ApiTablePage } from '../../components/ApiTablePage';
 export default function AttendancePage() {
   return (
     <ApiTablePage
-      title="Điểm danh Chuyên cần — Trường THCS Giảng Võ"
-      subtitle="Thống kê chuyên cần tự động từ Google Meet, phân loại học sinh có mặt, đi muộn và vắng mặt"
+      title="Điểm danh chuyên cần"
       path="/api/attendance"
       columns={[
         {

@@ -151,9 +151,9 @@ export default function AlertsPage() {
   const openCount = items.filter((x) => !x.resolved).length;
 
   return (
-    <Box sx={{ p: { xs: 2, md: 3 } }}>
+    <>
       <PageHeader
-        title="Trung tâm Cảnh báo sớm"
+        title="Trung tâm cảnh báo sớm"
         action={
           <Box sx={{ display: 'flex', gap: 1 }}>
             <Button
@@ -473,6 +473,6 @@ export default function AlertsPage() {
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </>
   );
 }

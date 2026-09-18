@@ -154,7 +154,7 @@ export default function IncidentDetailPage() {
   if (!incident) return null;
 
   return (
-    <Box sx={{ p: { xs: 2, md: 3 } }}>
+    <>
       <PageHeader
         title={`Hồ sơ sự cố ${incident.incidentId}`}
         subtitle={incident.categoryLabel || incident.categoryCode || undefined}
@@ -328,6 +328,6 @@ export default function IncidentDetailPage() {
       <ReopenIncidentDialog target={reopenTarget} onClose={() => setReopenTarget(null)} onChanged={() => load()} />
       <AssignCommanderDialog target={commanderTarget} onClose={() => setCommanderTarget(null)} onChanged={() => load()} />
       <CorrectClassificationDialog target={classificationTarget} onClose={() => setClassificationTarget(null)} onChanged={() => load()} />
-    </Box>
+    </>
   );
 }

@@ -63,7 +63,7 @@ async function getEffectiveOAuthConfig() {
 
   const clientId = cfg?.clientId || env.GOOGLE_OAUTH_CLIENT_ID || '';
   const clientSecret = cfg?.clientSecret || env.GOOGLE_OAUTH_CLIENT_SECRET || '';
-  const redirectUri = cfg?.redirectUri || env.GOOGLE_OAUTH_REDIRECT_URI || 'http://localhost:8080/api/connections/oauth/callback';
+  const redirectUri = cfg?.redirectUri || env.GOOGLE_OAUTH_REDIRECT_URI || `${env.WEB_ORIGIN}/api/connections/oauth/callback`;
 
   const isConfigured = Boolean(clientId && !clientId.includes('your-client-id') && clientId.length > 10);
 
@@ -134,7 +134,7 @@ connectionsRouter.post(
     const payload = {
       clientId: clientId.trim(),
       clientSecret: clientSecret ? String(clientSecret).trim() : '',
-      redirectUri: redirectUri ? String(redirectUri).trim() : 'http://localhost:8080/api/connections/oauth/callback',
+      redirectUri: redirectUri ? String(redirectUri).trim() : `${env.WEB_ORIGIN}/api/connections/oauth/callback`,
       updatedAt: new Date().toISOString()
     };
 

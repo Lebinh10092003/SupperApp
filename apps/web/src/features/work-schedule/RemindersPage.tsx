@@ -10,7 +10,7 @@
  * không viết lại dialog riêng.
  */
 import { useMemo, useState } from 'react';
-import { Box, Card, CardContent, Chip, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material';
+import { Card, CardContent, Chip, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActiveRounded';
 import { PageHeader } from '../../components/PageHeader';
 import { useEvents, type WorkEvent } from './hooks/useEvents';
@@ -41,10 +41,9 @@ export default function RemindersPage() {
   }, [tasks]);
 
   return (
-    <Box sx={{ p: { xs: 2, md: 3 } }}>
+    <>
       <PageHeader
         title="Nhắc nhở"
-        subtitle="Lịch bị trùng cần xử lý + công việc đã quá hạn chưa hoàn thành"
         icon={<NotificationsActiveIcon />}
       />
 
@@ -146,6 +145,6 @@ export default function RemindersPage() {
           refetchTasks();
         }}
       />
-    </Box>
+    </>
   );
 }

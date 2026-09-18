@@ -5,8 +5,7 @@ import { ApiTablePage } from '../../components/ApiTablePage';
 export default function Student360Page() {
   return (
     <ApiTablePage
-      title="Hồ Sơ Học Sinh 360° — Student Intelligence"
-      subtitle="Theo dõi toàn diện danh sách học sinh từ Google Classroom & Google Workspace"
+      title="Hồ sơ học sinh 360°"
       path="/api/people/students"
       columns={[
         {

@@ -141,8 +141,7 @@ export default function ClassroomPage() {
   return (
     <>
       <PageHeader
-        title="Google Classroom — Trường THCS Giảng Võ"
-        subtitle="Quản lý đồng bộ khóa học, danh sách học sinh (Roster) và mapping với lớp hành chính"
+        title="Google Classroom"
         icon={<SchoolIcon />}
         action={
           <Stack direction="row" spacing={1.5} alignItems="center">

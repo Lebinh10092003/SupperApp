@@ -144,8 +144,8 @@ export default function PendingReportsPage() {
   };
 
   return (
-    <Box sx={{ p: { xs: 2, md: 3 } }}>
-      <PageHeader title="Tin báo chờ xử lý" subtitle="Tin báo mới nhận, chưa chuyển thành hồ sơ sự cố" icon={<ReportProblemIcon />} />
+    <>
+      <PageHeader title="Tin báo chờ xử lý" icon={<ReportProblemIcon />} />
 
       {error && <Alert severity="error" onClose={() => setError('')} sx={{ mb: 2 }}>{error}</Alert>}
       {toast && <Alert severity="success" onClose={() => setToast('')} sx={{ mb: 2 }}>{toast}</Alert>}
@@ -300,6 +300,6 @@ export default function PendingReportsPage() {
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </>
   );
 }

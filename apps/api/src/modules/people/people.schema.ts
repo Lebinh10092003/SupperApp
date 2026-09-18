@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, jsonb } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, jsonb, boolean } from 'drizzle-orm/pg-core';
 
 /**
  * people — port từ Firestore collection `people` (classroom.service.ts
@@ -17,5 +17,6 @@ export const people = pgTable('people', {
   className: text('class_name'),
   classId: text('class_id'),
   courses: jsonb('courses').$type<string[]>().default([]),
+  suspended: boolean('suspended').notNull().default(false),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
 });

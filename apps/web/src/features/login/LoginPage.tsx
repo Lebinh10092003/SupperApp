@@ -147,7 +147,7 @@ export default function LoginPage() {
         <Box sx={{ textAlign: 'center', mb: 3.5 }}>
           <Box
             component="img"
-            src="/logo-truong.jpg"
+            src="/logo-truong-transparent.png"
             alt="Logo trường"
             sx={{
               display: 'inline-block',

@@ -43,10 +43,9 @@ export default function SafetyDashboardPage() {
   }, []);
 
   return (
-    <Box sx={{ p: { xs: 2, md: 3 } }}>
+    <>
       <PageHeader
-        title="Cảnh báo an toàn và Xử lý sự cố"
-        subtitle="Ghi nhận, phân loại và xử lý sự cố an toàn trường học"
+        title="Cảnh báo an toàn và xử lý sự cố"
         icon={<ShieldOutlinedIcon />}
       />
 
@@ -106,6 +105,6 @@ export default function SafetyDashboardPage() {
           Xem trang báo cáo công khai
         </Button>
       </Box>
-    </Box>
+    </>
   );
 }

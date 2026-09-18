@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { firebaseAuth, requireCapability } from '../../auth/middleware.js';
+import { resolveEffectiveScope, matchesScope } from '../../auth/scope.js';
 import { asyncRoute } from '../../core/http.js';
 import { db } from '../../core/db/client.js';
 import { people } from './people.schema.js';
@@ -25,6 +26,19 @@ function sortByName<T extends { displayName?: string | null; name?: string | nul
   );
 }
 
+// Danh bạ GV/NV xem chung toàn trường — chỉ DỮ LIỆU HỌC SINH mới giới hạn
+// theo lớp/khối GV phụ trách (đúng ý nghĩa capability VIEW_STUDENT_DATA và
+// quyết định của Sin: GV chỉ xem khối/lớp phụ trách, không xem toàn trường).
+async function applyStudentScope<T extends { classId?: string | null }>(
+  appUser: NonNullable<Express.Request['appUser']>,
+  items: T[],
+  isStudentItem: (item: T) => boolean
+): Promise<T[]> {
+  const scope = await resolveEffectiveScope(appUser);
+  if (scope === null) return items; // vai trò quản lý toàn trường
+  return items.filter((item) => !isStudentItem(item) || matchesScope(item, scope));
+}
+
 // Lấy danh sách toàn bộ nhân sự hoặc lọc theo vai trò (TEACHER / STUDENT)
 peopleRouter.get(
   '/',
@@ -41,6 +55,8 @@ peopleRouter.get(
       items = items.filter(isStudent);
     }
 
+    items = await applyStudentScope(req.appUser!, items, isStudent);
+
     sortByName(items);
     res.json({ total: items.length, items });
   })
@@ -55,7 +71,9 @@ peopleRouter.get(
     const isTeacherReq = req.params.kind === 'teachers';
     const filterFn = isTeacherReq ? isTeacher : isStudent;
     const rows = await db.select().from(people);
-    const items = rows.map(mapPerson).filter(filterFn);
+    let items = rows.map(mapPerson).filter(filterFn);
+
+    items = await applyStudentScope(req.appUser!, items, isStudent);
 
     sortByName(items);
     res.json({ total: items.length, items });

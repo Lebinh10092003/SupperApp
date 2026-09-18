@@ -54,8 +54,12 @@ export interface ApprovalRecord {
 function hasRole(assignments: ActorAssignment[], roleId: string, campusId?: string | null, domain?: string | null): boolean {
   return assignments.some((a) => {
     if (a.roleId !== roleId) return false;
-    if (campusId && a.campusId && a.campusId !== campusId) return false;
-    if (domain && a.domain && a.domain !== domain) return false;
+    // An toàn mặc định TỪ CHỐI khi thiếu dữ liệu: nếu route yêu cầu khớp
+    // campusId/domain mà assignment không có giá trị đó (null), coi là
+    // KHÔNG khớp — tránh over-grant khi assignment bị thiếu dữ liệu gán
+    // (từng gặp lỗi cùng dạng ở inDomainScope() của module An toàn).
+    if (campusId && a.campusId !== campusId) return false;
+    if (domain && a.domain !== domain) return false;
     return true;
   });
 }

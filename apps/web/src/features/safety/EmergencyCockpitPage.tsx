@@ -42,10 +42,9 @@ export default function EmergencyCockpitPage() {
   const open = items.filter((it) => it.state !== 'Đã đóng' && it.state !== 'Trùng' && it.state !== 'Tin rác');
 
   return (
-    <Box sx={{ p: { xs: 2, md: 3 } }}>
+    <>
       <PageHeader
         title="Cockpit khẩn cấp"
-        subtitle="Toàn bộ hồ sơ ưu tiên P0/P1 đang mở — tự làm mới mỗi 30 giây"
         icon={<WarningAmberIcon />}
       />
 
@@ -110,6 +109,6 @@ export default function EmergencyCockpitPage() {
           ))}
         </Stack>
       )}
-    </Box>
+    </>
   );
 }

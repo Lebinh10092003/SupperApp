@@ -182,10 +182,9 @@ export default function EventsListPage() {
   };
 
   return (
-    <Box sx={{ p: { xs: 2, md: 3 } }}>
+    <>
       <PageHeader
         title="Lịch công tác"
-        subtitle="Lịch họp/công tác của trường — dự thảo, chờ duyệt, đã ban hành"
         icon={<EventIcon />}
         action={
           <Stack direction="row" spacing={1}>
@@ -382,7 +381,7 @@ export default function EventsListPage() {
           refetch();
         }}
       />
-    </Box>
+    </>
   );
 }
 

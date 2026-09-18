@@ -20,7 +20,7 @@ const schema = z.object({
   PUBSUB_PUSH_SERVICE_ACCOUNT: z.string().default(''),
   GOOGLE_OAUTH_CLIENT_ID: z.string().default(''),
   GOOGLE_OAUTH_CLIENT_SECRET: z.string().default(''),
-  GOOGLE_OAUTH_REDIRECT_URI: z.string().default('http://localhost:5173/oauth/callback'),
+  GOOGLE_OAUTH_REDIRECT_URI: z.string().default(''),
   CLASSROOM_OAUTH_CLIENT_ID_SECRET: z.string().default('si-classroom-oauth-client-id'),
   CLASSROOM_OAUTH_CLIENT_SECRET_SECRET: z.string().default('si-classroom-oauth-client-secret'),
   CLASSROOM_OAUTH_REFRESH_TOKEN_SECRET: z.string().default('si-classroom-oauth-refresh-token'),

@@ -25,7 +25,6 @@ export default function ClassroomAuditPage() {
   return (
     <ApiTablePage
       title="Nhật ký thao tác & kiểm toán Classroom"
-      subtitle="Theo dõi và tra cứu toàn bộ hoạt động giao bài, cập nhật điểm và truy cập hệ thống theo thời gian thực"
       path="/api/audit"
       columns={[
         {

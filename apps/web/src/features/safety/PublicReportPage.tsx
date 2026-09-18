@@ -168,7 +168,7 @@ export default function PublicReportPage() {
   }
 
   return (
-    <PublicLayout title="Cảnh báo an toàn và Xử lý sự cố">
+    <PublicLayout title="Cảnh báo an toàn và xử lý sự cố">
       <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: '0 4px 15px -1px rgba(15, 23, 42, 0.06)' }}>
         <CardContent sx={{ p: { xs: 1.5, sm: 2 } }}>
           <Stack spacing={1.25}>

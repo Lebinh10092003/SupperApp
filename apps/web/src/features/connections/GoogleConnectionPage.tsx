@@ -278,10 +278,9 @@ export default function GoogleConnectionPage() {
   };
 
   return (
-    <Box sx={{ p: { xs: 2, md: 3 } }}>
+    <>
       <PageHeader
-        title="Quản Lý Kết Nối Google Classroom & Dữ Liệu Thực Tế"
-        subtitle="Cung cấp quyền truy cập để hệ thống tự động nạp 100% dữ liệu thực tế từ Google Classroom cho Trường THCS Giảng Võ"
+        title="Quản lý kết nối Google Classroom & dữ liệu thực tế"
         action={
           <Stack direction="row" spacing={1.5} flexWrap="wrap" gap={1}>
             <Button
@@ -669,6 +668,6 @@ export default function GoogleConnectionPage() {
           </Card>
         </Grid>
       </Grid>
-    </Box>
+    </>
   );
 }

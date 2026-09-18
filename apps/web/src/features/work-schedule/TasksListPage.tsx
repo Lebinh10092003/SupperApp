@@ -126,10 +126,9 @@ export default function TasksListPage() {
   };
 
   return (
-    <Box sx={{ p: { xs: 2, md: 3 } }}>
+    <>
       <PageHeader
         title="Giao việc"
-        subtitle="Công việc được giao, nhận, thực hiện và nghiệm thu"
         icon={<AssignmentIcon />}
         action={
           <Button
@@ -275,7 +274,7 @@ export default function TasksListPage() {
           refetch();
         }}
       />
-    </Box>
+    </>
   );
 }
 

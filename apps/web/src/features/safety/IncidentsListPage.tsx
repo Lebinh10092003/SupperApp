@@ -123,10 +123,9 @@ export default function IncidentsListPage() {
   };
 
   return (
-    <Box sx={{ p: { xs: 2, md: 3 } }}>
+    <>
       <PageHeader
         title="Hồ sơ sự cố"
-        subtitle="Toàn bộ hồ sơ sự cố an toàn trường học đang/đã xử lý"
         icon={<ListAltIcon />}
         action={
           <Button
@@ -330,6 +329,6 @@ export default function IncidentsListPage() {
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </>
   );
 }

@@ -5,8 +5,7 @@ import { ApiTablePage } from '../../components/ApiTablePage';
 export default function ClassComparePage() {
   return (
     <ApiTablePage
-      title="So Sánh Lớp Học Đối Đầu — Benchmark & Comparison"
-      subtitle="So sánh tương quan giữa các lớp cùng khối về mức độ hoàn thành bài tập, chuyên cần và tiến độ"
+      title="So sánh lớp học"
       path="/api/classes"
       columns={[
         {

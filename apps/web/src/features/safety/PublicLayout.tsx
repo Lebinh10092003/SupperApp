@@ -91,7 +91,7 @@ export function PublicLayout({ title, subtitle, children }: { title: string; sub
         <Box sx={{ textAlign: 'center', mb: 1.25 }}>
           <Box
             component="img"
-            src="/logo-truong.jpg"
+            src="/logo-truong-transparent.png"
             alt="Logo trường"
             sx={{ display: 'inline-block', width: 'auto', height: 44, objectFit: 'contain', mb: 0.75 }}
           />

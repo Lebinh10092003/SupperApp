@@ -50,6 +50,13 @@
       "when": 1789632102469,
       "tag": "0006_perfect_living_mummy",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1789638234829,
+      "tag": "0007_high_red_skull",
+      "breakpoints": true
     }
   ]
 }

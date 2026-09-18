@@ -463,7 +463,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       >
         <Box
           component="img"
-          src="/logo-truong.jpg"
+          src="/logo-truong-transparent.png"
           alt="Logo trường"
           sx={{
             width: 'auto',

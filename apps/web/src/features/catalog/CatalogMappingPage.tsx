@@ -5,8 +5,7 @@ import { ApiTablePage } from '../../components/ApiTablePage';
 export default function CatalogMappingPage() {
   return (
     <ApiTablePage
-      title="Chuẩn Hóa Danh Mục Dữ Liệu Trường — Catalog Normalizer"
-      subtitle="Ánh xạ và chuẩn hóa tên lớp học, tên môn học từ Google Classroom về cấu trúc định danh của trường Trường THCS Giảng Võ"
+      title="Chuẩn hóa danh mục dữ liệu trường"
       path="/api/catalog"
       columns={[
         {
