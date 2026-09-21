@@ -247,6 +247,13 @@ export default function PendingReportsPage() {
         <Table>
           <TableHead>
             <TableRow>
+              {/* Cột ngày/giờ đưa lên ĐẦU bảng — Sin yêu cầu 2026-09-21, áp
+                  dụng đồng loạt cả 2 module (An toàn + Lịch công tác). */}
+              <TableCell>
+                <TableSortLabel active={sortKey === 'occurredAt'} direction={sortKey === 'occurredAt' ? sortDir : 'desc'} onClick={() => handleSort('occurredAt')}>
+                  Thời gian
+                </TableSortLabel>
+              </TableCell>
               <TableCell>
                 <TableSortLabel active={sortKey === 'reportId'} direction={sortKey === 'reportId' ? sortDir : 'asc'} onClick={() => handleSort('reportId')}>
                   Mã
@@ -265,15 +272,6 @@ export default function PendingReportsPage() {
               <TableCell>Lớp</TableCell>
               <TableCell>Nội dung</TableCell>
               <TableCell>Khẩn cấp</TableCell>
-              <TableCell>
-                {/* Trước đây KHÔNG có cột thời gian — `occurredAt` đã là
-                    sortKey mặc định (sort ngầm chạy đúng) nhưng không có cột
-                    hiển thị giá trị lẫn tiêu đề bấm được (Sin phản hồi
-                    2026-09-11: "thiếu hiển thị tg... chưa có sort theo tg"). */}
-                <TableSortLabel active={sortKey === 'occurredAt'} direction={sortKey === 'occurredAt' ? sortDir : 'desc'} onClick={() => handleSort('occurredAt')}>
-                  Thời gian
-                </TableSortLabel>
-              </TableCell>
               <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
                 Hành động
               </TableCell>
@@ -289,6 +287,7 @@ export default function PendingReportsPage() {
             )}
             {paged.map((it) => (
               <TableRow key={it.reportId} hover>
+                <TableCell>{it.occurredAt ? new Date(it.occurredAt).toLocaleString('vi-VN') : '—'}</TableCell>
                 <TableCell>{it.publicCode}</TableCell>
                 <TableCell>{CAMPUS_LABEL[it.campusId] || it.campusId}</TableCell>
                 <TableCell>{it.categoryLabel}</TableCell>
@@ -299,7 +298,6 @@ export default function PendingReportsPage() {
                 <TableCell>
                   {it.stillDangerous && <Chip size="small" label="Khẩn cấp" sx={{ bgcolor: '#fef2f2', color: '#dc2626', fontWeight: 700 }} />}
                 </TableCell>
-                <TableCell>{it.occurredAt ? new Date(it.occurredAt).toLocaleString('vi-VN') : '—'}</TableCell>
                 <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
                   <Stack direction="row" spacing={1} justifyContent="flex-end" alignItems="center">
                     <Tooltip title="Xem chi tiết">

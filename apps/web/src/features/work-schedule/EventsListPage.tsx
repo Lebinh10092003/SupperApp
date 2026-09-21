@@ -22,6 +22,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TableSortLabel,
   TextField,
   Tooltip,
   Typography
@@ -76,6 +77,8 @@ function toLocalInput(d: Date): string {
 
 const STATUS_FILTER_OPTIONS = ['DRAFT', 'PENDING_APPROVAL', 'PUBLISHED', 'REVISION_REQUIRED', 'CANCELLED'];
 
+type EventSortKey = 'startAt' | 'title' | 'campusId' | 'chair' | 'status';
+
 export default function EventsListPage() {
   const [campusFilter, setCampusFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -93,11 +96,21 @@ export default function EventsListPage() {
   // đụng `useEvents.ts`/route GET /events (server chỉ lọc cơ sở/trạng
   // thái, đủ cho quy mô 1 trường). Tìm theo tên: gõ tiêu đề TRỰC TIẾP,
   // hoặc chọn đúng 1 người qua `PersonPicker` (khớp chủ trì/thành phần).
+  const [sortKey, setSortKey] = useState<EventSortKey>('startAt');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const handleSort = (key: EventSortKey) => {
+    if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    else {
+      setSortKey(key);
+      setSortDir('asc');
+    }
+  };
+
   const filteredItems = useMemo(() => {
     const text = searchText.trim().toLowerCase();
     const from = fromDate ? new Date(fromDate).getTime() : null;
     const to = toDate ? new Date(toDate).getTime() : null;
-    return items.filter((ev) => {
+    const filtered = items.filter((ev) => {
       if (text && !ev.title.toLowerCase().includes(text)) return false;
       if (personFilter && ev.chairPerId !== personFilter.perId && !ev.participantPerIds.includes(personFilter.perId)) return false;
       const startMs = new Date(ev.startAt).getTime();
@@ -105,7 +118,17 @@ export default function EventsListPage() {
       if (to !== null && startMs > to) return false;
       return true;
     });
-  }, [items, searchText, personFilter, fromDate, toDate]);
+    const sorted = [...filtered].sort((a, b) => {
+      let cmp = 0;
+      if (sortKey === 'startAt') cmp = new Date(a.startAt).getTime() - new Date(b.startAt).getTime();
+      else if (sortKey === 'title') cmp = a.title.localeCompare(b.title);
+      else if (sortKey === 'campusId') cmp = (CAMPUS_LABEL[a.campusId] || a.campusId).localeCompare(CAMPUS_LABEL[b.campusId] || b.campusId);
+      else if (sortKey === 'chair') cmp = (a.chairLabel || a.chairPerId).localeCompare(b.chairLabel || b.chairPerId);
+      else if (sortKey === 'status') cmp = a.status.localeCompare(b.status);
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+    return sorted;
+  }, [items, searchText, personFilter, fromDate, toDate, sortKey, sortDir]);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [detail, setDetail] = useState<WorkEvent | null>(null);
@@ -277,12 +300,33 @@ export default function EventsListPage() {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Tiêu đề</TableCell>
-              <TableCell>Cơ sở</TableCell>
-              <TableCell>Thời gian</TableCell>
-              <TableCell>Chủ trì</TableCell>
+              {/* Cột ngày/giờ đưa lên ĐẦU bảng — Sin yêu cầu 2026-09-21. */}
+              <TableCell>
+                <TableSortLabel active={sortKey === 'startAt'} direction={sortKey === 'startAt' ? sortDir : 'asc'} onClick={() => handleSort('startAt')}>
+                  Thời gian
+                </TableSortLabel>
+              </TableCell>
+              <TableCell>
+                <TableSortLabel active={sortKey === 'title'} direction={sortKey === 'title' ? sortDir : 'asc'} onClick={() => handleSort('title')}>
+                  Tiêu đề
+                </TableSortLabel>
+              </TableCell>
+              <TableCell>
+                <TableSortLabel active={sortKey === 'campusId'} direction={sortKey === 'campusId' ? sortDir : 'asc'} onClick={() => handleSort('campusId')}>
+                  Cơ sở
+                </TableSortLabel>
+              </TableCell>
+              <TableCell>
+                <TableSortLabel active={sortKey === 'chair'} direction={sortKey === 'chair' ? sortDir : 'asc'} onClick={() => handleSort('chair')}>
+                  Chủ trì
+                </TableSortLabel>
+              </TableCell>
               <TableCell>Thành phần</TableCell>
-              <TableCell>Trạng thái</TableCell>
+              <TableCell>
+                <TableSortLabel active={sortKey === 'status'} direction={sortKey === 'status' ? sortDir : 'asc'} onClick={() => handleSort('status')}>
+                  Trạng thái
+                </TableSortLabel>
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -303,6 +347,7 @@ export default function EventsListPage() {
               const participantText = ev.scope === 'SCHOOL_WIDE' ? 'Toàn trường' : fullParticipants.map(abbreviatePersonLabel).join(', ') || '—';
               return (
               <TableRow key={ev.id} hover sx={{ cursor: 'pointer' }} onClick={() => setDetail(ev)}>
+                <TableCell>{new Date(ev.startAt).toLocaleString('vi-VN')}</TableCell>
                 <TableCell>{ev.title}</TableCell>
                 {/* Bỏ cột "Phạm vi" riêng — Sin yêu cầu 2026-09-21 gộp vào
                     thẳng cột Cơ sở (khớp việc đã gộp ô "Phạm vi" vào ô "Cơ
@@ -310,7 +355,6 @@ export default function EventsListPage() {
                     trường" ở đây thay vì vẫn hiện "Điểm trường chính" (cơ sở
                     tổ chức mặc định phía server) kèm cột Phạm vi thừa. */}
                 <TableCell>{ev.scope === 'SCHOOL_WIDE' ? 'Toàn trường' : CAMPUS_LABEL[ev.campusId] || ev.campusId}</TableCell>
-                <TableCell>{new Date(ev.startAt).toLocaleString('vi-VN')}</TableCell>
                 <TableCell sx={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={ev.chairLabel || ev.chairPerId}>
                   {abbreviatePersonLabel(ev.chairLabel || ev.chairPerId)}
                 </TableCell>

@@ -172,18 +172,18 @@ export default function RemindersPage() {
                 <Table size="small">
                   <TableHead>
                     <TableRow>
+                      <TableCell>Thời gian</TableCell>
                       <TableCell>Tiêu đề</TableCell>
                       <TableCell>Cơ sở</TableCell>
-                      <TableCell>Thời gian</TableCell>
                       <TableCell>Ghi chú trùng</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {conflictingEvents.map((ev) => (
                       <TableRow key={ev.id} hover sx={{ cursor: 'pointer' }} onClick={() => setEventDetail(ev)}>
+                        <TableCell>{new Date(ev.startAt).toLocaleString('vi-VN')}</TableCell>
                         <TableCell>{ev.title}</TableCell>
                         <TableCell>{CAMPUS_LABEL[ev.campusId] || ev.campusId}</TableCell>
-                        <TableCell>{new Date(ev.startAt).toLocaleString('vi-VN')}</TableCell>
                         <TableCell>
                           <Chip size="small" label={ev.conflictNote} sx={{ bgcolor: '#fef2f2', color: '#dc2626', fontWeight: 600 }} />
                         </TableCell>
@@ -210,22 +210,22 @@ export default function RemindersPage() {
                 <Table size="small">
                   <TableHead>
                     <TableRow>
+                      <TableCell>Hạn (đã quá)</TableCell>
                       <TableCell>Công việc</TableCell>
                       <TableCell>Cơ sở</TableCell>
                       <TableCell>Phụ trách</TableCell>
-                      <TableCell>Hạn (đã quá)</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {overdueTasks.map((t) => (
                       <TableRow key={t.id} hover sx={{ cursor: 'pointer' }} onClick={() => setTaskDetail(t)}>
+                        <TableCell>
+                          <Chip size="small" label={new Date(t.dueAt).toLocaleString('vi-VN')} sx={{ bgcolor: '#fff7ed', color: '#c2410c', fontWeight: 600 }} />
+                        </TableCell>
                         <TableCell>{t.title}</TableCell>
                         <TableCell>{CAMPUS_LABEL[t.campusId] || t.campusId}</TableCell>
                         <TableCell title={t.assigneeLabel || t.assigneeName || t.assigneePerId}>
                           {abbreviatePersonLabel(t.assigneeLabel || t.assigneeName || t.assigneePerId)}
-                        </TableCell>
-                        <TableCell>
-                          <Chip size="small" label={new Date(t.dueAt).toLocaleString('vi-VN')} sx={{ bgcolor: '#fff7ed', color: '#c2410c', fontWeight: 600 }} />
                         </TableCell>
                       </TableRow>
                     ))}

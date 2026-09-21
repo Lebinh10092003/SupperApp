@@ -163,6 +163,19 @@ export const theme = createTheme({
         }
       }
     },
+    // Vằn zebra (row trắng -> row màu xen kẽ) cho MỌI bảng trong app — đặt ở
+    // theme dùng chung thay vì sửa từng trang, để bảng bên module An toàn tự
+    // động khớp đúng thiết kế mới của module Lịch công tác luôn, không lệch
+    // 2 nơi (Sin yêu cầu 2026-09-21).
+    MuiTableBody: {
+      styleOverrides: {
+        root: {
+          '& .MuiTableRow-root:nth-of-type(even)': {
+            backgroundColor: '#f8fafc'
+          }
+        }
+      }
+    },
     MuiChip: {
       styleOverrides: {
         root: {

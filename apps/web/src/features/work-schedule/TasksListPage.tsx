@@ -17,6 +17,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TableSortLabel,
   TextField,
   Typography
 } from '@mui/material';
@@ -43,6 +44,8 @@ export function TaskStatusChip({ status }: { status: string }) {
 
 const STATUS_FILTER_OPTIONS = ['ASSIGNED', 'ACCEPTED', 'IN_PROGRESS', 'PENDING_ACCEPTANCE', 'COMPLETED', 'RETURNED', 'CANCELLED'];
 
+type TaskSortKey = 'createdAt' | 'dueAt' | 'title' | 'campusId' | 'assignee' | 'status';
+
 export default function TasksListPage() {
   const [campusFilter, setCampusFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -61,13 +64,23 @@ export default function TasksListPage() {
 
   // Lọc thêm ở client (tìm theo tiêu đề/username người + khoảng ngày hạn)
   // — cùng cách tiếp cận với EventsListPage.tsx, không đụng useTasks.ts.
+  const [sortKey, setSortKey] = useState<TaskSortKey>('createdAt');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const handleSort = (key: TaskSortKey) => {
+    if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    else {
+      setSortKey(key);
+      setSortDir('asc');
+    }
+  };
+
   const filteredItems = useMemo(() => {
     let out = items;
     if (relation === 'ASSIGNED_BY_ME' && actor) out = out.filter((t) => t.createdByPerId === actor.perId);
     const text = searchText.trim().toLowerCase();
     const from = fromDate ? new Date(fromDate).getTime() : null;
     const to = toDate ? new Date(toDate).getTime() : null;
-    return out.filter((t) => {
+    const filtered = out.filter((t) => {
       if (text && !t.title.toLowerCase().includes(text)) return false;
       if (personFilter && t.assigneePerId !== personFilter.perId && !t.collaboratorPerIds.includes(personFilter.perId)) return false;
       const dueMs = new Date(t.dueAt).getTime();
@@ -75,7 +88,21 @@ export default function TasksListPage() {
       if (to !== null && dueMs > to) return false;
       return true;
     });
-  }, [items, relation, actor, searchText, personFilter, fromDate, toDate]);
+    const sorted = [...filtered].sort((a, b) => {
+      let cmp = 0;
+      if (sortKey === 'createdAt') cmp = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      else if (sortKey === 'dueAt') cmp = new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime();
+      else if (sortKey === 'title') cmp = a.title.localeCompare(b.title);
+      else if (sortKey === 'campusId') cmp = (CAMPUS_LABEL[a.campusId] || a.campusId).localeCompare(CAMPUS_LABEL[b.campusId] || b.campusId);
+      else if (sortKey === 'assignee') {
+        const an = a.assigneeLabel || a.assigneeName || a.assigneePerId;
+        const bn = b.assigneeLabel || b.assigneeName || b.assigneePerId;
+        cmp = an.localeCompare(bn);
+      } else if (sortKey === 'status') cmp = a.status.localeCompare(b.status);
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+    return sorted;
+  }, [items, relation, actor, searchText, personFilter, fromDate, toDate, sortKey, sortDir]);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [detail, setDetail] = useState<WorkTask | null>(null);
@@ -202,12 +229,38 @@ export default function TasksListPage() {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Công việc</TableCell>
-              <TableCell>Cơ sở</TableCell>
-              <TableCell>Phụ trách</TableCell>
-              <TableCell>Ngày giao</TableCell>
-              <TableCell>Hạn</TableCell>
-              <TableCell>Trạng thái</TableCell>
+              {/* Cột ngày đưa lên ĐẦU bảng — Sin yêu cầu 2026-09-21 (giữ cả
+                  Ngày giao lẫn Hạn, đúng thứ tự đã thêm trước đó). */}
+              <TableCell>
+                <TableSortLabel active={sortKey === 'createdAt'} direction={sortKey === 'createdAt' ? sortDir : 'desc'} onClick={() => handleSort('createdAt')}>
+                  Ngày giao
+                </TableSortLabel>
+              </TableCell>
+              <TableCell>
+                <TableSortLabel active={sortKey === 'dueAt'} direction={sortKey === 'dueAt' ? sortDir : 'asc'} onClick={() => handleSort('dueAt')}>
+                  Hạn
+                </TableSortLabel>
+              </TableCell>
+              <TableCell>
+                <TableSortLabel active={sortKey === 'title'} direction={sortKey === 'title' ? sortDir : 'asc'} onClick={() => handleSort('title')}>
+                  Công việc
+                </TableSortLabel>
+              </TableCell>
+              <TableCell>
+                <TableSortLabel active={sortKey === 'campusId'} direction={sortKey === 'campusId' ? sortDir : 'asc'} onClick={() => handleSort('campusId')}>
+                  Cơ sở
+                </TableSortLabel>
+              </TableCell>
+              <TableCell>
+                <TableSortLabel active={sortKey === 'assignee'} direction={sortKey === 'assignee' ? sortDir : 'asc'} onClick={() => handleSort('assignee')}>
+                  Phụ trách
+                </TableSortLabel>
+              </TableCell>
+              <TableCell>
+                <TableSortLabel active={sortKey === 'status'} direction={sortKey === 'status' ? sortDir : 'asc'} onClick={() => handleSort('status')}>
+                  Trạng thái
+                </TableSortLabel>
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -220,13 +273,13 @@ export default function TasksListPage() {
             )}
             {filteredItems.map((t) => (
               <TableRow key={t.id} hover sx={{ cursor: 'pointer' }} onClick={() => setDetail(t)}>
+                <TableCell>{new Date(t.createdAt).toLocaleString('vi-VN')}</TableCell>
+                <TableCell>{new Date(t.dueAt).toLocaleString('vi-VN')}</TableCell>
                 <TableCell>{t.title}</TableCell>
                 <TableCell>{CAMPUS_LABEL[t.campusId] || t.campusId}</TableCell>
                 <TableCell title={t.assigneeLabel || t.assigneeName || t.assigneePerId}>
                   {abbreviatePersonLabel(t.assigneeLabel || t.assigneeName || t.assigneePerId)}
                 </TableCell>
-                <TableCell>{new Date(t.createdAt).toLocaleString('vi-VN')}</TableCell>
-                <TableCell>{new Date(t.dueAt).toLocaleString('vi-VN')}</TableCell>
                 <TableCell>
                   <TaskStatusChip status={t.status} />
                 </TableCell>
