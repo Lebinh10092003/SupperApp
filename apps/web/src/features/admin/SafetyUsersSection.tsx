@@ -63,7 +63,7 @@ const ROLE_LABEL: Record<string, string> = {
 const ASSIGNABLE_ROLES = Object.keys(ROLE_LABEL);
 
 const CAMPUS_LABEL: Record<string, string> = {
-  MAIN_CAMPUS: 'Cơ sở chính',
+  MAIN_CAMPUS: 'Điểm trường chính',
   CAMPUS_1: 'Phân hiệu 1',
   CAMPUS_2: 'Phân hiệu 2'
 };
