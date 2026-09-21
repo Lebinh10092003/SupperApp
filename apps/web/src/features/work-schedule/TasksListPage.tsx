@@ -205,6 +205,7 @@ export default function TasksListPage() {
               <TableCell>Công việc</TableCell>
               <TableCell>Cơ sở</TableCell>
               <TableCell>Phụ trách</TableCell>
+              <TableCell>Ngày giao</TableCell>
               <TableCell>Hạn</TableCell>
               <TableCell>Trạng thái</TableCell>
             </TableRow>
@@ -212,7 +213,7 @@ export default function TasksListPage() {
           <TableBody>
             {!loading && filteredItems.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                <TableCell colSpan={6} align="center" sx={{ py: 4, color: 'text.secondary' }}>
                   Không có công việc nào.
                 </TableCell>
               </TableRow>
@@ -222,6 +223,7 @@ export default function TasksListPage() {
                 <TableCell>{t.title}</TableCell>
                 <TableCell>{CAMPUS_LABEL[t.campusId] || t.campusId}</TableCell>
                 <TableCell>{t.assigneeLabel || t.assigneeName || t.assigneePerId}</TableCell>
+                <TableCell>{new Date(t.createdAt).toLocaleString('vi-VN')}</TableCell>
                 <TableCell>{new Date(t.dueAt).toLocaleString('vi-VN')}</TableCell>
                 <TableCell>
                   <TaskStatusChip status={t.status} />
@@ -310,6 +312,11 @@ export function TaskDetailDialog({
   const [actionError, setActionError] = useState('');
   const [reasonOpen, setReasonOpen] = useState<'CANCELLED' | 'RETURNED' | null>(null);
   const [reason, setReason] = useState('');
+  // "Trình nghiệm thu" bắt buộc nhập minh chứng (link Sheet/Docs/Drive...)
+  // — Mr Tiến phản hồi 2026-09-21: trước đây bấm 1 nút là xong, không có
+  // chỗ nào bắt buộc nhập minh chứng trước khi trình nghiệm thu.
+  const [evidenceOpen, setEvidenceOpen] = useState(false);
+  const [evidenceUrl, setEvidenceUrl] = useState('');
   // Đếm số lần thao tác thành công — truyền vào AuditTrailPanel làm
   // refreshKey để buộc tải lại "Lịch sử" ngay trong phiên mở dialog hiện
   // tại (xem chú thích trong AuditTrailPanel.tsx).
@@ -335,8 +342,11 @@ export function TaskDetailDialog({
     }
   };
 
-  const changeStatus = (nextStatus: string, note?: string) =>
-    run(() => api.patch<WorkTask>(`/api/work-schedule/tasks/${task.id}/status`, { nextStatus, note }), TASK_ACTION_SUCCESS_MESSAGE[nextStatus]);
+  const changeStatus = (nextStatus: string, note?: string, evidenceUrlValue?: string) =>
+    run(
+      () => api.patch<WorkTask>(`/api/work-schedule/tasks/${task.id}/status`, { nextStatus, note, evidenceUrl: evidenceUrlValue }),
+      TASK_ACTION_SUCCESS_MESSAGE[nextStatus]
+    );
   const acceptOrReturn = (nextStatus: 'COMPLETED' | 'RETURNED', note?: string) =>
     run(
       () => api.post<WorkTask>(`/api/work-schedule/tasks/${task.id}/accept-or-return`, { nextStatus, note }),
@@ -354,6 +364,16 @@ export function TaskDetailDialog({
     setReasonOpen(null);
   };
 
+  const openEvidenceDialog = () => {
+    setEvidenceUrl('');
+    setEvidenceOpen(true);
+  };
+  const submitEvidence = async () => {
+    if (!evidenceUrl.trim()) return;
+    await changeStatus('PENDING_ACCEPTANCE', undefined, evidenceUrl.trim());
+    setEvidenceOpen(false);
+  };
+
   return (
     <Dialog open onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle sx={{ fontWeight: 700 }}>{task.title}</DialogTitle>
@@ -361,11 +381,13 @@ export function TaskDetailDialog({
         <Stack spacing={2}>
           {actionError && <Alert severity="error">{actionError}</Alert>}
           <TaskStatusChip status={task.status} />
+          {/* Luôn hiện đủ tên trường dù trống (Mr Tiến phản hồi 2026-09-21). */}
           <Stack spacing={0.5}>
             <Typography variant="body2">Cơ sở: <strong>{CAMPUS_LABEL[task.campusId] || task.campusId}</strong></Typography>
             <Typography variant="body2">Người giao: {task.createdByLabel || task.createdByName || task.createdByPerId} — Người thực hiện: {task.assigneeLabel || task.assigneeName || task.assigneePerId}</Typography>
+            <Typography variant="body2">Ngày giao: {new Date(task.createdAt).toLocaleString('vi-VN')}</Typography>
             <Typography variant="body2">Hạn: {new Date(task.dueAt).toLocaleString('vi-VN')}</Typography>
-            {task.description && <Typography variant="body2" color="text.secondary">{task.description}</Typography>}
+            <Typography variant="body2" color="text.secondary">Nội dung: {task.description || '—'}</Typography>
           </Stack>
           {task.status === 'RETURNED' && task.acceptanceNote && <Alert severity="warning">Lý do trả lại: {task.acceptanceNote}</Alert>}
           {task.status === 'CANCELLED' && task.cancellationReason && <Alert severity="info">Lý do hủy: {task.cancellationReason}</Alert>}
@@ -386,7 +408,7 @@ export function TaskDetailDialog({
           </Button>
         )}
         {task.status === 'IN_PROGRESS' && isAssignee && (
-          <Button variant="contained" disabled={busy} onClick={() => changeStatus('PENDING_ACCEPTANCE')}>
+          <Button variant="contained" disabled={busy} onClick={openEvidenceDialog}>
             Trình nghiệm thu
           </Button>
         )}
@@ -431,6 +453,28 @@ export function TaskDetailDialog({
           <Button onClick={() => setReasonOpen(null)}>Hủy</Button>
           <Button variant="contained" onClick={submitReason} disabled={!reason.trim() || busy}>
             Xác nhận
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={evidenceOpen} onClose={() => setEvidenceOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>Trình nghiệm thu</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            label="Link minh chứng (Google Sheet/Docs/Drive...) *"
+            placeholder="https://docs.google.com/..."
+            value={evidenceUrl}
+            onChange={(e) => setEvidenceUrl(e.target.value)}
+            fullWidth
+            sx={{ mt: 1 }}
+            helperText="Bắt buộc — dán link tài liệu/minh chứng đã hoàn thành để người giao xem trước khi nghiệm thu."
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEvidenceOpen(false)}>Hủy</Button>
+          <Button variant="contained" onClick={submitEvidence} disabled={!evidenceUrl.trim() || busy}>
+            Trình nghiệm thu
           </Button>
         </DialogActions>
       </Dialog>

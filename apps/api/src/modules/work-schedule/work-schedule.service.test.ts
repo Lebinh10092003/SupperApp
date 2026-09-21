@@ -182,7 +182,16 @@ test('work-schedule: state machine công việc + nghiệm thu chỉ do người
 
   await changeTaskStatus(db, { taskId: task.id, nextStatus: 'ACCEPTED', actorPerId: 'per-b' });
   await changeTaskStatus(db, { taskId: task.id, nextStatus: 'IN_PROGRESS', actorPerId: 'per-b' });
-  const pendingAcceptance = await changeTaskStatus(db, { taskId: task.id, nextStatus: 'PENDING_ACCEPTANCE', actorPerId: 'per-b' });
+  await assert.rejects(
+    () => changeTaskStatus(db, { taskId: task.id, nextStatus: 'PENDING_ACCEPTANCE', actorPerId: 'per-b' }),
+    (err: unknown) => err instanceof AppError && err.code === 'invalid_input' && /minh chứng/.test(err.message)
+  );
+  const pendingAcceptance = await changeTaskStatus(db, {
+    taskId: task.id,
+    nextStatus: 'PENDING_ACCEPTANCE',
+    actorPerId: 'per-b',
+    evidenceUrl: 'https://docs.google.com/document/d/abc'
+  });
   assert.equal(pendingAcceptance.status, 'PENDING_ACCEPTANCE');
 
   // Người được giao (per-b) không được tự nghiệm thu việc của mình.
@@ -276,13 +285,15 @@ test('work-schedule: dò trùng lịch — 2 lịch giao giờ + chung người 
   });
 
   assert.match(eventB.conflictNote, /Họp giao ban khối 6/);
-  assert.match(eventB.conflictNote, new RegExp(eventA.id));
+  // KHÔNG còn kèm UUID thô của lịch kia trong ngoặc (Mr Tiến phản hồi
+  // 2026-09-21 — vô nghĩa với người dùng cuối, tiêu đề đã đủ nhận diện).
+  assert.doesNotMatch(eventB.conflictNote, new RegExp(eventA.id));
   assert.match(eventB.conflictNote, /per-y/);
 
   const [freshA] = await db.select().from(ltcEvents).where(eq(ltcEvents.id, eventA.id)).limit(1);
   assert.ok(freshA);
   assert.match(freshA!.conflictNote, /Họp tổ Toán/, 'lịch A tạo trước cũng phải được cập nhật lại (2 chiều)');
-  assert.match(freshA!.conflictNote, new RegExp(eventB.id));
+  assert.doesNotMatch(freshA!.conflictNote, new RegExp(eventB.id));
 });
 
 test('work-schedule: dò trùng lịch — giao giờ nhưng KHÔNG chung người tham dự thì không có conflictNote', { skip }, async (t) => {
@@ -623,7 +634,12 @@ test('work-schedule: giao việc -> người được giao nhận chuông; nghi�
 
   await changeTaskStatus(db, { taskId: task.id, nextStatus: 'ACCEPTED', actorPerId: 'WSBELL_assignee' });
   await changeTaskStatus(db, { taskId: task.id, nextStatus: 'IN_PROGRESS', actorPerId: 'WSBELL_assignee' });
-  await changeTaskStatus(db, { taskId: task.id, nextStatus: 'PENDING_ACCEPTANCE', actorPerId: 'WSBELL_assignee' });
+  await changeTaskStatus(db, {
+    taskId: task.id,
+    nextStatus: 'PENDING_ACCEPTANCE',
+    actorPerId: 'WSBELL_assignee',
+    evidenceUrl: 'https://docs.google.com/document/d/wsbell'
+  });
 
   const taskBells1 = await db.select().from(adminNotifications).where(eq(adminNotifications.objectId, task.id));
   const pendingAcceptanceBells = taskBells1.filter((b) => b.eventType === 'work_schedule.task.status_changed');

@@ -43,7 +43,6 @@ import {
   EVENT_STATUS_LABEL,
   EVENT_STATUS_COLOR,
   EVENT_STATUS_STEPS,
-  EVENT_SCOPE_LABEL,
   PRIORITY_LABEL
 } from './constants';
 
@@ -159,9 +158,8 @@ export default function EventsListPage() {
     if (!title.trim()) return setCreateError('Vui lòng nhập tiêu đề.');
     if (!campusId) return setCreateError('Vui lòng chọn cơ sở.');
     if (!startAt || !endAt) return setCreateError('Vui lòng chọn thời gian bắt đầu/kết thúc.');
-    if (scope === 'CAMPUS' && participants.length === 0) {
-      return setCreateError('Vui lòng chọn ít nhất một người tham dự.');
-    }
+    // Thành phần tham dự KHÔNG bắt buộc — Mr Tiến phản hồi 2026-09-21: 1
+    // lịch công tác có thể chỉ do 1 người chủ trì, không cần thêm ai khác.
     setSubmitting(true);
     try {
       const created = await api.post<WorkEvent>('/api/work-schedule/events', {
@@ -365,7 +363,7 @@ export default function EventsListPage() {
             </Stack>
             <TextField label="Địa điểm" value={location} onChange={(e) => setLocation(e.target.value)} fullWidth />
             {scope === 'CAMPUS' && (
-              <PeopleMultiPicker label="Thành phần tham dự *" value={participants} onChange={setParticipants} />
+              <PeopleMultiPicker label="Thành phần tham dự (tuỳ chọn)" value={participants} onChange={setParticipants} />
             )}
             <TextField select label="Mức ưu tiên" value={priority} onChange={(e) => setPriority(e.target.value)} fullWidth>
               {Object.entries(PRIORITY_LABEL).map(([k, v]) => (
@@ -533,9 +531,6 @@ export function EventDetailDialog({
     if (!editTitle.trim()) return setEditError('Vui lòng nhập tiêu đề.');
     if (!editCampusId) return setEditError('Vui lòng chọn cơ sở.');
     if (!editStartAt || !editEndAt) return setEditError('Vui lòng chọn thời gian bắt đầu/kết thúc.');
-    if (editScope === 'CAMPUS' && editParticipants.length === 0) {
-      return setEditError('Vui lòng chọn ít nhất một người tham dự.');
-    }
     setEditSubmitting(true);
     try {
       const updated = await api.patch<WorkEvent>(`/api/work-schedule/events/${event.id}`, {
@@ -579,22 +574,28 @@ export function EventDetailDialog({
             <EventStatusChip status={event.status} />
           )}
 
+          {/* Luôn hiện đủ tên trường dù dữ liệu trống (— thay vì ẩn hẳn dòng)
+              — Mr Tiến phản hồi 2026-09-21: trước đây thiếu dữ liệu thì mất
+              luôn cả nhãn trường, không phân biệt được "trống thật" với
+              "chưa tải xong". */}
           <Stack spacing={0.5}>
             <Typography variant="body2">
-              Cơ sở: <strong>{CAMPUS_LABEL[event.campusId] || event.campusId}</strong> — Phạm vi:{' '}
-              <strong>{EVENT_SCOPE_LABEL[event.scope]}</strong>
+              Cơ sở: <strong>{event.scope === 'SCHOOL_WIDE' ? 'Toàn trường' : CAMPUS_LABEL[event.campusId] || event.campusId}</strong>
             </Typography>
             <Typography variant="body2">
-              {new Date(event.startAt).toLocaleString('vi-VN')} → {new Date(event.endAt).toLocaleString('vi-VN')}
+              Thời gian: {new Date(event.startAt).toLocaleString('vi-VN')} → {new Date(event.endAt).toLocaleString('vi-VN')}
             </Typography>
-            {event.location && <Typography variant="body2">Địa điểm: {event.location}</Typography>}
+            <Typography variant="body2">Địa điểm: {event.location || '—'}</Typography>
             <Typography variant="body2">Chủ trì: {event.chairLabel || event.chairPerId}</Typography>
-            {event.participantPerIds.length > 0 && (
-              <Typography variant="body2">
-                Thành phần: {(event.participantLabels && event.participantLabels.length > 0 ? event.participantLabels : event.participantPerIds).join(', ')}
-              </Typography>
-            )}
-            {event.description && <Typography variant="body2" color="text.secondary">{event.description}</Typography>}
+            <Typography variant="body2">
+              Thành phần:{' '}
+              {event.participantPerIds.length > 0
+                ? (event.participantLabels && event.participantLabels.length > 0 ? event.participantLabels : event.participantPerIds).join(', ')
+                : '—'}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Nội dung: {event.description || '—'}
+            </Typography>
           </Stack>
 
           {event.conflictNote && <Alert severity="warning">Trùng lịch: {event.conflictNote}</Alert>}
@@ -718,7 +719,7 @@ export function EventDetailDialog({
             </Stack>
             <TextField label="Địa điểm" value={editLocation} onChange={(e) => setEditLocation(e.target.value)} fullWidth />
             {editScope === 'CAMPUS' && (
-              <PeopleMultiPicker label="Thành phần tham dự *" value={editParticipants} onChange={setEditParticipants} />
+              <PeopleMultiPicker label="Thành phần tham dự (tuỳ chọn)" value={editParticipants} onChange={setEditParticipants} />
             )}
             <TextField select label="Mức ưu tiên" value={editPriority} onChange={(e) => setEditPriority(e.target.value)} fullWidth>
               {Object.entries(PRIORITY_LABEL).map(([k, v]) => (

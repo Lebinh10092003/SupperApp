@@ -188,7 +188,10 @@ async function buildConflictNoteText(db: Db, event: LtcEventRow, partners: LtcEv
     .map((other) => {
       const sharedPerIds = event.participantPerIds.filter((pid) => other.participantPerIds.includes(pid));
       const sharedLabels = sharedPerIds.map((pid) => labels[pid] ?? pid);
-      return `Trùng giờ với lịch "${other.title}" (${other.id}) — cùng có ${sharedLabels.join(', ')} tham dự, từ ${formatVnDateTime(other.startAt)} đến ${formatVnDateTime(other.endAt)}.`;
+      // KHÔNG kèm mã UUID thô của lịch kia trong ngoặc — vô nghĩa với người
+      // dùng cuối, tiêu đề trong ngoặc kép đã đủ nhận diện (Mr Tiến phản hồi
+      // 2026-09-21, kèm ví dụ thật còn sót cả UUID lẫn PER_xxx thô).
+      return `Trùng giờ với lịch "${other.title}" — cùng có ${sharedLabels.join(', ')} tham dự, từ ${formatVnDateTime(other.startAt)} đến ${formatVnDateTime(other.endAt)}.`;
     })
     .join('; ');
 }
@@ -684,6 +687,12 @@ export async function changeTaskStatus(
   }
   if (nextStatus === 'CANCELLED' && !input.note) {
     throw new AppError('invalid_input', 'Bắt buộc ghi lý do khi hủy công việc.');
+  }
+  // Bắt buộc minh chứng (link Sheet/Docs/Drive...) khi trình nghiệm thu —
+  // Mr Tiến phản hồi 2026-09-21, kiểm tra lại ở tầng server (không chỉ tin
+  // frontend) để không lách được qua gọi API trực tiếp.
+  if (nextStatus === 'PENDING_ACCEPTANCE' && !input.evidenceUrl?.trim()) {
+    throw new AppError('invalid_input', 'Bắt buộc nhập link minh chứng trước khi trình nghiệm thu.');
   }
   const patch: Partial<typeof ltcTasks.$inferInsert> = { status: nextStatus, updatedAt: new Date() };
   if (nextStatus === 'CANCELLED') patch.cancellationReason = input.note;
