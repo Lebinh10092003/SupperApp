@@ -13,6 +13,7 @@ import {
   Avatar,
   Chip,
   ListSubheader,
+  Collapse,
   Tooltip,
   Divider,
   Button,
@@ -289,6 +290,19 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [isSyncing, setIsSyncing] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  // Menu cha gấp/mở — Mr Tiến phản hồi 2026-09-21: sidebar hiện quá nhiều
+  // mục cùng lúc, người mới khó dùng. Chỉ TỰ MỞ SẴN đúng 1 nhóm chứa trang
+  // đang xem (tính 1 lần lúc mount qua lazy initializer, không tự đổi khi
+  // điều hướng trong phiên — người dùng có thể tự mở thêm nhóm khác mà
+  // không bị sập lại nhóm đang xem), các nhóm còn lại gấp lại.
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    const activeGroup = navGroups.find((g) => g.items.some((it) => it.path === location.pathname));
+    for (const g of navGroups) initial[g.groupTitle] = g === activeGroup;
+    if (!activeGroup && navGroups[0]) initial[navGroups[0].groupTitle] = true;
+    return initial;
+  });
+  const toggleGroup = (groupTitle: string) => setOpenGroups((prev) => ({ ...prev, [groupTitle]: !prev[groupTitle] }));
   const { profile, user, logout, changePassword, updateDisplayName } = useAuth();
   const [accountMenuAnchor, setAccountMenuAnchor] = useState<null | HTMLElement>(null);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -535,25 +549,43 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Navigation List */}
       <Box sx={{ flex: 1, overflowY: 'auto', px: 1.5, py: 1.5 }}>
         <List disablePadding>
-          {visibleGroups.map((group) => (
-            <Box key={group.groupTitle} sx={{ mb: 2 }}>
+          {visibleGroups.map((group) => {
+            const groupHasActiveItem = group.items.some((it) => it.path === location.pathname);
+            const isOpen = !!openGroups[group.groupTitle];
+            return (
+            <Box key={group.groupTitle} sx={{ mb: 0.5 }}>
               <ListSubheader
                 disableSticky
+                component="button"
+                onClick={() => toggleGroup(group.groupTitle)}
                 sx={{
                   bgcolor: 'transparent',
-                  color: '#94a3b8',
+                  color: groupHasActiveItem ? '#2563eb' : '#94a3b8',
                   fontSize: '0.65rem',
                   fontWeight: 700,
                   letterSpacing: '0.08em',
                   px: 1.25,
-                  py: 0.5,
+                  py: 0.6,
                   lineHeight: '1.25rem',
-                  textTransform: 'uppercase'
+                  textTransform: 'uppercase',
+                  width: '100%',
+                  border: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  cursor: 'pointer',
+                  borderRadius: '6px',
+                  '&:hover': { bgcolor: '#f1f5f9', color: '#0f172a' }
                 }}
               >
-                {group.groupTitle}
+                <span>{group.groupTitle}</span>
+                <ExpandMoreRoundedIcon
+                  fontSize="small"
+                  sx={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.15s ease', color: 'inherit' }}
+                />
               </ListSubheader>
 
+              <Collapse in={isOpen} timeout="auto" unmountOnExit>
               {group.items.map((item) => {
                 const isSelected = location.pathname === item.path;
                 return (
@@ -614,8 +646,10 @@ export function AppShell({ children }: { children: ReactNode }) {
                   </ListItemButton>
                 );
               })}
+              </Collapse>
             </Box>
-          ))}
+            );
+          })}
         </List>
       </Box>
 
