@@ -36,6 +36,7 @@ import { publicCodes } from './ids.schema.js';
 import { reports, reportIdentities, reportSupplements } from './reports.schema.js';
 import { incidents } from './incidents.schema.js';
 import { slaClocks } from './sla-clocks.schema.js';
+import { isOverdue as slaIsOverdue } from './sla.js';
 import { notifyRequests } from './dispatch.schema.js';
 import { auditLogs } from './audit.schema.js';
 import { adminNotifications } from './admin-notify.schema.js';
@@ -50,6 +51,19 @@ import { filterReportItems, filterIncidentItems, sortReportItemsDefault } from '
 import { resolveClassRelatedPeople } from './report-flow.js';
 
 export const safetyQueryRouter = Router();
+
+/**
+ * `slaClocks.status` được ghi 1 LẦN lúc tạo ('running') và KHÔNG BAO GIỜ
+ * tự cập nhật lại (`isOverdue()` có sẵn ở sla.ts nhưng trước 2026-09-21
+ * không nơi nào gọi tới) — dialog chi tiết hồ sơ vẫn hiện "Đang chạy" dù
+ * đã quá hạn nhiều ngày (Sin phát hiện qua ảnh chụp thật). Tính lại LIVE ở
+ * đây thay vì tin thẳng cột `status` trong DB.
+ */
+function displaySlaClockStatus(c: { status: string; paused: boolean; deadlineAt: Date }, now: Date): string {
+  if (c.status === 'met') return 'met';
+  if (c.paused) return c.status;
+  return slaIsOverdue({ paused: c.paused, deadline_at: c.deadlineAt }, now) ? 'overdue' : c.status;
+}
 
 async function listEvidenceSummaryForReportIds(reportIds: string[]) {
   if (reportIds.length === 0) return [];
@@ -322,10 +336,11 @@ safetyQueryRouter.get(
     const ids = out.map((it) => it.incidentId).filter(Boolean);
     const clockMap: Record<string, Record<string, { deadlineAt: Date; status: string; paused: boolean }>> = {};
     if (ids.length > 0) {
+      const nowForClocks = new Date();
       const clocks = await db.select().from(slaClocks).where(inArray(slaClocks.objectId, ids));
       for (const c of clocks) {
         clockMap[c.objectId] = clockMap[c.objectId] || {};
-        clockMap[c.objectId]![c.clockLabel] = { deadlineAt: c.deadlineAt, status: c.status, paused: !!c.paused };
+        clockMap[c.objectId]![c.clockLabel] = { deadlineAt: c.deadlineAt, status: displaySlaClockStatus(c, nowForClocks), paused: !!c.paused };
       }
     }
     const commanderPerIds = out.map((it) => it.commanderPerId).filter((v): v is string => !!v);
@@ -370,8 +385,9 @@ safetyQueryRouter.get(
     const evidenceList = canView ? await listEvidenceSummaryForReportIds(incident.reportIds || []) : [];
 
     const clockRows = await db.select().from(slaClocks).where(eq(slaClocks.objectId, incident.incidentId));
+    const nowForClocks = new Date();
     const slaClockMap: Record<string, { deadlineAt: Date; status: string; paused: boolean }> = {};
-    for (const c of clockRows) slaClockMap[c.clockLabel] = { deadlineAt: c.deadlineAt, status: c.status, paused: !!c.paused };
+    for (const c of clockRows) slaClockMap[c.clockLabel] = { deadlineAt: c.deadlineAt, status: displaySlaClockStatus(c, nowForClocks), paused: !!c.paused };
 
     let commanderName: string | null = null;
     if (incident.commanderPerId) {

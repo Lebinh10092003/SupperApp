@@ -64,6 +64,13 @@
       "when": 1789955631436,
       "tag": "0008_regular_overlord",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790007331358,
+      "tag": "0009_outstanding_rattler",
+      "breakpoints": true
     }
   ]
 }

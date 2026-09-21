@@ -20,6 +20,13 @@ thật trong `crontab -l`**.
 # Chạy 1h sáng — trước giờ backup DB (2h) để bản backup có dữ liệu mới nhất,
 # ngoài giờ hành chính để không ảnh hưởng tải hệ thống.
 0 1 * * * cd /opt/supperapp/apps/api && /opt/node22/bin/node dist/jobs/full-sync.js >> /var/log/supperapp-full-sync.log 2>&1
+
+# Quét đồng hồ SLA (ack/assign) module An toàn đã quá hạn, đẩy chuông cho
+# chỉ huy/người được giao + lãnh đạo/trực ban đúng cơ sở (S10) — bổ sung
+# 2026-09-21, Sin phát hiện quá hạn trước đây KHÔNG có hậu quả gì (isOverdue()
+# có sẵn từ trước nhưng không job/route nào gọi tới). Idempotent qua cột
+# sla_clocks.escalated_at — không spam lại mỗi 15 phút cho cùng 1 đồng hồ.
+*/15 * * * * cd /opt/supperapp/apps/api && /opt/node22/bin/node dist/jobs/check-sla-overdue.js >> /var/log/supperapp-sla-overdue.log 2>&1
 ```
 
 Log: `/var/log/supperapp-full-sync.log` trên VPS. Kiểm tra kết quả từng lần
