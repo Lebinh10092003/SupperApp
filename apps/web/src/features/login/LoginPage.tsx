@@ -247,7 +247,8 @@ export default function LoginPage() {
                     fontWeight: 700,
                     fontSize: '0.72rem',
                     textTransform: 'uppercase',
-                    letterSpacing: '0.05em'
+                    letterSpacing: '0.05em',
+                    whiteSpace: 'nowrap'
                   }}
                 >
                   Hoặc bằng email/mật khẩu
@@ -332,10 +333,6 @@ export default function LoginPage() {
           </RouterLink>
         </Typography>
 
-        {/* Footer */}
-        <Typography variant="caption" sx={{ display: 'block', textAlign: 'center', mt: 1.5, color: '#64748b', fontSize: '0.75rem' }}>
-          Trường THCS Giảng Võ — Ba Đình, Hà Nội • School Intelligence System
-        </Typography>
       </Box>
 
       <Dialog open={forgotOpen} onClose={closeForgotDialog} maxWidth="xs" fullWidth>

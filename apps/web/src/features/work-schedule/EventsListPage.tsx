@@ -114,8 +114,15 @@ export default function EventsListPage() {
   // --- form tạo mới ---
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  // `campusId` gộp luôn lựa chọn "Toàn trường" (giá trị sentinel
+  // 'SCHOOL_WIDE') thay vì tách riêng ô "Phạm vi" — Sin yêu cầu 2026-09-21
+  // gộp 2 ô lại cho gọn: chọn "Toàn trường" ở ngay ô Cơ sở, không cần hỏi
+  // riêng "Trong 1 cơ sở / Toàn trường" nữa. Khi gửi lên server vẫn tách
+  // lại thành đúng 2 field `campusId` (server bắt buộc 1 trong 3 cơ sở thật
+  // ngay cả với lịch toàn trường — dùng MAIN_CAMPUS làm cơ sở tổ chức mặc
+  // định) + `scope`.
   const [campusId, setCampusId] = useState('');
-  const [scope, setScope] = useState<'CAMPUS' | 'SCHOOL_WIDE'>('CAMPUS');
+  const scope: 'CAMPUS' | 'SCHOOL_WIDE' = campusId === 'SCHOOL_WIDE' ? 'SCHOOL_WIDE' : 'CAMPUS';
   const [priority, setPriority] = useState('NORMAL');
   const [startAt, setStartAt] = useState('');
   const [endAt, setEndAt] = useState('');
@@ -129,7 +136,6 @@ export default function EventsListPage() {
     setTitle('');
     setDescription('');
     setCampusId('');
-    setScope('CAMPUS');
     setPriority('NORMAL');
     setStartAt('');
     setEndAt('');
@@ -161,7 +167,10 @@ export default function EventsListPage() {
       const created = await api.post<WorkEvent>('/api/work-schedule/events', {
         title: title.trim(),
         description: description.trim(),
-        campusId,
+        // Lịch toàn trường vẫn cần 1 cơ sở tổ chức thật cho server (bắt buộc
+        // 1 trong 3 cơ sở, xem work-schedule.schema.ts::VALID_CAMPUS_IDS) —
+        // mặc định Điểm trường chính.
+        campusId: scope === 'SCHOOL_WIDE' ? 'MAIN_CAMPUS' : campusId,
         scope,
         priority,
         startAt: new Date(startAt).toISOString(),
@@ -311,22 +320,13 @@ export default function EventsListPage() {
           <Stack spacing={2} sx={{ pt: 1 }}>
             {createError && <Alert severity="error">{createError}</Alert>}
             <TextField label="Tiêu đề *" value={title} onChange={(e) => setTitle(e.target.value)} fullWidth />
-            <TextField
-              select
-              label="Phạm vi *"
-              value={scope}
-              onChange={(e) => setScope(e.target.value as 'CAMPUS' | 'SCHOOL_WIDE')}
-              fullWidth
-            >
-              <MenuItem value="CAMPUS">Trong 1 cơ sở</MenuItem>
-              <MenuItem value="SCHOOL_WIDE">Toàn trường (cần duyệt 2 bước: Hiệu phó rồi Hiệu trưởng)</MenuItem>
-            </TextField>
             <TextField select label="Cơ sở *" value={campusId} onChange={(e) => setCampusId(e.target.value)} fullWidth>
               {CAMPUS_IDS.map((c) => (
                 <MenuItem key={c} value={c}>
                   {CAMPUS_LABEL[c]}
                 </MenuItem>
               ))}
+              <MenuItem value="SCHOOL_WIDE">Toàn trường (cần duyệt 2 bước: Hiệu phó rồi Hiệu trưởng)</MenuItem>
             </TextField>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
               <TextField
