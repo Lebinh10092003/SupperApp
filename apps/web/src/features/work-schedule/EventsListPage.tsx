@@ -280,7 +280,6 @@ export default function EventsListPage() {
             <TableRow>
               <TableCell>Tiêu đề</TableCell>
               <TableCell>Cơ sở</TableCell>
-              <TableCell>Phạm vi</TableCell>
               <TableCell>Thời gian</TableCell>
               <TableCell>Chủ trì</TableCell>
               <TableCell>Thành phần</TableCell>
@@ -290,7 +289,7 @@ export default function EventsListPage() {
           <TableBody>
             {!loading && filteredItems.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                <TableCell colSpan={6} align="center" sx={{ py: 4, color: 'text.secondary' }}>
                   Không có lịch nào khớp bộ lọc.
                 </TableCell>
               </TableRow>
@@ -303,8 +302,12 @@ export default function EventsListPage() {
               return (
               <TableRow key={ev.id} hover sx={{ cursor: 'pointer' }} onClick={() => setDetail(ev)}>
                 <TableCell>{ev.title}</TableCell>
-                <TableCell>{CAMPUS_LABEL[ev.campusId] || ev.campusId}</TableCell>
-                <TableCell>{EVENT_SCOPE_LABEL[ev.scope] || ev.scope}</TableCell>
+                {/* Bỏ cột "Phạm vi" riêng — Sin yêu cầu 2026-09-21 gộp vào
+                    thẳng cột Cơ sở (khớp việc đã gộp ô "Phạm vi" vào ô "Cơ
+                    sở" khi tạo/sửa lịch): lịch toàn trường hiện "Toàn
+                    trường" ở đây thay vì vẫn hiện "Điểm trường chính" (cơ sở
+                    tổ chức mặc định phía server) kèm cột Phạm vi thừa. */}
+                <TableCell>{ev.scope === 'SCHOOL_WIDE' ? 'Toàn trường' : CAMPUS_LABEL[ev.campusId] || ev.campusId}</TableCell>
                 <TableCell>{new Date(ev.startAt).toLocaleString('vi-VN')}</TableCell>
                 <TableCell sx={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={ev.chairLabel || ev.chairPerId}>
                   {ev.chairLabel || ev.chairPerId}
