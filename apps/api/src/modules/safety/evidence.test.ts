@@ -251,6 +251,20 @@ test('evidence: canViewEvidence — dùng đúng action theo mức bí mật h�
   assert.equal(canViewEvidence(teacherActor, incidentC1), true);
 });
 
+test('evidence: canViewEvidence — Sin chốt 2026-09-21: bỏ hẳn chặn theo trần bí mật (redacted), ai mở được hồ sơ (dù bị rút gọn nội dung) cũng xem được minh chứng', () => {
+  // Trực ban KHÔNG trong ca -> trần mặc định C2, thấp hơn hồ sơ C3 -> trước
+  // đây bị chặn evidence dù role đã được cấp quyền xem (XR) hồ sơ này (chỉ
+  // là rút gọn nội dung, không phải bị từ chối truy cập).
+  const dutyOfficerOffShift = {
+    perId: 'PER.00000004',
+    session: { valid: true, revoked: false },
+    roles: [{ roleId: catalog.ROLE.DUTY_OFFICER, campusId: 'CS.01' }],
+    onDutyNow: false
+  };
+  const incidentC3 = { campus_id: 'CS.01', confidentiality: 'C3', priority: 'P1', commander_per_id: null, assigned_task_per_ids: [] };
+  assert.equal(canViewEvidence(dutyOfficerOffShift, incidentC3), true);
+});
+
 test('evidence: quét mã độc thật (S8) — opts.scanBuffer tiêm được, KHÔNG cần mạng thật', { skip }, async () => {
   await clearEvidence();
   const bucket = new FakeBucket();
