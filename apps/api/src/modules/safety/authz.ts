@@ -31,11 +31,13 @@ export const PERMISSION_MATRIX: Record<string, Partial<Record<RoleId, GrantLevel
   'incident.view_c1_c2': { [ROLE.PRINCIPAL]: 'X', [ROLE.VICE_PRINCIPAL]: 'X', [ROLE.DUTY_OFFICER]: 'X', [ROLE.TEACHER]: 'X' },
   'incident.view_c3': { [ROLE.PRINCIPAL]: 'X', [ROLE.VICE_PRINCIPAL]: 'X', [ROLE.DUTY_OFFICER]: 'XR' },
   'incident.view_c4': { [ROLE.PRINCIPAL]: 'X' },
-  // Xem/tải minh chứng (S8) — riêng biệt với xem NỘI DUNG hồ sơ theo mức bí
-  // mật, vì minh chứng nhạy cảm hơn văn bản mô tả. Các vai trò khác CHỈ
-  // được cấp qua bước 7 (là chỉ huy hồ sơ đó HOẶC được giao nhiệm vụ trên
-  // đúng hồ sơ đó) — KHÔNG cấp theo vai trò tĩnh.
-  'incident.view_evidence': { [ROLE.PRINCIPAL]: 'X', [ROLE.VICE_PRINCIPAL]: 'X', [ROLE.DUTY_OFFICER]: 'XR' },
+  // Xem/tải minh chứng (S8): KHÔNG còn action riêng ở đây — Sin xác nhận
+  // 2026-09-21 ai xem được NỘI DUNG hồ sơ đầy đủ (không bị redacted) thì
+  // cũng xem được minh chứng của đúng hồ sơ đó, dùng lại thẳng
+  // `catalog.VIEW_ACTION_BY_CONFIDENTIALITY` (xem `evidence.ts::canViewEvidence`)
+  // thay vì action `incident.view_evidence` cũ (trước đây chỉ cấp cho 3 vai
+  // trò tĩnh, khiến Tổ trưởng/GVCN/Chỉ huy sự cố xem được hồ sơ nhưng không
+  // xem được ảnh đính kèm của chính hồ sơ đó).
   // Chuyển trạng thái thông thường — KHÔNG áp cho đóng P0/P1 hay mở lại (đi
   // qua action riêng vì yêu cầu phê duyệt khác nhau).
   'incident.manage': {

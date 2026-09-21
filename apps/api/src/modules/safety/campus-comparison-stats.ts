@@ -5,7 +5,7 @@
  * lúc, xem `authz.ts`), port 1-1 từ `campusComparisonStats.js`.
  *
  * Theo đúng khuôn `zoneStats.ts`: nhận `db` làm tham số đầu, tái dùng
- * `catalog.MIN_ZONE_COUNT_FOR_BREAKDOWN` (= 5) làm ngưỡng k-anonymity.
+ * `catalog.MIN_GROUP_SIZE_FOR_BREAKDOWN` (= 5) làm ngưỡng k-anonymity.
  *
  * k-anonymity 2 TẦNG (đúng thứ tự, không đảo):
  *  1) Tổng số vụ TOÀN RANGE của 1 cơ sở < ngưỡng -> ẩn TOÀN BỘ breakdown.
@@ -193,7 +193,7 @@ export async function computeCampusComparisonStats(
     });
 
     const totalCount = itemsInRange.length;
-    const hidden = totalCount < catalog.MIN_ZONE_COUNT_FOR_BREAKDOWN;
+    const hidden = totalCount < catalog.MIN_GROUP_SIZE_FOR_BREAKDOWN;
 
     if (hidden) {
       campuses[campusId] = {
@@ -223,7 +223,7 @@ export async function computeCampusComparisonStats(
     const passedCategories: Array<{ code: string; count: number }> = [];
     let hiddenSum = 0;
     Object.entries(rawByCategory).forEach(([code, count]) => {
-      if (count < catalog.MIN_ZONE_COUNT_FOR_BREAKDOWN) {
+      if (count < catalog.MIN_GROUP_SIZE_FOR_BREAKDOWN) {
         hiddenSum += count;
       } else {
         passedCategories.push({ code, count });

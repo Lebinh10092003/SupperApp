@@ -53,6 +53,33 @@ export const ROLE_DEFAULT_CEILING: Record<RoleId, 'C1' | 'C2' | 'C3' | 'C4'> = {
   [ROLE.REPORTER]: 'C1'
 };
 
+/**
+ * Tên vai trò tiếng Việt để hiển thị (VD "Nguyễn Văn A (Giáo viên)") — Sin
+ * yêu cầu 2026-09-21: mọi nơi hiện người (chủ trì lịch, người thực hiện,
+ * người thao tác nhật ký...) phải kèm tên + chức vụ, không được hiện thẳng
+ * mã `PER_xxx` khó hình dung. Đủ cả 16 vai trò (khác `ROLE_LABEL` cục bộ ở
+ * `SafetyUsersSection.tsx` — bản đó CHỦ Ý bớt 3 vai trò không gán tay qua
+ * UI đó: HOMEROOM/INCIDENT_CMD/REPORTER).
+ */
+export const ROLE_LABEL: Record<RoleId, string> = {
+  [ROLE.PRINCIPAL]: 'Hiệu trưởng',
+  [ROLE.VICE_PRINCIPAL]: 'Phó Hiệu trưởng',
+  [ROLE.DUTY_OFFICER]: 'Trực ban',
+  [ROLE.DEPT_HEAD]: 'Tổ trưởng',
+  [ROLE.OFFICE_ADMIN]: 'Văn phòng',
+  [ROLE.TEACHER]: 'Giáo viên',
+  [ROLE.HOMEROOM]: 'Giáo viên chủ nhiệm',
+  [ROLE.HEALTH]: 'Y tế trường học',
+  [ROLE.COUNSELOR]: 'Tư vấn tâm lý',
+  [ROLE.SECURITY]: 'Bảo vệ/An ninh',
+  [ROLE.FACILITY]: 'Cơ sở vật chất',
+  [ROLE.INCIDENT_CMD]: 'Chỉ huy sự cố',
+  [ROLE.SYS_ADMIN]: 'Quản trị hệ thống',
+  [ROLE.AUDITOR]: 'Kiểm toán',
+  [ROLE.EXTERNAL]: 'Bên ngoài',
+  [ROLE.REPORTER]: 'Người báo tin'
+};
+
 /** Vai trò có phạm vi toàn trường, bỏ qua bước lọc theo cơ sở (authz.js:159). */
 export const WHOLE_SCHOOL_ROLES = new Set<RoleId>([ROLE.PRINCIPAL]);
 

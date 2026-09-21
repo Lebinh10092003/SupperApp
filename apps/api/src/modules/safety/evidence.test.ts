@@ -230,7 +230,7 @@ test('evidence: getSignedDownloadUrl — hết hạn 5 phút, ép tải xuống'
   assert.ok(url.includes('expires=' + (now.getTime() + 5 * 60 * 1000)));
 });
 
-test('evidence: canViewEvidence — dùng lại authz 9 bước, đúng action incident.view_evidence', () => {
+test('evidence: canViewEvidence — dùng đúng action theo mức bí mật hồ sơ (VIEW_ACTION_BY_CONFIDENTIALITY), y hệt quyền xem hồ sơ đầy đủ — Sin xác nhận 2026-09-21: ai xem được hồ sơ không bị redacted thì cũng xem được minh chứng, không cần action riêng khắt khe hơn', () => {
   const principalActor = { perId: 'PER.00000001', session: { valid: true, revoked: false }, roles: [{ roleId: catalog.ROLE.PRINCIPAL }] };
   const teacherActor = { perId: 'PER.00000002', session: { valid: true, revoked: false }, roles: [{ roleId: catalog.ROLE.TEACHER, campusId: 'CS.01' }] };
   const teacherAssignedActor = { perId: 'PER.00000003', session: { valid: true, revoked: false }, roles: [{ roleId: catalog.ROLE.TEACHER, campusId: 'CS.01' }] };
@@ -241,6 +241,14 @@ test('evidence: canViewEvidence — dùng lại authz 9 bước, đúng action i
   assert.equal(canViewEvidence(principalActor, incidentC3), true);
   assert.equal(canViewEvidence(teacherActor, incidentC3), false);
   assert.equal(canViewEvidence(teacherAssignedActor, incidentC3), true);
+
+  // Sin 2026-09-21: giáo viên bất kỳ xem được ĐẦY ĐỦ hồ sơ C1/C2 (không bị
+  // redacted, đúng ma trận `incident.view_c1_c2`) thì cũng phải xem được
+  // minh chứng của đúng hồ sơ đó — trước đây action `incident.view_evidence`
+  // riêng KHÔNG có giáo viên trong ma trận nên luôn bị chặn dù xem được hồ
+  // sơ, đây chính là điều Sin phản hồi là sai.
+  const incidentC1 = { campus_id: 'CS.01', confidentiality: 'C1', priority: 'P3', commander_per_id: null, assigned_task_per_ids: [] };
+  assert.equal(canViewEvidence(teacherActor, incidentC1), true);
 });
 
 test('evidence: quét mã độc thật (S8) — opts.scanBuffer tiêm được, KHÔNG cần mạng thật', { skip }, async () => {

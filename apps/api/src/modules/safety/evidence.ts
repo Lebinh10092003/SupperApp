@@ -25,6 +25,7 @@
  */
 
 import sharp from 'sharp';
+import { Readable } from 'node:stream';
 import { eq, isNull } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as catalog from './catalog.js';
@@ -178,14 +179,15 @@ async function getClamInstance(): Promise<any> {
 export const scanBuffer: ScanBufferFn = async (buffer) => {
   try {
     const clam = await getClamInstance();
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), SCAN_TIMEOUT_MS);
-    let result: { isInfected: boolean | null; viruses: string[] };
-    try {
-      result = await clam.scanBuffer(buffer, SCAN_TIMEOUT_MS);
-    } finally {
-      clearTimeout(timer);
-    }
+    // Thư viện `clamscan` (v2.4.0 đang dùng) KHÔNG có `scanBuffer` — chỉ có
+    // `scanStream(stream)`. Bọc buffer thành 1 readable stream để tái dùng
+    // đúng API thật của thư viện (trước đây gọi nhầm `clam.scanBuffer(...)`,
+    // hàm không tồn tại, luôn throw "clam.scanBuffer is not a function" và
+    // file mãi mãi kẹt ở 'pending_scan').
+    // Timeout đã cấu hình sẵn trong `clamdscan.timeout` lúc khởi tạo instance
+    // (xem `getClamInstance()`), thư viện tự áp dụng cho socket clamd — không
+    // cần tự dựng thêm AbortController/setTimeout ở đây.
+    const result = await clam.scanStream(Readable.from(buffer));
     if (result.isInfected === null) {
       return { status: 'scan_error', detail: 'ClamAV không trả kết quả xác định.' };
     }
@@ -439,12 +441,13 @@ export interface EvidenceIncidentView {
  */
 export function canViewEvidence(actor: Actor, resourceIncident?: EvidenceIncidentView | null): boolean {
   const incident = resourceIncident || {};
+  const confidentiality = incident.confidentiality || 'C1';
   const decision = checkAuthorization({
     actor,
-    action: 'incident.view_evidence',
+    action: catalog.VIEW_ACTION_BY_CONFIDENTIALITY[confidentiality] || 'incident.view_c1_c2',
     resource: {
       campusId: incident.campus_id,
-      confidentiality: incident.confidentiality,
+      confidentiality,
       commanderPerId: incident.commander_per_id ?? undefined,
       assignedTaskPerIds: incident.assigned_task_per_ids || []
     }

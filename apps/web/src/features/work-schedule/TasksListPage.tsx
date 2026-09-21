@@ -79,6 +79,7 @@ export default function TasksListPage() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [detail, setDetail] = useState<WorkTask | null>(null);
+  const [toast, setToast] = useState<{ message: string; severity: 'success' | 'error' } | null>(null);
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -118,6 +119,7 @@ export default function TasksListPage() {
       setCreateOpen(false);
       resetForm();
       refetch();
+      setToast({ message: `Đã giao việc "${title.trim()}" cho ${assignee?.name || 'người được chọn'}.`, severity: 'success' });
     } catch (e: any) {
       setCreateError(e.message || 'Giao việc thất bại.');
     } finally {
@@ -190,6 +192,11 @@ export default function TasksListPage() {
       </Stack>
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      {toast && (
+        <Alert severity={toast.severity} onClose={() => setToast(null)} sx={{ mb: 2 }}>
+          {toast.message}
+        </Alert>
+      )}
 
       <TableContainer component={Paper} sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none' }}>
         <Table>
@@ -214,7 +221,7 @@ export default function TasksListPage() {
               <TableRow key={t.id} hover sx={{ cursor: 'pointer' }} onClick={() => setDetail(t)}>
                 <TableCell>{t.title}</TableCell>
                 <TableCell>{CAMPUS_LABEL[t.campusId] || t.campusId}</TableCell>
-                <TableCell>{t.assigneeName || t.assigneePerId}</TableCell>
+                <TableCell>{t.assigneeLabel || t.assigneeName || t.assigneePerId}</TableCell>
                 <TableCell>{new Date(t.dueAt).toLocaleString('vi-VN')}</TableCell>
                 <TableCell>
                   <TaskStatusChip status={t.status} />
@@ -270,24 +277,34 @@ export default function TasksListPage() {
         actorPerId={actor?.perId}
         onClose={() => setDetail(null)}
         onChanged={(updated) => {
-          setDetail(updated);
+          setDetail((prev) => (prev ? { ...prev, ...updated } : updated));
           refetch();
         }}
+        onSuccess={(message) => setToast({ message, severity: 'success' })}
       />
     </>
   );
 }
 
+const TASK_ACTION_SUCCESS_MESSAGE: Record<string, string> = {
+  ACCEPTED: 'Đã nhận việc.',
+  IN_PROGRESS: 'Đã cập nhật: đang thực hiện.',
+  PENDING_ACCEPTANCE: 'Đã trình nghiệm thu.',
+  CANCELLED: 'Đã hủy công việc.'
+};
+
 export function TaskDetailDialog({
   task,
   actorPerId,
   onClose,
-  onChanged
+  onChanged,
+  onSuccess
 }: {
   task: WorkTask | null;
   actorPerId?: string;
   onClose: () => void;
   onChanged: (t: WorkTask) => void;
+  onSuccess?: (message: string) => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState('');
@@ -302,23 +319,29 @@ export function TaskDetailDialog({
   const isAssignee = task.assigneePerId === actorPerId;
   const isCreator = task.createdByPerId === actorPerId;
 
-  const run = async (fn: () => Promise<WorkTask>) => {
+  const run = async (fn: () => Promise<WorkTask>, successMessage?: string) => {
     setBusy(true);
     setActionError('');
     try {
       onChanged(await fn());
       setHistoryVersion((v) => v + 1);
+      if (successMessage) onSuccess?.(successMessage);
     } catch (e: any) {
-      setActionError(e.message || 'Thao tác thất bại.');
+      // Lỗi trỏ rõ vào đúng dialog đang thao tác, không phải banner chung
+      // của trang (Sin phản hồi 21/09/2026).
+      setActionError(e.message || 'Thao tác thất bại — không rõ nguyên nhân, thử lại hoặc báo quản trị viên.');
     } finally {
       setBusy(false);
     }
   };
 
   const changeStatus = (nextStatus: string, note?: string) =>
-    run(() => api.patch<WorkTask>(`/api/work-schedule/tasks/${task.id}/status`, { nextStatus, note }));
+    run(() => api.patch<WorkTask>(`/api/work-schedule/tasks/${task.id}/status`, { nextStatus, note }), TASK_ACTION_SUCCESS_MESSAGE[nextStatus]);
   const acceptOrReturn = (nextStatus: 'COMPLETED' | 'RETURNED', note?: string) =>
-    run(() => api.post<WorkTask>(`/api/work-schedule/tasks/${task.id}/accept-or-return`, { nextStatus, note }));
+    run(
+      () => api.post<WorkTask>(`/api/work-schedule/tasks/${task.id}/accept-or-return`, { nextStatus, note }),
+      nextStatus === 'COMPLETED' ? 'Đã nghiệm thu công việc.' : 'Đã trả lại công việc.'
+    );
 
   const openReasonDialog = (kind: 'CANCELLED' | 'RETURNED') => {
     setReason('');
@@ -340,7 +363,7 @@ export function TaskDetailDialog({
           <TaskStatusChip status={task.status} />
           <Stack spacing={0.5}>
             <Typography variant="body2">Cơ sở: <strong>{CAMPUS_LABEL[task.campusId] || task.campusId}</strong></Typography>
-            <Typography variant="body2">Người giao: {task.createdByName || task.createdByPerId} — Người thực hiện: {task.assigneeName || task.assigneePerId}</Typography>
+            <Typography variant="body2">Người giao: {task.createdByLabel || task.createdByName || task.createdByPerId} — Người thực hiện: {task.assigneeLabel || task.assigneeName || task.assigneePerId}</Typography>
             <Typography variant="body2">Hạn: {new Date(task.dueAt).toLocaleString('vi-VN')}</Typography>
             {task.description && <Typography variant="body2" color="text.secondary">{task.description}</Typography>}
           </Stack>

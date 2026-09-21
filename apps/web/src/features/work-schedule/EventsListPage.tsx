@@ -109,6 +109,7 @@ export default function EventsListPage() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [detail, setDetail] = useState<WorkEvent | null>(null);
+  const [toast, setToast] = useState<{ message: string; severity: 'success' | 'error' } | null>(null);
 
   // --- form tạo mới ---
   const [title, setTitle] = useState('');
@@ -174,6 +175,10 @@ export default function EventsListPage() {
       setCreateOpen(false);
       resetForm();
       refetch();
+      setToast({
+        message: submitForApproval ? `Đã tạo lịch "${title.trim()}" và gửi duyệt.` : `Đã lưu lịch "${title.trim()}" (dự thảo).`,
+        severity: 'success'
+      });
     } catch (e: any) {
       setCreateError(e.message || 'Tạo lịch thất bại.');
     } finally {
@@ -254,6 +259,11 @@ export default function EventsListPage() {
       </Stack>
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      {toast && (
+        <Alert severity={toast.severity} onClose={() => setToast(null)} sx={{ mb: 2 }}>
+          {toast.message}
+        </Alert>
+      )}
 
       <TableContainer component={Paper} sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none' }}>
         <Table>
@@ -377,13 +387,25 @@ export default function EventsListPage() {
         isPrincipal={hasRole('R.PRINCIPAL')}
         onClose={() => setDetail(null)}
         onChanged={(updated) => {
-          setDetail(updated);
+          // Merge (không thay hẳn) — response của đổi trạng thái/duyệt KHÔNG
+          // kèm chairLabel/participantLabels (chủ trì/thành phần không đổi ở
+          // các thao tác này), giữ lại nhãn cũ để không rơi về mã PER_xxx thô
+          // ngay sau khi bấm nút, chờ `refetch()` bên dưới nạp lại đầy đủ.
+          setDetail((prev) => (prev ? { ...prev, ...updated } : updated));
           refetch();
         }}
+        onSuccess={(message) => setToast({ message, severity: 'success' })}
       />
     </>
   );
 }
+
+const EVENT_ACTION_SUCCESS_MESSAGE: Record<string, string> = {
+  PENDING_APPROVAL: 'Đã gửi lịch đi duyệt.',
+  DRAFT: 'Đã thu hồi lịch về dự thảo.',
+  REVISION_REQUIRED: 'Đã yêu cầu sửa lại lịch.',
+  CANCELLED: 'Đã hủy lịch.'
+};
 
 export function EventDetailDialog({
   event,
@@ -391,7 +413,8 @@ export function EventDetailDialog({
   canApprove,
   isPrincipal,
   onClose,
-  onChanged
+  onChanged,
+  onSuccess
 }: {
   event: WorkEvent | null;
   actorPerId?: string;
@@ -399,6 +422,7 @@ export function EventDetailDialog({
   isPrincipal: boolean;
   onClose: () => void;
   onChanged: (e: WorkEvent) => void;
+  onSuccess?: (message: string) => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState('');
@@ -414,24 +438,28 @@ export function EventDetailDialog({
   const activeStep = EVENT_STATUS_STEPS.indexOf(event.status as (typeof EVENT_STATUS_STEPS)[number]);
   const isException = event.status === 'REVISION_REQUIRED' || event.status === 'CANCELLED';
 
-  const run = async (fn: () => Promise<WorkEvent>) => {
+  const run = async (fn: () => Promise<WorkEvent>, successMessage?: string) => {
     setBusy(true);
     setActionError('');
     try {
       const updated = await fn();
       onChanged(updated);
       setHistoryVersion((v) => v + 1);
+      if (successMessage) onSuccess?.(successMessage);
     } catch (e: any) {
-      setActionError(e.message || 'Thao tác thất bại.');
+      // Lỗi trỏ rõ vào đúng dialog đang thao tác (actionError ở trên,
+      // không phải banner lỗi chung của trang) — Sin phản hồi 21/09/2026:
+      // "lỗi gì nó ko trỏ lên chỗ lỗi làm chả phân biệt được gì".
+      setActionError(e.message || 'Thao tác thất bại — không rõ nguyên nhân, thử lại hoặc báo quản trị viên.');
     } finally {
       setBusy(false);
     }
   };
 
   const changeStatus = (nextStatus: string, note?: string) =>
-    run(() => api.patch<WorkEvent>(`/api/work-schedule/events/${event.id}/status`, { nextStatus, note }));
+    run(() => api.patch<WorkEvent>(`/api/work-schedule/events/${event.id}/status`, { nextStatus, note }), EVENT_ACTION_SUCCESS_MESSAGE[nextStatus]);
 
-  const approve = () => run(() => api.post<WorkEvent>(`/api/work-schedule/events/${event.id}/approve`));
+  const approve = () => run(() => api.post<WorkEvent>(`/api/work-schedule/events/${event.id}/approve`), 'Đã duyệt lịch.');
 
   const openReasonDialog = (kind: 'REVISION_REQUIRED' | 'CANCELLED') => {
     setReason('');
@@ -471,9 +499,11 @@ export function EventDetailDialog({
               {new Date(event.startAt).toLocaleString('vi-VN')} → {new Date(event.endAt).toLocaleString('vi-VN')}
             </Typography>
             {event.location && <Typography variant="body2">Địa điểm: {event.location}</Typography>}
-            <Typography variant="body2">Chủ trì: {event.chairPerId}</Typography>
+            <Typography variant="body2">Chủ trì: {event.chairLabel || event.chairPerId}</Typography>
             {event.participantPerIds.length > 0 && (
-              <Typography variant="body2">Thành phần: {event.participantPerIds.join(', ')}</Typography>
+              <Typography variant="body2">
+                Thành phần: {(event.participantLabels && event.participantLabels.length > 0 ? event.participantLabels : event.participantPerIds).join(', ')}
+              </Typography>
             )}
             {event.description && <Typography variant="body2" color="text.secondary">{event.description}</Typography>}
           </Stack>

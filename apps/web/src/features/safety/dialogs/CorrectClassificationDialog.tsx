@@ -22,7 +22,7 @@ export function CorrectClassificationDialog({
 }: {
   target: CorrectClassificationTarget | null;
   onClose: () => void;
-  onChanged: (result: { incidentId: string; className: string | null }) => void;
+  onChanged: (result: { incidentId: string; className: string | null; removedPerIds: string[] }) => void;
 }) {
   const [className, setClassName] = useState('');
   const [reason, setReason] = useState('');
@@ -51,7 +51,7 @@ export function CorrectClassificationDialog({
     setSubmitting(true);
     setError('');
     try {
-      const result = await api.patch<{ incidentId: string; className: string | null }>(`/api/safety/incidents/${target.incidentId}/classification`, {
+      const result = await api.patch<{ incidentId: string; className: string | null; removedPerIds: string[] }>(`/api/safety/incidents/${target.incidentId}/classification`, {
         className: className.trim(),
         reason: reason.trim()
       });

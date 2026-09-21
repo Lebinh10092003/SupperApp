@@ -22,13 +22,10 @@ export const reports = pgTable('reports', {
   content: text('content').notNull().default(''),
   className: text('class_name'),
   reporterRole: text('reporter_role'),
-  zoneIds: jsonb('zone_ids').$type<string[]>(),
-  zoneId: text('zone_id'),
   mergedIntoIncidentId: text('merged_into_incident_id'),
   // Chỉ có khi hồ sơ tạo TRỰC TIẾP từ cổng nội bộ bởi người đã đăng nhập —
   // KHÁC hẳn "người báo tin ẩn danh công khai", không liên quan report_identities.
   createdByPerId: text('created_by_per_id'),
-  suggestedZoneIds: jsonb('suggested_zone_ids').$type<string[]>(),
   suggestedClassNames: jsonb('suggested_class_names').$type<string[]>(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull()
 });

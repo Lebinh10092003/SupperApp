@@ -31,7 +31,7 @@ import { asyncRoute, HttpError } from '../../core/http.js';
 import { db } from '../../core/db/client.js';
 import { loadActorContext } from '../identity/actor-context.js';
 import { checkAuthorization, actorCeiling, inOrgScope, type Actor } from './authz.js';
-import { CATEGORY_CATALOG, confidentialityRank, type Confidentiality } from './catalog.js';
+import { CATEGORY_CATALOG, confidentialityRank, VIEW_ACTION_BY_CONFIDENTIALITY, type Confidentiality } from './catalog.js';
 import { publicCodes } from './ids.schema.js';
 import { reports, reportIdentities, reportSupplements } from './reports.schema.js';
 import { incidents } from './incidents.schema.js';
@@ -45,17 +45,11 @@ import { markNotificationRead } from './admin-notify.js';
 import { registerPushToken, unregisterPushToken } from './push-notify.js';
 import { acknowledge } from './notify.js';
 import { getDisplayNamesByPerIds } from './people-search.js';
+import { getPersonSummariesByPerIds, formatPersonLabel } from '../identity/person-directory.js';
 import { filterReportItems, filterIncidentItems, sortReportItemsDefault } from './report-filters.js';
 import { resolveClassRelatedPeople } from './report-flow.js';
 
 export const safetyQueryRouter = Router();
-
-const VIEW_ACTION_BY_CONFIDENTIALITY: Record<string, string> = {
-  C1: 'incident.view_c1_c2',
-  C2: 'incident.view_c1_c2',
-  C3: 'incident.view_c3',
-  C4: 'incident.view_c4'
-};
 
 async function listEvidenceSummaryForReportIds(reportIds: string[]) {
   if (reportIds.length === 0) return [];
@@ -434,7 +428,18 @@ safetyQueryRouter.get(
       .where(conditions.length ? and(...conditions) : undefined)
       .orderBy(desc(auditLogs.occurredAt))
       .limit(limit);
-    res.json({ items: rows, hasMore: rows.length === limit });
+    // Hiện tên + chức vụ người thao tác thay vì mã `PER_xxx` thô (Sin yêu
+    // cầu 2026-09-21, cùng đợt sửa với `/api/work-schedule/audit-logs`).
+    const summaries = await getPersonSummariesByPerIds(db, rows.map((r) => r.actorPerId));
+    res.json({
+      items: rows.map((r) => ({
+        ...r,
+        actorName: summaries[r.actorPerId]?.name ?? null,
+        actorRoleLabel: summaries[r.actorPerId]?.roleLabel ?? null,
+        actorLabel: formatPersonLabel(r.actorPerId, summaries[r.actorPerId])
+      })),
+      hasMore: rows.length === limit
+    });
   })
 );
 

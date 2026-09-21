@@ -10,6 +10,8 @@ export interface WorkTask {
   campusId: string;
   assigneePerId: string;
   assigneeName: string | null;
+  assigneeRoleLabel?: string | null;
+  assigneeLabel?: string;
   collaboratorPerIds: string[];
   dueAt: string;
   status: string;
@@ -18,6 +20,8 @@ export interface WorkTask {
   cancellationReason: string | null;
   createdByPerId: string;
   createdByName: string | null;
+  createdByRoleLabel?: string | null;
+  createdByLabel?: string;
   createdAt: string;
   updatedAt: string;
 }

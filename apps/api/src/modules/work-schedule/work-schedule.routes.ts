@@ -25,12 +25,11 @@
 
 import { Router } from 'express';
 import type { Request, Response, NextFunction } from 'express';
-import { inArray } from 'drizzle-orm';
 import { firebaseAuth } from '../../auth/middleware.js';
 import { asyncRoute, HttpError } from '../../core/http.js';
 import { db } from '../../core/db/client.js';
 import { loadActorContext } from '../identity/actor-context.js';
-import { accounts } from '../identity/identity.schema.js';
+import { getPersonSummariesByPerIds, formatPersonLabel } from '../identity/person-directory.js';
 import {
   AppError,
   createEvent,
@@ -149,7 +148,20 @@ workScheduleRouter.get(
       campusId: typeof req.query.campusId === 'string' ? req.query.campusId : undefined,
       statuses: parseStatuses(req.query.statuses)
     });
-    res.json({ items: rows });
+    // Hiện tên + chức vụ thay vì mã `PER_xxx` thô (Sin phát hiện 21/09/2026,
+    // modal chi tiết lịch công tác) — cùng cơ chế `getPersonSummariesByPerIds`
+    // dùng chung với `/tasks`/`/audit-logs` bên dưới.
+    const perIds = [...new Set(rows.flatMap((r) => [r.chairPerId, ...r.participantPerIds]))];
+    const summaries = await getPersonSummariesByPerIds(db, perIds);
+    res.json({
+      items: rows.map((r) => ({
+        ...r,
+        chairName: summaries[r.chairPerId]?.name ?? null,
+        chairRoleLabel: summaries[r.chairPerId]?.roleLabel ?? null,
+        chairLabel: formatPersonLabel(r.chairPerId, summaries[r.chairPerId]),
+        participantLabels: r.participantPerIds.map((pid) => formatPersonLabel(pid, summaries[pid]))
+      }))
+    });
   })
 );
 
@@ -226,18 +238,21 @@ workScheduleRouter.get(
       assigneePerId: typeof req.query.assigneePerId === 'string' ? req.query.assigneePerId : undefined,
       statuses: parseStatuses(req.query.statuses)
     });
-    // Bổ sung tên hiển thị của người được giao — trước đây frontend chỉ có
-    // assigneePerId (mã nội bộ), phải tự hiện thẳng mã đó lên UI cho người
-    // dùng thật (Sin phát hiện 13/09/2026, trang Trung tâm phê duyệt).
+    // Bổ sung tên hiển thị + chức vụ của người được giao — trước đây frontend
+    // chỉ có assigneePerId (mã nội bộ), phải tự hiện thẳng mã đó lên UI cho
+    // người dùng thật (Sin phát hiện 13/09/2026, trang Trung tâm phê duyệt;
+    // bổ sung thêm chức vụ 21/09/2026).
     const perIds = [...new Set(rows.flatMap((r) => [r.assigneePerId, r.createdByPerId]))];
-    const nameByPerId = perIds.length
-      ? Object.fromEntries((await db.select().from(accounts).where(inArray(accounts.perId, perIds))).map((a) => [a.perId, a.displayName]))
-      : {};
+    const summaries = await getPersonSummariesByPerIds(db, perIds);
     res.json({
       items: rows.map((r) => ({
         ...r,
-        assigneeName: nameByPerId[r.assigneePerId] ?? null,
-        createdByName: nameByPerId[r.createdByPerId] ?? null
+        assigneeName: summaries[r.assigneePerId]?.name ?? null,
+        assigneeRoleLabel: summaries[r.assigneePerId]?.roleLabel ?? null,
+        assigneeLabel: formatPersonLabel(r.assigneePerId, summaries[r.assigneePerId]),
+        createdByName: summaries[r.createdByPerId]?.name ?? null,
+        createdByRoleLabel: summaries[r.createdByPerId]?.roleLabel ?? null,
+        createdByLabel: formatPersonLabel(r.createdByPerId, summaries[r.createdByPerId])
       }))
     });
   })
@@ -258,7 +273,15 @@ workScheduleRouter.get(
     const entityType = typeof req.query.entityType === 'string' ? req.query.entityType : undefined;
     const entityId = typeof req.query.entityId === 'string' ? req.query.entityId : undefined;
     const rows = await getAuditLogs(db, { entityType, entityId });
-    res.json({ items: rows });
+    const summaries = await getPersonSummariesByPerIds(db, rows.map((r) => r.actorPerId));
+    res.json({
+      items: rows.map((r) => ({
+        ...r,
+        actorName: summaries[r.actorPerId]?.name ?? null,
+        actorRoleLabel: summaries[r.actorPerId]?.roleLabel ?? null,
+        actorLabel: formatPersonLabel(r.actorPerId, summaries[r.actorPerId])
+      }))
+    });
   })
 );
 

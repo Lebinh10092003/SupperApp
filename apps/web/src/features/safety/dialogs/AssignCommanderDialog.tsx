@@ -22,7 +22,7 @@ export function AssignCommanderDialog({
 }: {
   target: AssignCommanderTarget | null;
   onClose: () => void;
-  onChanged: (result: { incidentId: string; commanderPerId: string }) => void;
+  onChanged: (result: { incidentId: string; commanderPerId: string; commanderName: string }) => void;
 }) {
   const [commander, setCommander] = useState<PersonOption | null>(null);
   const [reason, setReason] = useState('');
@@ -54,7 +54,11 @@ export function AssignCommanderDialog({
         reason: reason.trim() || undefined,
         approvedBy: approvedBy.trim() || undefined
       });
-      onChanged(result);
+      // Server chỉ trả `commanderPerId` (`assignCommander`, xem
+      // safety-incidents.routes.ts), không có tên — lấy `commander.name` từ
+      // `PersonPicker` đã chọn ngay trước đó để hiện đúng tên trong thông
+      // báo thành công ở nơi gọi (`IncidentDetailPage.tsx`).
+      onChanged({ ...result, commanderName: commander.name });
       handleClose();
     } catch (e: any) {
       if (isApprovalRequiredMessage(e.message)) setNeedsApproval(true);

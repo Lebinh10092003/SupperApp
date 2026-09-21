@@ -17,6 +17,7 @@ export interface AuditLogEntry {
   entityId: string;
   action: string;
   actorPerId: string;
+  actorLabel?: string;
   before: unknown;
   after: unknown;
   createdAt: string;
@@ -105,7 +106,7 @@ export function AuditTrailPanel({
                   {ACTION_LABEL[log.action] || log.action}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  {log.actorPerId} — {new Date(log.createdAt).toLocaleString('vi-VN')}
+                  {log.actorLabel || log.actorPerId} — {new Date(log.createdAt).toLocaleString('vi-VN')}
                 </Typography>
               </Box>
             ))}

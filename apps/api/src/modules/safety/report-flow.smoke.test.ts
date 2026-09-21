@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { eq, inArray, like } from 'drizzle-orm';
 import { db } from '../../core/db/client.js';
 import { assignments, dutyShifts, homeroomAssignments, gradeSupervisorAssignments } from '../identity/identity.schema.js';
-import { campusZones } from './campus-zones.schema.js';
 import { reports, reportIdentities } from './reports.schema.js';
 import { incidents } from './incidents.schema.js';
 import { notifyRequests } from './dispatch.schema.js';
@@ -55,7 +54,6 @@ async function cleanup() {
   await db.delete(dutyShifts).where(eq(dutyShifts.perId, PER_TRUCBAN));
   await db.delete(homeroomAssignments).where(inArray(homeroomAssignments.className, ['38A2', '38A3']));
   await db.delete(gradeSupervisorAssignments).where(eq(gradeSupervisorAssignments.grade, '38'));
-  await db.delete(campusZones).where(inArray(campusZones.zoneId, ['RF_STAGE', 'RF_YARD', 'RF_INACTIVE', 'RF_OTHER_CAMPUS']));
   const reportRows = await db.select({ reportId: reports.reportId }).from(reports).where(inArray(reports.campusId, [CAMPUS, CAMPUS_EMPTY]));
   const reportIds = reportRows.map((r) => r.reportId);
   if (reportIds.length) {

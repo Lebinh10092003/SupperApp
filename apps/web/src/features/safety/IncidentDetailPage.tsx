@@ -27,7 +27,6 @@ import SyncAltIcon from '@mui/icons-material/SyncAltRounded';
 import PriorityHighIcon from '@mui/icons-material/PriorityHighRounded';
 import RestartAltIcon from '@mui/icons-material/RestartAltRounded';
 import PersonAddAlt1Icon from '@mui/icons-material/PersonAddAlt1Rounded';
-import DownloadIcon from '@mui/icons-material/DownloadRounded';
 import EditIcon from '@mui/icons-material/EditRounded';
 
 import { PageHeader } from '../../components/PageHeader';
@@ -35,20 +34,13 @@ import { api } from '../../services/api';
 import { StatusChip } from './components/StatusChip';
 import { PriorityChip } from './components/PriorityChip';
 import { ConfidentialityBadge } from './components/ConfidentialityBadge';
+import { EvidenceGallery } from './EvidenceGallery';
 import { ChangeStatusDialog, type ChangeStatusTarget } from './dialogs/ChangeStatusDialog';
 import { ChangePriorityDialog, type ChangePriorityTarget } from './dialogs/ChangePriorityDialog';
 import { ReopenIncidentDialog, type ReopenIncidentTarget } from './dialogs/ReopenIncidentDialog';
 import { AssignCommanderDialog, type AssignCommanderTarget } from './dialogs/AssignCommanderDialog';
 import { CorrectClassificationDialog, type CorrectClassificationTarget } from './dialogs/CorrectClassificationDialog';
 import { CAMPUS_LABEL, SLA_CLOCK_LABEL, SLA_STATUS_LABEL } from './constants';
-
-/** EVIDENCE_SCAN_STATUS (catalog.ts backend): pending_scan/rejected/clear/infected. */
-const EVIDENCE_SCAN_STATUS_LABEL: Record<string, string> = {
-  pending_scan: 'Đang quét virus',
-  rejected: 'Bị từ chối',
-  clear: 'An toàn',
-  infected: 'Nhiễm mã độc'
-};
 
 interface EvidenceSummary {
   evidenceId: string;
@@ -95,8 +87,7 @@ export default function IncidentDetailPage() {
   const [incident, setIncident] = useState<IncidentDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [toast, setToast] = useState('');
-  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; severity: 'success' | 'error' } | null>(null);
 
   const [statusTarget, setStatusTarget] = useState<ChangeStatusTarget | null>(null);
   const [priorityTarget, setPriorityTarget] = useState<ChangePriorityTarget | null>(null);
@@ -119,18 +110,6 @@ export default function IncidentDetailPage() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
-
-  const handleDownloadEvidence = async (evidenceId: string) => {
-    setDownloadingId(evidenceId);
-    try {
-      const res = await api.post<{ url: string }>(`/api/safety/evidence/${evidenceId}/download-url`);
-      window.open(res.url, '_blank', 'noopener,noreferrer');
-    } catch (e: any) {
-      setToast(`Lỗi tải minh chứng: ${e.message}`);
-    } finally {
-      setDownloadingId(null);
-    }
-  };
 
   if (loading) {
     return (
@@ -166,8 +145,8 @@ export default function IncidentDetailPage() {
       />
 
       {toast && (
-        <Alert severity="error" onClose={() => setToast('')} sx={{ mb: 2.5, borderRadius: 2 }}>
-          {toast}
+        <Alert severity={toast.severity} onClose={() => setToast(null)} sx={{ mb: 2.5, borderRadius: 2 }}>
+          {toast.message}
         </Alert>
       )}
 
@@ -231,33 +210,11 @@ export default function IncidentDetailPage() {
             </Card>
           )}
 
-          {incident.canViewEvidence && incident.evidenceList && incident.evidenceList.length > 0 && (
-            <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none' }}>
-              <CardContent>
-                <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1.5 }}>
-                  Minh chứng ({incident.evidenceList.length})
-                </Typography>
-                <Stack spacing={1}>
-                  {incident.evidenceList.map((ev) => (
-                    <Box key={ev.evidenceId} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
-                      <Typography variant="body2">
-                        {ev.evidenceId} — {ev.fileType} ({Math.round(ev.sizeBytes / 1024)} KB) — {EVIDENCE_SCAN_STATUS_LABEL[ev.scanStatus] || ev.scanStatus}
-                      </Typography>
-                      <Button
-                        size="small"
-                        startIcon={<DownloadIcon />}
-                        disabled={ev.scanStatus !== 'clear' || downloadingId === ev.evidenceId}
-                        onClick={() => handleDownloadEvidence(ev.evidenceId)}
-                        sx={{ textTransform: 'none' }}
-                      >
-                        Tải
-                      </Button>
-                    </Box>
-                  ))}
-                </Stack>
-              </CardContent>
-            </Card>
-          )}
+          <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none' }}>
+            <CardContent>
+              <EvidenceGallery evidenceList={incident.evidenceList || []} canView={Boolean(incident.canViewEvidence)} />
+            </CardContent>
+          </Card>
         </Stack>
       )}
 
@@ -318,16 +275,50 @@ export default function IncidentDetailPage() {
       <ChangeStatusDialog
         target={statusTarget}
         onClose={() => setStatusTarget(null)}
-        onChanged={(result) => setIncident((prev) => (prev ? { ...prev, state: result.state } : prev))}
+        onChanged={(result) => {
+          setIncident((prev) => (prev ? { ...prev, state: result.state } : prev));
+          setToast({ message: `Đã đổi trạng thái sang '${result.state}'.`, severity: 'success' });
+        }}
       />
       <ChangePriorityDialog
         target={priorityTarget}
         onClose={() => setPriorityTarget(null)}
-        onChanged={(result) => setIncident((prev) => (prev ? { ...prev, priority: result.priority as IncidentDetail['priority'] } : prev))}
+        onChanged={(result) => {
+          setIncident((prev) => (prev ? { ...prev, priority: result.priority as IncidentDetail['priority'] } : prev));
+          setToast({ message: `Đã đổi mức ưu tiên sang ${result.priority}.`, severity: 'success' });
+        }}
       />
-      <ReopenIncidentDialog target={reopenTarget} onClose={() => setReopenTarget(null)} onChanged={() => load()} />
-      <AssignCommanderDialog target={commanderTarget} onClose={() => setCommanderTarget(null)} onChanged={() => load()} />
-      <CorrectClassificationDialog target={classificationTarget} onClose={() => setClassificationTarget(null)} onChanged={() => load()} />
+      <ReopenIncidentDialog
+        target={reopenTarget}
+        onClose={() => setReopenTarget(null)}
+        onChanged={() => {
+          load();
+          setToast({ message: 'Đã mở lại hồ sơ.', severity: 'success' });
+        }}
+      />
+      <AssignCommanderDialog
+        target={commanderTarget}
+        onClose={() => setCommanderTarget(null)}
+        onChanged={(result) => {
+          load();
+          setToast({ message: `Đã chỉ định chỉ huy: ${result.commanderName}.`, severity: 'success' });
+        }}
+      />
+      <CorrectClassificationDialog
+        target={classificationTarget}
+        onClose={() => setClassificationTarget(null)}
+        onChanged={(result) => {
+          load();
+          const base = result.className ? `Đã cập nhật lớp liên quan: ${result.className}.` : 'Đã xoá lớp liên quan.';
+          const revoked = result.removedPerIds?.length
+            ? ` Đã rút quyền xem hồ sơ của ${result.removedPerIds.length} người thuộc lớp cũ (không còn liên quan).`
+            : '';
+          setToast({
+            message: base + revoked,
+            severity: 'success'
+          });
+        }}
+      />
     </>
   );
 }

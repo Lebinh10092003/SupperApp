@@ -16,7 +16,12 @@ import {
   AccordionSummary,
   AccordionDetails,
   Tooltip,
-  IconButton
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions
 } from '@mui/material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import CloudDoneIcon from '@mui/icons-material/CloudDoneRounded';
@@ -28,6 +33,8 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopyRounded';
 import OpenInNewIcon from '@mui/icons-material/OpenInNewRounded';
 import CheckCircleIcon from '@mui/icons-material/CheckCircleRounded';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlineRounded';
+import DeleteForeverIcon from '@mui/icons-material/DeleteForeverRounded';
+import WarningAmberIcon from '@mui/icons-material/WarningAmberRounded';
 import SettingsIcon from '@mui/icons-material/SettingsRounded';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMoreRounded';
 import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutlineRounded';
@@ -73,6 +80,13 @@ export default function GoogleConnectionPage() {
 
   // Mode B input
   const [saJson, setSaJson] = useState('');
+
+  // Xoá dữ liệu Classroom (hành động phá huỷ — không thể hoàn tác)
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [resetPreview, setResetPreview] = useState<{ courses: number; students: number; teachers: number; classesAffected: number } | null>(null);
+  const [resetPreviewLoading, setResetPreviewLoading] = useState(false);
+  const [resetConfirmText, setResetConfirmText] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
 
   const loadStatus = async () => {
     try {
@@ -277,6 +291,47 @@ export default function GoogleConnectionPage() {
     }
   };
 
+  const handleOpenResetDialog = async () => {
+    setResetDialogOpen(true);
+    setResetConfirmText('');
+    setResetPreview(null);
+    setResetPreviewLoading(true);
+    try {
+      const res = await api<any>('/api/connections/reset-classroom-data/preview');
+      setResetPreview({
+        courses: res.courses ?? 0,
+        students: res.students ?? 0,
+        teachers: res.teachers ?? 0,
+        classesAffected: res.classesAffected ?? 0
+      });
+    } catch (err: any) {
+      setMsg({ text: err.message || 'Lỗi khi tải số liệu xem trước.', type: 'error' });
+      setResetDialogOpen(false);
+    } finally {
+      setResetPreviewLoading(false);
+    }
+  };
+
+  const handleCloseResetDialog = () => {
+    setResetDialogOpen(false);
+    setResetConfirmText('');
+  };
+
+  const handleConfirmResetClassroomData = async () => {
+    setResetLoading(true);
+    try {
+      const res = await api<any>('/api/connections/reset-classroom-data', { method: 'POST' });
+      setMsg({ text: res.message || 'Đã xoá dữ liệu Classroom thành công.', type: 'success' });
+      setResetDialogOpen(false);
+      setResetConfirmText('');
+      loadStatus();
+    } catch (err: any) {
+      setMsg({ text: err.message || 'Lỗi khi xoá dữ liệu Classroom.', type: 'error' });
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
   return (
     <>
       <PageHeader
@@ -305,6 +360,15 @@ export default function GoogleConnectionPage() {
             </Button>
             <Button variant="outlined" startIcon={<RefreshIcon />} onClick={loadStatus} disabled={loading}>
               Làm mới
+            </Button>
+            <Button
+              variant="outlined"
+              color="error"
+              startIcon={<DeleteForeverIcon />}
+              onClick={handleOpenResetDialog}
+              sx={{ fontWeight: 600 }}
+            >
+              Xoá dữ liệu Classroom
             </Button>
           </Stack>
         }
@@ -668,6 +732,65 @@ export default function GoogleConnectionPage() {
           </Card>
         </Grid>
       </Grid>
+
+      <Dialog open={resetDialogOpen} onClose={resetLoading ? undefined : handleCloseResetDialog} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, color: '#b91c1c', fontWeight: 700 }}>
+          <WarningAmberIcon color="error" />
+          Xoá dữ liệu Classroom — hành động không thể hoàn tác
+        </DialogTitle>
+        <DialogContent>
+          {resetPreviewLoading ? (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 2 }}>
+              <CircularProgress size={20} />
+              <Typography variant="body2" color="#64748b">
+                Đang tính số liệu sẽ bị xoá...
+              </Typography>
+            </Box>
+          ) : (
+            <>
+              <DialogContentText sx={{ color: '#334155', mb: 1.5 }}>
+                Thao tác này sẽ xoá VĨNH VIỄN toàn bộ dữ liệu đã đồng bộ từ Google Classroom trong hệ thống, gồm:
+              </DialogContentText>
+              <Box sx={{ p: 1.5, bgcolor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', mb: 1.5 }}>
+                <Typography variant="body2" sx={{ color: '#991b1b', fontWeight: 600 }}>
+                  {resetPreview?.courses ?? 0} khóa học, {resetPreview?.students ?? 0} học sinh, {resetPreview?.teachers ?? 0} giáo viên,{' '}
+                  {resetPreview?.classesAffected ?? 0} lớp đã đồng bộ.
+                </Typography>
+              </Box>
+              <DialogContentText sx={{ color: '#334155', mb: 1.5 }}>
+                Kết nối Google (token) và dữ liệu module An toàn/Lịch công tác KHÔNG bị ảnh hưởng. Bạn KHÔNG thể hoàn tác thao tác này sau
+                khi xác nhận.
+              </DialogContentText>
+              <DialogContentText sx={{ color: '#334155', mb: 1 }}>
+                Để xác nhận, hãy gõ đúng từ <strong>XOÁ</strong> vào ô bên dưới:
+              </DialogContentText>
+              <TextField
+                autoFocus
+                size="small"
+                fullWidth
+                placeholder="Gõ XOÁ để xác nhận"
+                value={resetConfirmText}
+                onChange={(e) => setResetConfirmText(e.target.value)}
+                disabled={resetLoading}
+              />
+            </>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button onClick={handleCloseResetDialog} disabled={resetLoading}>
+            Huỷ
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            disabled={resetLoading || resetPreviewLoading || resetConfirmText.trim() !== 'XOÁ'}
+            startIcon={resetLoading ? <CircularProgress size={16} color="inherit" /> : <DeleteForeverIcon />}
+            onClick={handleConfirmResetClassroomData}
+          >
+            {resetLoading ? 'Đang xoá...' : 'Xoá vĩnh viễn'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 }

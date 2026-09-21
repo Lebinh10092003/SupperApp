@@ -60,6 +60,32 @@ export async function upsertHomeroomAssignment(
   return { ok: true };
 }
 
+export interface DeleteHomeroomAssignmentInput {
+  actor: Actor;
+  className: string;
+}
+
+/** Xoá 1 dòng GVCN theo lớp — dùng khi bỏ chủ nhiệm hoặc khi gán lại lớp khác cho đúng người (dọn lớp cũ trước khi upsert lớp mới). */
+export async function deleteHomeroomAssignment(db: Db, input: DeleteHomeroomAssignmentInput, opts?: { now?: Date }): Promise<{ ok: true }> {
+  const { actor, className } = input;
+  if (!className) throw new AppError('invalid_input', 'Thiếu tên lớp.');
+  const decision = checkAuthorization({ actor, action: 'catalog.edit', resource: {} });
+  if (!decision.allowed) throw new AppError('forbidden', decision.reason ?? 'Không có quyền.');
+
+  await db.delete(homeroomAssignments).where(eq(homeroomAssignments.className, String(className)));
+
+  await writeAuditLog(
+    db,
+    buildAuditRecord({
+      actorPerId: actor.perId!,
+      action: 'config.homeroom_assignment_removed',
+      objectId: String(className),
+      now: opts?.now ?? new Date()
+    })
+  );
+  return { ok: true };
+}
+
 export interface UpsertGradeSupervisorAssignmentInput {
   actor: Actor;
   grade: string;
@@ -96,6 +122,42 @@ export async function upsertGradeSupervisorAssignment(
     })
   );
   return { ok: true };
+}
+
+export interface DeleteGradeSupervisorAssignmentInput {
+  actor: Actor;
+  grade: string;
+}
+
+/** Xoá 1 dòng GV phụ trách khối — dùng khi bỏ phụ trách hoặc gán lại khối khác cho đúng người. */
+export async function deleteGradeSupervisorAssignment(db: Db, input: DeleteGradeSupervisorAssignmentInput, opts?: { now?: Date }): Promise<{ ok: true }> {
+  const { actor, grade } = input;
+  if (!grade) throw new AppError('invalid_input', 'Thiếu khối.');
+  const decision = checkAuthorization({ actor, action: 'catalog.edit', resource: {} });
+  if (!decision.allowed) throw new AppError('forbidden', decision.reason ?? 'Không có quyền.');
+
+  await db.delete(gradeSupervisorAssignments).where(eq(gradeSupervisorAssignments.grade, String(grade)));
+
+  await writeAuditLog(
+    db,
+    buildAuditRecord({
+      actorPerId: actor.perId!,
+      action: 'config.grade_supervisor_assignment_removed',
+      objectId: String(grade),
+      now: opts?.now ?? new Date()
+    })
+  );
+  return { ok: true };
+}
+
+/** Liệt kê toàn bộ GVCN theo lớp — dùng ở trang Quản trị để hiện sẵn lớp hiện tại của 1 người, và để dọn lớp cũ khi gán lại. */
+export async function listHomeroomAssignments(db: Db): Promise<Array<{ className: string; perId: string; name: string | null }>> {
+  return db.select().from(homeroomAssignments);
+}
+
+/** Liệt kê toàn bộ GV phụ trách khối. */
+export async function listGradeSupervisorAssignments(db: Db): Promise<Array<{ grade: string; perId: string; name: string | null }>> {
+  return db.select().from(gradeSupervisorAssignments);
 }
 
 export interface UpsertPersonDirectoryEntryInput {

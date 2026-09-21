@@ -37,6 +37,7 @@ export default function ApprovalCenterPage() {
 
   const [eventDetail, setEventDetail] = useState<WorkEvent | null>(null);
   const [taskDetail, setTaskDetail] = useState<WorkTask | null>(null);
+  const [toast, setToast] = useState<{ message: string; severity: 'success' | 'error' } | null>(null);
 
   return (
     <>
@@ -44,6 +45,11 @@ export default function ApprovalCenterPage() {
 
       {eventsError && <Alert severity="error" sx={{ mb: 2 }}>{eventsError}</Alert>}
       {tasksError && <Alert severity="error" sx={{ mb: 2 }}>{tasksError}</Alert>}
+      {toast && (
+        <Alert severity={toast.severity} onClose={() => setToast(null)} sx={{ mb: 2 }}>
+          {toast.message}
+        </Alert>
+      )}
 
       <Stack spacing={3}>
         <Box>
@@ -107,7 +113,7 @@ export default function ApprovalCenterPage() {
                   <TableRow key={t.id} hover sx={{ cursor: 'pointer' }} onClick={() => setTaskDetail(t)}>
                     <TableCell>{t.title}</TableCell>
                     <TableCell>{CAMPUS_LABEL[t.campusId] || t.campusId}</TableCell>
-                    <TableCell>{t.assigneeName || t.assigneePerId}</TableCell>
+                    <TableCell>{t.assigneeLabel || t.assigneeName || t.assigneePerId}</TableCell>
                     <TableCell>{new Date(t.dueAt).toLocaleString('vi-VN')}</TableCell>
                   </TableRow>
                 ))}
@@ -124,18 +130,20 @@ export default function ApprovalCenterPage() {
         isPrincipal={!!actor?.roles.some((r) => r.roleId === 'R.PRINCIPAL')}
         onClose={() => setEventDetail(null)}
         onChanged={(updated) => {
-          setEventDetail(updated);
+          setEventDetail((prev) => (prev ? { ...prev, ...updated } : updated));
           refetchEvents();
         }}
+        onSuccess={(message) => setToast({ message, severity: 'success' })}
       />
       <TaskDetailDialog
         task={taskDetail}
         actorPerId={actor?.perId}
         onClose={() => setTaskDetail(null)}
         onChanged={(updated) => {
-          setTaskDetail(updated);
+          setTaskDetail((prev) => (prev ? { ...prev, ...updated } : updated));
           refetchTasks();
         }}
+        onSuccess={(message) => setToast({ message, severity: 'success' })}
       />
     </>
   );

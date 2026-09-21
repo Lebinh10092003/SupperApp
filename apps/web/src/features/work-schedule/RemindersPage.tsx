@@ -10,7 +10,7 @@
  * không viết lại dialog riêng.
  */
 import { useMemo, useState } from 'react';
-import { Card, CardContent, Chip, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material';
+import { Alert, Card, CardContent, Chip, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActiveRounded';
 import { PageHeader } from '../../components/PageHeader';
 import { useEvents, type WorkEvent } from './hooks/useEvents';
@@ -29,6 +29,7 @@ export default function RemindersPage() {
 
   const [eventDetail, setEventDetail] = useState<WorkEvent | null>(null);
   const [taskDetail, setTaskDetail] = useState<WorkTask | null>(null);
+  const [toast, setToast] = useState<{ message: string; severity: 'success' | 'error' } | null>(null);
 
   const conflictingEvents = useMemo(
     () => events.filter((e) => e.conflictNote && e.status !== 'CANCELLED'),
@@ -46,6 +47,12 @@ export default function RemindersPage() {
         title="Nhắc nhở"
         icon={<NotificationsActiveIcon />}
       />
+
+      {toast && (
+        <Alert severity={toast.severity} onClose={() => setToast(null)} sx={{ mb: 2 }}>
+          {toast.message}
+        </Alert>
+      )}
 
       <Stack spacing={3}>
         <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none' }}>
@@ -111,7 +118,7 @@ export default function RemindersPage() {
                       <TableRow key={t.id} hover sx={{ cursor: 'pointer' }} onClick={() => setTaskDetail(t)}>
                         <TableCell>{t.title}</TableCell>
                         <TableCell>{CAMPUS_LABEL[t.campusId] || t.campusId}</TableCell>
-                        <TableCell>{t.assigneeName || t.assigneePerId}</TableCell>
+                        <TableCell>{t.assigneeLabel || t.assigneeName || t.assigneePerId}</TableCell>
                         <TableCell>
                           <Chip size="small" label={new Date(t.dueAt).toLocaleString('vi-VN')} sx={{ bgcolor: '#fff7ed', color: '#c2410c', fontWeight: 600 }} />
                         </TableCell>
@@ -132,18 +139,20 @@ export default function RemindersPage() {
         isPrincipal={false}
         onClose={() => setEventDetail(null)}
         onChanged={(updated) => {
-          setEventDetail(updated);
+          setEventDetail((prev) => (prev ? { ...prev, ...updated } : updated));
           refetchEvents();
         }}
+        onSuccess={(message) => setToast({ message, severity: 'success' })}
       />
       <TaskDetailDialog
         task={taskDetail}
         actorPerId={actor?.perId}
         onClose={() => setTaskDetail(null)}
         onChanged={(updated) => {
-          setTaskDetail(updated);
+          setTaskDetail((prev) => (prev ? { ...prev, ...updated } : updated));
           refetchTasks();
         }}
+        onSuccess={(message) => setToast({ message, severity: 'success' })}
       />
     </>
   );

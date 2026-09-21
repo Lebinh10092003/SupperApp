@@ -13,6 +13,15 @@ import { users, accessAllowlist } from '../session/session.schema.js';
 import { generalAuditLogs } from '../audit/audit.schema.js';
 import { accounts, assignments, peopleDirectory } from '../identity/identity.schema.js';
 import { ROLE } from '../safety/catalog.js';
+import { loadActorContext } from '../identity/actor-context.js';
+import {
+  listHomeroomAssignments,
+  listGradeSupervisorAssignments,
+  upsertHomeroomAssignment,
+  upsertGradeSupervisorAssignment,
+  deleteHomeroomAssignment,
+  deleteGradeSupervisorAssignment
+} from '../safety/directory-assignments.js';
 
 const roles = [
   'SYSTEM_SUPER_ADMIN',
@@ -514,6 +523,90 @@ adminRouter.post(
       entityType: 'safety_user',
       entityId: account.email
     });
+
+    r.json({ ok: true });
+  })
+);
+
+// ---------------------------------------------------------------------------
+// Lớp chủ nhiệm (GVCN) / GV phụ trách khối — thêm 2026-09-21 (Sin yêu cầu
+// gộp thẳng vào trang Quản trị hiện có, không tạo trang riêng). Dùng lại
+// đúng 4 hàm CRUD có sẵn từ đầu ở `safety/directory-assignments.ts` nhưng
+// trước đây CHƯA từng được nối route nào — bảng `homeroom_assignments`/
+// `grade_supervisor_assignments` gần như trống trên production vì vậy.
+// Quyền hạn: route chỉ chặn ở mức MANAGE_USERS (giống các route /safety-users*
+// khác), quyền CHẶT hơn (`catalog.edit` — chỉ Hiệu trưởng/Văn phòng được
+// không cần duyệt, Phó HT/Quản trị hệ thống cần phê duyệt) do CHÍNH
+// `upsertHomeroomAssignment`/`upsertGradeSupervisorAssignment` tự kiểm tra
+// bên trong — KHÔNG nới lỏng ở đây.
+// ---------------------------------------------------------------------------
+
+adminRouter.get(
+  '/homeroom-assignments',
+  firebaseAuth,
+  requireCapability('MANAGE_USERS'),
+  asyncRoute(async (_q, r) => {
+    r.json({ items: await listHomeroomAssignments(db) });
+  })
+);
+
+adminRouter.get(
+  '/grade-supervisor-assignments',
+  firebaseAuth,
+  requireCapability('MANAGE_USERS'),
+  asyncRoute(async (_q, r) => {
+    r.json({ items: await listGradeSupervisorAssignments(db) });
+  })
+);
+
+// Giả định nghiệp vụ: 1 giáo viên chỉ chủ nhiệm ĐÚNG 1 lớp tại 1 thời
+// điểm — vì vậy trước khi gán lớp mới cho :perId, xoá sạch mọi dòng cũ
+// đang trỏ tới đúng người này (nếu có), tránh 1 người dính 2 lớp do gán
+// nhầm/gán lại nhiều lần. `className` rỗng/null = chỉ xoá, không gán mới
+// (nghĩa là "bỏ chủ nhiệm").
+adminRouter.patch(
+  '/homeroom-assignments/:perId',
+  firebaseAuth,
+  requireCapability('MANAGE_USERS'),
+  asyncRoute(async (q, r) => {
+    const perId = String(q.params.perId);
+    const b = z.object({ className: z.string().nullable().optional(), name: z.string().nullable().optional() }).parse(q.body);
+    const actor = await loadActorContext(db, q.appUser!.uid);
+
+    const existing = await listHomeroomAssignments(db);
+    for (const row of existing) {
+      if (row.perId === perId) {
+        await deleteHomeroomAssignment(db, { actor, className: row.className });
+      }
+    }
+
+    if (b.className) {
+      await upsertHomeroomAssignment(db, { actor, className: b.className, perId, name: b.name ?? null });
+    }
+
+    r.json({ ok: true });
+  })
+);
+
+adminRouter.patch(
+  '/grade-supervisor-assignments/:perId',
+  firebaseAuth,
+  requireCapability('MANAGE_USERS'),
+  asyncRoute(async (q, r) => {
+    const perId = String(q.params.perId);
+    const b = z.object({ grade: z.string().nullable().optional(), name: z.string().nullable().optional() }).parse(q.body);
+    const actor = await loadActorContext(db, q.appUser!.uid);
+
+    const existing = await listGradeSupervisorAssignments(db);
+    for (const row of existing) {
+      if (row.perId === perId) {
+        await deleteGradeSupervisorAssignment(db, { actor, grade: row.grade });
+      }
+    }
+
+    if (b.grade) {
+      await upsertGradeSupervisorAssignment(db, { actor, grade: b.grade, perId, name: b.name ?? null });
+    }
 
     r.json({ ok: true });
   })

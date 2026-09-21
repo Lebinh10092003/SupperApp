@@ -26,6 +26,7 @@ interface AuditLogEntry {
   logId: string;
   occurredAt: string;
   actorPerId: string;
+  actorLabel?: string;
   action: string;
   objectId: string;
   reason: string | null;
@@ -173,7 +174,7 @@ export default function AuditLogPage() {
               {items.map((it) => (
                 <TableRow key={it.logId} hover sx={{ cursor: 'pointer' }} onClick={() => setDetail(it)}>
                   <TableCell>{new Date(it.occurredAt).toLocaleString('vi-VN')}</TableCell>
-                  <TableCell>{it.actorPerId}</TableCell>
+                  <TableCell>{it.actorLabel || it.actorPerId}</TableCell>
                   <TableCell>{ACTION_LABEL[it.action] || it.action}</TableCell>
                   <TableCell>{it.objectId}</TableCell>
                   <TableCell>{it.reason || '—'}</TableCell>
@@ -198,7 +199,7 @@ export default function AuditLogPage() {
           {detail && (
             <Stack spacing={1.5}>
               <Typography variant="body2">Thời gian: {new Date(detail.occurredAt).toLocaleString('vi-VN')}</Typography>
-              <Typography variant="body2">Người thực hiện: {detail.actorPerId}</Typography>
+              <Typography variant="body2">Người thực hiện: {detail.actorLabel || detail.actorPerId}</Typography>
               <Typography variant="body2">Hành động: {ACTION_LABEL[detail.action] || detail.action}</Typography>
               <Typography variant="body2">Đối tượng: {detail.objectId}</Typography>
               {detail.reason && <Typography variant="body2">Lý do: {detail.reason}</Typography>}

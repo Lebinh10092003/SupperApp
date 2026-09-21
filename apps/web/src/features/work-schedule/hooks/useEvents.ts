@@ -19,7 +19,11 @@ export interface WorkEvent {
   endAt: string;
   location: string;
   chairPerId: string;
+  chairName?: string | null;
+  chairRoleLabel?: string | null;
+  chairLabel?: string;
   participantPerIds: string[];
+  participantLabels?: string[];
   status: string;
   conflictNote: string;
   revisionNote: string;

@@ -68,6 +68,24 @@ const CAMPUS_LABEL: Record<string, string> = {
   CAMPUS_2: 'Phân hiệu 2'
 };
 
+interface ClassOption {
+  classId: string;
+  className: string;
+  grade: number | null;
+}
+
+interface HomeroomAssignmentRow {
+  className: string;
+  perId: string;
+  name: string | null;
+}
+
+interface GradeSupervisorAssignmentRow {
+  grade: string;
+  perId: string;
+  name: string | null;
+}
+
 interface SafetyUser {
   // null = CHƯA từng đăng nhập (chỉ có sẵn trong access_allowlist +
   // (có thể) đã được admin gán vai trò trước qua perId) — không có tài
@@ -101,6 +119,27 @@ export function SafetyUsersSection() {
   const [editing, setEditing] = useState<SafetyUser | null | 'new'>(null);
   const [resetTarget, setResetTarget] = useState<SafetyUser | null>(null);
 
+  // Lớp chủ nhiệm/khối phụ trách — tải 1 lần ở đây (không tải lại mỗi lần
+  // mở dialog) để `EditUserDialog` hiện sẵn đúng lớp/khối hiện tại của
+  // người đang sửa, và để dropdown chọn lớp lấy đúng danh sách lớp THẬT đã
+  // đồng bộ Google Classroom (Sin yêu cầu 2026-09-21: gộp thẳng vào trang
+  // Quản trị hiện có, dùng lớp thật thay vì gõ tay tự do).
+  const [classOptions, setClassOptions] = useState<ClassOption[]>([]);
+  const [homeroomRows, setHomeroomRows] = useState<HomeroomAssignmentRow[]>([]);
+  const [supervisorRows, setSupervisorRows] = useState<GradeSupervisorAssignmentRow[]>([]);
+
+  const loadClassAssignments = () => {
+    api<{ total: number; items: ClassOption[] }>('/api/classes')
+      .then((x) => setClassOptions(x.items || []))
+      .catch(() => setClassOptions([]));
+    api<{ items: HomeroomAssignmentRow[] }>('/api/admin/homeroom-assignments')
+      .then((x) => setHomeroomRows(x.items || []))
+      .catch(() => setHomeroomRows([]));
+    api<{ items: GradeSupervisorAssignmentRow[] }>('/api/admin/grade-supervisor-assignments')
+      .then((x) => setSupervisorRows(x.items || []))
+      .catch(() => setSupervisorRows([]));
+  };
+
   const load = () => {
     setLoading(true);
     api<{ users: SafetyUser[] }>('/api/admin/safety-users')
@@ -111,6 +150,7 @@ export function SafetyUsersSection() {
 
   useEffect(() => {
     load();
+    loadClassAssignments();
   }, []);
 
   const filtered = useMemo(() => {
@@ -358,11 +398,15 @@ export function SafetyUsersSection() {
       {editing !== null && (
         <EditUserDialog
           user={editing === 'new' ? null : editing}
+          classOptions={classOptions}
+          homeroomRows={homeroomRows}
+          supervisorRows={supervisorRows}
           onClose={() => setEditing(null)}
           onSaved={(msg) => {
             setEditing(null);
             setToast({ text: msg, severity: 'success' });
             load();
+            loadClassAssignments();
           }}
         />
       )}
@@ -381,7 +425,21 @@ export function SafetyUsersSection() {
   );
 }
 
-function EditUserDialog({ user, onClose, onSaved }: { user: SafetyUser | null; onClose: () => void; onSaved: (msg: string) => void }) {
+function EditUserDialog({
+  user,
+  classOptions,
+  homeroomRows,
+  supervisorRows,
+  onClose,
+  onSaved
+}: {
+  user: SafetyUser | null;
+  classOptions: ClassOption[];
+  homeroomRows: HomeroomAssignmentRow[];
+  supervisorRows: GradeSupervisorAssignmentRow[];
+  onClose: () => void;
+  onSaved: (msg: string) => void;
+}) {
   const isEdit = !!user;
   const [displayName, setDisplayName] = useState(user?.displayName || '');
   const [email, setEmail] = useState(user?.email || '');
@@ -392,6 +450,16 @@ function EditUserDialog({ user, onClose, onSaved }: { user: SafetyUser | null; o
   const [domain, setDomain] = useState(user?.domain || '');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Lớp chủ nhiệm/khối phụ trách — chỉ áp dụng cho vai trò Giáo viên. Hiện
+  // sẵn giá trị hiện tại nếu người này đang sửa đã có trong 2 bảng gán.
+  const [homeroomClassName, setHomeroomClassName] = useState(() => homeroomRows.find((r) => r.perId === user?.perId)?.className || '');
+  const [supervisorGrade, setSupervisorGrade] = useState(() => supervisorRows.find((r) => r.perId === user?.perId)?.grade || '');
+  // Chỉ khoá 2 trường này khi đang SỬA 1 người CHƯA từng đăng nhập/chưa
+  // từng được gán vai trò nào (perId null thật) — người MỚI tạo sẽ có
+  // perId ngay sau khi lưu (lấy từ response), không cần khoá.
+  const homeroomDisabled = isEdit && !user?.perId;
+  const gradeOptions = Array.from(new Set(classOptions.map((c) => c.grade).filter((g): g is number => g != null))).sort((a, b) => a - b);
 
   const handleSave = async () => {
     setError('');
@@ -415,6 +483,8 @@ function EditUserDialog({ user, onClose, onSaved }: { user: SafetyUser | null; o
     }
     setSaving(true);
     try {
+      let perId: string | null = user?.perId || null;
+      let msg: string;
       if (isEdit && user!.uid) {
         await api.patch(`/api/admin/safety-users/${user!.uid}`, {
           displayName: displayName.trim(),
@@ -423,21 +493,22 @@ function EditUserDialog({ user, onClose, onSaved }: { user: SafetyUser | null; o
           campusId: campusId || null,
           domain: roleId === 'R.DEPT_HEAD' ? domain.trim() : null
         });
-        onSaved(`Đã cập nhật ${displayName}.`);
+        msg = `Đã cập nhật ${displayName}.`;
       } else if (isEdit) {
         // Chưa từng đăng nhập -> không có uid, định danh bằng email (đã
         // có sẵn trong access_allowlist). Chưa có tài khoản Firebase thật
         // nên không sửa được ở đây — chỉ sửa vai trò/cơ sở/tổ.
-        await api.patch(`/api/admin/safety-users/pending/${encodeURIComponent(user!.email)}`, {
+        const result = await api.patch<{ perId: string }>(`/api/admin/safety-users/pending/${encodeURIComponent(user!.email)}`, {
           displayName: displayName.trim(),
           roleId,
           oldRoleId: user!.roleId,
           campusId: campusId || null,
           domain: roleId === 'R.DEPT_HEAD' ? domain.trim() : null
         });
-        onSaved(`Đã gán vai trò cho ${displayName} (sẽ có hiệu lực ngay khi họ đăng nhập lần đầu).`);
+        perId = result.perId;
+        msg = `Đã gán vai trò cho ${displayName} (sẽ có hiệu lực ngay khi họ đăng nhập lần đầu).`;
       } else {
-        await api.post('/api/admin/safety-users', {
+        const result = await api.post<{ perId: string }>('/api/admin/safety-users', {
           displayName: displayName.trim(),
           email: email.trim(),
           password,
@@ -445,8 +516,30 @@ function EditUserDialog({ user, onClose, onSaved }: { user: SafetyUser | null; o
           campusId: campusId || null,
           domain: roleId === 'R.DEPT_HEAD' ? domain.trim() : null
         });
-        onSaved(`Đã tạo tài khoản cho ${displayName}.`);
+        perId = result.perId;
+        msg = `Đã tạo tài khoản cho ${displayName}.`;
       }
+
+      // Lớp chủ nhiệm/khối phụ trách — chỉ ghi khi là Giáo viên và đã có
+      // perId thật (luôn có tại đây trừ trường hợp bị khoá ở trên).
+      if (roleId === 'R.TEACHER' && perId && !homeroomDisabled) {
+        const notes: string[] = [];
+        try {
+          await api.patch(`/api/admin/homeroom-assignments/${encodeURIComponent(perId)}`, { className: homeroomClassName || null, name: displayName.trim() });
+          if (homeroomClassName) notes.push(`chủ nhiệm lớp ${homeroomClassName}`);
+        } catch (e: any) {
+          notes.push(`LỖI gán lớp chủ nhiệm: ${e.message}`);
+        }
+        try {
+          await api.patch(`/api/admin/grade-supervisor-assignments/${encodeURIComponent(perId)}`, { grade: supervisorGrade || null, name: displayName.trim() });
+          if (supervisorGrade) notes.push(`phụ trách khối ${supervisorGrade}`);
+        } catch (e: any) {
+          notes.push(`LỖI gán khối phụ trách: ${e.message}`);
+        }
+        if (notes.length > 0) msg += ` Đã ${notes.join(', ')}.`;
+      }
+
+      onSaved(msg);
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -508,6 +601,47 @@ function EditUserDialog({ user, onClose, onSaved }: { user: SafetyUser | null; o
               placeholder="VD: Tổ Toán, Tổ Văn phòng..."
               helperText="Các Tổ trưởng cùng tổ phải nhập giống hệt nhau."
             />
+          )}
+          {roleId === 'R.TEACHER' && (
+            <>
+              <TextField
+                select
+                label="Lớp chủ nhiệm (GVCN)"
+                size="small"
+                fullWidth
+                value={homeroomClassName}
+                onChange={(e) => setHomeroomClassName(e.target.value)}
+                disabled={homeroomDisabled}
+                helperText={
+                  homeroomDisabled
+                    ? 'Cần tài khoản đã có mã định danh (đã đăng nhập lần đầu) mới gán được lớp chủ nhiệm.'
+                    : 'Danh sách lấy từ lớp đã đồng bộ Google Classroom.'
+                }
+              >
+                <MenuItem value="">— Không chủ nhiệm —</MenuItem>
+                {classOptions.map((c) => (
+                  <MenuItem key={c.classId} value={c.className}>
+                    {c.className}
+                  </MenuItem>
+                ))}
+              </TextField>
+              <TextField
+                select
+                label="Khối phụ trách"
+                size="small"
+                fullWidth
+                value={supervisorGrade}
+                onChange={(e) => setSupervisorGrade(e.target.value)}
+                disabled={homeroomDisabled}
+              >
+                <MenuItem value="">— Không phụ trách khối —</MenuItem>
+                {gradeOptions.map((g) => (
+                  <MenuItem key={g} value={String(g)}>
+                    Khối {g}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </>
           )}
         </Stack>
       </DialogContent>

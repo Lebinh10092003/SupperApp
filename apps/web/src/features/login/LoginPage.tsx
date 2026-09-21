@@ -35,7 +35,7 @@ function friendlyAuthError(e: any): string {
 }
 
 export default function LoginPage() {
-  const { profile, login, loginWithPassword, resetPasswordEmail, authError, clearAuthError } = useAuth();
+  const { profile, loading, login, loginWithPassword, resetPasswordEmail, authError, clearAuthError } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -128,6 +128,31 @@ export default function LoginPage() {
 
   if (profile) {
     return <Navigate to="/" replace />;
+  }
+
+  // AuthProvider đang xử lý (thường là vừa quay lại từ signInWithRedirect —
+  // trang tải lại từ đầu, googleLoading của component này reset về false dù
+  // Google đã đăng nhập xong, đang chờ getRedirectResult()+bootstrap phía
+  // sau) — hiện loading toàn màn hình thay vì để trơ ra y hệt lúc chưa đăng
+  // nhập, tránh cảm giác bị đứng máy trong lúc redirect xử lý (10-15s).
+  if (loading) {
+    return (
+      <Box
+        sx={{
+          minHeight: '100vh',
+          display: 'grid',
+          placeItems: 'center',
+          background: 'radial-gradient(ellipse at 50% -10%, #dbeafe 0%, #eff6ff 40%, #f8fafc 100%)'
+        }}
+      >
+        <Stack spacing={2} alignItems="center">
+          <CircularProgress size={32} />
+          <Typography variant="body2" sx={{ color: '#64748b', fontWeight: 600 }}>
+            Đang xác thực đăng nhập...
+          </Typography>
+        </Stack>
+      </Box>
+    );
   }
 
   return (

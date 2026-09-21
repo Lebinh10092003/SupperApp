@@ -43,6 +43,8 @@ const IL_TEACHER_OTHER_CAMPUS = 'PER.IL_GV_KHAC_CS';
 const IL_VICE_PRINCIPAL = 'PER.IL_PHOHT';
 const IL_CLASS_NAME = 'IL_8A2';
 const IL_HOMEROOM_PER_ID = 'PER.IL_GVCN_8A2';
+const IL_OLD_CLASS_NAME = 'IL_8A1';
+const IL_OLD_HOMEROOM_PER_ID = 'PER.IL_GVCN_8A1';
 
 // campusId RIÊNG của file này ('CS.01') — không dùng chung với
 // report-flow.smoke.test.ts ('CS.RF_*') hay zoneStats/classStats.test.ts
@@ -60,6 +62,7 @@ async function resetTables() {
   await db.delete(assignments).where(inArray(assignments.perId, [IL_PRINCIPAL, IL_DUTY_OFFICER]));
   await db.delete(dutyShifts).where(eq(dutyShifts.perId, IL_DUTY_OFFICER));
   await db.delete(homeroomAssignments).where(eq(homeroomAssignments.className, IL_CLASS_NAME));
+  await db.delete(homeroomAssignments).where(eq(homeroomAssignments.className, IL_OLD_CLASS_NAME));
 }
 
 /** Seed trực ban + Hiệu trưởng cho 1 cơ sở — cần để activateP0/notifyP1Escalation (escalation-recipients.ts) tự tra ra người nhận, đúng cách test-safety.js gốc làm (seedEscalationFixtures). */
@@ -426,4 +429,36 @@ test('updateIncidentClassification: đổi className thật -> resolveClassRelat
 
   const homeroomAudit = await db.select().from(auditLogs).where(eq(auditLogs.action, 'safety.incident.homeroom_notified'));
   assert.ok(homeroomAudit.some((r) => r.objectId === incidentId));
+});
+
+test('updateIncidentClassification: đổi lớp -> GVCN lớp CŨ bị RÚT khỏi assignedTaskPerIds (Sin xác nhận 2026-09-21, không còn cộng dồn vô hạn)', { skip }, async () => {
+  await resetTables();
+  await db.insert(homeroomAssignments).values({ className: IL_OLD_CLASS_NAME, perId: IL_OLD_HOMEROOM_PER_ID, name: 'Cô GVCN lớp cũ IL' });
+  await db.insert(homeroomAssignments).values({ className: IL_CLASS_NAME, perId: IL_HOMEROOM_PER_ID, name: 'Cô GVCN lớp mới IL' });
+  const incidentId = await seedIncident({ campusId: 'CS.01', className: IL_OLD_CLASS_NAME, assignedTaskPerIds: [IL_OLD_HOMEROOM_PER_ID] });
+
+  const updated = await updateIncidentClassification(db, { actor: principal(), incidentId, className: IL_CLASS_NAME, reason: 'Người báo tin ghi nhầm lớp, đính chính lại' }, {});
+
+  assert.ok(!updated.assignedTaskPerIds.includes(IL_OLD_HOMEROOM_PER_ID), 'GVCN lớp cũ phải bị rút khỏi assignedTaskPerIds');
+  assert.ok(updated.removedPerIds.includes(IL_OLD_HOMEROOM_PER_ID));
+  assert.ok(updated.assignedTaskPerIds.includes(IL_HOMEROOM_PER_ID), 'GVCN lớp mới vẫn phải có mặt');
+
+  const [row] = await db.select().from(incidents).where(eq(incidents.incidentId, incidentId));
+  assert.ok(!row!.assignedTaskPerIds!.includes(IL_OLD_HOMEROOM_PER_ID), 'DB thật cũng phải hết GVCN lớp cũ');
+});
+
+test('updateIncidentClassification: đổi lớp -> GVCN lớp CŨ KHÔNG bị rút nếu người đó đang là chỉ huy hồ sơ', { skip }, async () => {
+  await resetTables();
+  await db.insert(homeroomAssignments).values({ className: IL_OLD_CLASS_NAME, perId: IL_OLD_HOMEROOM_PER_ID, name: 'Cô GVCN lớp cũ IL, cũng là chỉ huy' });
+  const incidentId = await seedIncident({
+    campusId: 'CS.01',
+    className: IL_OLD_CLASS_NAME,
+    commanderPerId: IL_OLD_HOMEROOM_PER_ID,
+    assignedTaskPerIds: [IL_OLD_HOMEROOM_PER_ID]
+  });
+
+  const updated = await updateIncidentClassification(db, { actor: principal(), incidentId, className: 'IL_9C9_KHONG_CO_GVCN', reason: 'Đổi lớp nhưng GVCN cũ vẫn đang chỉ huy vụ này' }, {});
+
+  assert.ok(updated.assignedTaskPerIds.includes(IL_OLD_HOMEROOM_PER_ID), 'Chỉ huy hồ sơ không được rút quyền dù không còn là GVCN lớp hiện tại');
+  assert.ok(!updated.removedPerIds.includes(IL_OLD_HOMEROOM_PER_ID));
 });

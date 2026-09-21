@@ -21,12 +21,16 @@ import {
   TableRow,
   TableSortLabel,
   TextField,
+  Tooltip,
+  IconButton,
   Typography
 } from '@mui/material';
 import ReportProblemIcon from '@mui/icons-material/ReportProblemRounded';
+import VisibilityIcon from '@mui/icons-material/VisibilityRounded';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
 import { CAMPUS_IDS, CAMPUS_LABEL } from './constants';
+import { EvidenceGallery } from './EvidenceGallery';
 
 interface PendingReportItem {
   reportId: string;
@@ -40,6 +44,39 @@ interface PendingReportItem {
   redacted: boolean;
   occurredAt?: string;
 }
+
+interface ReportDetail {
+  reportId: string;
+  publicCode: string;
+  campusId: string;
+  categoryLabel: string;
+  stillDangerous: boolean;
+  reporterRole: string | null;
+  confidentiality: string;
+  content: string;
+  occurredAt?: string;
+  occurredFrom?: string | null;
+  occurredTo?: string | null;
+  channel: string;
+  className: string | null;
+  suggestedClassNames: string[];
+  mergedIntoIncidentId: string | null;
+  redacted: boolean;
+  canViewEvidence: boolean;
+  evidenceList: Array<{ evidenceId: string; fileType: string; sizeBytes: number; scanStatus: string }>;
+}
+
+const REPORTER_ROLE_LABEL: Record<string, string> = {
+  victim: 'Người trực tiếp gặp sự cố',
+  witness: 'Người chứng kiến',
+  parent_on_behalf: 'Phụ huynh báo giúp con',
+  staff: 'Giáo viên/nhân viên trường',
+  other: 'Khác'
+};
+
+const CHANNEL_LABEL: Record<string, string> = {
+  public_web: 'Website công khai'
+};
 
 const PRIORITY_OPTIONS = ['P0', 'P1', 'P2', 'P3'];
 type SortKey = 'reportId' | 'campusId' | 'categoryLabel' | 'occurredAt';
@@ -58,6 +95,9 @@ export default function PendingReportsPage() {
   const [toast, setToast] = useState('');
   const [priorityTarget, setPriorityTarget] = useState<PendingReportItem | null>(null);
   const [priorityChoice, setPriorityChoice] = useState('');
+  const [detailItem, setDetailItem] = useState<ReportDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState('');
 
   const [searchText, setSearchText] = useState(() => searchParams.get('q') || '');
   const [campusFilter, setCampusFilter] = useState('');
@@ -77,6 +117,7 @@ export default function PendingReportsPage() {
 
   const load = () => {
     setLoading(true);
+    setError('');
     const q = new URLSearchParams();
     if (campusFilter) q.set('campusId', campusFilter);
     if (categoryFilter) q.set('categoryCodes', categoryFilter);
@@ -126,6 +167,17 @@ export default function PendingReportsPage() {
   const openPriorityDialog = (item: PendingReportItem) => {
     setPriorityTarget(item);
     setPriorityChoice(item.stillDangerous ? 'P0' : '');
+  };
+
+  const openDetail = (item: PendingReportItem) => {
+    setDetailError('');
+    setDetailLoading(true);
+    setDetailItem(null);
+    api
+      .get<ReportDetail>(`/api/safety/reports/${item.reportId}`)
+      .then(setDetailItem)
+      .catch((e: any) => setDetailError(e.message || 'Không tải được chi tiết tin báo.'))
+      .finally(() => setDetailLoading(false));
   };
 
   const handleCreateIncident = async () => {
@@ -222,7 +274,9 @@ export default function PendingReportsPage() {
                   Thời gian
                 </TableSortLabel>
               </TableCell>
-              <TableCell align="right">Hành động</TableCell>
+              <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                Hành động
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -246,16 +300,32 @@ export default function PendingReportsPage() {
                   {it.stillDangerous && <Chip size="small" label="Khẩn cấp" sx={{ bgcolor: '#fef2f2', color: '#dc2626', fontWeight: 700 }} />}
                 </TableCell>
                 <TableCell>{it.occurredAt ? new Date(it.occurredAt).toLocaleString('vi-VN') : '—'}</TableCell>
-                <TableCell align="right">
-                  <Button
-                    size="small"
-                    variant="contained"
-                    disabled={creatingId === it.reportId}
-                    onClick={() => openPriorityDialog(it)}
-                    sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' }, textTransform: 'none' }}
-                  >
-                    Chuyển thành hồ sơ
-                  </Button>
+                <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                  <Stack direction="row" spacing={1} justifyContent="flex-end" alignItems="center">
+                    <Tooltip title="Xem chi tiết">
+                      <IconButton
+                        size="small"
+                        onClick={() => openDetail(it)}
+                        sx={{
+                          border: '1px solid #e2e8f0',
+                          borderRadius: 2,
+                          color: '#475569',
+                          '&:hover': { bgcolor: '#f1f5f9', borderColor: '#cbd5e1' }
+                        }}
+                      >
+                        <VisibilityIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    <Button
+                      size="small"
+                      variant="contained"
+                      disabled={creatingId === it.reportId}
+                      onClick={() => openPriorityDialog(it)}
+                      sx={{ bgcolor: '#2563eb', whiteSpace: 'nowrap', '&:hover': { bgcolor: '#1d4ed8' }, textTransform: 'none' }}
+                    >
+                      Chuyển thành hồ sơ
+                    </Button>
+                  </Stack>
                 </TableCell>
               </TableRow>
             ))}
@@ -298,6 +368,95 @@ export default function PendingReportsPage() {
           <Button variant="contained" onClick={handleCreateIncident} disabled={!priorityChoice || creatingId === priorityTarget?.reportId}>
             Tạo hồ sơ
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={Boolean(detailItem) || detailLoading || Boolean(detailError)} onClose={() => { setDetailItem(null); setDetailError(''); }} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>Chi tiết tin báo {detailItem?.publicCode}</DialogTitle>
+        <DialogContent dividers>
+          {detailLoading && <Typography color="text.secondary">Đang tải...</Typography>}
+          {detailError && <Alert severity="error">{detailError}</Alert>}
+          {detailItem && (
+            <Stack spacing={1.5}>
+              {detailItem.redacted && (
+                <Alert severity="warning">Bạn không đủ quyền xem đầy đủ chi tiết tin báo này (mức bí mật vượt trần của vai trò bạn) — chỉ hiện thông tin rút gọn.</Alert>
+              )}
+              {detailItem.mergedIntoIncidentId && (
+                <Alert severity="info">Tin báo này đã được gộp vào hồ sơ <b>{detailItem.mergedIntoIncidentId}</b> — không còn ở trạng thái chờ xử lý.</Alert>
+              )}
+              <Box>
+                <Typography variant="caption" color="text.secondary">Cơ sở</Typography>
+                <Typography>{CAMPUS_LABEL[detailItem.campusId] || detailItem.campusId}</Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary">Nhóm sự cố</Typography>
+                <Typography>{detailItem.categoryLabel}{detailItem.stillDangerous && <Chip size="small" label="Còn nguy hiểm" sx={{ ml: 1, bgcolor: '#fef2f2', color: '#dc2626', fontWeight: 700 }} />}</Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary">Nội dung sự việc</Typography>
+                <Typography sx={{ whiteSpace: 'pre-wrap' }}>{detailItem.content || <em>(không có nội dung)</em>}</Typography>
+              </Box>
+              <Stack direction="row" spacing={4}>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">Lớp liên quan</Typography>
+                  <Typography>{detailItem.className || '—'}</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">Người báo tin là</Typography>
+                  <Typography>{detailItem.reporterRole ? REPORTER_ROLE_LABEL[detailItem.reporterRole] || detailItem.reporterRole : '—'}</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">Kênh gửi</Typography>
+                  <Typography>{CHANNEL_LABEL[detailItem.channel] || detailItem.channel}</Typography>
+                </Box>
+              </Stack>
+              {detailItem.suggestedClassNames?.length > 0 && (
+                <Box>
+                  <Typography variant="caption" color="text.secondary">Lớp gợi ý thêm</Typography>
+                  <Typography>{detailItem.suggestedClassNames.join(', ')}</Typography>
+                </Box>
+              )}
+              <Stack direction="row" spacing={4}>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">Xảy ra từ</Typography>
+                  <Typography>{detailItem.occurredFrom ? new Date(detailItem.occurredFrom).toLocaleString('vi-VN') : '—'}</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">Đến</Typography>
+                  <Typography>{detailItem.occurredTo ? new Date(detailItem.occurredTo).toLocaleString('vi-VN') : '—'}</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">Thời điểm gửi</Typography>
+                  <Typography>{detailItem.occurredAt ? new Date(detailItem.occurredAt).toLocaleString('vi-VN') : '—'}</Typography>
+                </Box>
+              </Stack>
+              <EvidenceGallery evidenceList={detailItem.evidenceList} canView={detailItem.canViewEvidence} />
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => { setDetailItem(null); setDetailError(''); }}>Đóng</Button>
+          {detailItem && !detailItem.mergedIntoIncidentId && (
+            <Button
+              variant="contained"
+              onClick={() => {
+                openPriorityDialog({
+                  reportId: detailItem.reportId,
+                  publicCode: detailItem.publicCode,
+                  campusId: detailItem.campusId,
+                  categoryCode: '',
+                  categoryLabel: detailItem.categoryLabel,
+                  stillDangerous: detailItem.stillDangerous,
+                  content: detailItem.content,
+                  className: detailItem.className,
+                  redacted: detailItem.redacted
+                });
+                setDetailItem(null);
+              }}
+            >
+              Chuyển thành hồ sơ
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
     </>

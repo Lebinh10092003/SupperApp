@@ -6,7 +6,7 @@
  * Thống kê theo lớp NHẠY CẢM HƠN thống kê theo khu vực (dễ suy luận ra
  * đúng 1 học sinh cụ thể trong lớp nếu số vụ quá ít) — áp dụng NGUYÊN VẸN
  * cùng cơ chế ẩn/gộp số liệu k-anonymity ngưỡng
- * `catalog.MIN_ZONE_COUNT_FOR_BREAKDOWN` (dùng chung với zoneStats.ts —
+ * `catalog.MIN_GROUP_SIZE_FOR_BREAKDOWN` (dùng chung với zoneStats.ts —
  * tên gọi hơi lệch ngữ nghĩa nhưng bản chất là ngưỡng ẩn dùng chung cho MỌI
  * kiểu breakdown theo nhóm nhỏ, không riêng gì "zone").
  *
@@ -134,7 +134,7 @@ export async function computeClassStats(db: Db, filter: ComputeClassStatsFilter 
     const totalCount = items.length;
     const severityFlag = items.some((it) => it.priority === catalog.PRIORITY.P0 || it.priority === catalog.PRIORITY.P1);
 
-    if (totalCount < catalog.MIN_ZONE_COUNT_FOR_BREAKDOWN) {
+    if (totalCount < catalog.MIN_GROUP_SIZE_FOR_BREAKDOWN) {
       return {
         class_name: className,
         total_count: totalCount > 0 ? '<5' : 0,
@@ -157,7 +157,7 @@ export async function computeClassStats(db: Db, filter: ComputeClassStatsFilter 
     const byCategory: Record<string, number> = {};
     let hiddenSum = 0;
     Object.entries(rawByCategory).forEach(([code, count]) => {
-      if (count < catalog.MIN_ZONE_COUNT_FOR_BREAKDOWN) {
+      if (count < catalog.MIN_GROUP_SIZE_FOR_BREAKDOWN) {
         hiddenSum += count;
       } else {
         byCategory[code] = count;

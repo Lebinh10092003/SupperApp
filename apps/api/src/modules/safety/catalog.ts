@@ -292,7 +292,7 @@ export function extractGradeFromClassName(className: string | null | undefined):
 // ---------------------------------------------------------------------------
 // Ngưỡng thống kê/cảnh báo xu hướng.
 // ---------------------------------------------------------------------------
-export const MIN_ZONE_COUNT_FOR_BREAKDOWN = 5;
+export const MIN_GROUP_SIZE_FOR_BREAKDOWN = 5;
 
 export const TREND_ALERT_THRESHOLDS = {
   HIGH_SEVERITY: { priorities: ['P0', 'P1'] as Priority[], count: 2, windowDays: 5 },
@@ -318,3 +318,23 @@ export const EVIDENCE_LIMITS = {
 };
 
 export const EVIDENCE_ORPHAN_TTL_MS = 2 * 60 * 60 * 1000;
+
+/**
+ * Hành động phân quyền theo ĐÚNG mức bí mật của hồ sơ — dùng để quyết định
+ * "actor này xem được ĐẦY ĐỦ hồ sơ này hay chỉ bản rút gọn (redacted)".
+ * Sin xác nhận 2026-09-21: minh chứng đính kèm (ảnh/video) KHÔNG cần một
+ * lớp quyền RIÊNG khắt khe hơn nội dung hồ sơ — ai xem được đầy đủ hồ sơ
+ * (không bị redacted) thì cũng xem được minh chứng của đúng hồ sơ đó; việc
+ * xoá minh chứng sau khi xử lý xong do quy trình nội bộ tự đảm nhiệm, không
+ * phải do hệ thống chặn quyền xem trước. Vì vậy `canViewEvidence()` (xem
+ * `evidence.ts`) dùng LẠI đúng bảng này thay vì action `incident.view_evidence`
+ * riêng (đã bỏ — trước đây chỉ cấp cho đúng 3 vai trò Hiệu trưởng/Phó
+ * HT/Trực ban, khiến Tổ trưởng/GVCN/Chỉ huy sự cố xem được hồ sơ nhưng lại
+ * không xem được ảnh đính kèm của chính hồ sơ đó).
+ */
+export const VIEW_ACTION_BY_CONFIDENTIALITY: Record<string, string> = {
+  C1: 'incident.view_c1_c2',
+  C2: 'incident.view_c1_c2',
+  C3: 'incident.view_c3',
+  C4: 'incident.view_c4'
+};

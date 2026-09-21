@@ -42,6 +42,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  // onAuthStateChanged thường bắn NGAY với null (chưa có phiên lưu sẵn)
+  // TRƯỚC KHI getRedirectResult() xử lý xong kết quả đăng nhập Google vừa
+  // quay về — nếu chỉ dựa vào `loading` ở trên, nó tắt sớm và LoginPage lộ
+  // ra y hệt form ban đầu trong vài giây trong khi vẫn đang xác thực ngầm.
+  // Giữ true cho tới khi getRedirectResult() thật sự xong (dù có kết quả
+  // hay không), gộp chung với `loading` khi lộ ra ngoài context.
+  const [redirectChecking, setRedirectChecking] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
   const clearAuthError = () => setAuthError(null);
 
@@ -119,7 +126,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // mỗi khi app tải lên). result === null nghĩa là trang tải bình thường,
   // không phải vừa quay về từ redirect đăng nhập — bỏ qua, không phải lỗi.
   useEffect(() => {
-    if (!hasValidFirebaseConfig) return;
+    if (!hasValidFirebaseConfig) {
+      setRedirectChecking(false);
+      return;
+    }
     getRedirectResult(auth)
       .then(async (result) => {
         if (!result) return;
@@ -133,7 +143,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .catch((e: any) => {
         console.error('[Auth] getRedirectResult() lỗi:', e);
         setAuthError(e?.code || e?.message || 'Đăng nhập không thành công.');
-      });
+      })
+      .finally(() => setRedirectChecking(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -190,7 +201,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       user,
       profile,
-      loading,
+      loading: loading || redirectChecking,
       login,
       authError,
       clearAuthError,
@@ -200,7 +211,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       updateDisplayName,
       logout
     }),
-    [user, profile, loading, authError]
+    [user, profile, loading, redirectChecking, authError]
   );
 
   return <C.Provider value={value}>{children}</C.Provider>;

@@ -444,6 +444,7 @@ export async function updateIncidentClassification(
   className: string | null;
   assignedTaskPerIds: string[];
   newlyAddedPerIds: string[];
+  removedPerIds: string[];
   homeroomPerId: string | null;
   gradeSupervisorPerId: string | null;
 }> {
@@ -467,10 +468,11 @@ export async function updateIncidentClassification(
 
   const effectiveClassName = input.className !== undefined ? input.className || null : previousClassName;
 
-  const assignedTaskPerIds: string[] = Array.isArray(incident.assignedTaskPerIds) ? incident.assignedTaskPerIds.slice() : [];
+  let assignedTaskPerIds: string[] = Array.isArray(incident.assignedTaskPerIds) ? incident.assignedTaskPerIds.slice() : [];
   let homeroomPerId: string | null = null;
   let gradeSupervisorPerId: string | null = null;
   const newlyAddedPerIds: string[] = [];
+  const removedPerIds: string[] = [];
 
   // CHỈ tra lại người liên quan khi lớp THỰC SỰ đổi (không truyền
   // className -> giữ nguyên lớp cũ, không tra lại người).
@@ -482,6 +484,21 @@ export async function updateIncidentClassification(
       if (perId && !assignedTaskPerIds.includes(perId)) {
         assignedTaskPerIds.push(perId);
         newlyAddedPerIds.push(perId);
+      }
+    }
+
+    // Sin xác nhận 2026-09-21: GVCN/GV khối của lớp CŨ phải bị RÚT quyền
+    // ngay khi lớp đổi — trừ khi họ vẫn còn lý do khác để giữ quyền (đang
+    // là chỉ huy hồ sơ, hoặc vẫn trùng với người của lớp MỚI). Trước đây
+    // code chỉ CỘNG DỒN người mới vào `assignedTaskPerIds`, không bao giờ
+    // rút người của lớp cũ ra — đổi lớp nhiều lần sẽ tích luỹ ngày càng
+    // nhiều người không còn liên quan vẫn xem được hồ sơ.
+    const oldResolved = await resolveClassRelatedPeople(db, previousClassName);
+    const stillRelevant = new Set([homeroomPerId, gradeSupervisorPerId, incident.commanderPerId].filter(Boolean) as string[]);
+    for (const perId of [oldResolved.homeroomPerId, oldResolved.gradeSupervisorPerId]) {
+      if (perId && !stillRelevant.has(perId) && assignedTaskPerIds.includes(perId)) {
+        assignedTaskPerIds = assignedTaskPerIds.filter((id) => id !== perId);
+        removedPerIds.push(perId);
       }
     }
   }
@@ -502,8 +519,8 @@ export async function updateIncidentClassification(
       actorPerId: input.actor.perId!,
       action: 'incident.classification_corrected',
       objectId: input.incidentId,
-      before: { class_name: previousClassName },
-      after: { class_name: effectiveClassName },
+      before: { class_name: previousClassName, removed_per_ids: removedPerIds },
+      after: { class_name: effectiveClassName, newly_added_per_ids: newlyAddedPerIds },
       reason: input.reason,
       now
     })
@@ -554,5 +571,5 @@ export async function updateIncidentClassification(
     );
   }
 
-  return { incidentId: input.incidentId, className: effectiveClassName, assignedTaskPerIds, newlyAddedPerIds, homeroomPerId, gradeSupervisorPerId };
+  return { incidentId: input.incidentId, className: effectiveClassName, assignedTaskPerIds, newlyAddedPerIds, removedPerIds, homeroomPerId, gradeSupervisorPerId };
 }

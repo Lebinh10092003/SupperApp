@@ -6,6 +6,7 @@ import { autoDetectClass, autoDetectSubject } from '../catalog/catalog.service.j
 import { evaluateAlertRules } from '../alerts/alert-engine.service.js';
 import { people } from '../people/people.schema.js';
 import { classes } from '../classes/classes.schema.js';
+import { schedules } from '../schedules/schedules.schema.js';
 import {
   courses,
   courseMembers,
@@ -660,4 +661,217 @@ export async function rebuildClassesFromCourses(): Promise<number> {
   }
 
   return classesMap.size;
+}
+
+export type ResetClassroomDataResult = {
+  courses: number;
+  courseMembers: number;
+  courseCoursework: number;
+  courseMaterials: number;
+  courseAnnouncements: number;
+  courseTopics: number;
+  courseSubmissions: number;
+  classMappings: number;
+  subjectMappings: number;
+  classesDeleted: number;
+  classesReset: number;
+  teachers: number;
+  students: number;
+};
+
+/**
+ * Xoá sạch toàn bộ dữ liệu ĐÃ ĐỒNG BỘ từ Google Classroom, để test lại từ
+ * đầu với 1 tài khoản Google Workspace khác — dùng cho nút "Xoá dữ liệu
+ * Classroom" ở trang /connections. KHÔNG đụng `google_connections` (token
+ * kết nối, route riêng `disconnect` mới xử lý việc đó), KHÔNG đụng dữ liệu
+ * module An toàn/Lịch công tác (2 module đó không ghi vào bất kỳ bảng nào
+ * bên dưới).
+ *
+ * Phạm vi xoá — xác định qua khảo sát thật ai ghi vào bảng nào (không đoán):
+ * - `courses`, `course_members`, `course_coursework`, `course_materials`,
+ *   `course_announcements`, `course_topics`, `course_submissions`,
+ *   `class_mappings`, `subject_mappings` — CHỈ classroom.service.ts ghi vào
+ *   các bảng này (khoá chính theo `courseId`) → xoá sạch toàn bộ an toàn.
+ * - `people` — bảng DÙNG CHUNG với `directory.service.ts` (đồng bộ Google
+ *   Workspace Directory, ghi personId/email/displayName/personType/
+ *   orgUnitPath/suspended). Riêng 2 cột `courses`/`className`/`classId` CHỈ
+ *   được ghi bởi classroom.service.ts (xem syncCourse) — Directory sync
+ *   không đụng tới 2 cột này → CHỈ reset 2 cột đó về rỗng/null, KHÔNG xoá
+ *   bản ghi `people`, KHÔNG đụng các cột còn lại.
+ * - `classes` — bảng DÙNG CHUNG với module Lịch học/Thời khóa biểu
+ *   (`schedules.routes.ts` tự tạo/cập nhật `classes` khi thêm 1 dòng lịch
+ *   thủ công, chỉ set classId/className/grade/expectedStudents). Lớp nào
+ *   KHÔNG có bất kỳ dòng `schedules` nào trỏ tới (classId) → coi là thuần
+ *   Classroom, xoá hẳn. Lớp NÀO CÓ dòng `schedules` trỏ tới → giữ nguyên
+ *   bản ghi (có nguồn khác cần), chỉ reset về 0/rỗng các cột do
+ *   `rebuildClassesFromCourses()` tính ra (courseCount/courses/subjects/
+ *   studentCount/totalCoursework/submissionsTotal/submissionsTurnedIn/
+ *   submissionsLate/completionRate/onTimeRate/averageScore) — các cột
+ *   className/grade/expectedStudents/homeroomTeacher/active KHÔNG đụng vì
+ *   thuộc sở hữu của nguồn khác (schedules/demo-seed).
+ * - `sync_runs` KHÔNG bị xoá (đây là nhật ký các lần chạy đồng bộ, không
+ *   phải nội dung Classroom đã đồng bộ — giữ lại để còn tra được lịch sử).
+ */
+/**
+ * Xem trước số liệu sẽ bị ảnh hưởng nếu gọi resetClassroomData() ngay bây
+ * giờ — CHỈ ĐỌC, không xoá/sửa gì — dùng để hiển thị hộp thoại xác nhận ở
+ * giao diện trước khi người dùng bấm nút xoá thật. Dùng lại ĐÚNG tiêu chí
+ * phân loại lớp/người của resetClassroomData() (không viết lại logic 2 lần
+ * dễ lệch nhau).
+ */
+export async function previewClassroomReset(): Promise<ResetClassroomDataResult> {
+  const countRows = async (table: any) => (await db.select().from(table)).length;
+
+  const [
+    coursesCount,
+    courseMembersCount,
+    courseCourseworkCount,
+    courseMaterialsCount,
+    courseAnnouncementsCount,
+    courseTopicsCount,
+    courseSubmissionsCount,
+    classMappingsCount,
+    subjectMappingsCount
+  ] = await Promise.all([
+    countRows(courses),
+    countRows(courseMembers),
+    countRows(courseCoursework),
+    countRows(courseMaterials),
+    countRows(courseAnnouncements),
+    countRows(courseTopics),
+    countRows(courseSubmissions),
+    countRows(classMappings),
+    countRows(subjectMappings)
+  ]);
+
+  const scheduleClassIds = new Set((await db.select({ classId: schedules.classId }).from(schedules)).map((r) => r.classId));
+  const allClasses = await db.select().from(classes);
+  const classesDeleted = allClasses.filter((c) => !scheduleClassIds.has(c.classId)).length;
+  const classesReset = allClasses.length - classesDeleted;
+
+  const peopleWithClassroomData = (await db.select().from(people)).filter((p) => Array.isArray(p.courses) && p.courses.length > 0);
+  const teachers = peopleWithClassroomData.filter((p) => p.personType === 'TEACHER').length;
+  const students = peopleWithClassroomData.filter((p) => p.personType === 'STUDENT').length;
+
+  return {
+    courses: coursesCount,
+    courseMembers: courseMembersCount,
+    courseCoursework: courseCourseworkCount,
+    courseMaterials: courseMaterialsCount,
+    courseAnnouncements: courseAnnouncementsCount,
+    courseTopics: courseTopicsCount,
+    courseSubmissions: courseSubmissionsCount,
+    classMappings: classMappingsCount,
+    subjectMappings: subjectMappingsCount,
+    classesDeleted,
+    classesReset,
+    teachers,
+    students
+  };
+}
+
+export async function resetClassroomData(): Promise<ResetClassroomDataResult> {
+  return db.transaction(async (tx) => {
+    const countRows = async (table: any) => (await tx.select().from(table)).length;
+
+    const [
+      coursesCount,
+      courseMembersCount,
+      courseCourseworkCount,
+      courseMaterialsCount,
+      courseAnnouncementsCount,
+      courseTopicsCount,
+      courseSubmissionsCount,
+      classMappingsCount,
+      subjectMappingsCount
+    ] = await Promise.all([
+      countRows(courses),
+      countRows(courseMembers),
+      countRows(courseCoursework),
+      countRows(courseMaterials),
+      countRows(courseAnnouncements),
+      countRows(courseTopics),
+      countRows(courseSubmissions),
+      countRows(classMappings),
+      countRows(subjectMappings)
+    ]);
+
+    await tx.delete(courseSubmissions);
+    await tx.delete(courseCoursework);
+    await tx.delete(courseMaterials);
+    await tx.delete(courseAnnouncements);
+    await tx.delete(courseTopics);
+    await tx.delete(courseMembers);
+    await tx.delete(classMappings);
+    await tx.delete(subjectMappings);
+    await tx.delete(courses);
+
+    // classId nào đang có dòng thời khóa biểu (nguồn khác, không phải
+    // Classroom) trỏ tới — lớp đó KHÔNG được xoá hẳn.
+    const scheduleClassIds = new Set(
+      (await tx.select({ classId: schedules.classId }).from(schedules)).map((r) => r.classId)
+    );
+
+    const allClasses = await tx.select().from(classes);
+    let classesDeleted = 0;
+    let classesReset = 0;
+    for (const c of allClasses) {
+      if (!scheduleClassIds.has(c.classId)) {
+        await tx.delete(classes).where(eq(classes.classId, c.classId));
+        classesDeleted++;
+      } else {
+        await tx
+          .update(classes)
+          .set({
+            courseCount: 0,
+            courses: [],
+            subjects: [],
+            studentCount: 0,
+            totalCoursework: 0,
+            submissionsTotal: 0,
+            submissionsTurnedIn: 0,
+            submissionsLate: 0,
+            completionRate: null,
+            onTimeRate: null,
+            averageScore: null,
+            updatedAt: new Date()
+          })
+          .where(eq(classes.classId, c.classId));
+        classesReset++;
+      }
+    }
+
+    // Chỉ những `people` thực sự còn dấu vết Classroom (courses không rỗng)
+    // mới tính vào số liệu trả về — người chỉ có từ Directory sync không hề
+    // bị đụng tới nên không nên tính vào "đã xoá dữ liệu".
+    const peopleWithClassroomData = (await tx.select().from(people)).filter(
+      (p) => Array.isArray(p.courses) && p.courses.length > 0
+    );
+    let teachers = 0;
+    let students = 0;
+    for (const p of peopleWithClassroomData) {
+      if (p.personType === 'TEACHER') teachers++;
+      else if (p.personType === 'STUDENT') students++;
+      await tx
+        .update(people)
+        .set({ courses: [], className: null, classId: null, updatedAt: new Date() })
+        .where(eq(people.personId, p.personId));
+    }
+
+    return {
+      courses: coursesCount,
+      courseMembers: courseMembersCount,
+      courseCoursework: courseCourseworkCount,
+      courseMaterials: courseMaterialsCount,
+      courseAnnouncements: courseAnnouncementsCount,
+      courseTopics: courseTopicsCount,
+      courseSubmissions: courseSubmissionsCount,
+      classMappings: classMappingsCount,
+      subjectMappings: subjectMappingsCount,
+      classesDeleted,
+      classesReset,
+      teachers,
+      students
+    };
+  });
 }

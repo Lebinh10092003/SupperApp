@@ -12,10 +12,6 @@ export const incidents = pgTable('incidents', {
   className: text('class_name'),
   suggestedClassNames: jsonb('suggested_class_names').$type<string[]>(),
   reporterRole: text('reporter_role'),
-  // Mảng khu vực hiện hành — 1 incident có thể gắn nhiều zone. `zoneId`
-  // giữ tương thích ngược cho dữ liệu cũ (= zoneIds[0]).
-  zoneIds: jsonb('zone_ids').$type<string[]>(),
-  zoneId: text('zone_id'),
   priority: text('priority').notNull(),
   confidentiality: text('confidentiality').notNull(),
   state: text('state').notNull(),

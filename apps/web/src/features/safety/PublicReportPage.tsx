@@ -16,6 +16,8 @@ import {
   Typography
 } from '@mui/material';
 import UploadFileIcon from '@mui/icons-material/UploadFileRounded';
+import ContentCopyIcon from '@mui/icons-material/ContentCopyRounded';
+import CheckIcon from '@mui/icons-material/CheckRounded';
 import { PublicLayout } from './PublicLayout';
 import { CAMPUS_IDS, CAMPUS_LABEL, REPORTER_ROLE_OPTIONS } from './constants';
 import { env } from '../../config/env';
@@ -62,6 +64,20 @@ export default function PublicReportPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [publicCode, setPublicCode] = useState('');
+  const [codeCopied, setCodeCopied] = useState(false);
+
+  const copyPublicCode = async () => {
+    try {
+      await navigator.clipboard.writeText(publicCode);
+    } catch {
+      // Clipboard API có thể bị chặn (HTTP không an toàn, trình duyệt cũ) —
+      // vẫn báo đã copy là sai, nhưng im lặng bỏ qua còn tệ hơn: người dùng
+      // tưởng đã copy được nhưng thực ra không — không set codeCopied ở đây.
+      return;
+    }
+    setCodeCopied(true);
+    setTimeout(() => setCodeCopied(false), 2000);
+  };
 
   useEffect(() => {
     const baseUrl = (env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
@@ -131,10 +147,28 @@ export default function PublicReportPage() {
             <Typography variant="body2" color="#166534" sx={{ mb: 2 }}>
               Vui lòng lưu lại mã tra cứu dưới đây để theo dõi tiến độ xử lý:
             </Typography>
-            <Chip
-              label={publicCode}
-              sx={{ fontSize: '1.1rem', fontWeight: 800, height: 44, px: 2, bgcolor: '#ffffff', border: '1px solid #86efac', color: '#166534' }}
-            />
+            <Stack direction="row" spacing={1} justifyContent="center" alignItems="center">
+              <Chip
+                label={publicCode}
+                sx={{ fontSize: '1.1rem', fontWeight: 800, height: 44, px: 2, bgcolor: '#ffffff', border: '1px solid #86efac', color: '#166534' }}
+              />
+              <Button
+                onClick={copyPublicCode}
+                startIcon={codeCopied ? <CheckIcon fontSize="small" /> : <ContentCopyIcon fontSize="small" />}
+                sx={{
+                  height: 44,
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  fontWeight: 700,
+                  color: '#166534',
+                  border: '1px solid #86efac',
+                  bgcolor: '#ffffff',
+                  '&:hover': { bgcolor: '#f0fdf4', borderColor: '#4ade80' }
+                }}
+              >
+                {codeCopied ? 'Đã sao chép' : 'Sao chép mã'}
+              </Button>
+            </Stack>
             <Typography variant="caption" display="block" sx={{ mt: 2, color: '#166534' }}>
               Lưu lại mã này để theo dõi tình trạng xử lý.
             </Typography>

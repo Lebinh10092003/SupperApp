@@ -7,7 +7,7 @@ import { asyncRoute } from '../../core/http.js';
 import { resolveServiceAccount } from '../../core/firebase.js';
 import { db } from '../../core/db/client.js';
 import { env } from '../../config/env.js';
-import { syncAllCourses } from '../classroom/classroom.service.js';
+import { syncAllCourses, resetClassroomData, previewClassroomReset } from '../classroom/classroom.service.js';
 import { rebuildDashboard } from '../dashboard/dashboard.service.js';
 import { googleConnections } from './connections.schema.js';
 import { systemConfig } from '../system/system.schema.js';
@@ -665,6 +665,49 @@ connectionsRouter.post(
       ok: true,
       message: `Đã nạp dữ liệu mẫu đầy đủ: ${demoCourses.length} khóa học, ${peopleCount} người (giáo viên+học sinh), ${classDefs.length} lớp, thời khóa biểu, điểm danh hôm nay, ${demoAlerts.length} cảnh báo, chuẩn hóa danh mục, nhật ký kiểm toán.`,
       count: demoCourses.length
+    });
+  })
+);
+
+// Xoá sạch dữ liệu ĐÃ ĐỒNG BỘ từ Google Classroom (courses/roster/coursework/
+// materials/announcements/topics/submissions + phần liên quan ở people/
+// classes) — để quản trị viên test lại từ đầu với 1 tài khoản Google
+// Workspace khác. KHÔNG ngắt kết nối (không đụng googleConnections) và
+// KHÔNG đụng dữ liệu module An toàn/Lịch công tác — xem chi tiết phạm vi
+// xoá chính xác trong docstring của resetClassroomData().
+connectionsRouter.get(
+  '/reset-classroom-data/preview',
+  firebaseAuth,
+  requireCapability('MANAGE_CONNECTIONS'),
+  asyncRoute(async (_req, res) => {
+    const result = await previewClassroomReset();
+    res.json({ ok: true, ...result, classesAffected: result.classesDeleted + result.classesReset });
+  })
+);
+
+connectionsRouter.post(
+  '/reset-classroom-data',
+  firebaseAuth,
+  requireCapability('MANAGE_CONNECTIONS'),
+  asyncRoute(async (req, res) => {
+    const result = await resetClassroomData();
+    const classesAffected = result.classesDeleted + result.classesReset;
+
+    await db.insert(generalAuditLogs).values({
+      action: 'classroom.reset_data',
+      actor: req.appUser!.email,
+      entityType: 'classroom',
+      status: 'SUCCESS',
+      message: JSON.stringify(result)
+    });
+
+    await rebuildDashboard().catch(() => null);
+
+    res.json({
+      ok: true,
+      message: `Đã xoá ${result.courses} khóa học, ${result.students} học sinh, ${result.teachers} giáo viên, ${classesAffected} lớp (đã đồng bộ từ Google Classroom).`,
+      ...result,
+      classesAffected
     });
   })
 );
