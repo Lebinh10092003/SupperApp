@@ -96,8 +96,9 @@ export default function EventsListPage() {
   // đụng `useEvents.ts`/route GET /events (server chỉ lọc cơ sở/trạng
   // thái, đủ cho quy mô 1 trường). Tìm theo tên: gõ tiêu đề TRỰC TIẾP,
   // hoặc chọn đúng 1 người qua `PersonPicker` (khớp chủ trì/thành phần).
+  // Mặc định ngày mới nhất lên đầu — Sin yêu cầu 2026-09-21.
   const [sortKey, setSortKey] = useState<EventSortKey>('startAt');
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const handleSort = (key: EventSortKey) => {
     if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
     else {

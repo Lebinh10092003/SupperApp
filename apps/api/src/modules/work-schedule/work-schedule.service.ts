@@ -589,8 +589,13 @@ export async function listEvents(db: Db, filter: { campusId?: string; statuses?:
   const conditions: SQL[] = [];
   if (filter.campusId) conditions.push(eq(ltcEvents.campusId, filter.campusId));
   if (filter.statuses?.length) conditions.push(inArray(ltcEvents.status, filter.statuses));
-  if (!conditions.length) return db.select().from(ltcEvents);
-  return db.select().from(ltcEvents).where(and(...conditions));
+  // Trước đây KHÔNG có orderBy — trả về theo thứ tự bất kỳ của DB (thường
+  // trùng thứ tự chèn, không đáng tin). Mặc định lịch mới nhất lên đầu (Sin
+  // yêu cầu 2026-09-21) — trang nào cần thứ tự khác (VD Tổng quan sắp tới
+  // gần nhất trước) tự sort lại ở client, không phụ thuộc thứ tự API.
+  const base = db.select().from(ltcEvents);
+  const query = conditions.length ? base.where(and(...conditions)) : base;
+  return query.orderBy(desc(ltcEvents.startAt));
 }
 
 // ---------------------------------------------------------------------
@@ -796,8 +801,10 @@ export async function listTasks(db: Db, filter: { campusId?: string; assigneePer
   if (filter.campusId) conditions.push(eq(ltcTasks.campusId, filter.campusId));
   if (filter.assigneePerId) conditions.push(eq(ltcTasks.assigneePerId, filter.assigneePerId));
   if (filter.statuses?.length) conditions.push(inArray(ltcTasks.status, filter.statuses));
-  if (!conditions.length) return db.select().from(ltcTasks);
-  return db.select().from(ltcTasks).where(and(...conditions));
+  // Mặc định việc mới giao gần đây nhất lên đầu — cùng lý do listEvents ở trên.
+  const base = db.select().from(ltcTasks);
+  const query = conditions.length ? base.where(and(...conditions)) : base;
+  return query.orderBy(desc(ltcTasks.createdAt));
 }
 
 // ---------------------------------------------------------------------
