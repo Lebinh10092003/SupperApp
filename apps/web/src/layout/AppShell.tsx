@@ -151,6 +151,12 @@ const navGroups: NavGroup[] = [
     groupTitle: 'LỊCH CÔNG TÁC',
     items: [
       {
+        path: '/work-schedule/overview',
+        label: 'Tổng quan',
+        icon: <DashboardIcon fontSize="small" />,
+        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'DEPARTMENT_HEAD', 'TEACHER', 'HOMEROOM']
+      },
+      {
         path: '/work-schedule',
         label: 'Lịch công tác',
         icon: <ScheduleIcon fontSize="small" />,
