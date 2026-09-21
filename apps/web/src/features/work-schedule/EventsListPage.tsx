@@ -43,7 +43,8 @@ import {
   EVENT_STATUS_LABEL,
   EVENT_STATUS_COLOR,
   EVENT_STATUS_STEPS,
-  PRIORITY_LABEL
+  PRIORITY_LABEL,
+  abbreviatePersonLabel
 } from './constants';
 
 export function EventStatusChip({ status }: { status: string }) {
@@ -293,10 +294,13 @@ export default function EventsListPage() {
               </TableRow>
             )}
             {filteredItems.map((ev) => {
-              const participantText =
-                ev.scope === 'SCHOOL_WIDE'
-                  ? 'Toàn trường'
-                  : (ev.participantLabels && ev.participantLabels.length > 0 ? ev.participantLabels : ev.participantPerIds).join(', ') || '—';
+              const fullParticipants = ev.participantLabels && ev.participantLabels.length > 0 ? ev.participantLabels : ev.participantPerIds;
+              const participantFull = ev.scope === 'SCHOOL_WIDE' ? 'Toàn trường' : fullParticipants.join(', ') || '—';
+              // Bảng danh sách hiện tên VIẾT TẮT ("Bùi Thị Cúc" -> "Cúc BT")
+              // cho gọn — bấm vào dòng mở dialog chi tiết mới thấy tên đầy đủ
+              // + chức vụ (Sin yêu cầu 2026-09-21, áp dụng mọi bảng trong
+              // module Lịch công tác, không riêng bảng này).
+              const participantText = ev.scope === 'SCHOOL_WIDE' ? 'Toàn trường' : fullParticipants.map(abbreviatePersonLabel).join(', ') || '—';
               return (
               <TableRow key={ev.id} hover sx={{ cursor: 'pointer' }} onClick={() => setDetail(ev)}>
                 <TableCell>{ev.title}</TableCell>
@@ -308,9 +312,9 @@ export default function EventsListPage() {
                 <TableCell>{ev.scope === 'SCHOOL_WIDE' ? 'Toàn trường' : CAMPUS_LABEL[ev.campusId] || ev.campusId}</TableCell>
                 <TableCell>{new Date(ev.startAt).toLocaleString('vi-VN')}</TableCell>
                 <TableCell sx={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={ev.chairLabel || ev.chairPerId}>
-                  {ev.chairLabel || ev.chairPerId}
+                  {abbreviatePersonLabel(ev.chairLabel || ev.chairPerId)}
                 </TableCell>
-                <TableCell sx={{ maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={participantText}>
+                <TableCell sx={{ maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={participantFull}>
                   {participantText}
                 </TableCell>
                 <TableCell>

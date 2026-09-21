@@ -78,12 +78,31 @@ interface NavItem {
   icon: React.ReactNode;
   badge?: string;
   roles?: string[];
+  /** Chỉ tài khoản FermatTech (quản trị cấp cao nhất) thấy — Sin yêu cầu
+   * 2026-09-21: các mục liên quan Google Classroom/lớp học số không còn là
+   * nghiệp vụ chính của trường, chỉ giữ lại để admin kỹ thuật dùng. */
+  adminOnly?: boolean;
 }
 
 interface NavGroup {
   groupTitle: string;
   items: NavItem[];
+  /** Cả nhóm chỉ FermatTech thấy (xem NavItem.adminOnly). */
+  adminOnly?: boolean;
 }
+
+/** Email tài khoản FermatTech (quản trị cấp cao nhất, bootstrap super admin) — nguồn duy nhất được thấy các mục adminOnly. */
+const FERMATTECH_ADMIN_EMAIL = 'admin@badinhedu.vn';
+
+/** Thứ tự hiển thị nhóm trên sidebar — Cảnh báo an toàn + Lịch công tác lên đầu (Mr Tiến phản hồi 2026-09-21), các nhóm adminOnly xuống cuối. */
+const GROUP_DISPLAY_ORDER = [
+  'CẢNH BÁO AN TOÀN VÀ XỬ LÝ SỰ CỐ',
+  'LỊCH CÔNG TÁC',
+  'QUẢN TRỊ HỆ THỐNG',
+  'TỔNG QUAN',
+  'PHÂN TÍCH & BÁO CÁO',
+  'LỚP HỌC & HỌC SINH'
+];
 
 // Sắp xếp lại 10/09/2026 theo yêu cầu Sin: nhóm nào dùng HÀNG NGÀY lên
 // đầu, nhóm quản trị/ít dùng xuống cuối. 4 trang phân tích
@@ -95,6 +114,7 @@ interface NavGroup {
 const navGroups: NavGroup[] = [
   {
     groupTitle: 'TỔNG QUAN',
+    adminOnly: true,
     items: [
       { path: '/', label: 'Tổng quan điều hành', icon: <DashboardIcon fontSize="small" /> },
       { path: '/today', label: 'Hoạt động hôm nay', icon: <TodayIcon fontSize="small" />, badge: 'LIVE' },
@@ -185,6 +205,7 @@ const navGroups: NavGroup[] = [
   },
   {
     groupTitle: 'PHÂN TÍCH & BÁO CÁO',
+    adminOnly: true,
     items: [
       {
         path: '/executive',
@@ -208,19 +229,22 @@ const navGroups: NavGroup[] = [
         path: '/connections',
         label: 'Kết nối Google Classroom',
         icon: <LinkIcon fontSize="small" />,
-        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL']
+        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL'],
+        adminOnly: true
       },
       {
         path: '/catalog/mapping',
         label: 'Chuẩn hóa Dữ liệu Trường',
         icon: <AutoFixHighIcon fontSize="small" />,
-        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL']
+        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL'],
+        adminOnly: true
       },
       {
         path: '/audit/classroom',
         label: 'Nhật ký kiểm toán Classroom',
         icon: <HistoryIcon fontSize="small" />,
-        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL']
+        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL'],
+        adminOnly: true
       },
       {
         path: '/data-quality',
@@ -249,6 +273,7 @@ const navGroups: NavGroup[] = [
   // CUỐI sidebar, ưu tiên module An toàn + Lịch công tác lên trên.
   {
     groupTitle: 'LỚP HỌC & HỌC SINH',
+    adminOnly: true,
     items: [
       { path: '/classroom', label: 'Google Classroom', icon: <ClassroomIcon fontSize="small" /> },
       { path: '/classes', label: 'Lớp học & Sĩ số', icon: <SchoolIcon fontSize="small" /> },
@@ -299,7 +324,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     const initial: Record<string, boolean> = {};
     const activeGroup = navGroups.find((g) => g.items.some((it) => it.path === location.pathname));
     for (const g of navGroups) initial[g.groupTitle] = g === activeGroup;
-    if (!activeGroup && navGroups[0]) initial[navGroups[0].groupTitle] = true;
+    if (!activeGroup) initial[GROUP_DISPLAY_ORDER[0]!] = true;
     return initial;
   });
   const toggleGroup = (groupTitle: string) => setOpenGroups((prev) => ({ ...prev, [groupTitle]: !prev[groupTitle] }));
@@ -414,12 +439,18 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const userRole = profile?.role || 'DATA_VIEWER';
 
+  // Mục/nhóm adminOnly (Google Classroom, lớp học số...) chỉ tài khoản
+  // FermatTech thấy — Sin yêu cầu 2026-09-21: các mục này không còn là
+  // nghiệp vụ chính của trường, chỉ giữ cho admin kỹ thuật dùng khi cần.
+  const isFermatTechAdmin = (profile?.email || '').toLowerCase() === FERMATTECH_ADMIN_EMAIL;
   const visibleGroups = navGroups
+    .filter((group) => !group.adminOnly || isFermatTechAdmin)
     .map((group) => ({
       ...group,
-      items: group.items.filter((item) => !item.roles || item.roles.includes(userRole))
+      items: group.items.filter((item) => (!item.roles || item.roles.includes(userRole)) && (!item.adminOnly || isFermatTechAdmin))
     }))
-    .filter((group) => group.items.length > 0);
+    .filter((group) => group.items.length > 0)
+    .sort((a, b) => GROUP_DISPLAY_ORDER.indexOf(a.groupTitle) - GROUP_DISPLAY_ORDER.indexOf(b.groupTitle));
 
   // Tìm kiếm điều hành (⌘K/Ctrl+K) — trước đây chỉ là ô tĩnh không bấm
   // được, không có chức năng gì. Tìm trong đúng các mục nav thật ng dùng
@@ -563,25 +594,33 @@ export function AppShell({ children }: { children: ReactNode }) {
                   color: groupHasActiveItem ? '#2563eb' : '#94a3b8',
                   fontSize: '0.65rem',
                   fontWeight: 700,
-                  letterSpacing: '0.08em',
+                  letterSpacing: '0.04em',
                   px: 1.25,
                   py: 0.6,
-                  lineHeight: '1.25rem',
+                  lineHeight: 1.35,
                   textTransform: 'uppercase',
                   width: '100%',
                   border: 'none',
                   display: 'flex',
-                  alignItems: 'center',
+                  alignItems: 'flex-start',
                   justifyContent: 'space-between',
+                  gap: 0.5,
                   cursor: 'pointer',
                   borderRadius: '6px',
+                  textAlign: 'left',
                   '&:hover': { bgcolor: '#f1f5f9', color: '#0f172a' }
                 }}
               >
-                <span>{group.groupTitle}</span>
+                <span style={{ flex: 1, minWidth: 0 }}>{group.groupTitle}</span>
                 <ExpandMoreRoundedIcon
                   fontSize="small"
-                  sx={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.15s ease', color: 'inherit' }}
+                  sx={{
+                    flexShrink: 0,
+                    mt: '1px',
+                    transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                    transition: 'transform 0.15s ease',
+                    color: 'inherit'
+                  }}
                 />
               </ListSubheader>
 

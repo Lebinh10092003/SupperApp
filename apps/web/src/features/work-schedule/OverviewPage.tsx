@@ -23,7 +23,7 @@ import { useTasks, type WorkTask } from './hooks/useTasks';
 import { useActor } from './hooks/useActor';
 import { EventDetailDialog, EventStatusChip } from './EventsListPage';
 import { TaskDetailDialog, TaskStatusChip } from './TasksListPage';
-import { CAMPUS_LABEL } from './constants';
+import { CAMPUS_LABEL, abbreviatePersonLabel } from './constants';
 
 const VN_OFFSET_MS = 7 * 60 * 60 * 1000;
 
@@ -109,21 +109,31 @@ export default function OverviewPage() {
                       <TableCell>Nội dung</TableCell>
                       <TableCell>Cơ sở</TableCell>
                       <TableCell>Chủ trì</TableCell>
+                      <TableCell>Thành phần</TableCell>
                       <TableCell>Trạng thái</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {upcomingEvents.map((ev) => (
+                    {upcomingEvents.map((ev) => {
+                      const fullParticipants = ev.participantLabels && ev.participantLabels.length > 0 ? ev.participantLabels : ev.participantPerIds;
+                      const participantFull = ev.scope === 'SCHOOL_WIDE' ? 'Toàn trường' : fullParticipants.join(', ') || '—';
+                      const participantAbbrev =
+                        ev.scope === 'SCHOOL_WIDE' ? 'Toàn trường' : fullParticipants.map(abbreviatePersonLabel).join(', ') || '—';
+                      return (
                       <TableRow key={ev.id} hover sx={{ cursor: 'pointer' }} onClick={() => setEventDetail(ev)}>
                         <TableCell>{new Date(ev.startAt).toLocaleString('vi-VN')}</TableCell>
                         <TableCell>{ev.title}</TableCell>
                         <TableCell>{ev.scope === 'SCHOOL_WIDE' ? 'Toàn trường' : CAMPUS_LABEL[ev.campusId] || ev.campusId}</TableCell>
-                        <TableCell>{ev.chairLabel || ev.chairPerId}</TableCell>
+                        <TableCell title={ev.chairLabel || ev.chairPerId}>{abbreviatePersonLabel(ev.chairLabel || ev.chairPerId)}</TableCell>
+                        <TableCell sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={participantFull}>
+                          {participantAbbrev}
+                        </TableCell>
                         <TableCell>
                           <EventStatusChip status={ev.status} />
                         </TableCell>
                       </TableRow>
-                    ))}
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </TableContainer>

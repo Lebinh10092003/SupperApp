@@ -7,7 +7,7 @@ import { useTasks, type WorkTask } from './hooks/useTasks';
 import { useActor } from './hooks/useActor';
 import { EventDetailDialog, canApproveClientSide, EventStatusChip } from './EventsListPage';
 import { TaskDetailDialog } from './TasksListPage';
-import { CAMPUS_LABEL } from './constants';
+import { CAMPUS_LABEL, abbreviatePersonLabel } from './constants';
 
 /**
  * Trung tâm phê duyệt — theo đúng mẫu bản gốc Mr Tiến (ApprovalView): 2
@@ -113,7 +113,9 @@ export default function ApprovalCenterPage() {
                   <TableRow key={t.id} hover sx={{ cursor: 'pointer' }} onClick={() => setTaskDetail(t)}>
                     <TableCell>{t.title}</TableCell>
                     <TableCell>{CAMPUS_LABEL[t.campusId] || t.campusId}</TableCell>
-                    <TableCell>{t.assigneeLabel || t.assigneeName || t.assigneePerId}</TableCell>
+                    <TableCell title={t.assigneeLabel || t.assigneeName || t.assigneePerId}>
+                      {abbreviatePersonLabel(t.assigneeLabel || t.assigneeName || t.assigneePerId)}
+                    </TableCell>
                     <TableCell>{new Date(t.dueAt).toLocaleString('vi-VN')}</TableCell>
                   </TableRow>
                 ))}

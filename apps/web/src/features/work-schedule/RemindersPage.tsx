@@ -16,7 +16,7 @@ import { useTasks, type WorkTask } from './hooks/useTasks';
 import { EventDetailDialog, EventStatusChip, canApproveClientSide } from './EventsListPage';
 import { TaskDetailDialog, TaskStatusChip } from './TasksListPage';
 import { useActor } from './hooks/useActor';
-import { CAMPUS_LABEL } from './constants';
+import { CAMPUS_LABEL, abbreviatePersonLabel } from './constants';
 
 const NON_TERMINAL_TASK_STATUSES = ['ASSIGNED', 'ACCEPTED', 'IN_PROGRESS', 'PENDING_ACCEPTANCE', 'RETURNED'];
 
@@ -221,7 +221,9 @@ export default function RemindersPage() {
                       <TableRow key={t.id} hover sx={{ cursor: 'pointer' }} onClick={() => setTaskDetail(t)}>
                         <TableCell>{t.title}</TableCell>
                         <TableCell>{CAMPUS_LABEL[t.campusId] || t.campusId}</TableCell>
-                        <TableCell>{t.assigneeLabel || t.assigneeName || t.assigneePerId}</TableCell>
+                        <TableCell title={t.assigneeLabel || t.assigneeName || t.assigneePerId}>
+                          {abbreviatePersonLabel(t.assigneeLabel || t.assigneeName || t.assigneePerId)}
+                        </TableCell>
                         <TableCell>
                           <Chip size="small" label={new Date(t.dueAt).toLocaleString('vi-VN')} sx={{ bgcolor: '#fff7ed', color: '#c2410c', fontWeight: 600 }} />
                         </TableCell>

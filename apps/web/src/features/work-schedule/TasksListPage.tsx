@@ -28,7 +28,7 @@ import { useTasks, type WorkTask } from './hooks/useTasks';
 import { useActor } from './hooks/useActor';
 import { PersonPicker, type PersonOption } from '../safety/PersonPicker';
 import { AuditTrailPanel } from './AuditTrailPanel';
-import { CAMPUS_IDS, CAMPUS_LABEL, TASK_STATUS_LABEL, TASK_STATUS_COLOR, PRIORITY_LABEL } from './constants';
+import { CAMPUS_IDS, CAMPUS_LABEL, TASK_STATUS_LABEL, TASK_STATUS_COLOR, PRIORITY_LABEL, abbreviatePersonLabel } from './constants';
 
 export function TaskStatusChip({ status }: { status: string }) {
   const c = TASK_STATUS_COLOR[status] || { bg: '#f1f5f9', fg: '#334155', border: '#e2e8f0' };
@@ -222,7 +222,9 @@ export default function TasksListPage() {
               <TableRow key={t.id} hover sx={{ cursor: 'pointer' }} onClick={() => setDetail(t)}>
                 <TableCell>{t.title}</TableCell>
                 <TableCell>{CAMPUS_LABEL[t.campusId] || t.campusId}</TableCell>
-                <TableCell>{t.assigneeLabel || t.assigneeName || t.assigneePerId}</TableCell>
+                <TableCell title={t.assigneeLabel || t.assigneeName || t.assigneePerId}>
+                  {abbreviatePersonLabel(t.assigneeLabel || t.assigneeName || t.assigneePerId)}
+                </TableCell>
                 <TableCell>{new Date(t.createdAt).toLocaleString('vi-VN')}</TableCell>
                 <TableCell>{new Date(t.dueAt).toLocaleString('vi-VN')}</TableCell>
                 <TableCell>
