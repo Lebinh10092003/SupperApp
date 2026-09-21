@@ -338,7 +338,8 @@ export async function createEvent(db: Db, input: CreateEventInput, opts: { now?:
  */
 export async function updateRevisionEvent(
   db: Db,
-  input: { eventId: string; eventData: Partial<CreateEventInput>; actorPerId: string }
+  input: { eventId: string; eventData: Partial<CreateEventInput>; actorPerId: string },
+  opts: { now?: Date } = {}
 ) {
   if (!input.eventId || !input.actorPerId) throw new AppError('invalid_input', 'Thiếu eventId hoặc actorPerId.');
   const eventData = input.eventData || {};
@@ -398,7 +399,22 @@ export async function updateRevisionEvent(
     // Dò trùng là tính toán PHỤ — lỗi ở đây không được làm hỏng luồng sửa lịch chính.
   }
   const [freshAfter] = await db.select().from(ltcEvents).where(eq(ltcEvents.id, input.eventId)).limit(1);
-  return freshAfter ?? after!;
+  const finalEvent = freshAfter ?? after!;
+
+  await tryPushBell(
+    db,
+    {
+      recipients: [finalEvent.chairPerId, ...(finalEvent.participantPerIds || [])],
+      title: 'Lịch vừa được sửa lại: ' + finalEvent.title,
+      message: input.actorPerId + ' vừa cập nhật nội dung lịch "' + finalEvent.title + '".',
+      eventType: 'work_schedule.event.updated_for_revision',
+      objectId: input.eventId,
+      actorPerId: input.actorPerId
+    },
+    opts
+  );
+
+  return finalEvent;
 }
 
 /**

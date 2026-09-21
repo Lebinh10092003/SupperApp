@@ -282,23 +282,36 @@ export default function EventsListPage() {
               <TableCell>Cơ sở</TableCell>
               <TableCell>Phạm vi</TableCell>
               <TableCell>Thời gian</TableCell>
+              <TableCell>Chủ trì</TableCell>
+              <TableCell>Thành phần</TableCell>
               <TableCell>Trạng thái</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {!loading && filteredItems.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                <TableCell colSpan={7} align="center" sx={{ py: 4, color: 'text.secondary' }}>
                   Không có lịch nào khớp bộ lọc.
                 </TableCell>
               </TableRow>
             )}
-            {filteredItems.map((ev) => (
+            {filteredItems.map((ev) => {
+              const participantText =
+                ev.scope === 'SCHOOL_WIDE'
+                  ? 'Toàn trường'
+                  : (ev.participantLabels && ev.participantLabels.length > 0 ? ev.participantLabels : ev.participantPerIds).join(', ') || '—';
+              return (
               <TableRow key={ev.id} hover sx={{ cursor: 'pointer' }} onClick={() => setDetail(ev)}>
                 <TableCell>{ev.title}</TableCell>
                 <TableCell>{CAMPUS_LABEL[ev.campusId] || ev.campusId}</TableCell>
                 <TableCell>{EVENT_SCOPE_LABEL[ev.scope] || ev.scope}</TableCell>
                 <TableCell>{new Date(ev.startAt).toLocaleString('vi-VN')}</TableCell>
+                <TableCell sx={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={ev.chairLabel || ev.chairPerId}>
+                  {ev.chairLabel || ev.chairPerId}
+                </TableCell>
+                <TableCell sx={{ maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={participantText}>
+                  {participantText}
+                </TableCell>
                 <TableCell>
                   <EventStatusChip status={ev.status} />
                   {ev.conflictNote && (
@@ -308,7 +321,8 @@ export default function EventsListPage() {
                   )}
                 </TableCell>
               </TableRow>
-            ))}
+              );
+            })}
           </TableBody>
         </Table>
       </TableContainer>
@@ -433,6 +447,23 @@ export function EventDetailDialog({
   // tại (xem chú thích trong AuditTrailPanel.tsx).
   const [historyVersion, setHistoryVersion] = useState(0);
 
+  // --- form "Chỉnh sửa" (chỉ DRAFT/REVISION_REQUIRED, đúng người tạo) —
+  // bản gốc (App_lich_cong_tac_giao_viec) có nút này, bản port trước đây bỏ
+  // sót dù backend (updateRevisionEvent) đã có sẵn từ trước (Sin phát hiện
+  // 2026-09-21, đối chiếu bản gốc theo note Mr Tiến). Khai báo state TRƯỚC
+  // early-return bên dưới — hook không được gọi có điều kiện.
+  const [editOpen, setEditOpen] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editCampusId, setEditCampusId] = useState('');
+  const [editPriority, setEditPriority] = useState('NORMAL');
+  const [editStartAt, setEditStartAt] = useState('');
+  const [editEndAt, setEditEndAt] = useState('');
+  const [editLocation, setEditLocation] = useState('');
+  const [editParticipants, setEditParticipants] = useState<PersonOption[]>([]);
+  const [editError, setEditError] = useState('');
+  const [editSubmitting, setEditSubmitting] = useState(false);
+
   if (!event) return null;
   const isCreator = event.createdByPerId === actorPerId;
   const activeStep = EVENT_STATUS_STEPS.indexOf(event.status as (typeof EVENT_STATUS_STEPS)[number]);
@@ -469,6 +500,61 @@ export function EventDetailDialog({
     if (!reason.trim()) return;
     await changeStatus(reasonOpen!, reason.trim());
     setReasonOpen(null);
+  };
+
+  const openEdit = () => {
+    setEditTitle(event.title);
+    setEditDescription(event.description || '');
+    setEditCampusId(event.scope === 'SCHOOL_WIDE' ? 'SCHOOL_WIDE' : event.campusId);
+    setEditPriority(event.priority);
+    setEditStartAt(toLocalInput(new Date(event.startAt)));
+    setEditEndAt(toLocalInput(new Date(event.endAt)));
+    setEditLocation(event.location || '');
+    // Tự dựng lại PersonOption từ nhãn đã có sẵn (chairLabel/participantLabels)
+    // — không cần gọi lại API tìm người, chỉ cần đủ {perId, name} để
+    // PeopleMultiPicker hiện đúng lựa chọn đang có sẵn.
+    setEditParticipants(
+      event.participantPerIds.map((pid, i) => ({
+        perId: pid,
+        name: event.participantLabels?.[i] || pid
+      }))
+    );
+    setEditError('');
+    setEditOpen(true);
+  };
+
+  const editScope: 'CAMPUS' | 'SCHOOL_WIDE' = editCampusId === 'SCHOOL_WIDE' ? 'SCHOOL_WIDE' : 'CAMPUS';
+
+  const saveEdit = async () => {
+    setEditError('');
+    if (!editTitle.trim()) return setEditError('Vui lòng nhập tiêu đề.');
+    if (!editCampusId) return setEditError('Vui lòng chọn cơ sở.');
+    if (!editStartAt || !editEndAt) return setEditError('Vui lòng chọn thời gian bắt đầu/kết thúc.');
+    if (editScope === 'CAMPUS' && editParticipants.length === 0) {
+      return setEditError('Vui lòng chọn ít nhất một người tham dự.');
+    }
+    setEditSubmitting(true);
+    try {
+      const updated = await api.patch<WorkEvent>(`/api/work-schedule/events/${event.id}`, {
+        title: editTitle.trim(),
+        description: editDescription.trim(),
+        campusId: editScope === 'SCHOOL_WIDE' ? 'MAIN_CAMPUS' : editCampusId,
+        scope: editScope,
+        priority: editPriority,
+        startAt: new Date(editStartAt).toISOString(),
+        endAt: new Date(editEndAt).toISOString(),
+        location: editLocation.trim(),
+        participantPerIds: editScope === 'SCHOOL_WIDE' ? [] : editParticipants.map((p) => p.perId)
+      });
+      onChanged(updated);
+      setHistoryVersion((v) => v + 1);
+      setEditOpen(false);
+      onSuccess?.('Đã lưu nội dung lịch cần sửa.');
+    } catch (e: any) {
+      setEditError(e.message || 'Lưu lịch thất bại — không rõ nguyên nhân, thử lại hoặc báo quản trị viên.');
+    } finally {
+      setEditSubmitting(false);
+    }
   };
 
   return (
@@ -526,14 +612,24 @@ export function EventDetailDialog({
       </DialogContent>
       <DialogActions sx={{ flexWrap: 'wrap', gap: 1 }}>
         {event.status === 'DRAFT' && isCreator && (
-          <Button variant="contained" disabled={busy} onClick={() => changeStatus('PENDING_APPROVAL')}>
-            Gửi lãnh đạo duyệt
-          </Button>
+          <>
+            <Button disabled={busy} onClick={openEdit}>
+              Chỉnh sửa
+            </Button>
+            <Button variant="contained" disabled={busy} onClick={() => changeStatus('PENDING_APPROVAL')}>
+              Gửi lãnh đạo duyệt
+            </Button>
+          </>
         )}
         {event.status === 'REVISION_REQUIRED' && isCreator && (
-          <Button variant="contained" disabled={busy} onClick={() => changeStatus('PENDING_APPROVAL')}>
-            Gửi duyệt lại
-          </Button>
+          <>
+            <Button disabled={busy} onClick={openEdit}>
+              Chỉnh sửa
+            </Button>
+            <Button variant="contained" disabled={busy} onClick={() => changeStatus('PENDING_APPROVAL')}>
+              Gửi duyệt lại
+            </Button>
+          </>
         )}
         {event.status === 'PENDING_APPROVAL' && isCreator && (
           <Button disabled={busy} onClick={() => changeStatus('DRAFT')}>
@@ -581,6 +677,67 @@ export function EventDetailDialog({
           <Button onClick={() => setReasonOpen(null)}>Hủy</Button>
           <Button variant="contained" onClick={submitReason} disabled={!reason.trim() || busy}>
             Xác nhận
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={editOpen} onClose={() => setEditOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>Chỉnh sửa lịch công tác</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            {editError && <Alert severity="error">{editError}</Alert>}
+            <TextField label="Tiêu đề *" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} fullWidth />
+            <TextField select label="Cơ sở *" value={editCampusId} onChange={(e) => setEditCampusId(e.target.value)} fullWidth>
+              {CAMPUS_IDS.map((c) => (
+                <MenuItem key={c} value={c}>
+                  {CAMPUS_LABEL[c]}
+                </MenuItem>
+              ))}
+              <MenuItem value="SCHOOL_WIDE">Toàn trường (cần duyệt 2 bước: Hiệu phó rồi Hiệu trưởng)</MenuItem>
+            </TextField>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+              <TextField
+                label="Bắt đầu *"
+                type="datetime-local"
+                value={editStartAt}
+                onChange={(e) => setEditStartAt(e.target.value)}
+                slotProps={{ inputLabel: { shrink: true } }}
+                fullWidth
+              />
+              <TextField
+                label="Kết thúc *"
+                type="datetime-local"
+                value={editEndAt}
+                onChange={(e) => setEditEndAt(e.target.value)}
+                slotProps={{ inputLabel: { shrink: true }, htmlInput: { min: editStartAt || undefined } }}
+                fullWidth
+              />
+            </Stack>
+            <TextField label="Địa điểm" value={editLocation} onChange={(e) => setEditLocation(e.target.value)} fullWidth />
+            {editScope === 'CAMPUS' && (
+              <PeopleMultiPicker label="Thành phần tham dự *" value={editParticipants} onChange={setEditParticipants} />
+            )}
+            <TextField select label="Mức ưu tiên" value={editPriority} onChange={(e) => setEditPriority(e.target.value)} fullWidth>
+              {Object.entries(PRIORITY_LABEL).map(([k, v]) => (
+                <MenuItem key={k} value={k}>
+                  {v}
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              label="Nội dung"
+              value={editDescription}
+              onChange={(e) => setEditDescription(e.target.value)}
+              multiline
+              rows={3}
+              fullWidth
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditOpen(false)}>Hủy</Button>
+          <Button variant="contained" onClick={saveEdit} disabled={editSubmitting}>
+            Lưu
           </Button>
         </DialogActions>
       </Dialog>
