@@ -18,7 +18,7 @@ import { StatusChip } from './components/StatusChip';
 import { PriorityChip } from './components/PriorityChip';
 import { ConfidentialityBadge } from './components/ConfidentialityBadge';
 import { useIncidents } from './hooks/useIncidents';
-import { CAMPUS_LABEL } from './constants';
+import { CAMPUS_LABEL, SLA_CLOCK_LABEL } from './constants';
 
 function formatDateTime(iso?: string) {
   if (!iso) return '—';
@@ -100,7 +100,7 @@ export default function EmergencyCockpitPage() {
                 {it.slaClocks && Object.keys(it.slaClocks).length > 0 && (
                   <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
                     {Object.entries(it.slaClocks)
-                      .map(([label, c]) => `${label}: hạn ${formatDateTime(c.deadlineAt)}`)
+                      .map(([label, c]) => `${SLA_CLOCK_LABEL[label] || label}: hạn ${formatDateTime(c.deadlineAt)}`)
                       .join(' · ')}
                   </Typography>
                 )}
