@@ -67,9 +67,18 @@ export async function firebaseAuth(req: Request, _res: Response, next: NextFunct
 
     // Tự động link tài khoản An toàn (accounts, khoá theo uid) nếu email
     // này đã được admin gán vai trò sẵn từ trước qua perId (chưa từng
-    // đăng nhập nên hệ thống chưa biết uid) — best-effort, không chặn
-    // đăng nhập nếu lỗi (vd DB tạm gián đoạn). Xem auto-link.ts.
-    ensureSafetyAccountLinked(db, d.uid, email, d.name).catch((e) => {
+    // đăng nhập nên hệ thống chưa biết uid) — PHẢI đợi xong (await) rồi mới
+    // next(): trước đây gọi kiểu "bắn xong không đợi" (fire-and-forget),
+    // request tải dữ liệu ngay sau đó (cùng lượt đăng nhập lần đầu) chạy
+    // TRƯỚC KHI bản ghi `accounts` kịp tạo xong -> hệ thống coi như chưa có
+    // tài khoản, trang trống + "chưa đăng nhập"; reset trang (request mới)
+    // thì đã kịp tạo xong nên lại thấy dữ liệu bình thường (Sin phát hiện
+    // 2026-09-21, thử đăng nhập lần đầu 1 tài khoản giáo viên thật). Vẫn
+    // best-effort ở chỗ LỖI không chặn đăng nhập (bắt lỗi, không throw) —
+    // chỉ khác là ĐỢI xong trước khi cho request đi tiếp. Với > 99% request
+    // (uid đã link từ trước), hàm này chỉ mất đúng 1 lượt tra cứu theo khoá
+    // chính nên chi phí thêm không đáng kể.
+    await ensureSafetyAccountLinked(db, d.uid, email, d.name).catch((e) => {
       console.error('[Auth] ensureSafetyAccountLinked lỗi (bỏ qua, không chặn đăng nhập):', e);
     });
 
