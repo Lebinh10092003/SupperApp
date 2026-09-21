@@ -31,6 +31,7 @@ import {
 } from './work-schedule.schema.js';
 import { evaluateEventApproval, canAcceptOrReturnTask, type ActorAssignment } from './work-schedule.authz.js';
 import { pushAdminNotifications, type PushAdminNotificationsInput } from '../safety/admin-notify.js';
+import { getPersonLabelsByPerIds } from '../identity/person-directory.js';
 
 type Db = NodePgDatabase<Record<string, never>>;
 
@@ -165,12 +166,29 @@ async function findOverlappingPartners(
   return rows.filter((other) => other.participantPerIds.some((pid) => args.participantPerIds.includes(pid)));
 }
 
-function buildConflictNoteText(event: LtcEventRow, partners: LtcEventRow[]): string {
+/**
+ * Trước đây ghi thẳng `per_id` thô vào conflictNote (lý do cũ: "module này
+ * không có quyền/đường truy cập bảng người dùng dùng chung, tránh truy cập
+ * chéo CSDL giữa các module") — lý do đó KHÔNG còn đúng: từ 2026-09-21
+ * module này đã import `identity/person-directory.ts` để hiện tên+chức vụ
+ * ở khắp nơi khác (chairLabel/participantLabels/assigneeLabel...), riêng
+ * chỗ này bị bỏ sót nên vẫn lộ mã `PER_xxx` (Sin phát hiện qua ảnh chụp
+ * banner "Trùng lịch"). Nay resolve tên giống hệt các chỗ khác.
+ */
+async function buildConflictNoteText(db: Db, event: LtcEventRow, partners: LtcEventRow[]): Promise<string> {
   if (!partners.length) return '';
+  const allSharedPerIds = new Set<string>();
+  for (const other of partners) {
+    for (const pid of event.participantPerIds) {
+      if (other.participantPerIds.includes(pid)) allSharedPerIds.add(pid);
+    }
+  }
+  const labels = await getPersonLabelsByPerIds(db, Array.from(allSharedPerIds));
   return partners
     .map((other) => {
       const sharedPerIds = event.participantPerIds.filter((pid) => other.participantPerIds.includes(pid));
-      return `Trùng giờ với lịch "${other.title}" (${other.id}) — cùng có ${sharedPerIds.join(', ')} tham dự, từ ${formatVnDateTime(other.startAt)} đến ${formatVnDateTime(other.endAt)}.`;
+      const sharedLabels = sharedPerIds.map((pid) => labels[pid] ?? pid);
+      return `Trùng giờ với lịch "${other.title}" (${other.id}) — cùng có ${sharedLabels.join(', ')} tham dự, từ ${formatVnDateTime(other.startAt)} đến ${formatVnDateTime(other.endAt)}.`;
     })
     .join('; ');
 }
@@ -197,7 +215,7 @@ async function computeAndPersistNoteForEvent(db: Db, eventId: string): Promise<{
     endAt: event.endAt,
     participantPerIds: event.participantPerIds
   });
-  const note = buildConflictNoteText(event, partners);
+  const note = await buildConflictNoteText(db, event, partners);
   if (event.conflictNote !== note) {
     await db.update(ltcEvents).set({ conflictNote: note }).where(eq(ltcEvents.id, eventId));
   }
