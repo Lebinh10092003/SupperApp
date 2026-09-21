@@ -1,4 +1,5 @@
 import { useState, useEffect, type ReactNode } from 'react';
+import { isFermatTechAdminEmail } from '../config/adminAccess';
 import {
   AppBar,
   Box,
@@ -92,7 +93,6 @@ interface NavGroup {
 }
 
 /** Email tài khoản FermatTech (quản trị cấp cao nhất, bootstrap super admin) — nguồn duy nhất được thấy các mục adminOnly. */
-const FERMATTECH_ADMIN_EMAIL = 'admin@badinhedu.vn';
 
 /** Thứ tự hiển thị nhóm trên sidebar — Cảnh báo an toàn + Lịch công tác lên đầu (Mr Tiến phản hồi 2026-09-21), các nhóm adminOnly xuống cuối. */
 const GROUP_DISPLAY_ORDER = [
@@ -442,7 +442,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   // Mục/nhóm adminOnly (Google Classroom, lớp học số...) chỉ tài khoản
   // FermatTech thấy — Sin yêu cầu 2026-09-21: các mục này không còn là
   // nghiệp vụ chính của trường, chỉ giữ cho admin kỹ thuật dùng khi cần.
-  const isFermatTechAdmin = (profile?.email || '').toLowerCase() === FERMATTECH_ADMIN_EMAIL;
+  const isFermatTechAdmin = isFermatTechAdminEmail(profile?.email);
   const visibleGroups = navGroups
     .filter((group) => !group.adminOnly || isFermatTechAdmin)
     .map((group) => ({
@@ -932,7 +932,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Box>
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-            {/* Live Classroom Sync Status Pill */}
+            {/* Live Classroom Sync Status Pill — chỉ FermatTech thấy (Sin
+                yêu cầu 2026-09-21, cùng đợt ẩn các mục Google Classroom
+                khỏi sidebar cho tài khoản thường). */}
+            {isFermatTechAdmin && (
             <Tooltip title={syncStatus?.isSynced ? `Đã đồng bộ ${syncStatus.courseCount} khóa học từ Google Classroom` : 'Chưa đồng bộ dữ liệu thật từ Google Classroom. Bấm để kết nối.'}>
               <Box
                 onClick={() => navigate('/connections')}
@@ -970,8 +973,10 @@ export function AppShell({ children }: { children: ReactNode }) {
                 </Typography>
               </Box>
             </Tooltip>
+            )}
 
-            {/* Quick Sync Button */}
+            {/* Quick Sync Button — chỉ FermatTech thấy, cùng lý do trên. */}
+            {isFermatTechAdmin && (
             <Button
               size="small"
               variant="contained"
@@ -991,6 +996,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             >
               {isSyncing ? 'Đang đồng bộ...' : 'Đồng bộ'}
             </Button>
+            )}
 
             {/* Academic Semester Badge */}
             <Box
