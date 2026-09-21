@@ -177,27 +177,6 @@ const navGroups: NavGroup[] = [
     ]
   },
   {
-    groupTitle: 'LỚP HỌC & HỌC SINH',
-    items: [
-      { path: '/classroom', label: 'Google Classroom', icon: <ClassroomIcon fontSize="small" /> },
-      { path: '/classes', label: 'Lớp học & Sĩ số', icon: <SchoolIcon fontSize="small" /> },
-      { path: '/students', label: 'Danh sách Học sinh', icon: <StudentsIcon fontSize="small" /> },
-      {
-        path: '/teachers',
-        label: 'Danh sách Giáo viên',
-        icon: <TeachersIcon fontSize="small" />,
-        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'DEPARTMENT_HEAD']
-      },
-      { path: '/schedules', label: 'Thời khóa biểu', icon: <ScheduleIcon fontSize="small" /> },
-      {
-        path: '/attendance',
-        label: 'Điểm danh & Chuyên cần',
-        icon: <AttendanceIcon fontSize="small" />,
-        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'DEPARTMENT_HEAD', 'TEACHER', 'HOMEROOM']
-      }
-    ]
-  },
-  {
     groupTitle: 'PHÂN TÍCH & BÁO CÁO',
     items: [
       {
@@ -256,6 +235,29 @@ const navGroups: NavGroup[] = [
         label: 'Tình trạng hệ thống',
         icon: <SystemIcon fontSize="small" />,
         roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN']
+      }
+    ]
+  },
+  // Nhóm liên quan Google Classroom — Sin yêu cầu 2026-09-21 chuyển xuống
+  // CUỐI sidebar, ưu tiên module An toàn + Lịch công tác lên trên.
+  {
+    groupTitle: 'LỚP HỌC & HỌC SINH',
+    items: [
+      { path: '/classroom', label: 'Google Classroom', icon: <ClassroomIcon fontSize="small" /> },
+      { path: '/classes', label: 'Lớp học & Sĩ số', icon: <SchoolIcon fontSize="small" /> },
+      { path: '/students', label: 'Danh sách Học sinh', icon: <StudentsIcon fontSize="small" /> },
+      {
+        path: '/teachers',
+        label: 'Danh sách Giáo viên',
+        icon: <TeachersIcon fontSize="small" />,
+        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'DEPARTMENT_HEAD']
+      },
+      { path: '/schedules', label: 'Thời khóa biểu', icon: <ScheduleIcon fontSize="small" /> },
+      {
+        path: '/attendance',
+        label: 'Điểm danh & Chuyên cần',
+        icon: <AttendanceIcon fontSize="small" />,
+        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'DEPARTMENT_HEAD', 'TEACHER', 'HOMEROOM']
       }
     ]
   }
@@ -493,7 +495,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             }}
             noWrap
           >
-            School Intelligence
+            SuperApp
           </Typography>
         </Box>
       </Box>
@@ -839,7 +841,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </IconButton>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Typography variant="body2" fontWeight={600} sx={{ color: '#2563eb' }}>
-                Giảng Võ Intelligence
+                Giảng Võ SuperApp
               </Typography>
               <Typography variant="body2" sx={{ color: '#cbd5e1' }}>
                 /
