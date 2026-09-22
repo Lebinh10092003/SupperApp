@@ -1,7 +1,9 @@
 import { Router } from 'express';
+import { eq } from 'drizzle-orm';
 import { firebaseAuth, requireCapability } from '../../auth/middleware.js';
 import { asyncRoute } from '../../core/http.js';
-import { col } from '../../core/firebase.js';
+import { db } from '../../core/db/client.js';
+import { dashboardSnapshot } from './dashboard.schema.js';
 import { rebuildDashboard, trend } from './dashboard.service.js';
 
 export const dashboardRouter = Router();
@@ -11,10 +13,8 @@ dashboardRouter.get(
   firebaseAuth,
   requireCapability('VIEW_DASHBOARD'),
   asyncRoute(async (_q, r) => {
-    const snap = await col('dashboard').doc('current').get();
-    if (snap.exists) {
-      return r.json(snap.data());
-    }
+    const row = await db.select().from(dashboardSnapshot).where(eq(dashboardSnapshot.id, 'current')).then((rows) => rows[0] ?? null);
+    if (row) return r.json(row);
     return r.json(await rebuildDashboard());
   })
 );

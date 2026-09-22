@@ -1,9 +1,12 @@
 import type { Request, Response, NextFunction } from 'express';
-import { FieldValue } from 'firebase-admin/firestore';
-import { adminAuth, col } from '../core/firebase.js';
+import { eq } from 'drizzle-orm';
+import { adminAuth } from '../core/firebase.js';
+import { db } from '../core/db/client.js';
+import { users } from '../modules/session/session.schema.js';
 import { HttpError } from '../core/http.js';
 import { can, type Capability, type Role, type UserScope } from './roles.js';
-import { bootstrapSuperAdminEmails, bootstrapSuperAdminDomains } from '../config/env.js';
+import { bootstrapSuperAdminEmails, bootstrapSuperAdminDomains, env } from '../config/env.js';
+import { ensureSafetyAccountLinked } from '../modules/identity/auto-link.js';
 
 export interface AppUser {
   uid: string;
@@ -22,7 +25,7 @@ declare global {
   }
 }
 
-function isBootstrapSuperAdmin(email: string): boolean {
+export function isBootstrapSuperAdmin(email: string): boolean {
   const lower = email.toLowerCase();
   if (bootstrapSuperAdminEmails.has(lower)) return true;
   const domain = lower.split('@')[1];
@@ -38,8 +41,11 @@ export async function firebaseAuth(req: Request, _res: Response, next: NextFunct
     }
     const token = h.slice(7);
 
-    // Support dev tokens in local development
-    if (token.startsWith('dev:')) {
+    // Bearer `dev:<email>:<role>` bỏ qua xác thực Firebase thật — CHỈ hoạt
+    // động khi ALLOW_DEV_AUTH_BYPASS=true (mặc định false, xem config/env.ts).
+    // Token dạng này gửi vào production (cờ tắt) sẽ rơi thẳng xuống nhánh
+    // verifyIdToken bên dưới và bị Firebase từ chối như token thật không hợp lệ.
+    if (env.ALLOW_DEV_AUTH_BYPASS && token.startsWith('dev:')) {
       const parts = token.split(':');
       const email = (parts[1] || '09.levanbinh2003@gmail.com').toLowerCase();
       const role = (parts[2] as Role) || (isBootstrapSuperAdmin(email) ? 'SYSTEM_SUPER_ADMIN' : 'SCHOOL_ADMIN');
@@ -53,50 +59,59 @@ export async function firebaseAuth(req: Request, _res: Response, next: NextFunct
       return next();
     }
 
-    const d = await adminAuth.verifyIdToken(token);
+    const d = await adminAuth.verifyIdToken(token).catch(() => {
+      throw new HttpError(401, 'Phiên đăng nhập không hợp lệ hoặc đã hết hạn', 'AUTH_ERROR');
+    });
     const email = (d.email || '').toLowerCase();
-    const userRef = col('users').doc(d.uid);
-    const s = await userRef.get();
+    const existing = await db.select().from(users).where(eq(users.uid, d.uid)).then((r) => r[0] ?? null);
+
+    // Tự động link tài khoản An toàn (accounts, khoá theo uid) nếu email
+    // này đã được admin gán vai trò sẵn từ trước qua perId (chưa từng
+    // đăng nhập nên hệ thống chưa biết uid) — PHẢI đợi xong (await) rồi mới
+    // next(): trước đây gọi kiểu "bắn xong không đợi" (fire-and-forget),
+    // request tải dữ liệu ngay sau đó (cùng lượt đăng nhập lần đầu) chạy
+    // TRƯỚC KHI bản ghi `accounts` kịp tạo xong -> hệ thống coi như chưa có
+    // tài khoản, trang trống + "chưa đăng nhập"; reset trang (request mới)
+    // thì đã kịp tạo xong nên lại thấy dữ liệu bình thường (Sin phát hiện
+    // 2026-09-21, thử đăng nhập lần đầu 1 tài khoản giáo viên thật). Vẫn
+    // best-effort ở chỗ LỖI không chặn đăng nhập (bắt lỗi, không throw) —
+    // chỉ khác là ĐỢI xong trước khi cho request đi tiếp. Với > 99% request
+    // (uid đã link từ trước), hàm này chỉ mất đúng 1 lượt tra cứu theo khoá
+    // chính nên chi phí thêm không đáng kể.
+    await ensureSafetyAccountLinked(db, d.uid, email, d.name).catch((e) => {
+      console.error('[Auth] ensureSafetyAccountLinked lỗi (bỏ qua, không chặn đăng nhập):', e);
+    });
 
     // Tự động cấp SYSTEM_SUPER_ADMIN cho email trong bootstrap config
     if (isBootstrapSuperAdmin(email)) {
-      if (!s.exists) {
-        await userRef.set({
+      if (!existing) {
+        await db.insert(users).values({
           uid: d.uid,
           email,
           role: 'SYSTEM_SUPER_ADMIN',
           active: true,
-          displayName: d.name || email,
-          createdAt: FieldValue.serverTimestamp(),
-          updatedAt: FieldValue.serverTimestamp()
+          displayName: d.name || email
         });
       }
-      req.appUser = {
-        uid: d.uid,
-        email,
-        role: 'SYSTEM_SUPER_ADMIN',
-        active: true,
-        displayName: d.name || email
-      };
+      req.appUser = { uid: d.uid, email, role: 'SYSTEM_SUPER_ADMIN', active: true, displayName: d.name || email };
       return next();
     }
 
-    if (!s.exists) {
+    if (!existing) {
       throw new HttpError(403, 'Tài khoản chưa được cấp quyền truy cập hệ thống', 'PERMISSION_ERROR');
     }
 
-    const p = s.data()!;
-    if (p.active !== true) {
+    if (existing.active !== true) {
       throw new HttpError(403, 'Tài khoản đã bị tạm khóa bởi Quản trị viên', 'PERMISSION_ERROR');
     }
 
     req.appUser = {
       uid: d.uid,
       email,
-      role: (p.role as Role) || 'TEACHER',
+      role: (existing.role as Role) || 'TEACHER',
       active: true,
-      displayName: p.displayName || d.name,
-      scope: p.scope
+      displayName: existing.displayName || d.name,
+      scope: (existing.scope as UserScope) ?? undefined
     };
     next();
   } catch (e) {
@@ -123,4 +138,3 @@ export function checkUserScope(user: AppUser, target: { grade?: number; classId?
   if (target.courseId && user.scope.courseIds?.length && !user.scope.courseIds.includes(target.courseId)) return false;
   return true;
 }
-

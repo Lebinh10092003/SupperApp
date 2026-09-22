@@ -2,6 +2,15 @@ import { auth } from '../config/firebase';
 import { env } from '../config/env';
 
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+  // `authStateReady()` — chờ Firebase khôi phục xong phiên đã lưu (persisted
+  // session) TRƯỚC KHI đọc `auth.currentUser`. Thiếu bước này, một request
+  // bắn ra ngay lúc trang vừa tải (VD `useEffect` gọi API ngay khi mount)
+  // có thể chạy TRƯỚC khi Firebase kịp khôi phục `currentUser`, khiến
+  // `auth.currentUser` vẫn null dù người dùng ĐÃ đăng nhập thật — request
+  // đi ra KHÔNG có token, server trả "Chưa đăng nhập" dù tài khoản hợp lệ
+  // (Sin phát hiện 21/09/2026: trang "Tin báo chờ xử lý" hiện banner "Chưa
+  // đăng nhập" dù đã đăng nhập bằng tài khoản giáo viên thật).
+  await auth.authStateReady().catch(() => undefined);
   const token =
     (await auth.currentUser?.getIdToken().catch(() => undefined)) ||
     localStorage.getItem('gv_dev_token') ||
@@ -31,6 +40,15 @@ api.patch = <T = any>(path: string, body?: any, init?: RequestInit) =>
 api.delete = <T = any>(path: string, init?: RequestInit) => api<T>(path, { ...init, method: 'DELETE' });
 
 export async function download(path: string, name: string) {
+  // `authStateReady()` — chờ Firebase khôi phục xong phiên đã lưu (persisted
+  // session) TRƯỚC KHI đọc `auth.currentUser`. Thiếu bước này, một request
+  // bắn ra ngay lúc trang vừa tải (VD `useEffect` gọi API ngay khi mount)
+  // có thể chạy TRƯỚC khi Firebase kịp khôi phục `currentUser`, khiến
+  // `auth.currentUser` vẫn null dù người dùng ĐÃ đăng nhập thật — request
+  // đi ra KHÔNG có token, server trả "Chưa đăng nhập" dù tài khoản hợp lệ
+  // (Sin phát hiện 21/09/2026: trang "Tin báo chờ xử lý" hiện banner "Chưa
+  // đăng nhập" dù đã đăng nhập bằng tài khoản giáo viên thật).
+  await auth.authStateReady().catch(() => undefined);
   const token =
     (await auth.currentUser?.getIdToken().catch(() => undefined)) ||
     localStorage.getItem('gv_dev_token') ||

@@ -9,4 +9,6 @@ dist/
 coverage/
 *service-account*.json
 *credentials*.json
+evidence-storage/
+*.tsbuildinfo
 

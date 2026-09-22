@@ -20,7 +20,7 @@ const schema = z.object({
   PUBSUB_PUSH_SERVICE_ACCOUNT: z.string().default(''),
   GOOGLE_OAUTH_CLIENT_ID: z.string().default(''),
   GOOGLE_OAUTH_CLIENT_SECRET: z.string().default(''),
-  GOOGLE_OAUTH_REDIRECT_URI: z.string().default('http://localhost:5173/oauth/callback'),
+  GOOGLE_OAUTH_REDIRECT_URI: z.string().default(''),
   CLASSROOM_OAUTH_CLIENT_ID_SECRET: z.string().default('si-classroom-oauth-client-id'),
   CLASSROOM_OAUTH_CLIENT_SECRET_SECRET: z.string().default('si-classroom-oauth-client-secret'),
   CLASSROOM_OAUTH_REFRESH_TOKEN_SECRET: z.string().default('si-classroom-oauth-refresh-token'),
@@ -28,7 +28,34 @@ const schema = z.object({
   API_BASE_URL: z.string().default('http://localhost:8080'),
   PORT: z.coerce.number().default(8080),
   GOOGLE_SERVICE_ACCOUNT_KEY_PATH: z.string().default(''),
-  GOOGLE_APPLICATION_CREDENTIALS: z.string().default('')
+  GOOGLE_APPLICATION_CREDENTIALS: z.string().default(''),
+
+  // Postgres cho các module viết lại từ Firebase (An toàn trường học, Lịch
+  // công tác). Mỗi trường 1 deployment + 1 database riêng — KHÔNG có khái
+  // niệm multi-tenant/chọn schema động ở đây. Xem apps/api/src/core/db/.
+  DATABASE_URL: z.string().default('postgres://postgres@localhost:5432/postgres'),
+  DATABASE_POOL_MIN: z.coerce.number().default(0),
+  DATABASE_POOL_MAX: z.coerce.number().default(10),
+
+  // Cloud Storage bucket cho kho minh chứng (S8, module An toàn) — rỗng =
+  // dùng đĩa cục bộ MIỄN PHÍ thay thế (xem core/localEvidenceStorage.ts),
+  // chỉ điền tên bucket GCS thật ở đây sau khi project đã gắn billing thật
+  // và cố ý muốn chuyển sang Cloud Storage.
+  EVIDENCE_STORAGE_BUCKET: z.string().default(''),
+  // Khoá ký HMAC cho URL tải minh chứng khi dùng đĩa cục bộ (không cần khi
+  // dùng GCS thật — Cloud Storage tự ký). PHẢI đổi giá trị thật trước khi
+  // deploy production nếu vẫn dùng đĩa cục bộ ở đó.
+  EVIDENCE_SIGN_SECRET: z.string().default('dev-only-insecure-evidence-secret'),
+
+  // Cờ AN NINH — bật mới cho phép bearer token `dev:<email>:<role>` bỏ qua
+  // xác thực Firebase thật (xem auth/middleware.ts). Mặc định TẮT (false)
+  // — PHẢI để tắt ở production, chỉ bật thủ công (=true) trên máy dev/CI.
+  // Nếu bật nhầm ở production, bất kỳ ai cũng đăng nhập giả mạo được bằng
+  // cách tự gửi header này, không cần mật khẩu/tài khoản Google thật.
+  ALLOW_DEV_AUTH_BYPASS: z
+    .string()
+    .default('false')
+    .transform((v) => v.toLowerCase() === 'true')
 });
 
 export const env = schema.parse(process.env);

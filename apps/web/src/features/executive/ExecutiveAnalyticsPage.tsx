@@ -92,10 +92,9 @@ export default function ExecutiveAnalyticsPage() {
   ];
 
   return (
-    <Box sx={{ p: { xs: 2, md: 3 } }}>
+    <>
       <PageHeader
-        title="Báo Cáo Điều Hành & Phân Tích Chiến Lược (Executive BI)"
-        subtitle="Tổng quan tiến độ số hóa, chất lượng học tập và năng lực thực thi toàn trường từ Google Classroom"
+        title="Báo cáo điều hành & phân tích chiến lược"
         action={
           <Stack direction="row" spacing={1.5}>
             <Button
@@ -307,6 +306,6 @@ export default function ExecutiveAnalyticsPage() {
           </Table>
         </TableContainer>
       </Card>
-    </Box>
+    </>
   );
 }

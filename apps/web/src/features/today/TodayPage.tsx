@@ -5,8 +5,7 @@ import { ApiTablePage } from '../../components/ApiTablePage';
 export default function TodayPage() {
   return (
     <ApiTablePage
-      title="Hoạt động Hôm nay — Live School Monitor"
-      subtitle="Theo dõi thời gian thực các phiên Google Meet và điểm danh số trong ngày tại THCS Giảng Võ"
+      title="Hoạt động hôm nay"
       path="/api/meet/live"
       columns={[
         {

@@ -1,9 +1,24 @@
-import { FieldValue } from 'firebase-admin/firestore';
+import { sql, eq } from 'drizzle-orm';
 import { env } from '../../config/env.js';
-import { col } from '../../core/firebase.js';
+import { db } from '../../core/db/client.js';
 import { googleJson } from '../../integrations/dwd.js';
 import { autoDetectClass, autoDetectSubject, cleanCourseName } from '../catalog/catalog.service.js';
 import { evaluateAlertRules } from '../alerts/alert-engine.service.js';
+import { people } from '../people/people.schema.js';
+import { classes } from '../classes/classes.schema.js';
+import { schedules } from '../schedules/schedules.schema.js';
+import {
+  courses,
+  courseMembers,
+  courseCoursework,
+  courseMaterials,
+  courseAnnouncements,
+  courseTopics,
+  courseSubmissions,
+  classMappings,
+  subjectMappings,
+  syncRuns
+} from './classroom.schema.js';
 
 const scopes = [
   'https://www.googleapis.com/auth/classroom.courses.readonly',
@@ -27,7 +42,7 @@ async function fetchWithRetry<T>(fn: () => Promise<T>, maxRetries = 3, initialDe
       if (attempt === maxRetries || (err.message && !err.message.includes('429') && !err.message.includes('503'))) {
         throw err;
       }
-      await new Promise(r => setTimeout(r, delay));
+      await new Promise((r) => setTimeout(r, delay));
       delay *= 2;
     }
   }
@@ -139,20 +154,27 @@ export async function discoverCourses(subject: string, customToken?: string): Pr
   return Array.from(merged.values());
 }
 
-export async function syncCourse(course: Course, subject = env.WORKSPACE_ADMIN_SUBJECT, customToken?: string) {
-  const ref = col('courses').doc(course.id);
+/** Ghép thêm 1 courseId vào cột jsonb `courses` của người này, không trùng lặp. */
+function appendCourseIdSql(column: typeof people.courses, courseId: string) {
+  const courseJson = JSON.stringify([courseId]);
+  return sql`(
+    SELECT jsonb_agg(DISTINCT value)
+    FROM jsonb_array_elements(COALESCE(${column}, '[]'::jsonb) || ${courseJson}::jsonb) AS value
+  )`;
+}
 
+export async function syncCourse(course: Course, subject = env.WORKSPACE_ADMIN_SUBJECT, customToken?: string) {
   // Kiểm tra mapping lớp & môn học có sẵn, nếu chưa có thì tự động gợi ý
-  const [classMapDoc, subMapDoc] = await Promise.all([
-    col('classMappings').doc(course.id).get(),
-    col('subjectMappings').doc(course.id).get()
+  const [classMapRow, subMapRow] = await Promise.all([
+    db.select().from(classMappings).where(eq(classMappings.courseId, course.id)).then((r) => r[0] ?? null),
+    db.select().from(subjectMappings).where(eq(subjectMappings.courseId, course.id)).then((r) => r[0] ?? null)
   ]);
 
-  let classId = classMapDoc.data()?.classId;
-  let className = classMapDoc.data()?.className;
-  let grade = classMapDoc.data()?.grade;
-  let subjectId = subMapDoc.data()?.subjectId;
-  let subjectName = subMapDoc.data()?.subjectName;
+  let classId = classMapRow?.classId;
+  let className = classMapRow?.className;
+  let grade = classMapRow?.grade;
+  let subjectId = subMapRow?.subjectId;
+  let subjectName = subMapRow?.subjectName;
 
   if (!classId) {
     const autoClass = autoDetectClass(course.name);
@@ -160,16 +182,21 @@ export async function syncCourse(course: Course, subject = env.WORKSPACE_ADMIN_S
       classId = autoClass.classId;
       className = autoClass.className;
       grade = autoClass.grade;
-      await col('classMappings').doc(course.id).set({
-        courseId: course.id,
-        courseName: course.name,
-        classId,
-        className,
-        grade,
-        confidence: autoClass.confidence,
-        confirmed: false,
-        updatedAt: FieldValue.serverTimestamp()
-      }, { merge: true });
+      await db
+        .insert(classMappings)
+        .values({
+          courseId: course.id,
+          courseName: course.name,
+          classId,
+          className,
+          grade,
+          confidence: String(autoClass.confidence),
+          confirmed: false
+        })
+        .onConflictDoUpdate({
+          target: classMappings.courseId,
+          set: { courseName: course.name, classId, className, grade, confidence: String(autoClass.confidence), updatedAt: new Date() }
+        });
     }
   }
 
@@ -178,37 +205,70 @@ export async function syncCourse(course: Course, subject = env.WORKSPACE_ADMIN_S
     if (autoSub) {
       subjectId = autoSub.subjectId;
       subjectName = autoSub.subjectName;
-      await col('subjectMappings').doc(course.id).set({
-        courseId: course.id,
-        courseName: course.name,
-        subjectId,
-        subjectName,
-        confidence: autoSub.confidence,
-        confirmed: false,
-        updatedAt: FieldValue.serverTimestamp()
-      }, { merge: true });
+      await db
+        .insert(subjectMappings)
+        .values({
+          courseId: course.id,
+          courseName: course.name,
+          subjectId,
+          subjectName,
+          confidence: String(autoSub.confidence),
+          confirmed: false
+        })
+        .onConflictDoUpdate({
+          target: subjectMappings.courseId,
+          set: { courseName: course.name, subjectId, subjectName, confidence: String(autoSub.confidence), updatedAt: new Date() }
+        });
     }
   }
 
-  const cleanedCourseName = cleanCourseName(course.name) || course.name;
-
-  await ref.set(
-    {
-      ...course,
-      name: cleanedCourseName,
-      originalName: course.name,
+  await db
+    .insert(courses)
+    .values({
+      id: course.id,
+      name: cleanCourseName(course.name) || course.name,
+      section: course.section ?? null,
+      descriptionHeading: course.descriptionHeading ?? null,
+      description: course.description ?? null,
+      room: course.room ?? null,
+      ownerId: course.ownerId ?? null,
+      courseState: course.courseState ?? 'ACTIVE',
+      alternateLink: course.alternateLink ?? null,
+      calendarId: course.calendarId ?? null,
+      gradebookSettings: course.gradebookSettings ?? null,
+      creationTime: course.creationTime ? new Date(course.creationTime) : null,
+      updateTime: course.updateTime ? new Date(course.updateTime) : null,
       classId: classId || null,
       className: className || null,
       grade: grade || null,
       subjectId: subjectId || null,
       subjectName: subjectName || null,
-      source: 'CLASSROOM',
-      dataStatus: 'COMPLETE',
-      lastSyncAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp()
-    },
-    { merge: true }
-  );
+      lastSyncAt: new Date()
+    })
+    .onConflictDoUpdate({
+      target: courses.id,
+      set: {
+        name: course.name,
+        section: course.section ?? null,
+        descriptionHeading: course.descriptionHeading ?? null,
+        description: course.description ?? null,
+        room: course.room ?? null,
+        ownerId: course.ownerId ?? null,
+        courseState: course.courseState ?? 'ACTIVE',
+        alternateLink: course.alternateLink ?? null,
+        calendarId: course.calendarId ?? null,
+        gradebookSettings: course.gradebookSettings ?? null,
+        creationTime: course.creationTime ? new Date(course.creationTime) : null,
+        updateTime: course.updateTime ? new Date(course.updateTime) : null,
+        classId: classId || null,
+        className: className || null,
+        grade: grade || null,
+        subjectId: subjectId || null,
+        subjectName: subjectName || null,
+        lastSyncAt: new Date(),
+        updatedAt: new Date()
+      }
+    });
 
   // Lấy dữ liệu chi tiết
   const [teachers, students, work, materials, announcements, topics] = await Promise.all([
@@ -220,66 +280,96 @@ export async function syncCourse(course: Course, subject = env.WORKSPACE_ADMIN_S
     listAll<any>(`${base}/courses/${course.id}/topics`, subject, 'topic', customToken).catch(() => [])
   ]);
 
-  const writer = ref.firestore.bulkWriter();
-
   // Đồng bộ thành viên
   for (const [role, arr] of [['TEACHER', teachers], ['STUDENT', students]] as const) {
     for (const m of arr) {
       const id = m.userId || m.profile?.id;
-      if (id) {
-        writer.set(
-          ref.collection('members').doc(id),
-          {
-            userId: id,
+      if (!id) continue;
+
+      const memberId = `${course.id}_${id}`;
+      await db
+        .insert(courseMembers)
+        .values({
+          id: memberId,
+          courseId: course.id,
+          userId: id,
+          role,
+          email: m.profile?.emailAddress || null,
+          name: m.profile?.name?.fullName || null,
+          photoUrl: m.profile?.photoUrl || null
+        })
+        .onConflictDoUpdate({
+          target: courseMembers.id,
+          set: {
             role,
             email: m.profile?.emailAddress || null,
             name: m.profile?.name?.fullName || null,
             photoUrl: m.profile?.photoUrl || null,
-            updatedAt: FieldValue.serverTimestamp()
-          },
-          { merge: true }
-        );
+            updatedAt: new Date()
+          }
+        });
 
-        // Cập nhật sổ danh bạ trường tổng hợp từ Google Classroom
-        const orgUnit = role === 'TEACHER'
-          ? '/Giáo viên'
-          : (classId ? `/Học sinh/Khối ${grade || classId[0]}/Lớp ${classId}` : '/Học sinh');
+      // Cập nhật sổ danh bạ trường tổng hợp từ Google Classroom
+      const orgUnit = role === 'TEACHER' ? '/Giáo viên' : classId ? `/Học sinh/Khối ${grade || classId[0]}/Lớp ${classId}` : '/Học sinh';
 
-        col('people').doc(id).set(
-          {
-            personId: id,
+      await db
+        .insert(people)
+        .values({
+          personId: id,
+          email: m.profile?.emailAddress || null,
+          displayName: m.profile?.name?.fullName || null,
+          photoUrl: m.profile?.photoUrl || null,
+          personType: role,
+          orgUnitPath: orgUnit,
+          className: classId || null,
+          classId: classId || null,
+          courses: [course.id]
+        })
+        .onConflictDoUpdate({
+          target: people.personId,
+          set: {
             email: m.profile?.emailAddress || null,
             displayName: m.profile?.name?.fullName || null,
             photoUrl: m.profile?.photoUrl || null,
             personType: role,
-            role,
             orgUnitPath: orgUnit,
             className: classId || null,
             classId: classId || null,
-            courses: FieldValue.arrayUnion(course.id),
-            updatedAt: FieldValue.serverTimestamp()
-          },
-          { merge: true }
-        );
-      }
+            courses: appendCourseIdSql(people.courses, course.id),
+            updatedAt: new Date()
+          }
+        });
     }
   }
 
   for (const x of work) {
-    const cleanedTitle = cleanCourseName(x.title) || x.title;
-    writer.set(ref.collection('coursework').doc(x.id), { ...x, title: cleanedTitle, originalTitle: x.title, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    const cleaned = { ...x, title: cleanCourseName(x.title) || x.title };
+    await db
+      .insert(courseCoursework)
+      .values({ id: `${course.id}_${x.id}`, courseId: course.id, courseWorkId: x.id, data: cleaned })
+      .onConflictDoUpdate({ target: courseCoursework.id, set: { data: cleaned, updatedAt: new Date() } });
   }
   for (const x of materials) {
-    const cleanedTitle = cleanCourseName(x.title) || x.title;
-    writer.set(ref.collection('materials').doc(x.id), { ...x, title: cleanedTitle, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    const cleaned = { ...x, title: cleanCourseName(x.title) || x.title };
+    await db
+      .insert(courseMaterials)
+      .values({ id: `${course.id}_${x.id}`, courseId: course.id, data: cleaned })
+      .onConflictDoUpdate({ target: courseMaterials.id, set: { data: cleaned, updatedAt: new Date() } });
   }
   for (const x of announcements) {
-    const cleanedText = cleanCourseName(x.text) || x.text;
-    writer.set(ref.collection('announcements').doc(x.id), { ...x, text: cleanedText, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    const cleaned = { ...x, text: cleanCourseName(x.text) || x.text };
+    await db
+      .insert(courseAnnouncements)
+      .values({ id: `${course.id}_${x.id}`, courseId: course.id, data: cleaned })
+      .onConflictDoUpdate({ target: courseAnnouncements.id, set: { data: cleaned, updatedAt: new Date() } });
   }
   for (const x of topics) {
-    const cleanedTopicName = cleanCourseName(x.name) || x.name;
-    writer.set(ref.collection('topics').doc(x.topicId || x.id), { ...x, name: cleanedTopicName, originalName: x.name, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    const topicId = x.topicId || x.id;
+    const cleaned = { ...x, name: cleanCourseName(x.name) || x.name };
+    await db
+      .insert(courseTopics)
+      .values({ id: `${course.id}_${topicId}`, courseId: course.id, data: cleaned })
+      .onConflictDoUpdate({ target: courseTopics.id, set: { data: cleaned, updatedAt: new Date() } });
   }
 
   // Đồng bộ đầy đủ toàn bộ submissions (không giới hạn 50 bài)
@@ -303,30 +393,53 @@ export async function syncCourse(course: Course, subject = env.WORKSPACE_ADMIN_S
       for (const s of subs) {
         const isTurnedIn = ['TURNED_IN', 'RETURNED'].includes(s.state);
         if (isTurnedIn) submissionsTurnedIn++;
-        if (s.late) submissionsLate++;
+        // Google Classroom đánh dấu `late=true` khi đã QUÁ HẠN, kể cả khi
+        // học sinh CHƯA TỪNG nộp (state CREATED/NEW) — late không phải là
+        // tập con của turnedIn như code cũ ngầm giả định. Chỉ tính "nộp
+        // muộn" khi CẢ 2 đúng: đã nộp thật (isTurnedIn) VÀ Google đánh dấu
+        // late — nếu không, submissionsLate có thể VƯỢT submissionsTurnedIn
+        // (đã xảy ra thật: 971/692 = 140%), kéo theo onTimeRate âm và cảnh
+        // báo RULE_SUBMISSION_LATE sai lệch nghiêm trọng.
+        if (isTurnedIn && s.late) submissionsLate++;
         if (s.assignedGrade != null) {
           submissionsGraded++;
           totalScoreAssigned += Number(s.assignedGrade);
           totalMaxScore += Number(item.maxPoints || 10);
         }
 
-        writer.set(
-          ref.collection('submissions').doc(s.id),
-          {
-            ...s,
+        const isLate = Boolean(s.late);
+        const isGraded = s.assignedGrade != null;
+        const submissionId = `${course.id}_${s.id}`;
+        await db
+          .insert(courseSubmissions)
+          .values({
+            id: submissionId,
+            courseId: course.id,
             courseWorkId: item.id,
             courseWorkTitle: cleanCourseName(item.title) || item.title,
-            courseId: course.id,
-            maxPoints: item.maxPoints || 10,
+            maxPoints: String(item.maxPoints || 10),
             dueDate: item.dueDate || null,
             dueTime: item.dueTime || null,
             isTurnedIn,
-            isLate: Boolean(s.late),
-            isGraded: s.assignedGrade != null,
-            updatedAt: FieldValue.serverTimestamp()
-          },
-          { merge: true }
-        );
+            isLate,
+            isGraded,
+            data: s
+          })
+          .onConflictDoUpdate({
+            target: courseSubmissions.id,
+            set: {
+              courseWorkId: item.id,
+              courseWorkTitle: cleanCourseName(item.title) || item.title,
+              maxPoints: String(item.maxPoints || 10),
+              dueDate: item.dueDate || null,
+              dueTime: item.dueTime || null,
+              isTurnedIn,
+              isLate,
+              isGraded,
+              data: s,
+              updatedAt: new Date()
+            }
+          });
       }
     } catch {}
   }
@@ -335,34 +448,27 @@ export async function syncCourse(course: Course, subject = env.WORKSPACE_ADMIN_S
   const onTimeRate = submissionsTurnedIn ? Math.round(((submissionsTurnedIn - submissionsLate) / submissionsTurnedIn) * 1000) / 10 : null;
   const avgScore = totalMaxScore ? Math.round((totalScoreAssigned / totalMaxScore) * 100) / 10 : null;
 
-  writer.set(
-    ref,
-    {
-      roster: {
-        teachers: teachers.length,
-        students: students.length,
-        status: 'COMPLETE'
-      },
-      content: {
-        coursework: work.length,
-        materials: materials.length,
-        announcements: announcements.length,
-        topics: topics.length,
-        submissionsTotal,
-        submissionsTurnedIn,
-        submissionsLate,
-        submissionsGraded,
-        completionRate,
-        onTimeRate,
-        averageScore: avgScore,
-        status: 'COMPLETE'
-      },
-      updatedAt: FieldValue.serverTimestamp()
-    },
-    { merge: true }
-  );
-
-  await writer.close();
+  await db
+    .update(courses)
+    .set({
+      rosterTeachers: teachers.length,
+      rosterStudents: students.length,
+      rosterStatus: 'COMPLETE',
+      contentCoursework: work.length,
+      contentMaterials: materials.length,
+      contentAnnouncements: announcements.length,
+      contentTopics: topics.length,
+      submissionsTotal,
+      submissionsTurnedIn,
+      submissionsLate,
+      submissionsGraded,
+      completionRate: completionRate != null ? String(completionRate) : null,
+      onTimeRate: onTimeRate != null ? String(onTimeRate) : null,
+      averageScore: avgScore != null ? String(avgScore) : null,
+      contentStatus: 'COMPLETE',
+      updatedAt: new Date()
+    })
+    .where(eq(courses.id, course.id));
 
   return {
     courseId: course.id,
@@ -375,11 +481,10 @@ export async function syncCourse(course: Course, subject = env.WORKSPACE_ADMIN_S
 
 export async function syncAllCourses(teachers: string[] = [], customToken?: string, performedBy = 'SYSTEM') {
   const runId = `sync_${Date.now()}`;
-  const runRef = col('syncRuns').doc(runId);
 
-  await runRef.set({
-    runId,
-    startTime: FieldValue.serverTimestamp(),
+  await db.insert(syncRuns).values({
+    id: runId,
+    type: 'CLASSROOM_SYNC',
     status: 'IN_PROGRESS',
     performedBy,
     coursesTotal: 0,
@@ -394,24 +499,24 @@ export async function syncAllCourses(teachers: string[] = [], customToken?: stri
   // Quét danh sách khóa học
   if (customToken) {
     try {
-      const courses = await discoverCourses('', customToken);
-      for (const c of courses) map.set(c.id, c);
+      const found = await discoverCourses('', customToken);
+      for (const c of found) map.set(c.id, c);
     } catch (err: any) {
       errorLogs.push({ error: `Khám phá khóa học OAuth thất bại: ${err.message}` });
     }
   } else if (teachers.length) {
     for (const t of teachers) {
       try {
-        const courses = await discoverCourses(t);
-        for (const c of courses) map.set(c.id, c);
+        const found = await discoverCourses(t);
+        for (const c of found) map.set(c.id, c);
       } catch (err: any) {
         errorLogs.push({ error: `Quét giáo viên ${t} thất bại: ${err.message}` });
       }
     }
   } else if (env.WORKSPACE_ADMIN_SUBJECT) {
     try {
-      const courses = await discoverCourses(env.WORKSPACE_ADMIN_SUBJECT);
-      for (const c of courses) map.set(c.id, c);
+      const found = await discoverCourses(env.WORKSPACE_ADMIN_SUBJECT);
+      for (const c of found) map.set(c.id, c);
     } catch (err: any) {
       errorLogs.push({ error: `Quét admin subject thất bại: ${err.message}` });
     }
@@ -427,17 +532,17 @@ export async function syncAllCourses(teachers: string[] = [], customToken?: stri
     }
   }
 
-  await runRef.set(
-    {
-      endTime: FieldValue.serverTimestamp(),
+  await db
+    .update(syncRuns)
+    .set({
+      finishedAt: new Date(),
       status: errorLogs.length === 0 ? 'COMPLETED' : successCount > 0 ? 'PARTIAL' : 'FAILED',
       coursesTotal: map.size,
       coursesSuccess: successCount,
       coursesError: errorLogs.length,
       errors: errorLogs.slice(0, 50)
-    },
-    { merge: true }
-  );
+    })
+    .where(eq(syncRuns.id, runId));
 
   // Tự động tổng hợp dữ liệu lớp học và đánh giá cảnh báo từ dữ liệu Google Classroom thực tế
   await rebuildClassesFromCourses().catch((e) => console.warn('Lỗi cập nhật lớp học:', e.message));
@@ -452,24 +557,37 @@ export async function syncAllCourses(teachers: string[] = [], customToken?: stri
 }
 
 export async function rebuildClassesFromCourses(): Promise<number> {
-  const coursesSnap = await col('courses').get();
-  if (coursesSnap.empty || coursesSnap.size === 0) return 0;
+  const allCourses = await db.select().from(courses);
+  if (allCourses.length === 0) return 0;
 
-  const classesMap = new Map<string, any>();
+  type ClassAgg = {
+    classId: string;
+    className: string;
+    grade: number | null;
+    courseCount: number;
+    courses: string[];
+    subjects: Set<string>;
+    studentCount: number;
+    totalCoursework: number;
+    submissionsTotal: number;
+    submissionsTurnedIn: number;
+    submissionsLate: number;
+    totalScores: number;
+    scoredCount: number;
+  };
 
-  for (const doc of coursesSnap.docs) {
-    const c = doc.data() as any;
+  const classesMap = new Map<string, ClassAgg>();
+
+  for (const c of allCourses) {
     const classId = c.classId;
     if (!classId) continue;
 
     if (!classesMap.has(classId)) {
       const grade = c.grade || Number(classId.match(/^[6789]/)?.[0] || 0) || null;
       classesMap.set(classId, {
-        id: classId,
         classId,
         className: c.className || `Lớp ${classId}`,
         grade,
-        active: true,
         courseCount: 0,
         courses: [],
         subjects: new Set<string>(),
@@ -487,20 +605,15 @@ export async function rebuildClassesFromCourses(): Promise<number> {
     cls.courseCount++;
     cls.courses.push(c.id);
     if (c.subjectName) cls.subjects.add(c.subjectName);
-    const students = Number(c.roster?.students || 0);
-    if (students > cls.studentCount) cls.studentCount = students;
+    if (c.rosterStudents > cls.studentCount) cls.studentCount = c.rosterStudents;
 
-    const cw = Number(c.content?.coursework || 0);
-    cls.totalCoursework += cw;
-    const subTotal = Number(c.content?.submissionsTotal || 0);
-    const subTurnedIn = Number(c.content?.submissionsTurnedIn || 0);
-    const subLate = Number(c.content?.submissionsLate || 0);
-    cls.submissionsTotal += subTotal;
-    cls.submissionsTurnedIn += subTurnedIn;
-    cls.submissionsLate += subLate;
+    cls.totalCoursework += c.contentCoursework;
+    cls.submissionsTotal += c.submissionsTotal;
+    cls.submissionsTurnedIn += c.submissionsTurnedIn;
+    cls.submissionsLate += c.submissionsLate;
 
-    if (c.content?.averageScore != null) {
-      cls.totalScores += Number(c.content.averageScore);
+    if (c.averageScore != null) {
+      cls.totalScores += Number(c.averageScore);
       cls.scoredCount++;
     }
   }
@@ -510,28 +623,259 @@ export async function rebuildClassesFromCourses(): Promise<number> {
     const onTimeRate = cls.submissionsTurnedIn ? Math.round(((cls.submissionsTurnedIn - cls.submissionsLate) / cls.submissionsTurnedIn) * 1000) / 10 : null;
     const avgScore = cls.scoredCount ? Math.round((cls.totalScores / cls.scoredCount) * 10) / 10 : null;
 
-    const data = {
-      id: classId,
-      classId,
-      className: cls.className,
-      grade: cls.grade,
-      active: true,
-      courseCount: cls.courseCount,
-      courses: cls.courses,
-      subjects: Array.from(cls.subjects),
-      studentCount: cls.studentCount,
-      totalCoursework: cls.totalCoursework,
-      submissionsTotal: cls.submissionsTotal,
-      submissionsTurnedIn: cls.submissionsTurnedIn,
-      submissionsLate: cls.submissionsLate,
-      completionRate,
-      onTimeRate,
-      averageScore: avgScore,
-      updatedAt: FieldValue.serverTimestamp()
-    };
-    await col('classes').doc(classId).set(data, { merge: true });
+    await db
+      .insert(classes)
+      .values({
+        classId,
+        className: cls.className,
+        grade: cls.grade,
+        active: true,
+        courseCount: cls.courseCount,
+        courses: cls.courses,
+        subjects: Array.from(cls.subjects),
+        studentCount: cls.studentCount,
+        totalCoursework: cls.totalCoursework,
+        submissionsTotal: cls.submissionsTotal,
+        submissionsTurnedIn: cls.submissionsTurnedIn,
+        submissionsLate: cls.submissionsLate,
+        completionRate: completionRate != null ? String(completionRate) : null,
+        onTimeRate: onTimeRate != null ? String(onTimeRate) : null,
+        averageScore: avgScore != null ? String(avgScore) : null
+      })
+      .onConflictDoUpdate({
+        target: classes.classId,
+        set: {
+          className: cls.className,
+          grade: cls.grade,
+          active: true,
+          courseCount: cls.courseCount,
+          courses: cls.courses,
+          subjects: Array.from(cls.subjects),
+          studentCount: cls.studentCount,
+          totalCoursework: cls.totalCoursework,
+          submissionsTotal: cls.submissionsTotal,
+          submissionsTurnedIn: cls.submissionsTurnedIn,
+          submissionsLate: cls.submissionsLate,
+          completionRate: completionRate != null ? String(completionRate) : null,
+          onTimeRate: onTimeRate != null ? String(onTimeRate) : null,
+          averageScore: avgScore != null ? String(avgScore) : null,
+          updatedAt: new Date()
+        }
+      });
   }
 
   return classesMap.size;
 }
 
+export type ResetClassroomDataResult = {
+  courses: number;
+  courseMembers: number;
+  courseCoursework: number;
+  courseMaterials: number;
+  courseAnnouncements: number;
+  courseTopics: number;
+  courseSubmissions: number;
+  classMappings: number;
+  subjectMappings: number;
+  classesDeleted: number;
+  classesReset: number;
+  teachers: number;
+  students: number;
+};
+
+/**
+ * Xoá sạch toàn bộ dữ liệu ĐÃ ĐỒNG BỘ từ Google Classroom, để test lại từ
+ * đầu với 1 tài khoản Google Workspace khác — dùng cho nút "Xoá dữ liệu
+ * Classroom" ở trang /connections. KHÔNG đụng `google_connections` (token
+ * kết nối, route riêng `disconnect` mới xử lý việc đó), KHÔNG đụng dữ liệu
+ * module An toàn/Lịch công tác (2 module đó không ghi vào bất kỳ bảng nào
+ * bên dưới).
+ *
+ * Phạm vi xoá — xác định qua khảo sát thật ai ghi vào bảng nào (không đoán):
+ * - `courses`, `course_members`, `course_coursework`, `course_materials`,
+ *   `course_announcements`, `course_topics`, `course_submissions`,
+ *   `class_mappings`, `subject_mappings` — CHỈ classroom.service.ts ghi vào
+ *   các bảng này (khoá chính theo `courseId`) → xoá sạch toàn bộ an toàn.
+ * - `people` — bảng DÙNG CHUNG với `directory.service.ts` (đồng bộ Google
+ *   Workspace Directory, ghi personId/email/displayName/personType/
+ *   orgUnitPath/suspended). Riêng 2 cột `courses`/`className`/`classId` CHỈ
+ *   được ghi bởi classroom.service.ts (xem syncCourse) — Directory sync
+ *   không đụng tới 2 cột này → CHỈ reset 2 cột đó về rỗng/null, KHÔNG xoá
+ *   bản ghi `people`, KHÔNG đụng các cột còn lại.
+ * - `classes` — bảng DÙNG CHUNG với module Lịch học/Thời khóa biểu
+ *   (`schedules.routes.ts` tự tạo/cập nhật `classes` khi thêm 1 dòng lịch
+ *   thủ công, chỉ set classId/className/grade/expectedStudents). Lớp nào
+ *   KHÔNG có bất kỳ dòng `schedules` nào trỏ tới (classId) → coi là thuần
+ *   Classroom, xoá hẳn. Lớp NÀO CÓ dòng `schedules` trỏ tới → giữ nguyên
+ *   bản ghi (có nguồn khác cần), chỉ reset về 0/rỗng các cột do
+ *   `rebuildClassesFromCourses()` tính ra (courseCount/courses/subjects/
+ *   studentCount/totalCoursework/submissionsTotal/submissionsTurnedIn/
+ *   submissionsLate/completionRate/onTimeRate/averageScore) — các cột
+ *   className/grade/expectedStudents/homeroomTeacher/active KHÔNG đụng vì
+ *   thuộc sở hữu của nguồn khác (schedules/demo-seed).
+ * - `sync_runs` KHÔNG bị xoá (đây là nhật ký các lần chạy đồng bộ, không
+ *   phải nội dung Classroom đã đồng bộ — giữ lại để còn tra được lịch sử).
+ */
+/**
+ * Xem trước số liệu sẽ bị ảnh hưởng nếu gọi resetClassroomData() ngay bây
+ * giờ — CHỈ ĐỌC, không xoá/sửa gì — dùng để hiển thị hộp thoại xác nhận ở
+ * giao diện trước khi người dùng bấm nút xoá thật. Dùng lại ĐÚNG tiêu chí
+ * phân loại lớp/người của resetClassroomData() (không viết lại logic 2 lần
+ * dễ lệch nhau).
+ */
+export async function previewClassroomReset(): Promise<ResetClassroomDataResult> {
+  const countRows = async (table: any) => (await db.select().from(table)).length;
+
+  const [
+    coursesCount,
+    courseMembersCount,
+    courseCourseworkCount,
+    courseMaterialsCount,
+    courseAnnouncementsCount,
+    courseTopicsCount,
+    courseSubmissionsCount,
+    classMappingsCount,
+    subjectMappingsCount
+  ] = await Promise.all([
+    countRows(courses),
+    countRows(courseMembers),
+    countRows(courseCoursework),
+    countRows(courseMaterials),
+    countRows(courseAnnouncements),
+    countRows(courseTopics),
+    countRows(courseSubmissions),
+    countRows(classMappings),
+    countRows(subjectMappings)
+  ]);
+
+  const scheduleClassIds = new Set((await db.select({ classId: schedules.classId }).from(schedules)).map((r) => r.classId));
+  const allClasses = await db.select().from(classes);
+  const classesDeleted = allClasses.filter((c) => !scheduleClassIds.has(c.classId)).length;
+  const classesReset = allClasses.length - classesDeleted;
+
+  const peopleWithClassroomData = (await db.select().from(people)).filter((p) => Array.isArray(p.courses) && p.courses.length > 0);
+  const teachers = peopleWithClassroomData.filter((p) => p.personType === 'TEACHER').length;
+  const students = peopleWithClassroomData.filter((p) => p.personType === 'STUDENT').length;
+
+  return {
+    courses: coursesCount,
+    courseMembers: courseMembersCount,
+    courseCoursework: courseCourseworkCount,
+    courseMaterials: courseMaterialsCount,
+    courseAnnouncements: courseAnnouncementsCount,
+    courseTopics: courseTopicsCount,
+    courseSubmissions: courseSubmissionsCount,
+    classMappings: classMappingsCount,
+    subjectMappings: subjectMappingsCount,
+    classesDeleted,
+    classesReset,
+    teachers,
+    students
+  };
+}
+
+export async function resetClassroomData(): Promise<ResetClassroomDataResult> {
+  return db.transaction(async (tx) => {
+    const countRows = async (table: any) => (await tx.select().from(table)).length;
+
+    const [
+      coursesCount,
+      courseMembersCount,
+      courseCourseworkCount,
+      courseMaterialsCount,
+      courseAnnouncementsCount,
+      courseTopicsCount,
+      courseSubmissionsCount,
+      classMappingsCount,
+      subjectMappingsCount
+    ] = await Promise.all([
+      countRows(courses),
+      countRows(courseMembers),
+      countRows(courseCoursework),
+      countRows(courseMaterials),
+      countRows(courseAnnouncements),
+      countRows(courseTopics),
+      countRows(courseSubmissions),
+      countRows(classMappings),
+      countRows(subjectMappings)
+    ]);
+
+    await tx.delete(courseSubmissions);
+    await tx.delete(courseCoursework);
+    await tx.delete(courseMaterials);
+    await tx.delete(courseAnnouncements);
+    await tx.delete(courseTopics);
+    await tx.delete(courseMembers);
+    await tx.delete(classMappings);
+    await tx.delete(subjectMappings);
+    await tx.delete(courses);
+
+    // classId nào đang có dòng thời khóa biểu (nguồn khác, không phải
+    // Classroom) trỏ tới — lớp đó KHÔNG được xoá hẳn.
+    const scheduleClassIds = new Set(
+      (await tx.select({ classId: schedules.classId }).from(schedules)).map((r) => r.classId)
+    );
+
+    const allClasses = await tx.select().from(classes);
+    let classesDeleted = 0;
+    let classesReset = 0;
+    for (const c of allClasses) {
+      if (!scheduleClassIds.has(c.classId)) {
+        await tx.delete(classes).where(eq(classes.classId, c.classId));
+        classesDeleted++;
+      } else {
+        await tx
+          .update(classes)
+          .set({
+            courseCount: 0,
+            courses: [],
+            subjects: [],
+            studentCount: 0,
+            totalCoursework: 0,
+            submissionsTotal: 0,
+            submissionsTurnedIn: 0,
+            submissionsLate: 0,
+            completionRate: null,
+            onTimeRate: null,
+            averageScore: null,
+            updatedAt: new Date()
+          })
+          .where(eq(classes.classId, c.classId));
+        classesReset++;
+      }
+    }
+
+    // Chỉ những `people` thực sự còn dấu vết Classroom (courses không rỗng)
+    // mới tính vào số liệu trả về — người chỉ có từ Directory sync không hề
+    // bị đụng tới nên không nên tính vào "đã xoá dữ liệu".
+    const peopleWithClassroomData = (await tx.select().from(people)).filter(
+      (p) => Array.isArray(p.courses) && p.courses.length > 0
+    );
+    let teachers = 0;
+    let students = 0;
+    for (const p of peopleWithClassroomData) {
+      if (p.personType === 'TEACHER') teachers++;
+      else if (p.personType === 'STUDENT') students++;
+      await tx
+        .update(people)
+        .set({ courses: [], className: null, classId: null, updatedAt: new Date() })
+        .where(eq(people.personId, p.personId));
+    }
+
+    return {
+      courses: coursesCount,
+      courseMembers: courseMembersCount,
+      courseCoursework: courseCourseworkCount,
+      courseMaterials: courseMaterialsCount,
+      courseAnnouncements: courseAnnouncementsCount,
+      courseTopics: courseTopicsCount,
+      courseSubmissions: courseSubmissionsCount,
+      classMappings: classMappingsCount,
+      subjectMappings: subjectMappingsCount,
+      classesDeleted,
+      classesReset,
+      teachers,
+      students
+    };
+  });
+}

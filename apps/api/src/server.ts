@@ -22,6 +22,15 @@ import { connectionsRouter } from './modules/connections/connections.routes.js';
 import { catalogRouter } from './modules/catalog/catalog.routes.js';
 import { analyticsRouter } from './modules/analytics/analytics.routes.js';
 import { auditRouter } from './modules/audit/audit.routes.js';
+import { safetyRouter } from './modules/safety/safety.routes.js';
+import { safetyQueryRouter } from './modules/safety/safety-query.routes.js';
+import { safetyStatsRouter } from './modules/safety/safety-stats.routes.js';
+import { evidenceRouter } from './modules/safety/evidence.routes.js';
+import { evidenceDownloadRouter } from './modules/safety/evidence-download.routes.js';
+import { publicCatalogRouter } from './modules/safety/public-catalog.routes.js';
+import { directoryAssignmentsRouter } from './modules/safety/directory-assignments.routes.js';
+import { meRouter } from './modules/safety/me.routes.js';
+import { workScheduleRouter } from './modules/work-schedule/work-schedule.routes.js';
 import { handleMeetEvent } from './modules/meet/meet.events.js';
 
 const app = express();
@@ -70,6 +79,28 @@ app.use('/api/connections', connectionsRouter);
 app.use('/api/catalog', catalogRouter);
 app.use('/api/analytics', analyticsRouter);
 app.use('/api/audit', auditRouter);
+
+// Module An toàn trường học và giải quyết sự cố (di trú Firebase -> Postgres,
+// xem SUPERAPP_MIGRATION_COORDINATION/TASKS.md) — CHỈ 9 route ứng với 14 hàm
+// safety.js đã port, chưa gồm list/thống kê/quản trị (xem safety.routes.ts).
+app.use('/api/safety', safetyRouter);
+app.use('/api/safety', safetyQueryRouter);
+// Thống kê/tìm người (K7): getIncidentStats/getTrendAlerts/
+// getCampusComparisonStats/getZoneStats/getClassStats/searchPeople.
+app.use('/api/safety', safetyStatsRouter);
+app.use('/api/safety', evidenceRouter);
+// Cấp signed URL tải minh chứng (S8) — port từ getEvidenceDownloadUrl.
+app.use('/api/safety', evidenceDownloadRouter);
+app.use('/api/safety', publicCatalogRouter);
+// CRUD dữ liệu nền: lớp->GVCN, khối->giáo viên phụ trách khối, danh bạ liên hệ.
+app.use('/api/safety', directoryAssignmentsRouter);
+// GET /api/safety/me — actor context (perId/roles/onDutyNow) cho frontend
+// mới ẩn/hiện nút hành động; KHÔNG phải lớp phân quyền (xem me.routes.ts).
+app.use('/api/safety', meRouter);
+
+// Module Lịch công tác và Giao việc (K2: đặt tên "work-schedule" tránh đụng
+// /api/schedules có sẵn — đó là thời khoá biểu lớp học, khác nghiệp vụ).
+app.use('/api/work-schedule', workScheduleRouter);
 
 app.post(
   '/events/meet',

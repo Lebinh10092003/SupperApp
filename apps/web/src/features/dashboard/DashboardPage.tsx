@@ -255,10 +255,9 @@ export default function DashboardPage() {
   const isSynced = overview?.isSynced;
 
   return (
-    <Box sx={{ p: { xs: 2, md: 3 } }}>
+    <>
       <PageHeader
-        title="Bảng Điều Hành Toàn Trường — Ban Giám Hiệu"
-        subtitle="Hệ thống tổng hợp, so sánh, cảnh báo và hỗ trợ ra quyết định quản trị lớp học số từ Google Classroom"
+        title="Bảng điều hành toàn trường"
         action={
           <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
             <Button
@@ -580,7 +579,7 @@ export default function DashboardPage() {
 
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <CardK
-            title="Bài chưa chấm / Tồn đọng"
+            title="Bài chưa chấm / tồn đọng"
             value={k?.ungradedAssignments?.value ?? 0}
             delta={k?.ungradedAssignments?.delta}
             deltaPositive={Number(k?.ungradedAssignments?.value || 0) === 0}
@@ -673,6 +672,6 @@ export default function DashboardPage() {
           </Box>
         )}
       </Card>
-    </Box>
+    </>
   );
 }

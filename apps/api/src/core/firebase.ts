@@ -1,10 +1,12 @@
 import { initializeApp, applicationDefault, cert, getApps } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
+import { getStorage } from 'firebase-admin/storage';
 import { env } from '../config/env.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import { sqliteDb } from './sqliteStore.js';
+import { getLocalEvidenceBucket } from './localEvidenceStorage.js';
 
 export interface ServiceAccountMetadata {
   path: string;
@@ -56,6 +58,21 @@ export const isLiveFirestore = Boolean(sa);
 
 export const db = getFirestore();
 export const adminAuth = getAuth();
+
+/**
+ * Bucket Cloud Storage thật cho kho minh chứng (S8, module An toàn) — CHỈ
+ * dùng ở đây, chỗ duy nhất trong dự án tự gọi `getStorage()`. Module
+ * `evidence.ts` nhận `bucket` qua tham số (DI, kiểu `EvidenceBucket` tối
+ * giản) — route mới gọi hàm này để lấy bucket thật, không tự
+ * `getStorage()` ở nơi khác.
+ */
+export function getEvidenceBucket() {
+  // EVIDENCE_STORAGE_BUCKET rỗng (mặc định, chưa gắn billing thật) -> dùng
+  // đĩa cục bộ miễn phí thay thế — xem localEvidenceStorage.ts. Chỉ dùng
+  // GCS thật khi đã điền tên bucket rõ ràng.
+  if (!env.EVIDENCE_STORAGE_BUCKET) return getLocalEvidenceBucket();
+  return getStorage().bucket(env.EVIDENCE_STORAGE_BUCKET);
+}
 export const schoolRef = () => db.collection('siSchools').doc(env.SCHOOL_ID);
 export const col = (name: string): any => {
   if (isLiveFirestore) {

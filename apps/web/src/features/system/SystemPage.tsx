@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import {
   Card,
   CardContent,
@@ -6,99 +6,115 @@ import {
   Typography,
   Box,
   Chip,
-  Stack,
   Button
 } from '@mui/material';
 import DnsIcon from '@mui/icons-material/DnsRounded';
 import CheckCircleIcon from '@mui/icons-material/CheckCircleRounded';
+import WarningAmberIcon from '@mui/icons-material/WarningAmberRounded';
 import RefreshIcon from '@mui/icons-material/RefreshRounded';
 import CloudDoneIcon from '@mui/icons-material/CloudDoneRounded';
 import StorageIcon from '@mui/icons-material/StorageRounded';
 import SecurityIcon from '@mui/icons-material/SecurityRounded';
-import HubIcon from '@mui/icons-material/HubRounded';
+import GppMaybeIcon from '@mui/icons-material/GppMaybeRounded';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
+
+type ServiceState = 'ONLINE' | 'ERROR' | 'NOT_CONFIGURED' | 'CHECKING';
 
 interface ServiceStatus {
   name: string;
   category: string;
-  status: 'ONLINE' | 'DEGRADED' | 'STANDBY';
-  latency: string;
+  status: ServiceState;
   desc: string;
   icon: React.ReactNode;
 }
 
+const STATE_LABEL: Record<ServiceState, string> = {
+  ONLINE: 'Hoạt động',
+  ERROR: 'Lỗi kết nối',
+  NOT_CONFIGURED: 'Chưa cấu hình',
+  CHECKING: 'Đang kiểm tra...'
+};
+
+const STATE_STYLE: Record<ServiceState, { bg: string; color: string; border: string }> = {
+  ONLINE: { bg: '#ecfdf5', color: '#059669', border: '#a7f3d0' },
+  ERROR: { bg: '#fef2f2', color: '#dc2626', border: '#fecaca' },
+  NOT_CONFIGURED: { bg: '#fffbeb', color: '#b45309', border: '#fde68a' },
+  CHECKING: { bg: '#f1f5f9', color: '#64748b', border: '#e2e8f0' }
+};
+
 export default function SystemPage() {
-  const [data, setData] = useState<any>(null);
-  const [systemStatus, setSystemStatus] = useState<any>(null);
+  const [health, setHealth] = useState<{ status: string; database: string; version: string } | null>(null);
   const [loading, setLoading] = useState(false);
   const [latency, setLatency] = useState<number | null>(null);
+  const [checkedAt, setCheckedAt] = useState<Date | null>(null);
 
-  const checkStatus = async () => {
+  const checkStatus = () => {
     setLoading(true);
     const start = performance.now();
-    try {
-      const [hRes, sRes] = await Promise.all([
-        api<any>('/health').catch((e) => ({ status: 'error', error: e.message })),
-        api<any>('/api/system/status').catch(() => null)
-      ]);
-      setLatency(Math.round(performance.now() - start));
-      setData(hRes);
-      setSystemStatus(sRes);
-    } catch (e: any) {
-      setLatency(null);
-      setData({ status: 'error', error: e.message });
-    } finally {
-      setLoading(false);
-    }
+    api<{ status: string; database: string; version: string }>('/health')
+      .then((res) => {
+        setLatency(Math.round(performance.now() - start));
+        setHealth(res);
+        setCheckedAt(new Date());
+      })
+      .catch(() => {
+        setLatency(null);
+        setHealth(null);
+        setCheckedAt(new Date());
+      })
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => {
     checkStatus();
   }, []);
 
+  const apiState: ServiceState = loading ? 'CHECKING' : health ? 'ONLINE' : 'ERROR';
+  const dbState: ServiceState = loading ? 'CHECKING' : health?.database === 'ok' ? 'ONLINE' : 'ERROR';
+
+  // Hai dịch vụ dưới đây KHÔNG có cách kiểm tra thật từ trình duyệt (không
+  // gọi API nào xác nhận được) — hiện đang thật sự CHƯA cấu hình, không
+  // phải lỗi tạm thời, nên hiển thị cứng "Chưa cấu hình" thay vì giả vờ
+  // gọi kiểm tra rồi báo "Hoạt động" sai sự thật như bản cũ.
   const services: ServiceStatus[] = [
     {
-      name: 'Cloud Run Backend API',
-      category: 'Core REST Service',
-      status: data?.status === 'ok' ? 'ONLINE' : 'DEGRADED',
-      latency: latency ? `${latency}ms` : 'Đang đo...',
-      desc: `Node.js 22 + Express 5, phiên bản v${data?.version || '1.0.0'}, phục vụ toàn bộ REST API và xác thực.`,
+      name: 'Backend API',
+      category: 'Dịch vụ lõi',
+      status: apiState,
+      desc: 'Node.js + Express, xử lý toàn bộ endpoint REST và xác thực. Kiểm tra bằng cách gọi thật /health.',
       icon: <CloudDoneIcon sx={{ color: '#2563eb' }} />
     },
     {
-      name: 'Google Cloud Firestore / SQLite Store',
-      category: 'Database Namespace',
-      status: data?.firestore === 'ok' || systemStatus?.services?.firestore === 'CONNECTED' ? 'ONLINE' : 'DEGRADED',
-      latency: latency ? `${Math.max(5, Math.round(latency / 2))}ms` : '—',
-      desc: 'Kho lưu trữ dữ liệu trường học, tương thích Realtime Snapshot và Single Source of Truth.',
+      name: 'Cơ sở dữ liệu PostgreSQL',
+      category: 'Database',
+      status: dbState,
+      desc: 'PostgreSQL tự host — hiện chạy trên máy cục bộ, chưa chuyển lên VPS. Kiểm tra bằng truy vấn "select 1" thật.',
       icon: <StorageIcon sx={{ color: '#10b981' }} />
     },
     {
-      name: 'Google Classroom API & Sync Engine',
-      category: 'LMS Integration',
-      status: (systemStatus?.stats?.courses || 0) > 0 ? 'ONLINE' : 'STANDBY',
-      latency: latency ? `${Math.max(12, Math.round(latency * 0.7))}ms` : '—',
-      desc: `Đã nạp và đồng bộ thực tế ${systemStatus?.stats?.courses || 0} khóa học và ${systemStatus?.stats?.people || 0} hồ sơ từ Google Classroom.`,
-      icon: <HubIcon sx={{ color: '#8b5cf6' }} />
+      name: 'Đồng bộ Google Classroom (DWD)',
+      category: 'Tích hợp Google Workspace',
+      status: 'NOT_CONFIGURED',
+      desc: 'Chưa cấu hình Service Account ủy quyền toàn domain lẫn OAuth cá nhân — dữ liệu Học sinh/Giáo viên/Lớp học/Điểm danh/Meet hiện là DỮ LIỆU MẪU, chưa phải dữ liệu thật của trường.',
+      icon: <SecurityIcon sx={{ color: '#94a3b8' }} />
     },
     {
-      name: 'Google OAuth & DWD Credentials',
-      category: 'Authentication Provider',
-      status: systemStatus?.serviceAccount?.configured ? 'ONLINE' : 'STANDBY',
-      latency: latency ? `${Math.max(15, Math.round(latency * 0.8))}ms` : '—',
-      desc: systemStatus?.serviceAccount?.configured
-        ? `Xác thực qua ${systemStatus.serviceAccount.type} (${systemStatus.serviceAccount.clientEmail || 'Google Service Account'}).`
-        : 'Chưa cấu hình tệp Service Account JSON. Đang sử dụng phương thức đăng nhập Google OAuth 2.0 cá nhân.',
-      icon: <SecurityIcon sx={{ color: '#0ea5e9' }} />
+      name: 'Quét mã độc minh chứng (ClamAV)',
+      category: 'Bảo mật module An toàn',
+      status: 'NOT_CONFIGURED',
+      desc: 'Đã có sẵn code gọi ClamAV daemon thật (clamscan) chạy cùng máy chủ API — nhưng clamd CHƯA được cài/chạy ở môi trường này, nên file minh chứng tải lên vẫn kẹt ở trạng thái "chờ quét". Sẽ tự hoạt động khi VPS cài clamav-daemon.',
+      icon: <GppMaybeIcon sx={{ color: '#94a3b8' }} />
     }
   ];
+
+  const allCoreOk = apiState === 'ONLINE' && dbState === 'ONLINE';
+  const notConfiguredCount = services.filter((s) => s.status === 'NOT_CONFIGURED').length;
 
   return (
     <>
       <PageHeader
-        title="Tình trạng Hệ thống — THCS Giảng Võ"
-        subtitle="Giám sát hạ tầng máy chủ, kết nối Google Workspace và cơ sở dữ liệu Firestore"
+        title="Tình trạng hệ thống"
         icon={<DnsIcon />}
         action={
           <Button
@@ -116,10 +132,12 @@ export default function SystemPage() {
       {/* Main Health Banner */}
       <Card sx={{
         mb: 3,
-        background: 'linear-gradient(135deg, #1e40af 0%, #2563eb 60%, #3b82f6 100%)',
+        background: allCoreOk
+          ? 'linear-gradient(135deg, #1e40af 0%, #2563eb 60%, #3b82f6 100%)'
+          : 'linear-gradient(135deg, #b45309 0%, #d97706 60%, #f59e0b 100%)',
         color: '#ffffff',
         borderRadius: '12px',
-        border: '1px solid #60a5fa',
+        border: '1px solid rgba(255,255,255,0.3)',
         boxShadow: '0 4px 16px rgba(37, 99, 235, 0.2)'
       }}>
         <CardContent sx={{ p: 3 }}>
@@ -131,22 +149,26 @@ export default function SystemPage() {
                     width: 12,
                     height: 12,
                     borderRadius: '50%',
-                    bgcolor: '#34d399',
-                    boxShadow: '0 0 12px #34d399',
+                    bgcolor: allCoreOk ? '#34d399' : '#fbbf24',
+                    boxShadow: allCoreOk ? '0 0 12px #34d399' : '0 0 12px #fbbf24',
                     border: '2px solid #ffffff'
                   }}
                 />
                 <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#ffffff', letterSpacing: '-0.01em', fontSize: '1.05rem' }}>
-                  Tất cả các dịch vụ trường học đang hoạt động bình thường
+                  {allCoreOk
+                    ? 'Backend & cơ sở dữ liệu đang hoạt động bình thường'
+                    : 'Backend hoặc cơ sở dữ liệu đang gặp sự cố'}
                 </Typography>
               </Box>
               <Typography variant="body2" sx={{ color: '#dbeafe', fontSize: '0.8125rem' }}>
-                Hệ thống School Intelligence Platform phiên bản v1.0.0 • Triển khai tại khu vực asia-southeast1
+                Chạy cục bộ (local) — chưa triển khai lên VPS/máy chủ thật
+                {notConfiguredCount > 0 && ` • ${notConfiguredCount} tích hợp chưa cấu hình (xem bên dưới)`}
+                {checkedAt && ` • Kiểm tra lúc ${checkedAt.toLocaleTimeString('vi-VN')}`}
               </Typography>
             </Grid>
             <Grid size={{ xs: 12, md: 4 }} sx={{ textAlign: { xs: 'left', md: 'right' } }}>
               <Chip
-                label="Hạ tầng ổn định 99.9%"
+                label={health?.version ? `Phiên bản backend ${health.version}` : 'Không lấy được phiên bản'}
                 size="small"
                 sx={{ bgcolor: 'rgba(255, 255, 255, 0.15)', backdropFilter: 'blur(4px)', color: '#ffffff', border: '1px solid rgba(255, 255, 255, 0.3)', fontWeight: 600, fontSize: '0.75rem' }}
               />
@@ -160,85 +182,87 @@ export default function SystemPage() {
         Các dịch vụ thành phần
       </Typography>
       <Grid container spacing={2.5} sx={{ mb: 3 }}>
-        {services.map((svc) => (
-          <Grid key={svc.name} size={{ xs: 12, md: 6 }}>
-            <Card sx={{
-              height: '100%',
-              borderRadius: '12px',
-              border: '1px solid #e2e8f0',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-              bgcolor: '#ffffff',
-              transition: 'all 0.2s ease',
-              '&:hover': {
-                boxShadow: '0 4px 12px rgba(37, 99, 235, 0.08)',
-                borderColor: '#bfdbfe'
-              }
-            }}>
-              <CardContent sx={{ p: 2.5 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <Box sx={{ p: 1.25, bgcolor: '#eff6ff', borderRadius: '10px', display: 'grid', placeItems: 'center' }}>
-                      {svc.icon}
+        {services.map((svc) => {
+          const st = STATE_STYLE[svc.status];
+          return (
+            <Grid key={svc.name} size={{ xs: 12, md: 6 }}>
+              <Card sx={{
+                height: '100%',
+                borderRadius: '12px',
+                border: '1px solid #e2e8f0',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                bgcolor: '#ffffff',
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                  boxShadow: '0 4px 12px rgba(37, 99, 235, 0.08)',
+                  borderColor: '#bfdbfe'
+                }
+              }}>
+                <CardContent sx={{ p: 2.5 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                      <Box sx={{ p: 1.25, bgcolor: '#eff6ff', borderRadius: '10px', display: 'grid', placeItems: 'center' }}>
+                        {svc.icon}
+                      </Box>
+                      <Box>
+                        <Typography variant="subtitle2" fontWeight={700} sx={{ color: '#0f172a' }}>
+                          {svc.name}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: '#64748b' }}>
+                          {svc.category}
+                        </Typography>
+                      </Box>
                     </Box>
-                    <Box>
-                      <Typography variant="subtitle2" fontWeight={700} sx={{ color: '#0f172a' }}>
-                        {svc.name}
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: '#64748b' }}>
-                        {svc.category}
-                      </Typography>
-                    </Box>
+                    <Chip
+                      icon={
+                        svc.status === 'ONLINE' ? (
+                          <CheckCircleIcon sx={{ fontSize: '13px !important' }} />
+                        ) : (
+                          <WarningAmberIcon sx={{ fontSize: '13px !important' }} />
+                        )
+                      }
+                      label={STATE_LABEL[svc.status]}
+                      size="small"
+                      sx={{ bgcolor: st.bg, color: st.color, border: `1px solid ${st.border}`, fontWeight: 600, fontSize: '0.75rem', height: 22 }}
+                    />
                   </Box>
-                  <Chip
-                    icon={<CheckCircleIcon sx={{ fontSize: '13px !important' }} />}
-                    label="Hoạt động"
-                    size="small"
-                    sx={{ bgcolor: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0', fontWeight: 600, fontSize: '0.75rem', height: 22 }}
-                  />
-                </Box>
-                <Typography variant="body2" sx={{ color: '#64748b', mb: 2, fontSize: '0.8125rem' }}>
-                  {svc.desc}
-                </Typography>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', pt: 1.5, borderTop: '1px solid #f1f5f9' }}>
-                  <Typography variant="caption" color="text.secondary">
-                    Độ trễ phản hồi: <strong style={{ color: '#0f172a' }}>{svc.latency}</strong>
+                  <Typography variant="body2" sx={{ color: '#64748b', fontSize: '0.8125rem' }}>
+                    {svc.desc}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Uptime: <strong style={{ color: '#0f172a' }}>100%</strong>
-                  </Typography>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
+                  {svc.name === 'Backend API' && latency !== null && (
+                    <Typography variant="caption" sx={{ display: 'block', mt: 1.5, pt: 1.5, borderTop: '1px solid #f1f5f9', color: 'text.secondary' }}>
+                      Độ trễ phản hồi thật: <strong style={{ color: '#0f172a' }}>{latency}ms</strong>
+                    </Typography>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+          );
+        })}
       </Grid>
 
       {/* Configuration Metadata */}
       <Card sx={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', bgcolor: '#ffffff' }}>
         <CardContent sx={{ p: 3 }}>
           <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#0f172a', mb: 2, letterSpacing: '-0.01em' }}>
-            Cấu hình môi trường & Namespace
+            Cấu hình môi trường thật
           </Typography>
           <Grid container spacing={2}>
             <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-              <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Mã trường (School ID)</Typography>
-              <Typography variant="body2" fontWeight={600} sx={{ color: '#0f172a', mt: 0.5 }}>giang-vo</Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Nơi chạy backend</Typography>
+              <Typography variant="body2" fontWeight={600} sx={{ color: '#0f172a', mt: 0.5 }}>Máy cục bộ (chưa triển khai VPS)</Typography>
             </Grid>
             <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-              <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Firestore Root Namespace</Typography>
-              <Typography variant="body2" fontWeight={600} sx={{ color: '#0f172a', mt: 0.5 }}>siSchools/giang-vo</Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Cơ sở dữ liệu</Typography>
+              <Typography variant="body2" fontWeight={600} sx={{ color: '#0f172a', mt: 0.5 }}>PostgreSQL tự host</Typography>
             </Grid>
             <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-              <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Tài khoản Google kết nối</Typography>
-              <Typography variant="body2" fontWeight={600} sx={{ color: '#0f172a', mt: 0.5, wordBreak: 'break-all' }}>
-                {systemStatus?.serviceAccount?.clientEmail || 'Google OAuth 2.0 Cá nhân'}
-              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Xác thực đăng nhập</Typography>
+              <Typography variant="body2" fontWeight={600} sx={{ color: '#0f172a', mt: 0.5 }}>Firebase Authentication (Google + email/mật khẩu)</Typography>
             </Grid>
             <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-              <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Dữ liệu Classroom đã nạp</Typography>
-              <Typography variant="body2" fontWeight={600} sx={{ color: '#0f172a', mt: 0.5 }}>
-                {systemStatus?.stats?.courses || 0} khóa học ({systemStatus?.stats?.people || 0} người dùng)
-              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Phiên bản backend</Typography>
+              <Typography variant="body2" fontWeight={600} sx={{ color: '#0f172a', mt: 0.5 }}>{health?.version || 'Không xác định được'}</Typography>
             </Grid>
           </Grid>
         </CardContent>

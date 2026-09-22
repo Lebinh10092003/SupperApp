@@ -5,8 +5,7 @@ import { ApiTablePage } from '../../components/ApiTablePage';
 export default function SubjectAnalyticsPage() {
   return (
     <ApiTablePage
-      title="Phân Tích Khóa Học & Môn Học — Subject Performance BI"
-      subtitle="Thống kê bài tập, sĩ số và tỷ lệ hoàn thành từ Google Classroom theo từng môn học"
+      title="Phân tích khóa học & môn học"
       path="/api/classroom"
       columns={[
         {

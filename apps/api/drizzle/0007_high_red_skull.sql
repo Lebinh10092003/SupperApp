@@ -1,0 +1,1 @@
+ALTER TABLE "people" ADD COLUMN "suspended" boolean DEFAULT false NOT NULL;

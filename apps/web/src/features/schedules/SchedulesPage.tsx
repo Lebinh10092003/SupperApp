@@ -141,8 +141,7 @@ export default function SchedulesPage() {
   return (
     <>
       <PageHeader
-        title="Thời khóa biểu — THCS Giảng Võ"
-        subtitle="Quản lý lịch học theo lớp, môn, giáo viên và tích hợp phòng học Google Meet"
+        title="Thời khóa biểu"
         icon={<CalendarMonthIcon />}
         action={
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
