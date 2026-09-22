@@ -71,6 +71,20 @@
       "when": 1790007331358,
       "tag": "0009_outstanding_rattler",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790053730277,
+      "tag": "0010_outgoing_omega_red",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1790053861753,
+      "tag": "0011_ordinary_ted_forrester",
+      "breakpoints": true
     }
   ]
 }

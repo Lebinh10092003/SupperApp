@@ -26,7 +26,7 @@ import { publicCodes } from './ids.schema.js';
 import { incidents } from './incidents.schema.js';
 import { slaClocks } from './sla-clocks.schema.js';
 import { notifyRequests } from './dispatch.schema.js';
-import { AppError, toJsDate, parseOptionalDate, withIdempotency, adminArrayUnion, slaClockToRow, notifyRequestToRow, type Db } from './shared.js';
+import { AppError, toJsDate, parseOptionalDate, withIdempotency, slaClockToRow, notifyRequestToRow, type Db } from './shared.js';
 import type { Actor } from './authz.js';
 
 export interface DispatchHook {
@@ -71,6 +71,10 @@ export interface SubmitReportInput {
   contactChannel?: string;
   safeContactTime?: string;
   evidenceIds?: string[];
+  // Chỉ dùng ở cổng NỘI BỘ (createIncidentDirect) khi nhân viên tự chọn
+  // đúng mức ưu tiên thay vì để hệ thống tự gợi ý — cổng công khai KHÔNG
+  // bao giờ truyền field này.
+  priorityOverride?: string;
 }
 
 /**
@@ -150,20 +154,10 @@ export async function submitReport(db: Db, input: SubmitReportInput, opts?: Safe
       now
     }));
 
-    const initialPriority = input.stillDangerous
-      ? catalog.PRIORITY.P0
+    const initialPriority =
+      catalog.isValidPriority(input.priorityOverride) ? input.priorityOverride
+      : input.stillDangerous ? catalog.PRIORITY.P0
       : catalog.suggestedPriorityForCategory(input.categoryCode);
-
-    // Đăng ký đồng hồ SLA "ack" ngay TỪ LÚC gửi tin báo — trước 2026-09-21
-    // tin báo hoàn toàn KHÔNG có hạn/đồng hồ nào cho tới khi được chuyển
-    // thành hồ sơ: nếu không ai bấm "Chuyển thành hồ sơ" thì tin báo nằm im
-    // vô thời hạn, không ai được nhắc (Sin phát hiện qua câu hỏi thật). Dùng
-    // lại ĐÚNG hạn P0-P3 hiện có (`sla.registerSlaClock`), objectId = reportId
-    // (khác không gian với incidentId "SC.xxx" — check-sla-overdue.ts phân
-    // biệt bằng tiền tố ID_PREFIX.REPORT). Xoá đi ngay khi tin báo được
-    // chuyển thành hồ sơ (xem createIncidentFromReport bên dưới).
-    const reportAckClock = sla.registerSlaClock({ objectId: reportId, clockLabel: 'ack', priority: initialPriority, startAt: now, calendar: opts?.calendar });
-    await db.insert(slaClocks).values(slaClockToRow(reportAckClock));
 
     const linkedEvidenceIds = await linkEvidenceToReport(db, { evidenceIds: input.evidenceIds || [], reportId }, { now });
 
@@ -175,7 +169,15 @@ export async function submitReport(db: Db, input: SubmitReportInput, opts?: Safe
         .catch((e) => console.error('[submitReport] notifyUrgentReport thất bại, KHÔNG chặn gửi tin báo:', e instanceof Error ? e.message : e));
     }
 
-    return { reportId, publicCode, confidentiality, initialPriority, linkedEvidenceIds, suggestedClassNames };
+    // Sin chốt 2026-09-22: bỏ hẳn trạng thái "tin báo chờ chuyển thành hồ
+    // sơ" — MỌI tin báo giờ LẬP TỨC là 1 sự vụ có thể tiếp nhận/bàn giao
+    // ngay (dùng lại nguyên logic nhánh "tạo mới" của createIncidentFromReport,
+    // không viết lại). Không còn cần đồng hồ SLA "ack" riêng cho tin báo
+    // (report-level) như bản 2026-09-21 nữa — hồ sơ có đồng hồ ack/assign
+    // của chính nó ngay từ đây.
+    const { incidentId, homeroomPerId, gradeSupervisorPerId } = await createIncidentFromReport(db, { reportId, priority: initialPriority }, opts);
+
+    return { reportId, incidentId, homeroomPerId, gradeSupervisorPerId, publicCode, confidentiality, initialPriority, linkedEvidenceIds, suggestedClassNames };
   });
 }
 
@@ -210,15 +212,15 @@ export async function resolveUrgentReportNotify(db: Db, reportId: string, now: D
 }
 
 // ---------------------------------------------------------------------------
-// Tạo/gộp hồ sơ sự cố từ tin báo
+// Tạo hồ sơ sự cố từ tin báo — Sin chốt 2026-09-22: MỌI tin báo đều tự
+// tạo hồ sơ NGAY lúc gửi (gọi từ submitReport ở trên), không còn khái
+// niệm "tin báo chưa phải hồ sơ" để cần nhánh GỘP tin báo vào hồ sơ có
+// sẵn nữa — tin báo trùng nhau giờ là 2 HỒ SƠ trùng nhau, gộp bằng
+// `mergeDuplicateIncidents` (incident-lifecycle.ts) thay vì ở đây.
 // ---------------------------------------------------------------------------
 export interface CreateIncidentFromReportInput {
   reportId: string;
-  // Bắt buộc ở nhánh tạo MỚI, bỏ qua ở nhánh gộp (mergeIntoIncidentId) —
-  // hồ sơ đích đã có priority riêng, không đổi khi gộp thêm 1 tin báo vào.
-  priority?: catalog.Priority;
-  mergeIntoIncidentId?: string;
-  className?: string;
+  priority: catalog.Priority;
 }
 
 export async function createIncidentFromReport(db: Db, input: CreateIncidentFromReportInput, opts?: SafetyOpts) {
@@ -226,30 +228,21 @@ export async function createIncidentFromReport(db: Db, input: CreateIncidentFrom
   const [report] = await db.select().from(reports).where(eq(reports.reportId, input.reportId)).limit(1);
   if (!report) throw new AppError('not_found', 'Không tìm thấy tin báo ' + input.reportId);
 
-  if (input.mergeIntoIncidentId) {
-    const [incident] = await db.select().from(incidents).where(eq(incidents.incidentId, input.mergeIntoIncidentId)).limit(1);
-    if (!incident) throw new AppError('not_found', 'Không tìm thấy hồ sơ ' + input.mergeIntoIncidentId);
-    await db.update(incidents).set({ reportIds: adminArrayUnion(incident.reportIds, input.reportId) }).where(eq(incidents.incidentId, input.mergeIntoIncidentId));
-    await db.update(reports).set({ mergedIntoIncidentId: input.mergeIntoIncidentId }).where(eq(reports.reportId, input.reportId));
-    // Tin báo đã được xử lý (gộp vào hồ sơ có sẵn) — xoá đồng hồ SLA riêng
-    // của tin báo, không còn cần "nhắc chuyển thành hồ sơ" nữa.
-    await db.delete(slaClocks).where(eq(slaClocks.objectId, input.reportId));
-    await resolveUrgentReportNotify(db, input.reportId, now);
-    await audit.writeAuditLog(db, audit.buildAuditRecord({
-      actorPerId: 'SYSTEM.SAFETY', action: 'safety.report.merged', objectId: input.mergeIntoIncidentId,
-      after: { reportId: input.reportId }, now
-    }));
-    return { incidentId: input.mergeIntoIncidentId, merged: true };
+  // Bảo vệ: submitReport() tự gọi hàm này ngay lúc gửi tin — 1 tin báo
+  // không bao giờ được tạo 2 hồ sơ. Chặn gọi lại nhầm trên 1 tin báo đã có
+  // hồ sơ (VD lỗi lập trình gọi lại, hoặc dữ liệu cũ trước ngày migrate).
+  if (report.mergedIntoIncidentId) {
+    throw new AppError('already_activated', 'Tin báo này đã có hồ sơ (' + report.mergedIntoIncidentId + '), không tạo hồ sơ mới lần nữa.');
   }
 
-  if (!input.priority) throw new AppError('invalid_input', 'Thiếu priority khi tạo hồ sơ mới (chỉ nhánh gộp mới được bỏ qua).');
+  if (!input.priority) throw new AppError('invalid_input', 'Thiếu priority khi tạo hồ sơ mới.');
   const priority = input.priority;
 
   const incidentId = await ids.allocateSequentialId(db, catalog.ID_PREFIX.INCIDENT, { now });
   const confidentiality = catalog.effectiveConfidentiality(report.categoryCode, report.confidentiality);
   const state = priority === catalog.PRIORITY.P0 ? catalog.STATE.EMERGENCY : catalog.STATE.NEW;
 
-  const effectiveClassName = input.className !== undefined ? (input.className || null) : (report.className || null);
+  const effectiveClassName = report.className || null;
   const { homeroomPerId, gradeSupervisorPerId } = await resolveClassRelatedPeople(db, effectiveClassName);
   const classRelatedPerIds = Array.from(new Set([homeroomPerId, gradeSupervisorPerId].filter((v): v is string => !!v)));
   const assignedTaskPerIds = classRelatedPerIds;

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api } from '../../../services/api';
 
 /**
- * Dùng chung bởi IncidentsListPage và EmergencyCockpitPage (lọc P0/P1 ở
+ * Dùng chung bởi CasesListPage và EmergencyCockpitPage (lọc P0/P1 ở
  * client, KHÔNG có endpoint riêng cho cockpit) — xem plan Phase 1 §3/§4.
  */
 export interface UseIncidentsParams {
@@ -40,6 +40,7 @@ export interface IncidentListItem {
   categoryLabel?: string | null;
   className?: string | null;
   content?: string;
+  contentPreview?: string | null;
   commanderPerId?: string | null;
   commanderName?: string | null;
   slaClocks?: Record<string, IncidentSlaClock> | null;

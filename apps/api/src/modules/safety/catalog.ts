@@ -269,6 +269,21 @@ export const ROLE_DEFAULT_CEILING: Record<RoleId, Confidentiality> = {
   [ROLE.REPORTER]: 'C1'
 };
 
+/**
+ * Bàn giao chỉ huy (assignCommander) theo đúng cấp bậc — Sin chốt
+ * 2026-09-22: Hiệu trưởng và Phó Hiệu trưởng bàn giao cho ai cũng được
+ * (kể cả escalate ngược lên nhau, hành vi có sẵn từ trước — không thu hẹp
+ * lại). Tổ trưởng là vai trò MỚI được thêm quyền bàn giao, nhưng CHỈ bàn
+ * giao được cho cấp dưới (giáo viên/nhân viên trực tiếp), không được giao
+ * ngang/lên cấp (Tổ trưởng khác, Trực ban, Phó HT, Hiệu trưởng, Quản trị,
+ * Kiểm toán). `null` = không giới hạn đối tượng nhận.
+ */
+export const HANDOFF_TARGET_ROLES_BY_ACTOR_ROLE: Partial<Record<RoleId, RoleId[] | null>> = {
+  [ROLE.PRINCIPAL]: null,
+  [ROLE.VICE_PRINCIPAL]: null,
+  [ROLE.DEPT_HEAD]: [ROLE.TEACHER, ROLE.HOMEROOM, ROLE.HEALTH, ROLE.COUNSELOR, ROLE.SECURITY, ROLE.FACILITY, ROLE.OFFICE_ADMIN]
+};
+
 // ---------------------------------------------------------------------------
 // Tiền tố mã định danh (S3).
 // ---------------------------------------------------------------------------

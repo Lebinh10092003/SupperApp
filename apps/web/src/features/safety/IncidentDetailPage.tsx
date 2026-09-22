@@ -53,6 +53,15 @@ interface EvidenceSummary {
   scanStatus: string;
 }
 
+interface ReportSubmission {
+  reportId: string;
+  content: string;
+  occurredAt: string;
+  channel: string;
+  reporterRole: string | null;
+  stillDangerous: boolean;
+}
+
 interface IncidentDetail {
   incidentId: string;
   priority: 'P0' | 'P1' | 'P2' | 'P3';
@@ -71,6 +80,7 @@ interface IncidentDetail {
   reopenReason?: string | null;
   canViewEvidence?: boolean;
   evidenceList?: EvidenceSummary[];
+  reportSubmissions?: ReportSubmission[];
   slaClocks?: Record<string, { deadlineAt: string; status: string; paused: boolean }>;
   createdAt?: string;
   updatedAt?: string;
@@ -233,6 +243,29 @@ export default function IncidentDetailPage() {
                       {SLA_CLOCK_LABEL[label] || label}: hạn {formatDateTime(clock.deadlineAt)} — {SLA_STATUS_LABEL[clock.status] || clock.status}
                       {clock.paused ? ' (đang tạm dừng)' : ''}
                     </Typography>
+                  ))}
+                </Stack>
+              </CardContent>
+            </Card>
+          )}
+
+          {incident.reportSubmissions && incident.reportSubmissions.length > 0 && (
+            <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none' }}>
+              <CardContent>
+                <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1.5 }}>
+                  Nội dung tin báo gốc{incident.reportSubmissions.length > 1 ? ` (${incident.reportSubmissions.length} lượt gửi)` : ''}
+                </Typography>
+                <Stack spacing={1.5} divider={<Divider />}>
+                  {incident.reportSubmissions.map((r) => (
+                    <Box key={r.reportId}>
+                      <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                        {r.content || <em>(không có nội dung)</em>}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {formatDateTime(r.occurredAt)}
+                        {r.stillDangerous ? ' — còn nguy hiểm lúc gửi' : ''}
+                      </Typography>
+                    </Box>
                   ))}
                 </Stack>
               </CardContent>

@@ -346,12 +346,24 @@ safetyQueryRouter.get(
     const commanderPerIds = out.map((it) => it.commanderPerId).filter((v): v is string => !!v);
     const commanderNameMap = await getDisplayNamesByPerIds(db, commanderPerIds);
 
+    // Bảng "sự vụ" gộp (2026-09-22) thay hẳn danh sách tin báo riêng —
+    // incidents KHÔNG lưu content (chỉ reports mới có), nên phải tra thêm
+    // nội dung tin báo GỐC đầu tiên của mỗi hồ sơ để hiện xem trước trong
+    // bảng, giống cách trang "Tin báo chờ xử lý" cũ từng làm.
+    const firstReportIds = out.map((it) => it.reportIds?.[0]).filter((v): v is string => !!v);
+    const contentByReportId = new Map<string, string>();
+    if (firstReportIds.length > 0) {
+      const reportRows = await db.select({ reportId: reports.reportId, content: reports.content }).from(reports).where(inArray(reports.reportId, firstReportIds));
+      for (const r of reportRows) contentByReportId.set(r.reportId, r.content || '');
+    }
+
     res.json(
       out.map((it) => ({
         ...it,
         categoryLabel: it.categoryCode ? CATEGORY_CATALOG[it.categoryCode]?.label || it.categoryCode : null,
         slaClocks: clockMap[it.incidentId] || null,
-        commanderName: it.commanderPerId ? (commanderNameMap[it.commanderPerId] ?? null) : null
+        commanderName: it.commanderPerId ? (commanderNameMap[it.commanderPerId] ?? null) : null,
+        contentPreview: it.redacted ? null : (it.reportIds?.[0] ? contentByReportId.get(it.reportIds[0]) ?? null : null)
       }))
     );
   })
@@ -414,6 +426,21 @@ safetyQueryRouter.get(
       gradeSupervisorConfigured = !!classRelated.gradeSupervisorPerId;
     }
 
+    // Nội dung gốc từng lượt gửi tin (incidents KHÔNG lưu content — chỉ
+    // reports mới có, xem saved-filters/CasesListPage 2026-09-22). CỐ Ý
+    // không kèm publicCode/email/phone người báo tin — cổng nội bộ không
+    // được thấy mã tra cứu công khai (Sin: "ẩn mã GV đi tránh giáo viên tự
+    // ý đóng case").
+    let reportSubmissions: Array<{
+      reportId: string; content: string; occurredAt: Date; channel: string; reporterRole: string | null; stillDangerous: boolean;
+    }> = [];
+    if (!isRedacted && incident.reportIds && incident.reportIds.length > 0) {
+      const rows = await db.select().from(reports).where(inArray(reports.reportId, incident.reportIds));
+      reportSubmissions = rows.map((r) => ({
+        reportId: r.reportId, content: r.content || '', occurredAt: r.occurredAt, channel: r.channel, reporterRole: r.reporterRole, stillDangerous: !!r.stillDangerous
+      }));
+    }
+
     const base = isRedacted
       ? { incidentId: incident.incidentId, priority: incident.priority, confidentiality: incident.confidentiality, state: incident.state, campusId: incident.campusId, redacted: true }
       : incident;
@@ -422,6 +449,7 @@ safetyQueryRouter.get(
       ...base,
       canViewEvidence: canView,
       evidenceList,
+      reportSubmissions,
       categoryLabel: isRedacted ? null : CATEGORY_CATALOG[incident.categoryCode]?.label || incident.categoryCode,
       slaClocks: slaClockMap,
       commanderName,

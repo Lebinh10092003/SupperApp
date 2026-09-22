@@ -30,6 +30,7 @@ import { evidenceDownloadRouter } from './modules/safety/evidence-download.route
 import { publicCatalogRouter } from './modules/safety/public-catalog.routes.js';
 import { directoryAssignmentsRouter } from './modules/safety/directory-assignments.routes.js';
 import { meRouter } from './modules/safety/me.routes.js';
+import { savedFiltersRouter } from './modules/safety/saved-filters.routes.js';
 import { workScheduleRouter } from './modules/work-schedule/work-schedule.routes.js';
 import { handleMeetEvent } from './modules/meet/meet.events.js';
 
@@ -92,6 +93,7 @@ app.use('/api/safety', evidenceRouter);
 // Cấp signed URL tải minh chứng (S8) — port từ getEvidenceDownloadUrl.
 app.use('/api/safety', evidenceDownloadRouter);
 app.use('/api/safety', publicCatalogRouter);
+app.use('/api/safety', savedFiltersRouter);
 // CRUD dữ liệu nền: lớp->GVCN, khối->giáo viên phụ trách khối, danh bạ liên hệ.
 app.use('/api/safety', directoryAssignmentsRouter);
 // GET /api/safety/me — actor context (perId/roles/onDutyNow) cho frontend

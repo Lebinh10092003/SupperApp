@@ -1,0 +1,1 @@
+ALTER TABLE "incidents" ADD COLUMN "unclaimed_escalation_tier" integer DEFAULT 0 NOT NULL;

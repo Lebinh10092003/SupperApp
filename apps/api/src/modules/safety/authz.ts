@@ -47,7 +47,12 @@ export const PERMISSION_MATRIX: Record<string, Partial<Record<RoleId, GrantLevel
   },
   'incident.raise_priority': { [ROLE.PRINCIPAL]: 'X', [ROLE.VICE_PRINCIPAL]: 'X', [ROLE.DUTY_OFFICER]: 'X', [ROLE.TEACHER]: 'X' },
   'incident.lower_priority': { [ROLE.PRINCIPAL]: 'XR', [ROLE.VICE_PRINCIPAL]: 'D' },
-  'incident.assign_commander': { [ROLE.PRINCIPAL]: 'XR', [ROLE.VICE_PRINCIPAL]: 'X' },
+  // Tổ trưởng được bàn giao thêm 2026-09-22 (Sin chốt) — chỉ giao được cho
+  // cấp dưới, ràng buộc đó nằm ở HANDOFF_TARGET_ROLES_BY_ACTOR_ROLE
+  // (catalog.ts), kiểm tra trong assignCommander (incident-lifecycle.ts),
+  // KHÔNG nằm trong ma trận này (ma trận chỉ trả lời "vai trò có được làm
+  // hành động không", không biết gì về "đối tượng nhận là ai").
+  'incident.assign_commander': { [ROLE.PRINCIPAL]: 'XR', [ROLE.VICE_PRINCIPAL]: 'X', [ROLE.DEPT_HEAD]: 'XR' },
   // Sửa tay lớp/khu vực gợi ý cho 1 hồ sơ ĐÃ TẠO. R.DUTY_OFFICER CỐ TÌNH
   // không xuất hiện -> không có quyền hành động này. `reason` bắt buộc ở
   // tầng hàm gọi (updateIncidentClassification) là ĐIỀU KIỆN RIÊNG áp dụng

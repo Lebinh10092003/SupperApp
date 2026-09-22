@@ -32,6 +32,7 @@ import {
   assignCommander,
   acknowledgeIncident,
   addIncidentParticipant,
+  mergeDuplicateIncidents,
   updateIncidentClassification
 } from './incident-lifecycle.js';
 
@@ -54,6 +55,8 @@ const IL_CLASS_NAME = 'IL_8A2';
 const IL_HOMEROOM_PER_ID = 'PER.IL_GVCN_8A2';
 const IL_OLD_CLASS_NAME = 'IL_8A1';
 const IL_OLD_HOMEROOM_PER_ID = 'PER.IL_GVCN_8A1';
+const IL_DEPT_HEAD = 'PER.IL_TOTRUONG';
+const IL_TEACHER_SUBORDINATE = 'PER.IL_GV_CAPDUOI';
 
 // campusId RIÊNG của file này ('CS.01') — không dùng chung với
 // report-flow.smoke.test.ts ('CS.RF_*') hay zoneStats/classStats.test.ts
@@ -68,7 +71,7 @@ const IL_CAMPUS_ID = 'CS.01';
 async function resetTables() {
   await db.delete(incidents).where(eq(incidents.campusId, IL_CAMPUS_ID));
   await db.delete(reports).where(eq(reports.campusId, IL_CAMPUS_ID));
-  await db.delete(assignments).where(inArray(assignments.perId, [IL_PRINCIPAL, IL_DUTY_OFFICER]));
+  await db.delete(assignments).where(inArray(assignments.perId, [IL_PRINCIPAL, IL_DUTY_OFFICER, IL_DEPT_HEAD, IL_TEACHER_SUBORDINATE]));
   await db.delete(dutyShifts).where(eq(dutyShifts.perId, IL_DUTY_OFFICER));
   await db.delete(homeroomAssignments).where(eq(homeroomAssignments.className, IL_CLASS_NAME));
   await db.delete(homeroomAssignments).where(eq(homeroomAssignments.className, IL_OLD_CLASS_NAME));
@@ -94,6 +97,9 @@ function teacherOtherCampus(): Actor {
 }
 function vicePrincipal(campusId: string): Actor {
   return { perId: IL_VICE_PRINCIPAL, session: { valid: true, revoked: false }, roles: [{ roleId: ROLE.VICE_PRINCIPAL, campusId, ceiling: 'C3' }] };
+}
+function deptHead(campusId: string): Actor {
+  return { perId: IL_DEPT_HEAD, session: { valid: true, revoked: false }, roles: [{ roleId: ROLE.DEPT_HEAD, campusId, ceiling: 'C2' }] };
 }
 
 // ID sinh ngẫu nhiên (KHÔNG dùng bộ đếm tất định) — audit_logs là bảng
@@ -353,6 +359,52 @@ test('assignCommander: hồ sơ không tồn tại -> not_found', { skip }, asyn
   const missingIncident = await throwsWithCode(() => assignCommander(db, { actor: principal(), incidentId: 'SC.KHONG_TON_TAI', commanderPerId: IL_DUTY_OFFICER, reason: 'thử' }, {}));
   assert.equal(missingIncident.threw, true);
   assert.equal(missingIncident.code, 'not_found');
+});
+
+test('assignCommander: Tổ trưởng CHỈ bàn giao được cho cấp dưới (giáo viên), không giao ngang/lên cấp được (Sin chốt 2026-09-22)', { skip }, async () => {
+  await resetTables();
+  await db.insert(assignments).values([
+    { id: crypto.randomUUID(), perId: IL_DEPT_HEAD, roleId: ROLE.DEPT_HEAD, campusId: IL_CAMPUS_ID },
+    { id: crypto.randomUUID(), perId: IL_TEACHER_SUBORDINATE, roleId: ROLE.TEACHER, campusId: IL_CAMPUS_ID },
+    { id: crypto.randomUUID(), perId: IL_DUTY_OFFICER, roleId: ROLE.DUTY_OFFICER, campusId: IL_CAMPUS_ID }
+  ]);
+  const incidentId = await seedIncident({ priority: PRIORITY.P2 });
+
+  const toTeacher = await assignCommander(db, { actor: deptHead(IL_CAMPUS_ID), incidentId, commanderPerId: IL_TEACHER_SUBORDINATE, reason: 'bàn giao cho giáo viên phụ trách' }, {});
+  assert.equal(toTeacher.commanderPerId, IL_TEACHER_SUBORDINATE);
+
+  const toDutyOfficer = await throwsWithCode(() =>
+    assignCommander(db, { actor: deptHead(IL_CAMPUS_ID), incidentId, commanderPerId: IL_DUTY_OFFICER, reason: 'thử giao ngang cấp' }, {})
+  );
+  assert.equal(toDutyOfficer.threw, true);
+  assert.equal(toDutyOfficer.code, 'forbidden');
+
+  const toPrincipal = await throwsWithCode(() =>
+    assignCommander(db, { actor: deptHead(IL_CAMPUS_ID), incidentId, commanderPerId: IL_PRINCIPAL, reason: 'thử giao lên cấp' }, {})
+  );
+  assert.equal(toPrincipal.threw, true);
+  assert.equal(toPrincipal.code, 'forbidden');
+});
+
+test('mergeDuplicateIncidents: gộp reportIds sang hồ sơ giữ lại, hồ sơ trùng chuyển sang trạng thái Trùng; hồ sơ đã đóng không gộp được nữa', { skip }, async () => {
+  await resetTables();
+  const keepId = await seedIncident({ priority: PRIORITY.P2, reportIds: ['TB.KEEP1'] });
+  const dupId = await seedIncident({ priority: PRIORITY.P2, reportIds: ['TB.DUP1'] });
+
+  const merged = await mergeDuplicateIncidents(db, { actor: principal(), keepIncidentId: keepId, duplicateIncidentId: dupId, reason: 'trùng sự việc' }, {});
+  assert.equal(merged.keepIncidentId, keepId);
+
+  const [keepAfter] = await db.select().from(incidents).where(eq(incidents.incidentId, keepId));
+  assert.ok(keepAfter!.reportIds!.includes('TB.KEEP1') && keepAfter!.reportIds!.includes('TB.DUP1'));
+  const [dupAfter] = await db.select().from(incidents).where(eq(incidents.incidentId, dupId));
+  assert.equal(dupAfter!.state, STATE.DUPLICATE);
+
+  const mergeAudit = await db.select().from(auditLogs).where(eq(auditLogs.objectId, dupId));
+  assert.ok(mergeAudit.some((a) => a.action === 'incident.merged_duplicate'));
+
+  const alreadyDup = await throwsWithCode(() => mergeDuplicateIncidents(db, { actor: principal(), keepIncidentId: keepId, duplicateIncidentId: dupId }, {}));
+  assert.equal(alreadyDup.threw, true);
+  assert.equal(alreadyDup.code, 'terminal_state');
 });
 
 // ---------------------------------------------------------------------

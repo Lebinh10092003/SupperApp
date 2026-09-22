@@ -65,23 +65,19 @@ export function NotificationBell() {
     if (n.objectId && n.objectId.startsWith('SC.')) {
       navigate(`/safety/incidents/${n.objectId}`);
     } else if (n.objectId && n.objectId.startsWith('TB.')) {
-      // Trước đây KHÔNG xử lý nhánh này — bấm thông báo gắn với tin báo
-      // (chưa/hoặc đã từng là hồ sơ) không làm gì cả, chỉ đánh dấu đã đọc
-      // (Sin phản hồi 2026-09-11: "bấm vào mục nào thì phải trỏ được về
-      // mục đó"). Tin báo có thể đã được gộp vào hồ sơ từ trước khi actor
-      // bấm xem — gọi GET /reports/:id để biết chắc, rồi điều hướng đúng
-      // nơi: hồ sơ đã gộp (có trang chi tiết đầy đủ) hoặc bảng "Tin báo chờ
-      // xử lý" lọc sẵn xuống đúng dòng đó (chưa có trang chi tiết riêng cho
-      // tin báo).
+      // Từ 2026-09-22, submitReport() tự tạo hồ sơ NGAY lúc gửi tin — mọi
+      // objectId "TB." MỚI đều đã có mergedIntoIncidentId. Nhánh này giữ lại
+      // CHỈ để mở được thông báo LỊCH SỬ trước ngày đổi luồng (tin báo cũ
+      // có thể chưa từng được chuyển thành hồ sơ).
       try {
         const r = await api.get<{ reportId: string; mergedIntoIncidentId: string | null }>(`/api/safety/reports/${n.objectId}`);
         if (r.mergedIntoIncidentId) {
           navigate(`/safety/incidents/${r.mergedIntoIncidentId}`);
         } else {
-          navigate(`/safety/reports/pending?q=${encodeURIComponent(n.objectId)}`);
+          navigate(`/safety/cases?q=${encodeURIComponent(n.objectId)}`);
         }
       } catch {
-        navigate(`/safety/reports/pending?q=${encodeURIComponent(n.objectId)}`);
+        navigate(`/safety/cases?q=${encodeURIComponent(n.objectId)}`);
       }
     }
   };

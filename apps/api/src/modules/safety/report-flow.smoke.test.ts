@@ -77,17 +77,23 @@ async function cleanup() {
   await db.delete(idempotencyKeys).where(like(idempotencyKeys.key, 'rf-idem-%'));
 }
 
-test('report-flow: submitReport — tiếp nhận, tách danh tính, gợi ý ưu tiên', { skip }, async () => {
+test('report-flow: submitReport — tiếp nhận, tách danh tính, gợi ý ưu tiên, TỰ tạo hồ sơ ngay', { skip }, async () => {
   await cleanup();
+  await seedEscalationFixtures(CAMPUS);
   try {
     const now = new Date('2026-08-21T08:00:00+07:00');
     const rep = await submitReportT({
       campusId: CAMPUS, categoryCode: 'fire_explosion', content: 'Ổ điện có mùi khét ở hành lang tầng 2',
       contactName: 'Cô Lan', stillDangerous: true, idempotencyKey: 'rf-idem-1'
-    }, { now });
+    }, { now, dispatch: async () => {}, pushBell: async () => {} });
     assert.equal(rep.reportId.indexOf('TB.'), 0);
     assert.equal(rep.publicCode.indexOf('GV-'), 0);
     assert.equal(rep.initialPriority, PRIORITY.P0);
+    // Sin chốt 2026-09-22: KHÔNG còn trạng thái "chờ chuyển thành hồ sơ" —
+    // submitReport tự tạo incident ngay, trả về incidentId luôn.
+    assert.equal(rep.incidentId.indexOf('SC.'), 0);
+    const [reportAfter] = await db.select().from(reports).where(eq(reports.reportId, rep.reportId));
+    assert.equal(reportAfter!.mergedIntoIncidentId, rep.incidentId);
 
     const [reportDoc] = await db.select().from(reports).where(eq(reports.reportId, rep.reportId));
     assert.ok(reportDoc);
@@ -142,7 +148,7 @@ test('report-flow: submitReport — bắt buộc email hoặc phone hợp lệ (
   }
 });
 
-test('report-flow: createIncidentFromReport — P0 tự kích hoạt cảnh báo, mức bí mật hiệu lực', { skip }, async () => {
+test('report-flow: submitReport — P0 tự kích hoạt cảnh báo ngay khi gửi, mức bí mật hiệu lực', { skip }, async () => {
   await cleanup();
   await seedEscalationFixtures(CAMPUS);
   try {
@@ -151,8 +157,7 @@ test('report-flow: createIncidentFromReport — P0 tự kích hoạt cảnh báo
       campusId: CAMPUS, categoryCode: 'fire_explosion', content: 'Đang cháy ở tầng 2', stillDangerous: true,
       idempotencyKey: 'rf-idem-p0-1'
     }, { now, dispatch: async () => {}, pushBell: async () => {} });
-
-    const created = await createIncidentFromReport(db, { reportId: rep.reportId, priority: PRIORITY.P0 }, { now, dispatch: async () => {}, pushBell: async () => {} });
+    const created = { incidentId: rep.incidentId };
     assert.equal(created.incidentId.indexOf('SC.'), 0);
 
     const [incDoc] = await db.select().from(incidents).where(eq(incidents.incidentId, created.incidentId));
@@ -198,7 +203,11 @@ test('report-flow: notifyUrgentReport — submitReport stillDangerous=true báo 
     assert.ok(urgent.recipients.includes(PER_TRUCBAN) && urgent.recipients.includes(PER_HIEUTRUONG));
     assert.ok(urgent.message.startsWith(rep.reportId));
     assert.ok(!urgent.message.includes(rep.publicCode));
-    assert.equal(dispatchCalls.length, 1);
+    // 2 lượt dispatch: (1) notifyUrgentReport lúc gửi tin, (2) activateP0 do
+    // submitReport TỰ tạo hồ sơ P0 ngay trong cùng lượt gửi (2026-09-22) —
+    // activateP0 chỉ gọi dispatch, không gọi pushBell (hành vi có sẵn từ
+    // trước, không đổi), nên bellCalls vẫn đúng 1 như cũ.
+    assert.equal(dispatchCalls.length, 2);
     assert.equal(bellCalls.length, 1);
 
     // stillDangerous=false -> không tạo notify_request khẩn nào
@@ -229,7 +238,7 @@ test('report-flow: liên thông lớp <-> GVCN + phụ trách khối', { skip },
       campusId: CAMPUS, categoryCode: 'violence_bullying', content: 'Nhóm bạn bắt nạt 1 học sinh',
       className: '38A2', stillDangerous: true, idempotencyKey: 'rf-idem-lop-1'
     }, { now, dispatch: async () => {}, pushBell: async () => {} });
-    const createdLop = await createIncidentFromReport(db, { reportId: repLop.reportId, priority: PRIORITY.P0 }, { now, dispatch: async () => {}, pushBell: async () => {} });
+    const createdLop = { incidentId: repLop.incidentId, homeroomPerId: repLop.homeroomPerId };
     assert.equal(createdLop.homeroomPerId, PER_GVCN_8A2);
     const [incLop] = await db.select().from(incidents).where(eq(incidents.incidentId, createdLop.incidentId));
     assert.ok(incLop);
@@ -244,33 +253,30 @@ test('report-flow: liên thông lớp <-> GVCN + phụ trách khối', { skip },
     // Không phải P0 vẫn phải báo riêng cho GVCN.
     const repLop2 = await submitReportT({
       campusId: CAMPUS, categoryCode: 'cyberbullying', content: 'Học sinh bị lập nhóm chê bai trên mạng',
-      className: '38A2', idempotencyKey: 'rf-idem-lop-2'
-    }, { now });
-    const createdLop2 = await createIncidentFromReport(db, { reportId: repLop2.reportId, priority: PRIORITY.P2 }, { now });
-    const homeroomAudit = (await db.select().from(auditLogs).where(eq(auditLogs.objectId, createdLop2.incidentId)))
+      className: '38A2', priorityOverride: PRIORITY.P2, idempotencyKey: 'rf-idem-lop-2'
+    }, { now, dispatch: async () => {}, pushBell: async () => {} });
+    const homeroomAudit = (await db.select().from(auditLogs).where(eq(auditLogs.objectId, repLop2.incidentId)))
       .filter((a) => a.action === 'safety.incident.homeroom_notified');
     assert.equal(homeroomAudit.length, 1);
 
     // Lớp chưa khai báo GVCN -> vẫn tạo hồ sơ bình thường, không lỗi.
     const repLop3 = await submitReportT({
       campusId: CAMPUS, categoryCode: 'violence_bullying', content: 'Va chạm nhẹ giữa 2 học sinh',
-      className: '39B1', idempotencyKey: 'rf-idem-lop-3'
-    }, { now });
-    const createdLop3 = await createIncidentFromReport(db, { reportId: repLop3.reportId, priority: PRIORITY.P2 }, { now });
-    assert.equal(createdLop3.homeroomPerId, null);
+      className: '39B1', priorityOverride: PRIORITY.P2, idempotencyKey: 'rf-idem-lop-3'
+    }, { now, dispatch: async () => {}, pushBell: async () => {} });
+    assert.equal(repLop3.homeroomPerId, null);
 
     // Lớp 8A3 -> đẩy NGAY cho cả GVCN 8A3 và phụ trách khối 8 (suy từ tên lớp).
     const bellCallsKhoi: unknown[] = [];
     const repKhoi = await submitReportT({
       campusId: CAMPUS, categoryCode: 'violence_bullying', content: 'Phát hiện bạn học bị bắt nạt',
-      className: '38A3', idempotencyKey: 'rf-idem-khoi-1'
-    }, { now });
-    const createdKhoi = await createIncidentFromReport(db, { reportId: repKhoi.reportId, priority: PRIORITY.P2 }, {
-      now, pushBell: async (_db, payload) => { bellCallsKhoi.push(payload); }
+      className: '38A3', priorityOverride: PRIORITY.P2, idempotencyKey: 'rf-idem-khoi-1'
+    }, {
+      now, dispatch: async () => {}, pushBell: async (_db, payload) => { bellCallsKhoi.push(payload); }
     });
-    assert.equal(createdKhoi.homeroomPerId, PER_GVCN_8A3);
-    assert.equal(createdKhoi.gradeSupervisorPerId, PER_KHOI8);
-    const [incKhoi] = await db.select().from(incidents).where(eq(incidents.incidentId, createdKhoi.incidentId));
+    assert.equal(repKhoi.homeroomPerId, PER_GVCN_8A3);
+    assert.equal(repKhoi.gradeSupervisorPerId, PER_KHOI8);
+    const [incKhoi] = await db.select().from(incidents).where(eq(incidents.incidentId, repKhoi.incidentId));
     assert.ok(incKhoi);
     assert.ok(incKhoi.assignedTaskPerIds?.includes(PER_GVCN_8A3) && incKhoi.assignedTaskPerIds?.includes(PER_KHOI8));
     assert.equal(bellCallsKhoi.length, 1);
@@ -283,8 +289,12 @@ test('report-flow: activateP0 không có người trực/lãnh đạo -> throw n
   await cleanup();
   try {
     const now = new Date('2026-08-21T08:00:00+07:00');
-    const rep = await submitReportT({ campusId: CAMPUS_EMPTY, categoryCode: 'medical_minor', content: 'tai nạn nhẹ', idempotencyKey: 'rf-idem-empty-1' }, { now });
-    const err = await createIncidentFromReport(db, { reportId: rep.reportId, priority: PRIORITY.P0 }, { now }).then(() => null).catch((e) => e);
+    // priorityOverride: P0 buộc submitReport tự gọi thẳng activateP0 ngay
+    // lúc gửi (không còn bước "chuyển thành hồ sơ" riêng để gọi lại nữa).
+    const err = await submitReportT(
+      { campusId: CAMPUS_EMPTY, categoryCode: 'medical_minor', content: 'tai nạn nhẹ', priorityOverride: PRIORITY.P0, idempotencyKey: 'rf-idem-empty-1' },
+      { now }
+    ).then(() => null).catch((e) => e);
     assert.equal(err?.code, 'no_recipients');
 
     const errDirect = await activateP0(db, { incidentId: 'SC.NONEXISTENT', campusId: CAMPUS_EMPTY }, { now }).then(() => null).catch((e) => e);
@@ -304,10 +314,12 @@ test('report-flow: notifyP1Escalation — KHÔNG có người nhận nào trong 
   await cleanup();
   try {
     const now = new Date('2026-08-21T08:00:00+07:00');
-    const repEmpty = await submitReportT({ campusId: CAMPUS_EMPTY, categoryCode: 'structural_hazard', content: 'Sự cố công trình chưa khai báo ai', idempotencyKey: 'rf-idem-p1-empty' }, { now });
-    const createdEmpty = await createIncidentFromReport(db, { reportId: repEmpty.reportId, priority: PRIORITY.P1 }, { now });
-    assert.ok(!!createdEmpty.incidentId);
-    const noRecipientsAudit = (await db.select().from(auditLogs).where(eq(auditLogs.objectId, createdEmpty.incidentId)))
+    const repEmpty = await submitReportT(
+      { campusId: CAMPUS_EMPTY, categoryCode: 'structural_hazard', content: 'Sự cố công trình chưa khai báo ai', priorityOverride: PRIORITY.P1, idempotencyKey: 'rf-idem-p1-empty' },
+      { now }
+    );
+    assert.ok(!!repEmpty.incidentId);
+    const noRecipientsAudit = (await db.select().from(auditLogs).where(eq(auditLogs.objectId, repEmpty.incidentId)))
       .filter((a) => a.action === 'safety.incident.p1_no_recipients');
     assert.equal(noRecipientsAudit.length, 1);
   } finally {
@@ -320,15 +332,17 @@ test('report-flow: notifyP1Escalation — có leadership + trực ban -> notify_
   await seedEscalationFixtures(CAMPUS);
   try {
     const now = new Date('2026-08-21T08:00:00+07:00');
-    const rep = await submitReportT({ campusId: CAMPUS, categoryCode: 'structural_hazard', content: 'Trần nhà bong tróc', idempotencyKey: 'rf-idem-p1-1' }, { now });
-    const created = await createIncidentFromReport(db, { reportId: rep.reportId, priority: PRIORITY.P1 }, { now });
-    const [p1Req] = (await db.select().from(notifyRequests).where(eq(notifyRequests.objectId, created.incidentId)))
+    const rep = await submitReportT(
+      { campusId: CAMPUS, categoryCode: 'structural_hazard', content: 'Trần nhà bong tróc', priorityOverride: PRIORITY.P1, idempotencyKey: 'rf-idem-p1-1' },
+      { now }
+    );
+    const [p1Req] = (await db.select().from(notifyRequests).where(eq(notifyRequests.objectId, rep.incidentId)))
       .filter((r) => r.eventType === 'safety.incident.p1_escalation_notified');
     assert.ok(p1Req);
     assert.equal(p1Req.urgency, 'p1');
     assert.ok(p1Req.recipients.includes(PER_HIEUTRUONG) && p1Req.recipients.includes(PER_TRUCBAN));
 
-    const directResult = await notifyP1Escalation(db, { incidentId: created.incidentId, campusId: CAMPUS }, { now });
+    const directResult = await notifyP1Escalation(db, { incidentId: rep.incidentId, campusId: CAMPUS }, { now });
     assert.equal(directResult.notified, true);
   } finally {
     await cleanup();
@@ -342,29 +356,25 @@ test('report-flow: submitReport — suggested_class_names từ content, KHÔNG t
     const repClassMentioned = await submitReportT({
       campusId: CAMPUS, categoryCode: 'violence_bullying', content: 'Một bạn học lớp 8A2 kể lại bị bạn cùng lớp trêu chọc',
       idempotencyKey: 'rf-idem-class-1'
-    }, { now });
+    }, { now, dispatch: async () => {}, pushBell: async () => {} });
     const [doc1] = await db.select().from(reports).where(eq(reports.reportId, repClassMentioned.reportId));
     assert.ok(doc1);
     assert.equal(doc1.className, null);
     assert.deepEqual(doc1.suggestedClassNames, ['8A2']);
+    // Chỉ là GỢI Ý — hồ sơ tự tạo KHÔNG tự gán className theo suggested_class_names.
+    const [incMentioned] = await db.select().from(incidents).where(eq(incidents.incidentId, repClassMentioned.incidentId));
+    assert.equal(incMentioned!.className, null);
 
     const repExplicit = await submitReportT({
       campusId: CAMPUS, categoryCode: 'violence_bullying', className: '6C3', content: 'Nội dung không nhắc lớp nào',
       idempotencyKey: 'rf-idem-class-2'
-    }, { now });
+    }, { now, dispatch: async () => {}, pushBell: async () => {} });
     const [doc2] = await db.select().from(reports).where(eq(reports.reportId, repExplicit.reportId));
     assert.ok(doc2);
     assert.equal(doc2.className, '6C3');
-
-    const createdOverride = await createIncidentFromReport(db, { reportId: repClassMentioned.reportId, priority: PRIORITY.P2, className: '8A2' }, { now });
-    const [incOverride] = await db.select().from(incidents).where(eq(incidents.incidentId, createdOverride.incidentId));
-    assert.ok(incOverride);
-    assert.equal(incOverride.className, '8A2');
-
-    const createdNoOverride = await createIncidentFromReport(db, { reportId: repExplicit.reportId, priority: PRIORITY.P2 }, { now });
-    const [incNoOverride] = await db.select().from(incidents).where(eq(incidents.incidentId, createdNoOverride.incidentId));
-    assert.ok(incNoOverride);
-    assert.equal(incNoOverride.className, '6C3');
+    // className khai báo tường minh ở tin báo được mang nguyên sang hồ sơ tự tạo.
+    const [incExplicit] = await db.select().from(incidents).where(eq(incidents.incidentId, repExplicit.incidentId));
+    assert.equal(incExplicit!.className, '6C3');
   } finally {
     await cleanup();
   }
@@ -404,15 +414,17 @@ test('report-flow: submitReport — email/phone chuẩn hoá, bỏ ẩn danh ho�
   }
 });
 
-test('report-flow: createIncidentFromReport — gọi opts.notifyReporter khi tạo MỚI, KHÔNG gọi khi merge', { skip }, async () => {
+test('report-flow: submitReport — gọi opts.notifyReporter khi hồ sơ tự tạo xong', { skip }, async () => {
   await cleanup();
   try {
     const now = new Date('2026-08-21T12:00:00+07:00');
     const notifyCalls: Array<{ reportId?: string; eventType: string }> = [];
     const fakeNotifyReporter: SafetyOpts['notifyReporter'] = async (_db, params) => { notifyCalls.push(params); return { sent: true }; };
 
-    const repN = await submitReportT({ campusId: CAMPUS, categoryCode: 'facility_general', content: 'test notifyReporter', idempotencyKey: 'rf-idem-notify-1' }, { now });
-    const createdN = await createIncidentFromReport(db, { reportId: repN.reportId, priority: PRIORITY.P2 }, { now, notifyReporter: fakeNotifyReporter });
+    const repN = await submitReportT(
+      { campusId: CAMPUS, categoryCode: 'facility_general', content: 'test notifyReporter', idempotencyKey: 'rf-idem-notify-1' },
+      { now, notifyReporter: fakeNotifyReporter }
+    );
     assert.ok(notifyCalls.some((c) => c.reportId === repN.reportId && c.eventType === 'reporter.notified.received'));
 
     const [auditReporterNotified] = (await db.select().from(auditLogs).where(eq(auditLogs.objectId, repN.reportId)))
@@ -420,16 +432,6 @@ test('report-flow: createIncidentFromReport — gọi opts.notifyReporter khi t�
     assert.ok(auditReporterNotified);
     assert.equal((auditReporterNotified.after as { sent: boolean }).sent, true);
     assert.ok(!JSON.stringify(auditReporterNotified).includes('nguoibaotin.test@example.com'));
-
-    notifyCalls.length = 0;
-    const repMergeTarget = await submitReportT({ campusId: CAMPUS, categoryCode: 'facility_general', content: 'tin báo sẽ bị gộp', idempotencyKey: 'rf-idem-notify-2' }, { now });
-    const mergedResult = await createIncidentFromReport(db, { reportId: repMergeTarget.reportId, mergeIntoIncidentId: createdN.incidentId }, { now, notifyReporter: fakeNotifyReporter });
-    assert.equal(mergedResult.merged, true);
-    assert.equal(notifyCalls.length, 0);
-
-    // Merge cũng phải dừng leo thang (đường bên notifyUrgentReport dùng chung resolveUrgentReportNotify).
-    const mergedReqs = await db.select().from(notifyRequests).where(eq(notifyRequests.objectId, repMergeTarget.reportId));
-    assert.equal(mergedReqs.filter((r) => r.status === 'pending').length, 0);
   } finally {
     await cleanup();
   }
@@ -441,21 +443,20 @@ test('report-flow: reporter_role copy nguyên trạng từ tin báo gốc sang h
     const now = new Date('2026-08-21T08:00:00+07:00');
     const rep = await submitReportT({
       campusId: CAMPUS, categoryCode: 'fire_explosion', content: 'test reporter_role',
-      reporterRole: REPORTER_ROLE.WITNESS, idempotencyKey: 'rf-idem-role-1'
-    }, { now });
+      reporterRole: REPORTER_ROLE.WITNESS, priorityOverride: PRIORITY.P2, idempotencyKey: 'rf-idem-role-1'
+    }, { now, dispatch: async () => {}, pushBell: async () => {} });
     const [repDoc] = await db.select().from(reports).where(eq(reports.reportId, rep.reportId));
     assert.ok(repDoc);
     assert.equal(repDoc.reporterRole, REPORTER_ROLE.WITNESS);
 
-    const created = await createIncidentFromReport(db, { reportId: rep.reportId, priority: PRIORITY.P2 }, { now });
-    const [incDoc] = await db.select().from(incidents).where(eq(incidents.incidentId, created.incidentId));
+    const [incDoc] = await db.select().from(incidents).where(eq(incidents.incidentId, rep.incidentId));
     assert.ok(incDoc);
     assert.equal(incDoc.reporterRole, REPORTER_ROLE.WITNESS);
 
     const repInvalid = await submitReportT({
       campusId: CAMPUS, categoryCode: 'fire_explosion', content: 'reporter_role không hợp lệ',
-      reporterRole: 'gia_mao_khong_ton_tai', idempotencyKey: 'rf-idem-role-2'
-    }, { now });
+      reporterRole: 'gia_mao_khong_ton_tai', priorityOverride: PRIORITY.P2, idempotencyKey: 'rf-idem-role-2'
+    }, { now, dispatch: async () => {}, pushBell: async () => {} });
     const [repInvalidDoc] = await db.select().from(reports).where(eq(reports.reportId, repInvalid.reportId));
     assert.ok(repInvalidDoc);
     assert.equal(repInvalidDoc.reporterRole, null);
@@ -464,49 +465,25 @@ test('report-flow: reporter_role copy nguyên trạng từ tin báo gốc sang h
   }
 });
 
-test('report-flow: submitReport đăng ký đồng hồ SLA "ack" ngay từ lúc gửi tin — bị xoá khi chuyển thành hồ sơ mới', { skip }, async () => {
+test('report-flow: submitReport tự tạo hồ sơ ngay -> đồng hồ SLA ack/assign gắn thẳng vào incidentId, không còn đồng hồ riêng theo reportId', { skip }, async () => {
   await cleanup();
   try {
     const now = new Date('2026-08-21T08:00:00+07:00');
     const rep = await submitReportT({
-      campusId: CAMPUS, categoryCode: 'fire_explosion', content: 'test đồng hồ SLA tin báo',
-      idempotencyKey: 'rf-idem-slaclock-1'
-    }, { now });
+      campusId: CAMPUS, categoryCode: 'fire_explosion', content: 'test đồng hồ SLA',
+      priorityOverride: PRIORITY.P2, idempotencyKey: 'rf-idem-slaclock-1'
+    }, { now, dispatch: async () => {}, pushBell: async () => {} });
 
-    const [clock] = await db.select().from(slaClocks).where(eq(slaClocks.objectId, rep.reportId));
-    assert.ok(clock, 'phải có đồng hồ SLA riêng cho tin báo ngay khi gửi');
-    assert.equal(clock!.clockLabel, 'ack');
-    assert.equal(clock!.priority, rep.initialPriority);
-    assert.equal(clock!.escalatedAt, null);
+    // Sin chốt 2026-09-22: không còn "tin báo chờ chuyển thành hồ sơ" nên
+    // không còn đồng hồ SLA riêng theo reportId nữa — chỉ có đồng hồ của
+    // chính hồ sơ (incidentId), đăng ký ngay trong cùng lượt gửi tin.
+    const reportClocks = await db.select().from(slaClocks).where(eq(slaClocks.objectId, rep.reportId));
+    assert.equal(reportClocks.length, 0, 'không còn đồng hồ SLA riêng theo reportId');
 
-    await createIncidentFromReport(db, { reportId: rep.reportId, priority: PRIORITY.P2 }, { now });
-    const afterConvert = await db.select().from(slaClocks).where(eq(slaClocks.objectId, rep.reportId));
-    assert.equal(afterConvert.length, 0, 'đồng hồ SLA của tin báo phải bị xoá ngay khi chuyển thành hồ sơ');
-  } finally {
-    await cleanup();
-  }
-});
-
-test('report-flow: đồng hồ SLA tin báo cũng bị xoá khi GỘP vào hồ sơ có sẵn', { skip }, async () => {
-  await cleanup();
-  try {
-    const now = new Date('2026-08-21T08:00:00+07:00');
-    const rep1 = await submitReportT({
-      campusId: CAMPUS, categoryCode: 'fire_explosion', content: 'tin báo gốc tạo hồ sơ',
-      idempotencyKey: 'rf-idem-slaclock-2'
-    }, { now });
-    const created = await createIncidentFromReport(db, { reportId: rep1.reportId, priority: PRIORITY.P2 }, { now });
-
-    const rep2 = await submitReportT({
-      campusId: CAMPUS, categoryCode: 'fire_explosion', content: 'tin báo thứ 2 sẽ bị gộp',
-      idempotencyKey: 'rf-idem-slaclock-3'
-    }, { now });
-    const [clockBeforeMerge] = await db.select().from(slaClocks).where(eq(slaClocks.objectId, rep2.reportId));
-    assert.ok(clockBeforeMerge);
-
-    await createIncidentFromReport(db, { reportId: rep2.reportId, mergeIntoIncidentId: created.incidentId }, { now });
-    const afterMerge = await db.select().from(slaClocks).where(eq(slaClocks.objectId, rep2.reportId));
-    assert.equal(afterMerge.length, 0, 'đồng hồ SLA của tin báo bị gộp cũng phải bị xoá');
+    const incidentClocks = await db.select().from(slaClocks).where(eq(slaClocks.objectId, rep.incidentId));
+    const labels = incidentClocks.map((c) => c.clockLabel).sort();
+    assert.deepEqual(labels, ['ack', 'assign']);
+    assert.equal(incidentClocks.find((c) => c.clockLabel === 'ack')!.priority, rep.initialPriority);
   } finally {
     await cleanup();
   }

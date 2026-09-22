@@ -27,6 +27,13 @@ thật trong `crontab -l`**.
 # có sẵn từ trước nhưng không job/route nào gọi tới). Idempotent qua cột
 # sla_clocks.escalated_at — không spam lại mỗi 15 phút cho cùng 1 đồng hồ.
 */15 * * * * cd /opt/supperapp/apps/api && /opt/node22/bin/node dist/jobs/check-sla-overdue.js >> /var/log/supperapp-sla-overdue.log 2>&1
+
+# Quét hồ sơ CHƯA có ai tiếp nhận (commanderPerId null) — bổ sung
+# 2026-09-22, Sin chốt thang: P2/P3 báo Tổ trưởng lúc 24h, Tổ trưởng+lãnh
+# đạo lúc 48h, nhắc lại lúc 72h; P0/P1 báo ngay 1 lần khi đồng hồ SLA ack
+# quá hạn mà vẫn chưa ai nhận. Idempotent qua cột
+# incidents.unclaimed_escalation_tier.
+*/15 * * * * cd /opt/supperapp/apps/api && /opt/node22/bin/node dist/jobs/check-unclaimed-incidents.js >> /var/log/supperapp-unclaimed-incidents.log 2>&1
 ```
 
 Log: `/var/log/supperapp-full-sync.log` trên VPS. Kiểm tra kết quả từng lần

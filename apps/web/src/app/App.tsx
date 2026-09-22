@@ -35,8 +35,7 @@ import EmergencyCockpitPage from "../features/safety/EmergencyCockpitPage";
 import PublicReportPage from "../features/safety/PublicReportPage";
 import PublicLookupPage from "../features/safety/PublicLookupPage";
 import SafetyDashboardPage from "../features/safety/SafetyDashboardPage";
-import PendingReportsPage from "../features/safety/PendingReportsPage";
-import IncidentsListPage from "../features/safety/IncidentsListPage";
+import CasesListPage from "../features/safety/CasesListPage";
 import AuditLogPage from "../features/safety/AuditLogPage";
 import AnalyticsPage from "../features/safety/AnalyticsPage";
 import OverviewPage from "../features/work-schedule/OverviewPage";
@@ -104,8 +103,11 @@ export function App() {
       <Route path="/safety/report" element={<PublicReportPage />} />
       <Route path="/safety/lookup" element={<PublicLookupPage />} />
       <Route path="/safety" element={p(<SafetyDashboardPage />, ROLES_SAFETY_STAFF)} />
-      <Route path="/safety/reports/pending" element={p(<PendingReportsPage />, ROLES_SAFETY_STAFF)} />
-      <Route path="/safety/incidents" element={p(<IncidentsListPage />, ROLES_SAFETY_STAFF)} />
+      <Route path="/safety/cases" element={p(<CasesListPage />, ROLES_SAFETY_STAFF)} />
+      {/* 2 route cũ giữ lại làm redirect — tránh vỡ link cũ đã lưu/đã gửi
+          (bookmark, email, chuông thông báo lịch sử trước ngày gộp). */}
+      <Route path="/safety/reports/pending" element={<Navigate to="/safety/cases" replace />} />
+      <Route path="/safety/incidents" element={<Navigate to="/safety/cases" replace />} />
       <Route path="/safety/incidents/:id" element={p(<IncidentDetailPage />, ROLES_SAFETY_STAFF)} />
       <Route path="/safety/cockpit" element={p(<EmergencyCockpitPage />, ROLES_SAFETY_STAFF)} />
       <Route path="/safety/audit-logs" element={p(<AuditLogPage />, ROLES_SAFETY_STAFF)} />

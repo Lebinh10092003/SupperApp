@@ -25,6 +25,7 @@ import { notifyRequests } from './dispatch.schema.js';
 import { AppError, toJsDate, adminArrayUnion, slaClockToRow, notifyRequestToRow, type Db } from './shared.js';
 import { incidents } from './incidents.schema.js';
 import { reports } from './reports.schema.js';
+import { assignments } from '../identity/identity.schema.js';
 import { activateP0, notifyP1Escalation, notifyReporterAndAudit, resolveClassRelatedPeople, type SafetyOpts as ReportFlowOpts } from './report-flow.js';
 
 /**
@@ -380,6 +381,33 @@ export async function assignCommander(
     throw new AppError('approval_required', 'Hành động cần phê duyệt của cấp trên trước khi thực hiện.');
   }
 
+  // Bàn giao theo đúng cấp bậc — Sin chốt 2026-09-22 (catalog.ts
+  // HANDOFF_TARGET_ROLES_BY_ACTOR_ROLE): Tổ trưởng chỉ giao được cho cấp
+  // dưới, không được ngang/lên cấp. Lấy quy tắc RỘNG NHẤT trong các vai
+  // trò actor đang giữ (có Hiệu trưởng thì không giới hạn, dù cũng đang
+  // giữ thêm vai trò Tổ trưởng).
+  const actorRoleIds = (input.actor.roles ?? []).map((r) => r.roleId as catalog.RoleId);
+  let allowedTargetRoles: catalog.RoleId[] | null | undefined;
+  for (const roleId of actorRoleIds) {
+    if (!(roleId in catalog.HANDOFF_TARGET_ROLES_BY_ACTOR_ROLE)) continue;
+    const rule = catalog.HANDOFF_TARGET_ROLES_BY_ACTOR_ROLE[roleId];
+    if (rule === null) {
+      allowedTargetRoles = null; // không giới hạn — thắng tuyệt đối
+      break;
+    }
+    allowedTargetRoles = allowedTargetRoles === undefined ? rule : Array.from(new Set([...(allowedTargetRoles ?? []), ...(rule ?? [])]));
+  }
+  if (allowedTargetRoles !== null && allowedTargetRoles !== undefined) {
+    const targetRows = await db.select().from(assignments).where(eq(assignments.perId, input.commanderPerId));
+    const targetRoleIds = targetRows
+      .filter((r) => (!r.fromDate || toJsDate(r.fromDate).getTime() <= now.getTime()) && (!r.toDate || toJsDate(r.toDate).getTime() >= now.getTime()))
+      .map((r) => r.roleId as catalog.RoleId);
+    const ok = targetRoleIds.some((r) => allowedTargetRoles!.includes(r));
+    if (!ok) {
+      throw new AppError('forbidden', 'Bạn chỉ được bàn giao cho đúng cấp dưới phụ trách, không được bàn giao cho người này.');
+    }
+  }
+
   const previousCommanderPerId = incident.commanderPerId || null;
   // Người chỉ huy MỚI mặc nhiên được thêm vào assignedTaskPerIds nếu chưa
   // có — để được xem TOÀN BỘ nội dung hồ sơ qua quyền quan hệ "là người chỉ
@@ -582,6 +610,85 @@ export async function addIncidentParticipant(
   }
 
   return { incidentId: input.incidentId, assignedTaskPerIds };
+}
+
+// ---------------------------------------------------------------------------
+// Gộp 2 sự vụ trùng nhau — bổ sung 2026-09-22, thay cho cơ chế cũ "gộp tin
+// báo vào hồ sơ có sẵn" (submitReport giờ luôn tự tạo incident ngay từ lúc
+// gửi tin, xem report-flow.ts — không còn "tin báo chưa phải hồ sơ" để gộp
+// vào nữa). Từ nay 2 tin báo trùng nhau nghĩa là 2 INCIDENT trùng nhau —
+// gộp bằng cách chuyển hết reportIds của bản trùng sang bản giữ lại, rồi
+// đưa bản trùng vào trạng thái "Trùng" (STATE.DUPLICATE, có sẵn trong 12
+// trạng thái chuẩn nhưng trước đây chưa có hàm nào thực sự gán tới).
+// ---------------------------------------------------------------------------
+
+export async function mergeDuplicateIncidents(
+  db: Db,
+  input: { actor: Actor; keepIncidentId: string; duplicateIncidentId: string; reason?: string },
+  opts?: SafetyOpts
+): Promise<{ keepIncidentId: string; duplicateIncidentId: string }> {
+  const now = opts?.now || new Date();
+  if (input.keepIncidentId === input.duplicateIncidentId) {
+    throw new AppError('invalid_input', 'Không thể gộp một hồ sơ với chính nó.');
+  }
+  const keep = await loadIncident(db, input.keepIncidentId);
+  const duplicate = await loadIncident(db, input.duplicateIncidentId);
+
+  if (catalog.isTerminal(duplicate.state as catalog.IncidentState)) {
+    throw new AppError('terminal_state', 'Hồ sơ trùng đã ở trạng thái kết thúc (' + duplicate.state + '), không thể gộp nữa.');
+  }
+
+  const decision = checkAuthorization({
+    actor: input.actor,
+    action: 'incident.manage',
+    resource: { campusId: duplicate.campusId, confidentiality: duplicate.confidentiality }
+  });
+  if (!decision.allowed) throw new AppError('forbidden', decision.reason!);
+
+  const combinedReportIds = Array.from(new Set([...(keep.reportIds || []), ...(duplicate.reportIds || [])]));
+
+  await db.update(incidents).set({ reportIds: combinedReportIds, version: keep.version + 1, updatedAt: now }).where(eq(incidents.incidentId, input.keepIncidentId));
+  await db.update(reports).set({ mergedIntoIncidentId: input.keepIncidentId }).where(eq(reports.mergedIntoIncidentId, input.duplicateIncidentId));
+  await db
+    .update(incidents)
+    .set({ state: catalog.STATE.DUPLICATE, version: duplicate.version + 1, updatedAt: now, lastNote: 'Đã gộp vào hồ sơ ' + input.keepIncidentId })
+    .where(eq(incidents.incidentId, input.duplicateIncidentId));
+
+  await writeAuditLog(
+    db,
+    buildAuditRecord({
+      actorPerId: input.actor.perId!,
+      action: 'incident.merged_duplicate',
+      objectId: input.duplicateIncidentId,
+      before: { state: duplicate.state },
+      after: { state: catalog.STATE.DUPLICATE, merged_into: input.keepIncidentId },
+      reason: input.reason,
+      now
+    })
+  );
+
+  if (opts?.pushBell) {
+    const recipients = Array.from(
+      new Set([duplicate.commanderPerId, ...(duplicate.assignedTaskPerIds || []), keep.commanderPerId, ...(keep.assignedTaskPerIds || [])].filter(Boolean) as string[])
+    );
+    if (recipients.length > 0) {
+      await opts.pushBell(
+        db,
+        {
+          recipients,
+          title: 'Đã gộp 2 sự vụ trùng nhau',
+          message: input.duplicateIncidentId + ' đã được gộp vào ' + input.keepIncidentId + ' — chỉ theo dõi tiếp ở ' + input.keepIncidentId + '.',
+          eventType: 'safety.incident.merged_duplicate',
+          objectId: input.keepIncidentId,
+          actorPerId: input.actor.perId,
+          meta: { duplicate_incident_id: input.duplicateIncidentId, keep_incident_id: input.keepIncidentId }
+        },
+        { now }
+      );
+    }
+  }
+
+  return { keepIncidentId: input.keepIncidentId, duplicateIncidentId: input.duplicateIncidentId };
 }
 
 // ---------------------------------------------------------------------------

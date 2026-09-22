@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Box, Card, CardContent, Grid, Typography, Button, Stack } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined';
-import PendingActionsIcon from '@mui/icons-material/PendingActionsRounded';
 import ListAltIcon from '@mui/icons-material/ListAltRounded';
 import WarningAmberIcon from '@mui/icons-material/WarningAmberRounded';
 import { PageHeader } from '../../components/PageHeader';
@@ -66,23 +65,12 @@ export default function SafetyDashboardPage() {
 
       <Grid container spacing={2}>
         <Grid size={{ xs: 12, sm: 4 }}>
-          <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none', cursor: 'pointer' }} onClick={() => navigate('/safety/reports/pending')}>
-            <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <PendingActionsIcon sx={{ color: '#2563eb' }} />
-              <Stack>
-                <Typography fontWeight={700}>Tin báo chờ xử lý</Typography>
-                <Typography variant="caption" color="text.secondary">Tin báo mới chưa chuyển thành hồ sơ</Typography>
-              </Stack>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid size={{ xs: 12, sm: 4 }}>
-          <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none', cursor: 'pointer' }} onClick={() => navigate('/safety/incidents')}>
+          <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none', cursor: 'pointer' }} onClick={() => navigate('/safety/cases')}>
             <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <ListAltIcon sx={{ color: '#2563eb' }} />
               <Stack>
-                <Typography fontWeight={700}>Hồ sơ sự cố</Typography>
-                <Typography variant="caption" color="text.secondary">Toàn bộ hồ sơ đang/đã xử lý</Typography>
+                <Typography fontWeight={700}>Sự vụ</Typography>
+                <Typography variant="caption" color="text.secondary">Toàn bộ sự vụ — mới gửi, đang xử lý, đã xử lý xong</Typography>
               </Stack>
             </CardContent>
           </Card>

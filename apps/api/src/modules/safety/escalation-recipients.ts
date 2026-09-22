@@ -70,6 +70,30 @@ export async function findOnDutyOfficersForCampus(
   return Array.from(new Set(shiftRows.map((s) => s.perId)));
 }
 
+/**
+ * Tổ trưởng đúng cơ sở — bổ sung 2026-09-22 cho thang cảnh báo "chưa ai
+ * tiếp nhận" (check-unclaimed-incidents.ts). CATEGORY_CATALOG (catalog.ts)
+ * hiện CHƯA có trường "lĩnh vực/tổ" để suy ra đúng Tổ trưởng theo nhóm sự
+ * cố — tạm báo cho MỌI Tổ trưởng của cơ sở đó (an toàn hơn bỏ sót), tinh
+ * chỉnh sau nếu cần đúng theo mảng phụ trách.
+ */
+export async function findDeptHeadsForCampus(
+  db: NodePgDatabase<Record<string, never>>,
+  campusId: string,
+  opts?: { now?: Date }
+): Promise<string[]> {
+  const now = opts?.now ?? new Date();
+  const rows = await db.select({ perId: assignments.perId }).from(assignments).where(
+    and(
+      eq(assignments.roleId, ROLE.DEPT_HEAD),
+      eq(assignments.campusId, campusId),
+      or(isNull(assignments.fromDate), lte(assignments.fromDate, now)),
+      or(isNull(assignments.toDate), gte(assignments.toDate, now))
+    )
+  );
+  return Array.from(new Set(rows.map((r) => r.perId)));
+}
+
 export interface EscalationRecipients {
   leadershipPerIds: string[];
   onDutyPerIds: string[];

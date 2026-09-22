@@ -35,10 +35,9 @@ import { loadActorContext, type ActorContext } from '../identity/actor-context.j
 import { inOrgScope } from './authz.js';
 import { findLeadershipForCampus } from './escalation-recipients.js';
 import { publicCodes } from './ids.schema.js';
-import { reports } from './reports.schema.js';
 import { incidents } from './incidents.schema.js';
 import { AppError } from './shared.js';
-import { submitReport, createIncidentFromReport } from './report-flow.js';
+import { submitReport } from './report-flow.js';
 import {
   changeIncidentPriority,
   transitionIncidentStatus,
@@ -47,6 +46,7 @@ import {
   assignCommander,
   acknowledgeIncident,
   addIncidentParticipant,
+  mergeDuplicateIncidents,
   updateIncidentClassification
 } from './incident-lifecycle.js';
 import { makeDispatchHook, makeBellHook, makeNotifyReporterHook } from './notify-hooks.js';
@@ -131,36 +131,18 @@ safetyRouter.post(
 // Khu vực nội bộ — bắt buộc đăng nhập.
 // ---------------------------------------------------------------------
 
-// Port từ `exports.createIncidentFromReport`. safety.createIncidentFromReport
-// KHÔNG tự gọi checkAuthorization nội bộ (khác incident-lifecycle.ts) — bản
-// gốc chặn org-scope NGAY ở tầng route bằng `inOrgScope`, phải làm giống
-// hệt ở đây chứ không được bỏ qua.
-safetyRouter.post(
-  '/incidents',
-  firebaseAuth,
-  withAppError(async (req, res) => {
-    const actor = await loadActorContext(db, req.appUser!.uid);
-    requireAnyRole(actor);
-    const d = req.body || {};
-    if (!d.reportId) throw new HttpError(400, 'Thiếu reportId.', 'INVALID_INPUT');
-    const [report] = await db.select().from(reports).where(eq(reports.reportId, d.reportId)).limit(1);
-    if (!report) throw new HttpError(404, 'Không tìm thấy tin báo ' + d.reportId, 'NOT_FOUND');
-    if (!inOrgScope(actor, { campusId: report.campusId })) {
-      throw new HttpError(403, 'Tin báo này không thuộc phạm vi cơ sở bạn phụ trách.', 'PERMISSION_ERROR');
-    }
-    const row = await createIncidentFromReport(
-      db,
-      { reportId: d.reportId, priority: d.priority, mergeIntoIncidentId: d.mergeIntoIncidentId, className: d.className },
-      { dispatch, pushBell, notifyReporter }
-    );
-    res.status(201).json(row);
-  })
-);
+// `POST /incidents` (chuyển tin báo thành hồ sơ / gộp tin báo vào hồ sơ có
+// sẵn) — ĐÃ BỎ 2026-09-22. Từ nay `submitReport` tự tạo hồ sơ ngay lúc gửi
+// tin (không còn "tin báo chờ chuyển thành hồ sơ" để cần route này nữa).
+// Tin báo trùng nhau xử lý bằng `POST /incidents/:id/merge-duplicate`
+// (gộp 2 HỒ SƠ đã tồn tại, xem `mergeDuplicateIncidents`).
 
-// Port từ `exports.createIncidentDirect` — ghép nối tiếp submitReport rồi
-// createIncidentFromReport (KHÔNG viết logic nghiệp vụ mới), cho cổng nội
-// bộ tạo hồ sơ trực tiếp không cần có sẵn 1 tin báo trước (VD giáo viên/bảo
-// vệ trực tiếp chứng kiến sự việc).
+// Port từ `exports.createIncidentDirect`, cho cổng nội bộ tạo hồ sơ trực
+// tiếp không cần có sẵn 1 tin báo trước (VD giáo viên/bảo vệ trực tiếp
+// chứng kiến sự việc). Từ 2026-09-22, `submitReport` TỰ tạo luôn hồ sơ
+// (xem report-flow.ts) — route này KHÔNG còn gọi `createIncidentFromReport`
+// thêm lần nữa (gọi 2 lần sẽ tạo 2 hồ sơ trùng cho cùng 1 tin báo — đã
+// chặn cứng ở createIncidentFromReport nếu lỡ gọi lại).
 safetyRouter.post(
   '/incidents/direct',
   firebaseAuth,
@@ -172,7 +154,7 @@ safetyRouter.post(
     if (!inOrgScope(actor, { campusId: d.campusId })) {
       throw new HttpError(403, 'Cơ sở này không thuộc phạm vi bạn phụ trách.', 'PERMISSION_ERROR');
     }
-    const { reportId } = await submitReport(
+    const { reportId, incidentId } = await submitReport(
       db,
       {
         campusId: d.campusId,
@@ -181,6 +163,7 @@ safetyRouter.post(
         className: d.className,
         stillDangerous: d.stillDangerous,
         evidenceIds: d.evidenceIds,
+        priorityOverride: d.priority,
         channel: 'internal_witness',
         createdByPerId: actor.perId,
         contactName: req.appUser!.displayName || undefined,
@@ -190,11 +173,6 @@ safetyRouter.post(
         email: req.appUser!.email,
         idempotencyKey: d.idempotencyKey || undefined
       },
-      {}
-    );
-    const { incidentId } = await createIncidentFromReport(
-      db,
-      { reportId, priority: d.priority, className: d.className },
       { dispatch, pushBell, notifyReporter }
     );
     res.status(201).json({ reportId, incidentId });
@@ -298,6 +276,22 @@ safetyRouter.post(
     const actor = await loadActorContext(db, req.appUser!.uid);
     const d = req.body || {};
     const row = await addIncidentParticipant(db, { actor, incidentId: String(req.params.id), perId: d.perId }, { dispatch, pushBell, now: new Date() });
+    res.json(row);
+  })
+);
+
+// Gộp 2 sự vụ trùng nhau — xem `mergeDuplicateIncidents` (incident-lifecycle.ts).
+safetyRouter.post(
+  '/incidents/:id/merge-duplicate',
+  firebaseAuth,
+  withAppError(async (req, res) => {
+    const actor = await loadActorContext(db, req.appUser!.uid);
+    const d = req.body || {};
+    const row = await mergeDuplicateIncidents(
+      db,
+      { actor, keepIncidentId: String(d.keepIncidentId), duplicateIncidentId: String(req.params.id), reason: d.reason },
+      { dispatch, pushBell }
+    );
     res.json(row);
   })
 );
