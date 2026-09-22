@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   Alert,
+  Autocomplete,
   Box,
   Button,
   Chip,
@@ -21,13 +22,24 @@ import {
   TableRow,
   TableSortLabel,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography
 } from '@mui/material';
 import ReportProblemIcon from '@mui/icons-material/ReportProblemRounded';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
-import { CAMPUS_IDS, CAMPUS_LABEL } from './constants';
+import { CAMPUS_IDS, CAMPUS_LABEL, TERMINAL_STATES } from './constants';
 import { EvidenceGallery } from './EvidenceGallery';
+
+interface OpenIncidentOption {
+  incidentId: string;
+  campusId: string;
+  categoryLabel?: string;
+  categoryCode?: string;
+  state: string;
+  priority: string;
+}
 
 interface PendingReportItem {
   reportId: string;
@@ -92,6 +104,10 @@ export default function PendingReportsPage() {
   const [toast, setToast] = useState('');
   const [priorityTarget, setPriorityTarget] = useState<PendingReportItem | null>(null);
   const [priorityChoice, setPriorityChoice] = useState('');
+  const [createMode, setCreateMode] = useState<'new' | 'merge'>('new');
+  const [openIncidents, setOpenIncidents] = useState<OpenIncidentOption[]>([]);
+  const [loadingOpenIncidents, setLoadingOpenIncidents] = useState(false);
+  const [mergeTarget, setMergeTarget] = useState<OpenIncidentOption | null>(null);
   const [detailItem, setDetailItem] = useState<ReportDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState('');
@@ -164,6 +180,33 @@ export default function PendingReportsPage() {
   const openPriorityDialog = (item: PendingReportItem) => {
     setPriorityTarget(item);
     setPriorityChoice(item.stillDangerous ? 'P0' : '');
+    setCreateMode('new');
+    setMergeTarget(null);
+    setOpenIncidents([]);
+  };
+
+  // Tin báo trùng sự việc thì gộp vào hồ sơ đã có (mergeIntoIncidentId) thay
+  // vì luôn tạo hồ sơ mới — backend đã hỗ trợ sẵn (createIncidentFromReport)
+  // nhưng trước đây giao diện chưa có cách nào kích hoạt nhánh này (Sin phát
+  // hiện 2026-09-22). Chỉ liệt kê hồ sơ CHƯA kết thúc, đúng cơ sở của tin báo
+  // — không cho gộp vào hồ sơ đã đóng/trùng/rác.
+  const loadOpenIncidentsForMerge = (campusId: string) => {
+    setLoadingOpenIncidents(true);
+    api
+      .get<Array<{ incidentId: string; campusId: string; categoryLabel?: string; categoryCode?: string; state: string; priority: string }>>(
+        `/api/safety/incidents?campusId=${encodeURIComponent(campusId)}&limit=200`
+      )
+      .then((rows) => setOpenIncidents(rows.filter((r) => !TERMINAL_STATES.includes(r.state))))
+      .catch(() => setOpenIncidents([]))
+      .finally(() => setLoadingOpenIncidents(false));
+  };
+
+  const handleModeChange = (_: unknown, value: 'new' | 'merge' | null) => {
+    if (!value) return;
+    setCreateMode(value);
+    if (value === 'merge' && priorityTarget && openIncidents.length === 0) {
+      loadOpenIncidentsForMerge(priorityTarget.campusId);
+    }
   };
 
   const openDetail = (item: PendingReportItem) => {
@@ -178,11 +221,17 @@ export default function PendingReportsPage() {
   };
 
   const handleCreateIncident = async () => {
-    if (!priorityTarget || !priorityChoice) return;
+    if (!priorityTarget) return;
+    if (createMode === 'merge' && !mergeTarget) return;
+    if (createMode === 'new' && !priorityChoice) return;
     setCreatingId(priorityTarget.reportId);
     try {
-      await api.post('/api/safety/incidents', { reportId: priorityTarget.reportId, priority: priorityChoice });
-      setToast('Đã chuyển tin báo thành hồ sơ sự cố.');
+      const body =
+        createMode === 'merge'
+          ? { reportId: priorityTarget.reportId, mergeIntoIncidentId: mergeTarget!.incidentId }
+          : { reportId: priorityTarget.reportId, priority: priorityChoice };
+      await api.post('/api/safety/incidents', body);
+      setToast(createMode === 'merge' ? `Đã gộp tin báo vào hồ sơ ${mergeTarget!.incidentId}.` : 'Đã chuyển tin báo thành hồ sơ sự cố.');
       setPriorityTarget(null);
       load();
     } catch (e: any) {
@@ -321,21 +370,46 @@ export default function PendingReportsPage() {
         <DialogContent dividers>
           <Stack spacing={2} sx={{ pt: 1 }}>
             <Typography variant="body2" color="text.secondary">
-              Chọn mức ưu tiên xử lý cho hồ sơ mới ({priorityTarget?.publicCode}):
+              Tin báo {priorityTarget?.publicCode} — nếu đây là tin báo trùng với sự việc đã có hồ sơ, gộp vào thay vì tạo hồ sơ mới.
             </Typography>
-            <TextField select label="Mức ưu tiên *" value={priorityChoice} onChange={(e) => setPriorityChoice(e.target.value)} fullWidth>
-              {PRIORITY_OPTIONS.map((p) => (
-                <MenuItem key={p} value={p}>
-                  {p}
-                </MenuItem>
-              ))}
-            </TextField>
+            <ToggleButtonGroup color="primary" exclusive fullWidth value={createMode} onChange={handleModeChange}>
+              <ToggleButton value="new" sx={{ textTransform: 'none' }}>
+                Tạo hồ sơ mới
+              </ToggleButton>
+              <ToggleButton value="merge" sx={{ textTransform: 'none' }}>
+                Gộp vào hồ sơ đã có
+              </ToggleButton>
+            </ToggleButtonGroup>
+            {createMode === 'new' ? (
+              <TextField select label="Mức ưu tiên *" value={priorityChoice} onChange={(e) => setPriorityChoice(e.target.value)} fullWidth>
+                {PRIORITY_OPTIONS.map((p) => (
+                  <MenuItem key={p} value={p}>
+                    {p}
+                  </MenuItem>
+                ))}
+              </TextField>
+            ) : (
+              <Autocomplete
+                options={openIncidents}
+                loading={loadingOpenIncidents}
+                value={mergeTarget}
+                onChange={(_, v) => setMergeTarget(v)}
+                getOptionLabel={(o) => `${o.incidentId} — ${o.categoryLabel || o.categoryCode || ''} (${o.state})`}
+                isOptionEqualToValue={(o, v) => o.incidentId === v.incidentId}
+                noOptionsText={loadingOpenIncidents ? 'Đang tải...' : 'Không có hồ sơ đang mở nào cùng cơ sở'}
+                renderInput={(params) => <TextField {...params} label="Hồ sơ cần gộp vào *" fullWidth />}
+              />
+            )}
           </Stack>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setPriorityTarget(null)}>Hủy</Button>
-          <Button variant="contained" onClick={handleCreateIncident} disabled={!priorityChoice || creatingId === priorityTarget?.reportId}>
-            Tạo hồ sơ
+          <Button
+            variant="contained"
+            onClick={handleCreateIncident}
+            disabled={(createMode === 'new' ? !priorityChoice : !mergeTarget) || creatingId === priorityTarget?.reportId}
+          >
+            {createMode === 'merge' ? 'Gộp vào hồ sơ' : 'Tạo hồ sơ'}
           </Button>
         </DialogActions>
       </Dialog>

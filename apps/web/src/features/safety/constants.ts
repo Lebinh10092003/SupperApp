@@ -29,6 +29,9 @@ export const STATE_OPTIONS: string[] = [
   'Tin rác'
 ];
 
+/** 3 trạng thái kết thúc (TERMINAL_STATES trong catalog.ts) — dùng để loại hồ sơ đã xong khỏi danh sách chọn gộp tin báo trùng. */
+export const TERMINAL_STATES: string[] = ['Đã đóng', 'Trùng', 'Tin rác'];
+
 /**
  * Bước chuyển hợp lệ giữa các trạng thái — port 1-1 từ
  * `apps/api/src/modules/safety/catalog.ts::ALLOWED_TRANSITIONS`. Dùng để

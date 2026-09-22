@@ -73,3 +73,30 @@ cũ, xác minh bằng `curl` thật + grep `localhost:8080` trong luồng
   máy local với mục đích deploy lên VPS, kể cả khi chỉ để "kiểm tra nhanh
   bundle có lỗi không" trước — dùng `tsc --noEmit` cho việc đó thay vì
   `vite build`.
+
+## 2026-09-22 — Báo sai "tin báo không áp C1-C4" vì đọc route dở dang
+
+**Lỗi:** Khi Sin hỏi "ai xem được tin báo, ai tạo được hồ sơ", tôi đọc
+`GET /reports/pending` (safety-query.routes.ts) nhưng DỪNG LẠI ở đoạn khởi
+tạo `redacted: false` (giá trị mặc định trước khi tính) rồi kết luận ngay
+"route này không áp mức bí mật C1-C4, ai có vai trò gì cũng xem nguyên văn
+tin báo nhạy cảm" — báo cho Sin như một lỗ hổng thật, kèm cả AskUserQuestion
+đề xuất "sửa" nó.
+
+**Nguyên nhân gốc:** Không đọc hết toàn bộ route trước khi kết luận. Đoạn
+code ngay phía sau (so `confidentialityRank(report.confidentiality) >
+confidentialityRank(actorCeiling(actor))`, xoá content/className và set
+`redacted: true` nếu vượt trần) đã xử lý ĐÚNG y hệt tinh thần hồ sơ sự cố —
+tôi chỉ chưa đọc tới đó.
+
+**Hậu quả:** Báo sai một "lỗ hổng bảo mật" không có thật cho Sin, khiến Sin
+phải trả lời cả 1 câu hỏi xác nhận dựa trên thông tin sai. May mà tự phát
+hiện lại được TRƯỚC khi bắt tay sửa (đọc lại toàn bộ route trước khi code),
+không phải Sin phát hiện giúp.
+
+**Phòng tránh lần sau:** Khi audit quyền/bảo mật của MỘT route, PHẢI đọc
+trọn vẹn route đó từ đầu tới cuối (kể cả các đoạn xử lý sau khi khởi tạo
+giá trị mặc định) trước khi kết luận "có/không áp dụng kiểm tra X" — giá
+trị khởi tạo (default) không phải giá trị cuối cùng trả về client. Không
+kết luận về hành vi bảo mật của 1 hàm chỉ từ 40-50 dòng đầu khi hàm dài
+hơn thế.
