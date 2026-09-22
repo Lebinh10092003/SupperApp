@@ -1,8 +1,8 @@
-import { sql, eq } from 'drizzle-orm';
+import { sql, eq, count } from 'drizzle-orm';
 import { env } from '../../config/env.js';
 import { db } from '../../core/db/client.js';
 import { googleJson } from '../../integrations/dwd.js';
-import { autoDetectClass, autoDetectSubject } from '../catalog/catalog.service.js';
+import { autoDetectClass, autoDetectSubject, cleanCourseName } from '../catalog/catalog.service.js';
 import { evaluateAlertRules } from '../alerts/alert-engine.service.js';
 import { people } from '../people/people.schema.js';
 import { classes } from '../classes/classes.schema.js';
@@ -163,7 +163,7 @@ function appendCourseIdSql(column: typeof people.courses, courseId: string) {
   )`;
 }
 
-export async function syncCourse(course: Course, subject = env.WORKSPACE_ADMIN_SUBJECT, customToken?: string) {
+export async function syncCourse(course: Course, subject = env.WORKSPACE_ADMIN_SUBJECT, customToken?: string, runId?: string) {
   // Kiểm tra mapping lớp & môn học có sẵn, nếu chưa có thì tự động gợi ý
   const [classMapRow, subMapRow] = await Promise.all([
     db.select().from(classMappings).where(eq(classMappings.courseId, course.id)).then((r) => r[0] ?? null),
@@ -226,7 +226,7 @@ export async function syncCourse(course: Course, subject = env.WORKSPACE_ADMIN_S
     .insert(courses)
     .values({
       id: course.id,
-      name: course.name,
+      name: cleanCourseName(course.name) || course.name,
       section: course.section ?? null,
       descriptionHeading: course.descriptionHeading ?? null,
       description: course.description ?? null,
@@ -243,7 +243,8 @@ export async function syncCourse(course: Course, subject = env.WORKSPACE_ADMIN_S
       grade: grade || null,
       subjectId: subjectId || null,
       subjectName: subjectName || null,
-      lastSyncAt: new Date()
+      lastSyncAt: new Date(),
+      syncRunId: runId ?? null
     })
     .onConflictDoUpdate({
       target: courses.id,
@@ -266,6 +267,7 @@ export async function syncCourse(course: Course, subject = env.WORKSPACE_ADMIN_S
         subjectId: subjectId || null,
         subjectName: subjectName || null,
         lastSyncAt: new Date(),
+        syncRunId: runId ?? null,
         updatedAt: new Date()
       }
     });
@@ -343,29 +345,33 @@ export async function syncCourse(course: Course, subject = env.WORKSPACE_ADMIN_S
   }
 
   for (const x of work) {
+    const cleaned = { ...x, title: cleanCourseName(x.title) || x.title };
     await db
       .insert(courseCoursework)
-      .values({ id: `${course.id}_${x.id}`, courseId: course.id, courseWorkId: x.id, data: x })
-      .onConflictDoUpdate({ target: courseCoursework.id, set: { data: x, updatedAt: new Date() } });
+      .values({ id: `${course.id}_${x.id}`, courseId: course.id, courseWorkId: x.id, data: cleaned })
+      .onConflictDoUpdate({ target: courseCoursework.id, set: { data: cleaned, updatedAt: new Date() } });
   }
   for (const x of materials) {
+    const cleaned = { ...x, title: cleanCourseName(x.title) || x.title };
     await db
       .insert(courseMaterials)
-      .values({ id: `${course.id}_${x.id}`, courseId: course.id, data: x })
-      .onConflictDoUpdate({ target: courseMaterials.id, set: { data: x, updatedAt: new Date() } });
+      .values({ id: `${course.id}_${x.id}`, courseId: course.id, data: cleaned })
+      .onConflictDoUpdate({ target: courseMaterials.id, set: { data: cleaned, updatedAt: new Date() } });
   }
   for (const x of announcements) {
+    const cleaned = { ...x, text: cleanCourseName(x.text) || x.text };
     await db
       .insert(courseAnnouncements)
-      .values({ id: `${course.id}_${x.id}`, courseId: course.id, data: x })
-      .onConflictDoUpdate({ target: courseAnnouncements.id, set: { data: x, updatedAt: new Date() } });
+      .values({ id: `${course.id}_${x.id}`, courseId: course.id, data: cleaned })
+      .onConflictDoUpdate({ target: courseAnnouncements.id, set: { data: cleaned, updatedAt: new Date() } });
   }
   for (const x of topics) {
     const topicId = x.topicId || x.id;
+    const cleaned = { ...x, name: cleanCourseName(x.name) || x.name };
     await db
       .insert(courseTopics)
-      .values({ id: `${course.id}_${topicId}`, courseId: course.id, data: x })
-      .onConflictDoUpdate({ target: courseTopics.id, set: { data: x, updatedAt: new Date() } });
+      .values({ id: `${course.id}_${topicId}`, courseId: course.id, data: cleaned })
+      .onConflictDoUpdate({ target: courseTopics.id, set: { data: cleaned, updatedAt: new Date() } });
   }
 
   // Đồng bộ đầy đủ toàn bộ submissions (không giới hạn 50 bài)
@@ -412,7 +418,7 @@ export async function syncCourse(course: Course, subject = env.WORKSPACE_ADMIN_S
             id: submissionId,
             courseId: course.id,
             courseWorkId: item.id,
-            courseWorkTitle: item.title,
+            courseWorkTitle: cleanCourseName(item.title) || item.title,
             maxPoints: String(item.maxPoints || 10),
             dueDate: item.dueDate || null,
             dueTime: item.dueTime || null,
@@ -425,7 +431,7 @@ export async function syncCourse(course: Course, subject = env.WORKSPACE_ADMIN_S
             target: courseSubmissions.id,
             set: {
               courseWorkId: item.id,
-              courseWorkTitle: item.title,
+              courseWorkTitle: cleanCourseName(item.title) || item.title,
               maxPoints: String(item.maxPoints || 10),
               dueDate: item.dueDate || null,
               dueTime: item.dueTime || null,
@@ -521,7 +527,7 @@ export async function syncAllCourses(teachers: string[] = [], customToken?: stri
   let successCount = 0;
   for (const c of map.values()) {
     try {
-      await syncCourse(c, env.WORKSPACE_ADMIN_SUBJECT, customToken);
+      await syncCourse(c, env.WORKSPACE_ADMIN_SUBJECT, customToken, runId);
       successCount++;
     } catch (err: any) {
       errorLogs.push({ courseId: c.id, error: `Đồng bộ khóa học ${c.name} (${c.id}) lỗi: ${err.message}` });
@@ -552,9 +558,52 @@ export async function syncAllCourses(teachers: string[] = [], customToken?: stri
   };
 }
 
+/**
+ * Xóa toàn bộ khóa học (và dữ liệu con) được import trong một phiên đồng bộ.
+ * Sau khi xóa, tự động rebuild lại classes và dashboard.
+ */
+export async function deleteSyncRun(runId: string): Promise<{ coursesDeleted: number; classesRebuilt: number }> {
+  return db.transaction(async (tx) => {
+    // Lấy danh sách courseId cần xóa
+    const targetCourses = await tx
+      .select({ id: courses.id })
+      .from(courses)
+      .where(eq(courses.syncRunId, runId));
+    const courseIds = targetCourses.map((c) => c.id);
+
+    // Xóa dữ liệu con cascade theo courseId nếu có khoá học
+    for (const courseId of courseIds) {
+      await tx.delete(courseSubmissions).where(eq(courseSubmissions.courseId, courseId));
+      await tx.delete(courseCoursework).where(eq(courseCoursework.courseId, courseId));
+      await tx.delete(courseMaterials).where(eq(courseMaterials.courseId, courseId));
+      await tx.delete(courseAnnouncements).where(eq(courseAnnouncements.courseId, courseId));
+      await tx.delete(courseTopics).where(eq(courseTopics.courseId, courseId));
+      await tx.delete(courseMembers).where(eq(courseMembers.courseId, courseId));
+      await tx.delete(classMappings).where(eq(classMappings.courseId, courseId));
+      await tx.delete(subjectMappings).where(eq(subjectMappings.courseId, courseId));
+    }
+
+    if (courseIds.length > 0) {
+      // Xóa bản thân các khóa học thuộc phiên
+      await tx.delete(courses).where(eq(courses.syncRunId, runId));
+    }
+
+    // Xoá bản ghi phiên đồng bộ trong sync_runs
+    await tx.delete(syncRuns).where(eq(syncRuns.id, runId));
+
+    return { coursesDeleted: courseIds.length, classesRebuilt: 0 };
+  }).then(async (result) => {
+    // Ngoài transaction: rebuild classes và dashboard
+    const classesRebuilt = await rebuildClassesFromCourses().catch(() => 0);
+    const { rebuildDashboard } = await import('../dashboard/dashboard.service.js');
+    await rebuildDashboard().catch(() => null);
+    return { ...result, classesRebuilt };
+  });
+}
+
 export async function rebuildClassesFromCourses(): Promise<number> {
   const allCourses = await db.select().from(courses);
-  if (allCourses.length === 0) return 0;
+  const existingClasses = await db.select().from(classes);
 
   type ClassAgg = {
     classId: string;
@@ -614,7 +663,77 @@ export async function rebuildClassesFromCourses(): Promise<number> {
     }
   }
 
+  // 1. Kiểm tra các lớp hiện có trong bảng `classes`
+  for (const existing of existingClasses) {
+    if (existing.source === 'MANUAL') {
+      // Lớp tạo thủ công: Giữ nguyên metadata định danh, chỉ đồng bộ chỉ số khoá học nếu có course map vào
+      const cls = classesMap.get(existing.classId);
+      if (cls) {
+        const completionRate = cls.submissionsTotal ? Math.round((cls.submissionsTurnedIn / cls.submissionsTotal) * 1000) / 10 : null;
+        const onTimeRate = cls.submissionsTurnedIn ? Math.round(((cls.submissionsTurnedIn - cls.submissionsLate) / cls.submissionsTurnedIn) * 1000) / 10 : null;
+        const avgScore = cls.scoredCount ? Math.round((cls.totalScores / cls.scoredCount) * 10) / 10 : null;
+        await db
+          .update(classes)
+          .set({
+            courseCount: cls.courseCount,
+            courses: cls.courses,
+            subjects: Array.from(cls.subjects),
+            studentCount: cls.studentCount > 0 ? cls.studentCount : existing.studentCount,
+            totalCoursework: cls.totalCoursework,
+            submissionsTotal: cls.submissionsTotal,
+            submissionsTurnedIn: cls.submissionsTurnedIn,
+            submissionsLate: cls.submissionsLate,
+            completionRate: completionRate != null ? String(completionRate) : null,
+            onTimeRate: onTimeRate != null ? String(onTimeRate) : null,
+            averageScore: avgScore != null ? String(avgScore) : null,
+            updatedAt: new Date()
+          })
+          .where(eq(classes.classId, existing.classId));
+      }
+    } else {
+      // Lớp đồng bộ CLASSROOM_SYNC:
+      if (!classesMap.has(existing.classId)) {
+        // Không còn khoá học nào liên kết với lớp này (đã bị rollback hoặc xóa)
+        // Kiểm tra xem có tiết thời khoá biểu nào trỏ tới lớp này không
+        const [schedRow] = await db
+          .select({ n: count() })
+          .from(schedules)
+          .where(eq(schedules.classId, existing.classId));
+        if (schedRow && schedRow.n > 0) {
+          // Có lịch trỏ tới: GIỮ NGUYÊN bản ghi lớp (để không phá vỡ TKB), reset các chỉ số Classroom về 0/rỗng
+          await db
+            .update(classes)
+            .set({
+              courseCount: 0,
+              courses: [],
+              subjects: [],
+              studentCount: 0,
+              totalCoursework: 0,
+              submissionsTotal: 0,
+              submissionsTurnedIn: 0,
+              submissionsLate: 0,
+              completionRate: null,
+              onTimeRate: null,
+              averageScore: null,
+              updatedAt: new Date()
+            })
+            .where(eq(classes.classId, existing.classId));
+        } else {
+          // Thuần Classroom và không có lịch: XOÁ HẲN bản ghi lớp
+          await db.delete(classes).where(eq(classes.classId, existing.classId));
+        }
+      }
+    }
+  }
+
+  // 2. Cập nhật hoặc thêm mới các lớp có khoá học từ Classroom
   for (const [classId, cls] of classesMap.entries()) {
+    const existing = existingClasses.find((e) => e.classId === classId);
+    if (existing && existing.source === 'MANUAL') {
+      // Đã xử lý ở bước 1
+      continue;
+    }
+
     const completionRate = cls.submissionsTotal ? Math.round((cls.submissionsTurnedIn / cls.submissionsTotal) * 1000) / 10 : null;
     const onTimeRate = cls.submissionsTurnedIn ? Math.round(((cls.submissionsTurnedIn - cls.submissionsLate) / cls.submissionsTurnedIn) * 1000) / 10 : null;
     const avgScore = cls.scoredCount ? Math.round((cls.totalScores / cls.scoredCount) * 10) / 10 : null;
@@ -626,6 +745,7 @@ export async function rebuildClassesFromCourses(): Promise<number> {
         className: cls.className,
         grade: cls.grade,
         active: true,
+        source: 'CLASSROOM_SYNC',
         courseCount: cls.courseCount,
         courses: cls.courses,
         subjects: Array.from(cls.subjects),

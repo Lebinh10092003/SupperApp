@@ -1,4 +1,4 @@
-import { Box, Avatar, Typography, Chip } from '@mui/material';
+﻿import { Box, Avatar, Typography, Chip } from '@mui/material';
 import { ApiTablePage } from '../../components/ApiTablePage';
 
 export default function StudentsPage() {

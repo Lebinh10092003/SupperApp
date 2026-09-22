@@ -16,6 +16,7 @@
   "dependencies": {
     "@google-cloud/firestore": "^9.0.1",
     "@google-cloud/secret-manager": "6.1.0",
+    "better-sqlite3": "^13.0.3",
     "busboy": "^1.6.0",
     "clamscan": "^2.4.0",
     "cors": "2.8.5",
@@ -31,6 +32,7 @@
     "zod": "3.24.2"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
     "@types/busboy": "^1.5.4",
     "@types/cors": "2.8.17",
     "@types/express": "5.0.3",

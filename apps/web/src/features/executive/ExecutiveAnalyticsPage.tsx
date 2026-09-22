@@ -253,7 +253,7 @@ export default function ExecutiveAnalyticsPage() {
                       Chưa có dữ liệu lớp học để so sánh
                     </Typography>
                     <Typography variant="body2" sx={{ color: '#64748b', maxWidth: 460, mx: 'auto', mb: 2.5 }}>
-                      Khi bạn đồng bộ Google Classroom, hệ thống sẽ tự động gộp các khóa học theo mã lớp (ví dụ: 6A1, 9A2) và xếp hạng tiến độ nộp bài.
+                      Khi bạn đồng bộ Google Classroom, hệ thống sẽ tự động gộp các khóa học theo mã lớp thực tế và xếp hạng tiến độ nộp bài.
                     </Typography>
                     <Button
                       variant="contained"

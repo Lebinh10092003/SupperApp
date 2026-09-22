@@ -5,6 +5,8 @@ import { asyncRoute } from '../../core/http.js';
 import { db } from '../../core/db/client.js';
 import { people } from './people.schema.js';
 import { isTeacher, isStudent } from './people.shared.js';
+import { autoDetectClass, cleanCourseName } from '../catalog/catalog.service.js';
+import { getStudentTranscript, STANDARD_TOPICS } from './student-grades.service.js';
 
 export const peopleRouter = Router();
 
@@ -59,6 +61,21 @@ peopleRouter.get(
 
     sortByName(items);
     res.json({ total: items.length, items });
+  })
+);
+
+// Lấy bảng điểm chi tiết theo Topic (Môn học) và bài tập của học sinh
+peopleRouter.get(
+  '/students/:id/grades',
+  firebaseAuth,
+  requireCapability('VIEW_STUDENT_DATA'),
+  asyncRoute(async (req, res) => {
+    const studentId = String(req.params.id);
+    const transcript = await getStudentTranscript(studentId);
+    if (!transcript) {
+      return res.status(404).json({ error: { message: 'Không tìm thấy hồ sơ học sinh' } });
+    }
+    res.json(transcript);
   })
 );
 

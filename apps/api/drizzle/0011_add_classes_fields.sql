@@ -1,0 +1,3 @@
+ALTER TABLE "classes" ADD COLUMN IF NOT EXISTS "source" text NOT NULL DEFAULT 'CLASSROOM_SYNC';
+ALTER TABLE "classes" ADD COLUMN IF NOT EXISTS "room" text;
+ALTER TABLE "classes" ADD COLUMN IF NOT EXISTS "teacher_email" text;

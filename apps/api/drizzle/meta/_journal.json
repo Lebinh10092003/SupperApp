@@ -71,6 +71,20 @@
       "when": 1790007331358,
       "tag": "0009_outstanding_rattler",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790007400000,
+      "tag": "0010_add_sync_run_id",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1790007500000,
+      "tag": "0011_add_classes_fields",
+      "breakpoints": true
     }
   ]
 }

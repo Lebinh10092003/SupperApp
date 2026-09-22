@@ -10,6 +10,7 @@ import DashboardPage from "../features/dashboard/DashboardPage";
 import TodayPage from "../features/today/TodayPage";
 import ClassesPage from "../features/classes/ClassesPage";
 import ClassroomPage from "../features/classroom/ClassroomPage";
+import SyncRunsPage from "../features/classroom/SyncRunsPage";
 import MeetPage from "../features/meet/MeetPage";
 import StudentsPage from "../features/people/StudentsPage";
 import TeachersPage from "../features/people/TeachersPage";
@@ -121,6 +122,7 @@ export function App() {
       <Route path="/today" element={p(<TodayPage />)} />
       <Route path="/classes" element={p(<ClassesPage />)} />
       <Route path="/classroom" element={p(<ClassroomPage />)} />
+      <Route path="/classroom/sync-runs" element={p(<SyncRunsPage />)} />
       <Route path="/meet" element={p(<MeetPage />)} />
       <Route path="/students" element={p(<StudentsPage />)} />
       <Route path="/teachers" element={p(<TeachersPage />, ROLES_DEPARTMENT_PLUS)} />
