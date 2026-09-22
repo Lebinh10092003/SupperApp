@@ -37,3 +37,39 @@ deploy dist/ lên VPS — luôn build trực tiếp trên VPS (nơi có `.env` �
 hoặc nếu build local là bắt buộc thì phải copy đúng `.env` của VPS sang
 trước khi build. Sau mỗi lần deploy frontend, luôn `curl` bundle mới từ
 domain sống và grep tìm `localhost` trước khi báo "xong".
+
+## 2026-09-22 — LẶP LẠI Y HỆT lỗi 2026-09-17: build frontend local rồi rsync dist/, không đọc `mistakes.md` trước
+
+**Lỗi:** Khi deploy tính năng "Tiếp nhận xử lý hồ sơ" (acknowledge/thêm
+người xử lý), tôi lại chạy `npm run build` cho `apps/web` TRÊN MÁY LOCAL,
+rsync thẳng `dist/` (build local) sang `/var/www/html` trên VPS — ĐÚNG lỗi
+đã ghi ở mục 2026-09-17 ngay phía trên, chỉ cách nhau 5 ngày.
+
+**Nguyên nhân gốc:** Không đọc lại `docs/mistakes.md` trước khi làm bước
+deploy frontend (đúng nguyên tắc bắt buộc "trước khi làm việc không nhỏ,
+đọc mistake.md" — có ghi ở CLAUDE.md dự án khác nhưng chưa được tôi áp
+dụng nhất quán ở SupperApp). Nếu đã đọc, mục ngay phía trên đã cảnh báo
+chính xác kịch bản này.
+
+**Hậu quả:** Y hệt lần trước — mọi người dùng không đăng nhập được, fetch
+`/api/session/*` bị bake cứng sang `http://localhost:8080` (giá trị dev
+trong `.env` local), lỗi CORS/kết nối trên trình duyệt người dùng thật. Sin
+tự phát hiện qua thao tác thật (ảnh chụp DevTools), không phải tôi tự bắt
+được trước khi báo "xong".
+
+**Cách sửa:** Giống hệt quy trình đã ghi ở mục trên — rsync đúng các file
+`.tsx`/`.ts` đã sửa sang `/opt/supperapp/apps/web/src/...` trên VPS, build
+LẠI trên VPS (dùng đúng `.env` production), deploy `dist/` mới, xoá bundle
+cũ, xác minh bằng `curl` thật + grep `localhost:8080` trong luồng
+`api/session` (0 kết quả) + `curl -X POST .../api/session/bootstrap` trả
+`401` thay vì lỗi kết nối.
+
+**Phòng tránh lần sau (bổ sung, vì lời nhắc suông đã KHÔNG đủ hiệu lực):**
+- BẮT BUỘC đọc `docs/mistakes.md` ngay trước bước "build + deploy frontend"
+  của MỌI lần deploy, không chỉ khi bắt đầu phiên làm việc.
+- Coi quy trình deploy frontend là CỐ ĐỊNH, không tự ý rút gọn: (1) rsync
+  source đã sửa lên VPS, (2) build TRÊN VPS, (3) deploy dist/, (4) verify
+  bằng curl+grep — KHÔNG BAO GIỜ chạy `npm run build` cho `apps/web` trên
+  máy local với mục đích deploy lên VPS, kể cả khi chỉ để "kiểm tra nhanh
+  bundle có lỗi không" trước — dùng `tsc --noEmit` cho việc đó thay vì
+  `vite build`.
