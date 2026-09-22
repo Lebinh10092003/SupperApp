@@ -202,6 +202,12 @@ export default function IncidentsListPage() {
         <Table>
           <TableHead>
             <TableRow>
+              {/* Cột ngày/giờ đưa lên ĐẦU bảng — Sin yêu cầu 2026-09-21. */}
+              <TableCell>
+                <TableSortLabel active={sortKey === 'updatedAt'} direction={sortKey === 'updatedAt' ? sortDir : 'desc'} onClick={() => handleSort('updatedAt')}>
+                  Cập nhật
+                </TableSortLabel>
+              </TableCell>
               <TableCell>
                 <TableSortLabel active={sortKey === 'incidentId'} direction={sortKey === 'incidentId' ? sortDir : 'asc'} onClick={() => handleSort('incidentId')}>
                   Mã hồ sơ
@@ -225,16 +231,6 @@ export default function IncidentsListPage() {
               </TableCell>
               <TableCell>Bí mật</TableCell>
               <TableCell>Chỉ huy</TableCell>
-              <TableCell>
-                {/* Trước đây KHÔNG có cột thời gian nào — `sortKey` mặc định
-                    đã LÀ 'updatedAt' và sort THẬT SỰ chạy đúng, nhưng không
-                    có cột hiển thị giá trị lẫn tiêu đề bấm được (Sin phản hồi
-                    2026-09-11: "thiếu hiển thị tg... chưa có sort theo tg" —
-                    sort ngầm có sẵn nhưng không thấy/không điều khiển được). */}
-                <TableSortLabel active={sortKey === 'updatedAt'} direction={sortKey === 'updatedAt' ? sortDir : 'desc'} onClick={() => handleSort('updatedAt')}>
-                  Cập nhật
-                </TableSortLabel>
-              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -247,6 +243,7 @@ export default function IncidentsListPage() {
             )}
             {paged.map((it) => (
               <TableRow key={it.incidentId} hover sx={{ cursor: 'pointer' }} onClick={() => navigate(`/safety/incidents/${it.incidentId}`)}>
+                <TableCell>{it.updatedAt ? new Date(it.updatedAt).toLocaleString('vi-VN') : '—'}</TableCell>
                 <TableCell>{it.incidentId}</TableCell>
                 <TableCell>{CAMPUS_LABEL[it.campusId] || it.campusId}</TableCell>
                 <TableCell>{it.redacted ? <em>—</em> : it.categoryLabel || it.categoryCode}</TableCell>
@@ -260,7 +257,6 @@ export default function IncidentsListPage() {
                   <ConfidentialityBadge confidentiality={it.confidentiality} redacted={it.redacted} />
                 </TableCell>
                 <TableCell>{it.redacted ? '—' : it.commanderName || '—'}</TableCell>
-                <TableCell>{it.updatedAt ? new Date(it.updatedAt).toLocaleString('vi-VN') : '—'}</TableCell>
               </TableRow>
             ))}
           </TableBody>

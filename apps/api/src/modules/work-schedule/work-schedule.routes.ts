@@ -33,6 +33,7 @@ import { getPersonSummariesByPerIds, formatPersonLabel } from '../identity/perso
 import {
   AppError,
   createEvent,
+  updateRevisionEvent,
   changeEventStatus,
   approveEvent,
   listEvents,
@@ -101,6 +102,39 @@ workScheduleRouter.post(
       createdByPerId: actor.perId
     });
     res.status(201).json(row);
+  })
+);
+
+// `updateRevisionEvent` đã được port sẵn trong work-schedule.service.ts từ
+// trước (kèm test) nhưng CHƯA từng có route nối tới — bản gốc thật
+// (App_lich_cong_tac_giao_viec/FT_Lich_cong_tac_V30_source) có hẳn nút
+// "Chỉnh sửa" cho lịch Dự thảo/Cần sửa lại, gọi PATCH /api/events; port
+// trước đây bỏ sót route này (Sin phát hiện 2026-09-21, đối chiếu lại bản
+// gốc theo note của Mr Tiến). Chỉ cho phép DRAFT/REVISION_REQUIRED và đúng
+// người tạo — `updateRevisionEvent` tự kiểm tra, ở đây chỉ forward.
+workScheduleRouter.patch(
+  '/events/:id',
+  firebaseAuth,
+  withAppError(async (req, res) => {
+    const actor = await loadActorContext(db, req.appUser!.uid);
+    const d = req.body || {};
+    const row = await updateRevisionEvent(db, {
+      eventId: String(req.params.id),
+      actorPerId: actor.perId,
+      eventData: {
+        title: d.title,
+        description: d.description,
+        type: d.type,
+        priority: d.priority,
+        campusId: d.campusId,
+        scope: d.scope,
+        startAt: d.startAt ? new Date(d.startAt) : undefined!,
+        endAt: d.endAt ? new Date(d.endAt) : undefined!,
+        location: d.location,
+        participantPerIds: d.participantPerIds
+      }
+    });
+    res.json(row);
   })
 );
 

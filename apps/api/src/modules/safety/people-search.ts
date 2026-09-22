@@ -53,6 +53,23 @@ export async function searchPeopleByName(db: Db, query: string | null | undefine
 }
 
 /**
+ * listAllPeople — TOÀN BỘ người có tài khoản (`accounts`), dùng cho nút
+ * "Chọn toàn bộ" ở ô chọn thành phần tham dự lịch công tác (Sin yêu cầu
+ * 2026-09-21: chọn nhanh "toàn trường tham dự" thay vì bấm từng người) —
+ * KHÁC `searchPeopleByName` (giới hạn 10 kết quả, cần gõ >=2 ký tự). Vẫn
+ * chỉ trả `{ perId, name }`, cùng lý do bảo mật như hàm trên.
+ */
+export async function listAllPeople(db: Db): Promise<PersonResult[]> {
+  const rows = await db.select().from(accounts);
+  const out: PersonResult[] = [];
+  for (const row of rows) {
+    if (!row.perId || !row.displayName) continue;
+    out.push({ perId: row.perId, name: row.displayName });
+  }
+  return out;
+}
+
+/**
  * getDisplayNamesByPerIds — tra cứu tên hiển thị theo `perId` cho 1 danh
  * sách người (VD JOIN `commander_per_id` -> tên chỉ huy trong
  * `listIncidents`/`getIncident`, thay vì hiển thị mã thô `PER_xxx`).

@@ -57,3 +57,26 @@ export const EVENT_SCOPE_LABEL: Record<string, string> = {
 };
 
 export const EVENT_STATUS_STEPS = ['DRAFT', 'PENDING_APPROVAL', 'PUBLISHED'] as const;
+
+/**
+ * Viết tắt tên hiển thị Ở BẢNG DANH SÁCH cho gọn — "Bùi Thị Cúc (Giáo
+ * viên)" -> "Cúc BT" (tên riêng + chữ cái đầu các từ đứng trước, KHÔNG kèm
+ * chức vụ). Dialog chi tiết vẫn hiện tên đầy đủ + chức vụ (formatPersonLabel
+ * bên backend), chỉ bảng danh sách mới rút gọn — Sin yêu cầu 2026-09-21.
+ * Input không phải tên người thật (mã PER_xxx thô do chưa resolve được,
+ * hoặc chuỗi 1 từ) thì trả nguyên văn, không cố viết tắt.
+ */
+export function abbreviatePersonLabel(label: string | null | undefined): string {
+  if (!label) return '—';
+  const nameOnly = label.replace(/\s*\([^)]*\)\s*$/, '').trim();
+  if (!nameOnly || /^PER[._]/i.test(nameOnly)) return label;
+  const parts = nameOnly.split(/\s+/).filter(Boolean);
+  if (parts.length <= 1) return nameOnly;
+  const given = parts[parts.length - 1];
+  const initials = parts
+    .slice(0, -1)
+    .map((p) => p[0])
+    .join('')
+    .toUpperCase();
+  return `${given} ${initials}`;
+}

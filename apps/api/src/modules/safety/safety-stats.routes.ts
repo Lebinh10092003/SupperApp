@@ -30,7 +30,7 @@ import { writeAuditLog, buildAuditRecord } from './audit.js';
 import { computeTrendAlerts } from './trend-alerts.js';
 import { computeCampusComparisonStats } from './campus-comparison-stats.js';
 import { computeClassStats } from './classStats.js';
-import { searchPeopleByName } from './people-search.js';
+import { searchPeopleByName, listAllPeople } from './people-search.js';
 
 export const safetyStatsRouter = Router();
 
@@ -218,6 +218,17 @@ safetyStatsRouter.get(
   withAppError(async (req, res) => {
     const query = typeof req.query.q === 'string' ? req.query.q : undefined;
     const results = await searchPeopleByName(db, query);
+    res.json({ results });
+  })
+);
+
+// Port mới 2026-09-21 — nút "Chọn toàn bộ" ở ô Thành phần tham dự lịch
+// công tác (Sin yêu cầu, thay vì bấm chọn từng người khi muốn mời hết).
+safetyStatsRouter.get(
+  '/people/all',
+  firebaseAuth,
+  withAppError(async (_req, res) => {
+    const results = await listAllPeople(db);
     res.json({ results });
   })
 );

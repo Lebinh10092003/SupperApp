@@ -154,6 +154,17 @@ export async function submitReport(db: Db, input: SubmitReportInput, opts?: Safe
       ? catalog.PRIORITY.P0
       : catalog.suggestedPriorityForCategory(input.categoryCode);
 
+    // Đăng ký đồng hồ SLA "ack" ngay TỪ LÚC gửi tin báo — trước 2026-09-21
+    // tin báo hoàn toàn KHÔNG có hạn/đồng hồ nào cho tới khi được chuyển
+    // thành hồ sơ: nếu không ai bấm "Chuyển thành hồ sơ" thì tin báo nằm im
+    // vô thời hạn, không ai được nhắc (Sin phát hiện qua câu hỏi thật). Dùng
+    // lại ĐÚNG hạn P0-P3 hiện có (`sla.registerSlaClock`), objectId = reportId
+    // (khác không gian với incidentId "SC.xxx" — check-sla-overdue.ts phân
+    // biệt bằng tiền tố ID_PREFIX.REPORT). Xoá đi ngay khi tin báo được
+    // chuyển thành hồ sơ (xem createIncidentFromReport bên dưới).
+    const reportAckClock = sla.registerSlaClock({ objectId: reportId, clockLabel: 'ack', priority: initialPriority, startAt: now, calendar: opts?.calendar });
+    await db.insert(slaClocks).values(slaClockToRow(reportAckClock));
+
     const linkedEvidenceIds = await linkEvidenceToReport(db, { evidenceIds: input.evidenceIds || [], reportId }, { now });
 
     const suggestedClassNames = detectClassNamesFromContent(input.content);
@@ -220,6 +231,9 @@ export async function createIncidentFromReport(db: Db, input: CreateIncidentFrom
     if (!incident) throw new AppError('not_found', 'Không tìm thấy hồ sơ ' + input.mergeIntoIncidentId);
     await db.update(incidents).set({ reportIds: adminArrayUnion(incident.reportIds, input.reportId) }).where(eq(incidents.incidentId, input.mergeIntoIncidentId));
     await db.update(reports).set({ mergedIntoIncidentId: input.mergeIntoIncidentId }).where(eq(reports.reportId, input.reportId));
+    // Tin báo đã được xử lý (gộp vào hồ sơ có sẵn) — xoá đồng hồ SLA riêng
+    // của tin báo, không còn cần "nhắc chuyển thành hồ sơ" nữa.
+    await db.delete(slaClocks).where(eq(slaClocks.objectId, input.reportId));
     await resolveUrgentReportNotify(db, input.reportId, now);
     await audit.writeAuditLog(db, audit.buildAuditRecord({
       actorPerId: 'SYSTEM.SAFETY', action: 'safety.report.merged', objectId: input.mergeIntoIncidentId,
@@ -258,6 +272,9 @@ export async function createIncidentFromReport(db: Db, input: CreateIncidentFrom
     updatedAt: now
   });
   await db.update(reports).set({ mergedIntoIncidentId: incidentId }).where(eq(reports.reportId, input.reportId));
+  // Tin báo đã được chuyển thành hồ sơ mới — xoá đồng hồ SLA riêng của tin
+  // báo (đã có 2 đồng hồ ack/assign RIÊNG của hồ sơ mới đăng ký bên dưới).
+  await db.delete(slaClocks).where(eq(slaClocks.objectId, input.reportId));
   await resolveUrgentReportNotify(db, input.reportId, now);
 
   await audit.writeAuditLog(db, audit.buildAuditRecord({

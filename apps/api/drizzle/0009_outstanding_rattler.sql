@@ -1,0 +1,1 @@
+ALTER TABLE "sla_clocks" ADD COLUMN "escalated_at" timestamp with time zone;

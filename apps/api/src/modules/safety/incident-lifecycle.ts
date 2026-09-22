@@ -14,7 +14,7 @@
  * (dòng 683-1147: changeIncidentPriority tới hết file).
  */
 
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import * as catalog from './catalog.js';
 import { checkAuthorization, type Actor } from './authz.js';
 import { writeAuditLog, buildAuditRecord } from './audit.js';
@@ -65,13 +65,26 @@ async function loadSlaClock(db: Db, objectId: string, clockLabel: 'ack' | 'assig
   };
 }
 
-/** Ghi lại SLA clock đã tính lại (đúng cách Hestia dùng ở report-flow.ts — `slaClockToRow` chuyển snake_case thuần logic sang cột Drizzle). */
+/**
+ * Ghi lại SLA clock đã tính lại (đúng cách Hestia dùng ở report-flow.ts —
+ * `slaClockToRow` chuyển snake_case thuần logic sang cột Drizzle).
+ *
+ * LỖI TỰ PHÁT HIỆN 2026-09-21: WHERE trước đây chỉ lọc theo `objectId`,
+ * KHÔNG lọc thêm `clockLabel` — khoá chính là (objectId, clockLabel) nên 1
+ * hồ sơ có 2 dòng (ack + assign) cùng objectId. Vòng lặp gọi hàm này 2 lần
+ * liên tiếp (1 lần/clockLabel) trong `changeIncidentPriority` — do thiếu
+ * điều kiện lọc, MỖI LẦN GỌI ghi đè giá trị của CẢ 2 dòng cùng lúc, khiến
+ * dòng ghi SAU (assign) cuối cùng đè luôn lên dòng ack, làm sai lệch cả 2
+ * đồng hồ mỗi khi đổi mức ưu tiên. Bổ sung `and(eq(objectId), eq(clockLabel))`.
+ * Cũng nhân dịp reset `escalatedAt` về null — hạn được tính lại thì phải
+ * cho báo lại nếu vẫn/lại quá hạn, không giữ mãi trạng thái "đã báo rồi".
+ */
 async function saveSlaClock(db: Db, clock: sla.SlaClock) {
   const row = slaClockToRow(clock);
   await db
     .update(slaClocks)
-    .set({ priority: row.priority, startAt: row.startAt, deadlineAt: row.deadlineAt, status: row.status, paused: row.paused, pauseHistory: row.pauseHistory })
-    .where(eq(slaClocks.objectId, clock.object_id));
+    .set({ priority: row.priority, startAt: row.startAt, deadlineAt: row.deadlineAt, status: row.status, paused: row.paused, pauseHistory: row.pauseHistory, escalatedAt: null })
+    .where(and(eq(slaClocks.objectId, clock.object_id), eq(slaClocks.clockLabel, clock.clock_label)));
 }
 
 // ---------------------------------------------------------------------------

@@ -8,21 +8,7 @@ import { useState } from 'react';
 import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import { api } from '../../../services/api';
 import { isApprovalRequiredMessage } from './dialog-utils';
-
-const STATE_OPTIONS = [
-  'Mới tiếp nhận',
-  'Đang phân loại',
-  'Khẩn cấp đang xử lý',
-  'Đã giao',
-  'Đang xử lý',
-  'Chờ bên ngoài',
-  'Đang theo dõi',
-  'Đề nghị đóng',
-  'Đã đóng',
-  'Mở lại',
-  'Trùng',
-  'Tin rác'
-];
+import { ALLOWED_STATE_TRANSITIONS, STATE_OPTIONS } from '../constants';
 
 export interface ChangeStatusTarget {
   incidentId: string;
@@ -92,12 +78,22 @@ export function ChangeStatusDialog({
             <Typography variant="body2" color="text.secondary">
               Hồ sơ <strong>{target.incidentId}</strong> — trạng thái hiện tại: <strong>{target.state}</strong>
             </Typography>
-            <TextField select label="Trạng thái mới" value={toState} onChange={(e) => setToState(e.target.value)} fullWidth>
-              {STATE_OPTIONS.map((s) => (
-                <MenuItem key={s} value={s} disabled={s === target.state}>
-                  {s}
-                </MenuItem>
-              ))}
+            <TextField
+              select
+              label="Trạng thái mới"
+              value={toState}
+              onChange={(e) => setToState(e.target.value)}
+              fullWidth
+              helperText="Chỉ những trạng thái chuyển được hợp lệ từ trạng thái hiện tại mới bấm được."
+            >
+              {STATE_OPTIONS.map((s) => {
+                const allowed = (ALLOWED_STATE_TRANSITIONS[target.state] || []).includes(s);
+                return (
+                  <MenuItem key={s} value={s} disabled={s === target.state || !allowed}>
+                    {s}
+                  </MenuItem>
+                );
+              })}
             </TextField>
             <TextField label="Ghi chú (tuỳ chọn)" value={note} onChange={(e) => setNote(e.target.value)} multiline rows={2} fullWidth />
             <TextField label="Lý do (bắt buộc với 1 số vai trò)" value={reason} onChange={(e) => setReason(e.target.value)} multiline rows={2} fullWidth />

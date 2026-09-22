@@ -1,8 +1,10 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import type { ReactNode } from "react";
 import { ProtectedRoute } from "../auth/ProtectedRoute";
 import { RoleRoute } from "../auth/RoleRoute";
 import { AppShell } from "../layout/AppShell";
+import { useAuth } from "../auth/AuthProvider";
+import { isFermatTechAdminEmail } from "../config/adminAccess";
 import LoginPage from "../features/login/LoginPage";
 import DashboardPage from "../features/dashboard/DashboardPage";
 import TodayPage from "../features/today/TodayPage";
@@ -37,10 +39,22 @@ import PendingReportsPage from "../features/safety/PendingReportsPage";
 import IncidentsListPage from "../features/safety/IncidentsListPage";
 import AuditLogPage from "../features/safety/AuditLogPage";
 import AnalyticsPage from "../features/safety/AnalyticsPage";
+import OverviewPage from "../features/work-schedule/OverviewPage";
 import EventsListPage from "../features/work-schedule/EventsListPage";
 import TasksListPage from "../features/work-schedule/TasksListPage";
 import ApprovalCenterPage from "../features/work-schedule/ApprovalCenterPage";
 import RemindersPage from "../features/work-schedule/RemindersPage";
+
+// "/" (Bảng điều hành toàn trường) xoay quanh dữ liệu Google Classroom —
+// giờ chỉ tài khoản FermatTech còn thấy mục này trong sidebar (Sin yêu cầu
+// 2026-09-21), nên trang chủ CŨNG phải đổi theo: tài khoản khác vào "/" thì
+// chuyển thẳng sang "/safety" (module đang hoạt động chính) thay vì vẫn lộ
+// ra dashboard đầy số liệu Classroom mà sidebar đã cố tình giấu.
+function HomeRoute() {
+  const { profile } = useAuth();
+  if (isFermatTechAdminEmail(profile?.email)) return <DashboardPage />;
+  return <Navigate to="/safety" replace />;
+}
 
 const p = (x: ReactNode, allowedRoles?: string[]) => (
   <ProtectedRoute>
@@ -72,7 +86,7 @@ export function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/" element={p(<DashboardPage />)} />
+      <Route path="/" element={p(<HomeRoute />)} />
       <Route path="/executive" element={p(<ExecutiveAnalyticsPage />, ROLES_LEADERSHIP)} />
       <Route path="/students/360" element={p(<Student360Page />)} />
       <Route path="/classes/compare" element={p(<ClassComparePage />, ROLES_DEPARTMENT_PLUS)} />
@@ -99,6 +113,7 @@ export function App() {
       {/* Module Lịch công tác và Giao việc — hệ quyền R.* riêng
           (work-schedule.authz.ts), khớp thiết kế của Mr Tiến (nguyên văn
           trong TICH_HOP_MODULE_LICH_CONG_TAC.md). Gate advisory only. */}
+      <Route path="/work-schedule/overview" element={p(<OverviewPage />, ROLES_WORK_SCHEDULE_STAFF)} />
       <Route path="/work-schedule" element={p(<EventsListPage />, ROLES_WORK_SCHEDULE_STAFF)} />
       <Route path="/work-schedule/tasks" element={p(<TasksListPage />, ROLES_WORK_SCHEDULE_STAFF)} />
       <Route path="/work-schedule/approvals" element={p(<ApprovalCenterPage />, ROLES_WORK_SCHEDULE_STAFF)} />

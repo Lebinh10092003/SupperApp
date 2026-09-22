@@ -67,6 +67,10 @@ async function cleanup() {
     }
     await db.delete(notifyRequests).where(inArray(notifyRequests.objectId, reportIds));
     await db.delete(auditLogs).where(inArray(auditLogs.objectId, reportIds));
+    // Đồng hồ SLA riêng của tin báo (bổ sung 2026-09-22) — bình thường đã bị
+    // xoá ngay khi chuyển thành hồ sơ, dọn nốt phòng trường hợp test dừng
+    // giữa chừng chưa kịp chuyển.
+    await db.delete(slaClocks).where(inArray(slaClocks.objectId, reportIds));
     await db.delete(reportIdentities).where(inArray(reportIdentities.reportId, reportIds));
     await db.delete(reports).where(inArray(reports.reportId, reportIds));
   }
@@ -455,6 +459,54 @@ test('report-flow: reporter_role copy nguyên trạng từ tin báo gốc sang h
     const [repInvalidDoc] = await db.select().from(reports).where(eq(reports.reportId, repInvalid.reportId));
     assert.ok(repInvalidDoc);
     assert.equal(repInvalidDoc.reporterRole, null);
+  } finally {
+    await cleanup();
+  }
+});
+
+test('report-flow: submitReport đăng ký đồng hồ SLA "ack" ngay từ lúc gửi tin — bị xoá khi chuyển thành hồ sơ mới', { skip }, async () => {
+  await cleanup();
+  try {
+    const now = new Date('2026-08-21T08:00:00+07:00');
+    const rep = await submitReportT({
+      campusId: CAMPUS, categoryCode: 'fire_explosion', content: 'test đồng hồ SLA tin báo',
+      idempotencyKey: 'rf-idem-slaclock-1'
+    }, { now });
+
+    const [clock] = await db.select().from(slaClocks).where(eq(slaClocks.objectId, rep.reportId));
+    assert.ok(clock, 'phải có đồng hồ SLA riêng cho tin báo ngay khi gửi');
+    assert.equal(clock!.clockLabel, 'ack');
+    assert.equal(clock!.priority, rep.initialPriority);
+    assert.equal(clock!.escalatedAt, null);
+
+    await createIncidentFromReport(db, { reportId: rep.reportId, priority: PRIORITY.P2 }, { now });
+    const afterConvert = await db.select().from(slaClocks).where(eq(slaClocks.objectId, rep.reportId));
+    assert.equal(afterConvert.length, 0, 'đồng hồ SLA của tin báo phải bị xoá ngay khi chuyển thành hồ sơ');
+  } finally {
+    await cleanup();
+  }
+});
+
+test('report-flow: đồng hồ SLA tin báo cũng bị xoá khi GỘP vào hồ sơ có sẵn', { skip }, async () => {
+  await cleanup();
+  try {
+    const now = new Date('2026-08-21T08:00:00+07:00');
+    const rep1 = await submitReportT({
+      campusId: CAMPUS, categoryCode: 'fire_explosion', content: 'tin báo gốc tạo hồ sơ',
+      idempotencyKey: 'rf-idem-slaclock-2'
+    }, { now });
+    const created = await createIncidentFromReport(db, { reportId: rep1.reportId, priority: PRIORITY.P2 }, { now });
+
+    const rep2 = await submitReportT({
+      campusId: CAMPUS, categoryCode: 'fire_explosion', content: 'tin báo thứ 2 sẽ bị gộp',
+      idempotencyKey: 'rf-idem-slaclock-3'
+    }, { now });
+    const [clockBeforeMerge] = await db.select().from(slaClocks).where(eq(slaClocks.objectId, rep2.reportId));
+    assert.ok(clockBeforeMerge);
+
+    await createIncidentFromReport(db, { reportId: rep2.reportId, mergeIntoIncidentId: created.incidentId }, { now });
+    const afterMerge = await db.select().from(slaClocks).where(eq(slaClocks.objectId, rep2.reportId));
+    assert.equal(afterMerge.length, 0, 'đồng hồ SLA của tin báo bị gộp cũng phải bị xoá');
   } finally {
     await cleanup();
   }

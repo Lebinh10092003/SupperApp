@@ -21,12 +21,9 @@ import {
   TableRow,
   TableSortLabel,
   TextField,
-  Tooltip,
-  IconButton,
   Typography
 } from '@mui/material';
 import ReportProblemIcon from '@mui/icons-material/ReportProblemRounded';
-import VisibilityIcon from '@mui/icons-material/VisibilityRounded';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
 import { CAMPUS_IDS, CAMPUS_LABEL } from './constants';
@@ -247,6 +244,13 @@ export default function PendingReportsPage() {
         <Table>
           <TableHead>
             <TableRow>
+              {/* Cột ngày/giờ đưa lên ĐẦU bảng — Sin yêu cầu 2026-09-21, áp
+                  dụng đồng loạt cả 2 module (An toàn + Lịch công tác). */}
+              <TableCell>
+                <TableSortLabel active={sortKey === 'occurredAt'} direction={sortKey === 'occurredAt' ? sortDir : 'desc'} onClick={() => handleSort('occurredAt')}>
+                  Thời gian
+                </TableSortLabel>
+              </TableCell>
               <TableCell>
                 <TableSortLabel active={sortKey === 'reportId'} direction={sortKey === 'reportId' ? sortDir : 'asc'} onClick={() => handleSort('reportId')}>
                   Mã
@@ -265,30 +269,23 @@ export default function PendingReportsPage() {
               <TableCell>Lớp</TableCell>
               <TableCell>Nội dung</TableCell>
               <TableCell>Khẩn cấp</TableCell>
-              <TableCell>
-                {/* Trước đây KHÔNG có cột thời gian — `occurredAt` đã là
-                    sortKey mặc định (sort ngầm chạy đúng) nhưng không có cột
-                    hiển thị giá trị lẫn tiêu đề bấm được (Sin phản hồi
-                    2026-09-11: "thiếu hiển thị tg... chưa có sort theo tg"). */}
-                <TableSortLabel active={sortKey === 'occurredAt'} direction={sortKey === 'occurredAt' ? sortDir : 'desc'} onClick={() => handleSort('occurredAt')}>
-                  Thời gian
-                </TableSortLabel>
-              </TableCell>
-              <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
-                Hành động
-              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {!loading && items.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                <TableCell colSpan={7} align="center" sx={{ py: 4, color: 'text.secondary' }}>
                   Không có tin báo nào đang chờ xử lý.
                 </TableCell>
               </TableRow>
             )}
             {paged.map((it) => (
-              <TableRow key={it.reportId} hover>
+              // Cả dòng bấm được để mở chi tiết — "Chuyển thành hồ sơ" đã có
+              // sẵn trong dialog chi tiết, bỏ hẳn cột "Hành động" riêng (2
+              // nút chiếm nguyên 1 cột, tốn diện tích — Sin phản hồi
+              // 2026-09-21).
+              <TableRow key={it.reportId} hover sx={{ cursor: 'pointer' }} onClick={() => openDetail(it)}>
+                <TableCell>{it.occurredAt ? new Date(it.occurredAt).toLocaleString('vi-VN') : '—'}</TableCell>
                 <TableCell>{it.publicCode}</TableCell>
                 <TableCell>{CAMPUS_LABEL[it.campusId] || it.campusId}</TableCell>
                 <TableCell>{it.categoryLabel}</TableCell>
@@ -298,34 +295,6 @@ export default function PendingReportsPage() {
                 </TableCell>
                 <TableCell>
                   {it.stillDangerous && <Chip size="small" label="Khẩn cấp" sx={{ bgcolor: '#fef2f2', color: '#dc2626', fontWeight: 700 }} />}
-                </TableCell>
-                <TableCell>{it.occurredAt ? new Date(it.occurredAt).toLocaleString('vi-VN') : '—'}</TableCell>
-                <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
-                  <Stack direction="row" spacing={1} justifyContent="flex-end" alignItems="center">
-                    <Tooltip title="Xem chi tiết">
-                      <IconButton
-                        size="small"
-                        onClick={() => openDetail(it)}
-                        sx={{
-                          border: '1px solid #e2e8f0',
-                          borderRadius: 2,
-                          color: '#475569',
-                          '&:hover': { bgcolor: '#f1f5f9', borderColor: '#cbd5e1' }
-                        }}
-                      >
-                        <VisibilityIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                    <Button
-                      size="small"
-                      variant="contained"
-                      disabled={creatingId === it.reportId}
-                      onClick={() => openPriorityDialog(it)}
-                      sx={{ bgcolor: '#2563eb', whiteSpace: 'nowrap', '&:hover': { bgcolor: '#1d4ed8' }, textTransform: 'none' }}
-                    >
-                      Chuyển thành hồ sơ
-                    </Button>
-                  </Stack>
                 </TableCell>
               </TableRow>
             ))}

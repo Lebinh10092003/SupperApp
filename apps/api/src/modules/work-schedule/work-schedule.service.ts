@@ -31,6 +31,7 @@ import {
 } from './work-schedule.schema.js';
 import { evaluateEventApproval, canAcceptOrReturnTask, type ActorAssignment } from './work-schedule.authz.js';
 import { pushAdminNotifications, type PushAdminNotificationsInput } from '../safety/admin-notify.js';
+import { getPersonLabelsByPerIds } from '../identity/person-directory.js';
 
 type Db = NodePgDatabase<Record<string, never>>;
 
@@ -165,12 +166,32 @@ async function findOverlappingPartners(
   return rows.filter((other) => other.participantPerIds.some((pid) => args.participantPerIds.includes(pid)));
 }
 
-function buildConflictNoteText(event: LtcEventRow, partners: LtcEventRow[]): string {
+/**
+ * Trước đây ghi thẳng `per_id` thô vào conflictNote (lý do cũ: "module này
+ * không có quyền/đường truy cập bảng người dùng dùng chung, tránh truy cập
+ * chéo CSDL giữa các module") — lý do đó KHÔNG còn đúng: từ 2026-09-21
+ * module này đã import `identity/person-directory.ts` để hiện tên+chức vụ
+ * ở khắp nơi khác (chairLabel/participantLabels/assigneeLabel...), riêng
+ * chỗ này bị bỏ sót nên vẫn lộ mã `PER_xxx` (Sin phát hiện qua ảnh chụp
+ * banner "Trùng lịch"). Nay resolve tên giống hệt các chỗ khác.
+ */
+async function buildConflictNoteText(db: Db, event: LtcEventRow, partners: LtcEventRow[]): Promise<string> {
   if (!partners.length) return '';
+  const allSharedPerIds = new Set<string>();
+  for (const other of partners) {
+    for (const pid of event.participantPerIds) {
+      if (other.participantPerIds.includes(pid)) allSharedPerIds.add(pid);
+    }
+  }
+  const labels = await getPersonLabelsByPerIds(db, Array.from(allSharedPerIds));
   return partners
     .map((other) => {
       const sharedPerIds = event.participantPerIds.filter((pid) => other.participantPerIds.includes(pid));
-      return `Trùng giờ với lịch "${other.title}" (${other.id}) — cùng có ${sharedPerIds.join(', ')} tham dự, từ ${formatVnDateTime(other.startAt)} đến ${formatVnDateTime(other.endAt)}.`;
+      const sharedLabels = sharedPerIds.map((pid) => labels[pid] ?? pid);
+      // KHÔNG kèm mã UUID thô của lịch kia trong ngoặc — vô nghĩa với người
+      // dùng cuối, tiêu đề trong ngoặc kép đã đủ nhận diện (Mr Tiến phản hồi
+      // 2026-09-21, kèm ví dụ thật còn sót cả UUID lẫn PER_xxx thô).
+      return `Trùng giờ với lịch "${other.title}" — cùng có ${sharedLabels.join(', ')} tham dự, từ ${formatVnDateTime(other.startAt)} đến ${formatVnDateTime(other.endAt)}.`;
     })
     .join('; ');
 }
@@ -197,7 +218,7 @@ async function computeAndPersistNoteForEvent(db: Db, eventId: string): Promise<{
     endAt: event.endAt,
     participantPerIds: event.participantPerIds
   });
-  const note = buildConflictNoteText(event, partners);
+  const note = await buildConflictNoteText(db, event, partners);
   if (event.conflictNote !== note) {
     await db.update(ltcEvents).set({ conflictNote: note }).where(eq(ltcEvents.id, eventId));
   }
@@ -320,7 +341,8 @@ export async function createEvent(db: Db, input: CreateEventInput, opts: { now?:
  */
 export async function updateRevisionEvent(
   db: Db,
-  input: { eventId: string; eventData: Partial<CreateEventInput>; actorPerId: string }
+  input: { eventId: string; eventData: Partial<CreateEventInput>; actorPerId: string },
+  opts: { now?: Date } = {}
 ) {
   if (!input.eventId || !input.actorPerId) throw new AppError('invalid_input', 'Thiếu eventId hoặc actorPerId.');
   const eventData = input.eventData || {};
@@ -380,7 +402,22 @@ export async function updateRevisionEvent(
     // Dò trùng là tính toán PHỤ — lỗi ở đây không được làm hỏng luồng sửa lịch chính.
   }
   const [freshAfter] = await db.select().from(ltcEvents).where(eq(ltcEvents.id, input.eventId)).limit(1);
-  return freshAfter ?? after!;
+  const finalEvent = freshAfter ?? after!;
+
+  await tryPushBell(
+    db,
+    {
+      recipients: [finalEvent.chairPerId, ...(finalEvent.participantPerIds || [])],
+      title: 'Lịch vừa được sửa lại: ' + finalEvent.title,
+      message: input.actorPerId + ' vừa cập nhật nội dung lịch "' + finalEvent.title + '".',
+      eventType: 'work_schedule.event.updated_for_revision',
+      objectId: input.eventId,
+      actorPerId: input.actorPerId
+    },
+    opts
+  );
+
+  return finalEvent;
 }
 
 /**
@@ -552,8 +589,13 @@ export async function listEvents(db: Db, filter: { campusId?: string; statuses?:
   const conditions: SQL[] = [];
   if (filter.campusId) conditions.push(eq(ltcEvents.campusId, filter.campusId));
   if (filter.statuses?.length) conditions.push(inArray(ltcEvents.status, filter.statuses));
-  if (!conditions.length) return db.select().from(ltcEvents);
-  return db.select().from(ltcEvents).where(and(...conditions));
+  // Trước đây KHÔNG có orderBy — trả về theo thứ tự bất kỳ của DB (thường
+  // trùng thứ tự chèn, không đáng tin). Mặc định lịch mới nhất lên đầu (Sin
+  // yêu cầu 2026-09-21) — trang nào cần thứ tự khác (VD Tổng quan sắp tới
+  // gần nhất trước) tự sort lại ở client, không phụ thuộc thứ tự API.
+  const base = db.select().from(ltcEvents);
+  const query = conditions.length ? base.where(and(...conditions)) : base;
+  return query.orderBy(desc(ltcEvents.startAt));
 }
 
 // ---------------------------------------------------------------------
@@ -650,6 +692,12 @@ export async function changeTaskStatus(
   }
   if (nextStatus === 'CANCELLED' && !input.note) {
     throw new AppError('invalid_input', 'Bắt buộc ghi lý do khi hủy công việc.');
+  }
+  // Bắt buộc minh chứng (link Sheet/Docs/Drive...) khi trình nghiệm thu —
+  // Mr Tiến phản hồi 2026-09-21, kiểm tra lại ở tầng server (không chỉ tin
+  // frontend) để không lách được qua gọi API trực tiếp.
+  if (nextStatus === 'PENDING_ACCEPTANCE' && !input.evidenceUrl?.trim()) {
+    throw new AppError('invalid_input', 'Bắt buộc nhập link minh chứng trước khi trình nghiệm thu.');
   }
   const patch: Partial<typeof ltcTasks.$inferInsert> = { status: nextStatus, updatedAt: new Date() };
   if (nextStatus === 'CANCELLED') patch.cancellationReason = input.note;
@@ -753,8 +801,10 @@ export async function listTasks(db: Db, filter: { campusId?: string; assigneePer
   if (filter.campusId) conditions.push(eq(ltcTasks.campusId, filter.campusId));
   if (filter.assigneePerId) conditions.push(eq(ltcTasks.assigneePerId, filter.assigneePerId));
   if (filter.statuses?.length) conditions.push(inArray(ltcTasks.status, filter.statuses));
-  if (!conditions.length) return db.select().from(ltcTasks);
-  return db.select().from(ltcTasks).where(and(...conditions));
+  // Mặc định việc mới giao gần đây nhất lên đầu — cùng lý do listEvents ở trên.
+  const base = db.select().from(ltcTasks);
+  const query = conditions.length ? base.where(and(...conditions)) : base;
+  return query.orderBy(desc(ltcTasks.createdAt));
 }
 
 // ---------------------------------------------------------------------

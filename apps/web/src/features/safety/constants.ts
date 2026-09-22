@@ -29,6 +29,30 @@ export const STATE_OPTIONS: string[] = [
   'Tin rác'
 ];
 
+/**
+ * Bước chuyển hợp lệ giữa các trạng thái — port 1-1 từ
+ * `apps/api/src/modules/safety/catalog.ts::ALLOWED_TRANSITIONS`. Dùng để
+ * VÔ HIỆU HOÁ (không phải ẩn) các lựa chọn không hợp lệ trong dropdown đổi
+ * trạng thái — trước đây cho bấm hết 12 trạng thái rồi mới báo lỗi sau khi
+ * submit (Sin phản hồi 2026-09-21: "cái nào click được thì mới cho click").
+ * "Trùng"/"Tin rác" cố ý để mảng rỗng — khôi phục xử lý riêng, không đi
+ * qua dropdown này (khớp đúng bản gốc).
+ */
+export const ALLOWED_STATE_TRANSITIONS: Record<string, string[]> = {
+  'Mới tiếp nhận': ['Đang phân loại', 'Khẩn cấp đang xử lý', 'Trùng', 'Tin rác'],
+  'Đang phân loại': ['Khẩn cấp đang xử lý', 'Đã giao', 'Trùng', 'Tin rác'],
+  'Khẩn cấp đang xử lý': ['Đã giao', 'Đang xử lý', 'Đang theo dõi'],
+  'Đã giao': ['Đang xử lý', 'Chờ bên ngoài'],
+  'Đang xử lý': ['Chờ bên ngoài', 'Đang theo dõi', 'Đề nghị đóng'],
+  'Chờ bên ngoài': ['Đang xử lý', 'Đang theo dõi'],
+  'Đang theo dõi': ['Đang xử lý', 'Đề nghị đóng'],
+  'Đề nghị đóng': ['Đã đóng', 'Đang xử lý'],
+  'Đã đóng': ['Mở lại'],
+  'Mở lại': ['Đang xử lý', 'Đang theo dõi'],
+  Trùng: [],
+  'Tin rác': []
+};
+
 export const REPORTER_ROLE_OPTIONS: Array<{ value: string; label: string }> = [
   { value: 'victim', label: 'Người trực tiếp gặp sự cố' },
   { value: 'witness', label: 'Người chứng kiến' },

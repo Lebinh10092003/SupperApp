@@ -7,7 +7,7 @@ import { useTasks, type WorkTask } from './hooks/useTasks';
 import { useActor } from './hooks/useActor';
 import { EventDetailDialog, canApproveClientSide, EventStatusChip } from './EventsListPage';
 import { TaskDetailDialog } from './TasksListPage';
-import { CAMPUS_LABEL } from './constants';
+import { CAMPUS_LABEL, abbreviatePersonLabel } from './constants';
 
 /**
  * Trung tâm phê duyệt — theo đúng mẫu bản gốc Mr Tiến (ApprovalView): 2
@@ -60,9 +60,9 @@ export default function ApprovalCenterPage() {
             <Table>
               <TableHead>
                 <TableRow>
+                  <TableCell>Thời gian</TableCell>
                   <TableCell>Tiêu đề</TableCell>
                   <TableCell>Cơ sở</TableCell>
-                  <TableCell>Thời gian</TableCell>
                   <TableCell>Trạng thái</TableCell>
                 </TableRow>
               </TableHead>
@@ -76,9 +76,9 @@ export default function ApprovalCenterPage() {
                 )}
                 {myEvents.map((ev) => (
                   <TableRow key={ev.id} hover sx={{ cursor: 'pointer' }} onClick={() => setEventDetail(ev)}>
+                    <TableCell>{new Date(ev.startAt).toLocaleString('vi-VN')}</TableCell>
                     <TableCell>{ev.title}</TableCell>
                     <TableCell>{CAMPUS_LABEL[ev.campusId] || ev.campusId}</TableCell>
-                    <TableCell>{new Date(ev.startAt).toLocaleString('vi-VN')}</TableCell>
                     <TableCell><EventStatusChip status={ev.status} /></TableCell>
                   </TableRow>
                 ))}
@@ -95,10 +95,10 @@ export default function ApprovalCenterPage() {
             <Table>
               <TableHead>
                 <TableRow>
+                  <TableCell>Hạn</TableCell>
                   <TableCell>Công việc</TableCell>
                   <TableCell>Cơ sở</TableCell>
                   <TableCell>Người thực hiện</TableCell>
-                  <TableCell>Hạn</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -111,10 +111,12 @@ export default function ApprovalCenterPage() {
                 )}
                 {myPendingAcceptanceTasks.map((t) => (
                   <TableRow key={t.id} hover sx={{ cursor: 'pointer' }} onClick={() => setTaskDetail(t)}>
+                    <TableCell>{new Date(t.dueAt).toLocaleString('vi-VN')}</TableCell>
                     <TableCell>{t.title}</TableCell>
                     <TableCell>{CAMPUS_LABEL[t.campusId] || t.campusId}</TableCell>
-                    <TableCell>{t.assigneeLabel || t.assigneeName || t.assigneePerId}</TableCell>
-                    <TableCell>{new Date(t.dueAt).toLocaleString('vi-VN')}</TableCell>
+                    <TableCell title={t.assigneeLabel || t.assigneeName || t.assigneePerId}>
+                      {abbreviatePersonLabel(t.assigneeLabel || t.assigneeName || t.assigneePerId)}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
