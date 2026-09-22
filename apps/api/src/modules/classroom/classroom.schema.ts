@@ -46,6 +46,7 @@ export const courses = pgTable('courses', {
   averageScore: numeric('average_score', { precision: 5, scale: 2 }),
   contentStatus: text('content_status').notNull().default('DATA_UNAVAILABLE'),
   lastSyncAt: timestamp('last_sync_at', { withTimezone: true }),
+  syncRunId: text('sync_run_id'),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
 });
 

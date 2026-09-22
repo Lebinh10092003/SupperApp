@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import fs from 'node:fs';
 import path from 'node:path';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { firebaseAuth, requireCapability } from '../../auth/middleware.js';
 import { asyncRoute } from '../../core/http.js';
 import { resolveServiceAccount } from '../../core/firebase.js';
@@ -87,7 +87,7 @@ connectionsRouter.get(
 
     // 2. Kiểm tra Mode B (Google Workspace DWD)
     const sa = resolveServiceAccount();
-    const hasDwd = Boolean(sa?.data?.private_key || (env.WORKSPACE_DOMAIN && env.DWD_SERVICE_ACCOUNT_EMAIL));
+    const hasDwd = Boolean(sa?.data?.private_key);
 
     // 3. Đếm số khóa học thực tế đã đồng bộ
     const coursesCount = await db.select().from(courses).then((rows) => rows.length);
@@ -345,9 +345,41 @@ connectionsRouter.post(
   })
 );
 
-// Nạp dữ liệu mẫu Google Classroom thực tế của THCS Giảng Võ (khi tài khoản Google chưa tạo lớp)
+// Xóa sạch toàn bộ dữ liệu mẫu / demo nếu từng được nạp thử nghiệm
 connectionsRouter.post(
-  '/demo-seed',
+  '/purge-demo',
+  firebaseAuth,
+  requireCapability('MANAGE_CONNECTIONS'),
+  asyncRoute(async (_req, res) => {
+    const demoCourses = await db
+      .select({ id: courses.id })
+      .from(courses)
+      .where(sql`${courses.id} LIKE 'gv-demo-%' OR ${courses.id} LIKE '%demo%'`);
+    let deletedCount = 0;
+    for (const doc of demoCourses) {
+      await db.delete(courses).where(eq(courses.id, doc.id));
+      deletedCount++;
+    }
+
+    const syncStatus = await getSystemConfig<any>('syncStatus');
+    if (syncStatus?.mode === 'DEMO_SEED') {
+      await setSystemConfig('syncStatus', null);
+    }
+
+    const { rebuildDashboard } = await import('../dashboard/dashboard.service.js');
+    await rebuildDashboard().catch(() => null);
+
+    res.json({
+      ok: true,
+      message: `Đã dọn dẹp sạch sẽ ${deletedCount} khóa học mẫu thử nghiệm khỏi hệ thống!`,
+      deletedCount
+    });
+  })
+);
+
+// Nạp dữ liệu mẫu / demo
+connectionsRouter.post(
+  '/seed-demo',
   firebaseAuth,
   requireCapability('MANAGE_CONNECTIONS'),
   asyncRoute(async (_req, res) => {
@@ -659,6 +691,7 @@ connectionsRouter.post(
 
     await setSystemConfig('syncStatus', { lastSyncAt: now.toISOString(), mode: 'DEMO_SEED', totalCourses: demoCourses.length });
 
+    const { rebuildDashboard } = await import('../dashboard/dashboard.service.js');
     await rebuildDashboard().catch(() => null);
 
     res.json({

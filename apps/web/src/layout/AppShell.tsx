@@ -274,6 +274,7 @@ const navGroups: NavGroup[] = [
     adminOnly: true,
     items: [
       { path: '/classroom', label: 'Google Classroom', icon: <ClassroomIcon fontSize="small" /> },
+      { path: '/classroom/sync-runs', label: 'Phiên đồng bộ', icon: <HistoryIcon fontSize="small" /> },
       { path: '/classes', label: 'Lớp học & Sĩ số', icon: <SchoolIcon fontSize="small" /> },
       { path: '/students', label: 'Danh sách Học sinh', icon: <StudentsIcon fontSize="small" /> },
       {

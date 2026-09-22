@@ -19,5 +19,8 @@ export const classes = pgTable('classes', {
   onTimeRate: numeric('on_time_rate', { precision: 5, scale: 1 }),
   averageScore: numeric('average_score', { precision: 5, scale: 2 }),
   expectedStudents: integer('expected_students'),
+  room: text('room'),
+  teacherEmail: text('teacher_email'),
+  source: text('source').notNull().default('CLASSROOM_SYNC'), // CLASSROOM_SYNC | MANUAL
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
 });

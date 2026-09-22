@@ -11,16 +11,50 @@ export interface DetectedSubject {
   confidence: number;
 }
 
+export function cleanCourseName(name?: string | null): string {
+  if (!name) return '';
+  return name.replace(/^\[.*?\]\s*/g, '').trim();
+}
+
 export function autoDetectClass(courseName: string): DetectedClass | null {
-  const match = courseName.match(/\b([6-9][A-Z][0-9]?)\b/i);
-  if (!match || !match[1]) return null;
-  const name = match[1].toUpperCase();
-  const grade = parseInt(name[0] || '9', 10);
+  if (!courseName) return null;
+  const clean = cleanCourseName(courseName);
+
+  // 1. Khớp các định dạng lớp có khối: Lớp 12A1, 12A1, Lớp 6A2, 11A3, 10A1, 7A, 9A4...
+  const matchWithWord = clean.match(/(?:lớp\s*)?([1-9]|1[0-2])\s*([a-zA-Z][0-9]?)\b/i);
+  if (matchWithWord && matchWithWord[1] && matchWithWord[2]) {
+    const gradeNum = parseInt(matchWithWord[1], 10);
+    const section = matchWithWord[2].toUpperCase();
+    const classCode = `${gradeNum}${section}`;
+    return {
+      classId: classCode,
+      className: `Lớp ${classCode}`,
+      grade: gradeNum,
+      confidence: 0.98
+    };
+  }
+
+  // 2. Khớp định dạng từ đứng độc lập: 6A1, 10A2, 12A3
+  const standalone = clean.match(/\b([1-9]|1[0-2])([a-zA-Z][0-9]?)\b/i);
+  if (standalone && standalone[1] && standalone[2]) {
+    const gradeNum = parseInt(standalone[1], 10);
+    const section = standalone[2].toUpperCase();
+    const classCode = `${gradeNum}${section}`;
+    return {
+      classId: classCode,
+      className: `Lớp ${classCode}`,
+      grade: gradeNum,
+      confidence: 0.95
+    };
+  }
+
+  // 3. Với các lớp chuyên đề / câu lạc bộ / STEAM (1 Classroom = 1 Lớp thực tế)
+  const slug = clean.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
   return {
-    classId: `class_${name.toLowerCase()}`,
-    className: name,
-    grade,
-    confidence: 0.95
+    classId: slug ? `class_${slug}` : `class_${Date.now()}`,
+    className: clean || 'Lớp học thực tế',
+    grade: 0,
+    confidence: 0.85
   };
 }
 

@@ -5,7 +5,7 @@ import { getStorage } from 'firebase-admin/storage';
 import { env } from '../config/env.js';
 import fs from 'node:fs';
 import path from 'node:path';
-import { localDb } from './localStore.js';
+import { sqliteDb } from './sqliteStore.js';
 import { getLocalEvidenceBucket } from './localEvidenceStorage.js';
 
 export interface ServiceAccountMetadata {
@@ -78,14 +78,14 @@ export const col = (name: string): any => {
   if (isLiveFirestore) {
     return schoolRef().collection(name);
   }
-  return localDb.collection(name);
+  return sqliteDb.collection(name);
 };
 
 export const createBatch = (): any => {
   if (isLiveFirestore) {
     return schoolRef().firestore.batch();
   }
-  return localDb.batch();
+  return sqliteDb.batch();
 };
 
 export const serviceAccountInfo: ServiceAccountMetadata | null = sa
