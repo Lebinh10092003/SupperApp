@@ -51,14 +51,10 @@ peopleRouter.get(
     const rows = await db.select().from(people);
     let items = rows.map(mapPerson);
 
-    let classSubjectAverages: Record<string, number | null> | undefined = undefined;
     if (roleQuery === 'TEACHER' || roleQuery === 'TEACHERS') {
       items = items.filter(isTeacher);
     } else if (roleQuery === 'STUDENT' || roleQuery === 'STUDENTS') {
-      const rawStudents = items.filter(isStudent);
-      const enrichedRes = await enrichStudentItems(rawStudents);
-      items = enrichedRes.items;
-      classSubjectAverages = enrichedRes.classSubjectAverages;
+      items = items.filter(isStudent);
     }
 
     items = await applyStudentScope(req.appUser!, items, isStudent);

@@ -1,14 +1,14 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { eq, count, sql } from 'drizzle-orm';
+import { eq, count, sql, desc, inArray } from 'drizzle-orm';
 import { firebaseAuth, requireCapability } from '../../auth/middleware.js';
 import { asyncRoute } from '../../core/http.js';
 import { db } from '../../core/db/client.js';
 import { resolveServiceAccount } from '../../core/firebase.js';
 import { env } from '../../config/env.js';
-import { syncAllCourses } from './classroom.service.js';
+import { syncAllCourses, deleteSyncRun } from './classroom.service.js';
 import { rebuildDashboard } from '../dashboard/dashboard.service.js';
-import { courses } from './classroom.schema.js';
+import { courses, syncRuns } from './classroom.schema.js';
 import { classes } from '../classes/classes.schema.js';
 import { googleConnections } from '../connections/connections.schema.js';
 import { systemConfig } from '../system/system.schema.js';
@@ -179,3 +179,55 @@ classroomRouter.patch(
     r.json({ ok: true });
   })
 );
+
+// Danh sách các phiên đồng bộ kèm số lượng khoá học thực tế
+classroomRouter.get(
+  '/sync-runs',
+  firebaseAuth,
+  requireCapability('VIEW_DASHBOARD'),
+  asyncRoute(async (_req, res) => {
+    const allRuns = await db.select().from(syncRuns).orderBy(desc(syncRuns.startedAt));
+    const courseCounts = await db
+      .select({
+        syncRunId: courses.syncRunId,
+        count: count()
+      })
+      .from(courses)
+      .groupBy(courses.syncRunId);
+    const countMap = new Map(courseCounts.filter((c) => c.syncRunId).map((c) => [c.syncRunId!, c.count]));
+    const items = allRuns.map((r) => ({
+      ...r,
+      coursesCount: countMap.get(r.id) ?? r.coursesTotal ?? 0
+    }));
+    res.json({ total: items.length, items });
+  })
+);
+
+// Danh sách khoá học thuộc phiên đồng bộ
+classroomRouter.get(
+  '/sync-runs/:id/courses',
+  firebaseAuth,
+  requireCapability('VIEW_DASHBOARD'),
+  asyncRoute(async (req, res) => {
+    const runId = String(req.params.id);
+    const items = await db.select().from(courses).where(eq(courses.syncRunId, runId));
+    res.json({ total: items.length, items });
+  })
+);
+
+// Rollback toàn bộ khoá học của một phiên đồng bộ
+classroomRouter.delete(
+  '/sync-runs/:id',
+  firebaseAuth,
+  requireCapability('RUN_SYNC'),
+  asyncRoute(async (req, res) => {
+    const runId = String(req.params.id);
+    const result = await deleteSyncRun(runId);
+    res.json({
+      ok: true,
+      message: `Đã rollback phiên đồng bộ ${runId}. Đã xoá ${result.coursesDeleted} khoá học liên kết.`,
+      ...result
+    });
+  })
+);
+

@@ -1,123 +1,59 @@
 import { Router } from 'express';
+import { z } from 'zod';
+import { eq, count, sql, and, asc } from 'drizzle-orm';
 import { firebaseAuth, requireCapability } from '../../auth/middleware.js';
 import { asyncRoute } from '../../core/http.js';
-import { col } from '../../core/firebase.js';
-import { autoDetectClass } from '../catalog/catalog.service.js';
+import { db } from '../../core/db/client.js';
+import { classes } from './classes.schema.js';
+import { schedules } from '../schedules/schedules.schema.js';
+import { courses, courseSubmissions, courseCoursework, courseMembers } from '../classroom/classroom.schema.js';
+import { alerts } from '../alerts/alerts.schema.js';
+import { systemConfig } from '../system/system.schema.js';
+import { rebuildClassesFromCourses } from '../classroom/classroom.service.js';
+import { rebuildDashboard } from '../dashboard/dashboard.service.js';
 
 export const classesRouter = Router();
 
-// Không sử dụng dữ liệu mock/seed tĩnh — 100% dữ liệu lớp học được tổng hợp từ Firestore/SQLite và Google Classroom
-
 export async function getEnrichedClasses(gradeFilter = 'all') {
-  const [classesSnap, coursesSnap] = await Promise.all([
-    col('classes').get().catch(() => ({ docs: [] })),
-    col('courses').get().catch(() => ({ docs: [] }))
-  ]);
-
-  const map = new Map<string, any>();
-
-  // 1. Nạp từ CSDL classes quản trị thực tế nếu có
-  for (const doc of (classesSnap as any).docs) {
-    const data = doc.data();
-    const id = doc.id;
-    map.set(id, {
-      id,
-      classId: id,
-      className: data.className || `Lớp ${id}`,
-      grade: data.grade || Number(String(id).match(/^[6789]|1[0-2]/)?.[0]) || 6,
-      expectedStudents: data.expectedStudents || 0,
-      homeroomTeacher: data.homeroomTeacher || 'Chưa phân công',
-      teacherEmail: data.teacherEmail || '',
-      room: data.room || '',
-      totalCoursework: 0,
-      submissionsTotal: 0,
-      submissionsTurnedIn: 0,
-      submissionsLate: 0,
-      completionRate: 0,
-      onTimeRate: 0,
-      averageScore: null,
-      attendanceRate: null,
-      coursesCount: 0,
-      subjects: []
-    });
-  }
-
-  // 2. Hợp nhất dữ liệu thật 100% từ Google Classroom đã đồng bộ (1 Classroom = 1 Lớp thực tế)
-  for (const doc of (coursesSnap as any).docs) {
-    const course = doc.data();
-    const auto = autoDetectClass(course.name || '');
-    const classId = course.classId || auto?.classId || doc.id;
-    const className = course.className || auto?.className || (auto?.classId ? `Lớp ${auto.classId}` : course.name);
-    const grade = course.grade || auto?.grade || 0;
-
-    if (!map.has(classId)) {
-      map.set(classId, {
-        id: classId,
-        classId,
-        className,
-        grade,
-        homeroomTeacher: course.teacherGroupEmail ? 'Giáo viên phụ trách Classroom' : 'Chưa phân công',
-        teacherEmail: course.teacherGroupEmail || '',
-        room: course.room || '',
-        expectedStudents: Number(course.roster?.students || 0),
-        totalCoursework: 0,
-        submissionsTotal: 0,
-        submissionsTurnedIn: 0,
-        submissionsLate: 0,
-        completionRate: 0,
-        onTimeRate: 0,
-        averageScore: null,
-        attendanceRate: null,
-        coursesCount: 0,
-        subjects: []
-      });
-    }
-
-    const current = map.get(classId)!;
-    const cw = Number(course.content?.courseWorkCount || course.content?.coursework || 0);
-    const subTotal = Number(course.content?.submissionsTotal || 0);
-    const subTurned = Number(course.content?.submissionsTurnedIn || 0);
-    const subLate = Number(course.content?.submissionsLate || 0);
-    const avgScore = course.content?.averageScore != null ? Number(course.content.averageScore) : null;
-
-    current.coursesCount = (current.coursesCount || 0) + 1;
-    current.totalCoursework = (current.totalCoursework || 0) + cw;
-    current.submissionsTotal = (current.submissionsTotal || 0) + subTotal;
-    current.submissionsTurnedIn = (current.submissionsTurnedIn || 0) + subTurned;
-    current.submissionsLate = (current.submissionsLate || 0) + subLate;
-
-    if (current.submissionsTotal > 0) {
-      current.completionRate = Math.round((current.submissionsTurnedIn / current.submissionsTotal) * 1000) / 10;
-    }
-    if (current.submissionsTurnedIn > 0) {
-      current.onTimeRate = Math.round(((current.submissionsTurnedIn - current.submissionsLate) / current.submissionsTurnedIn) * 1000) / 10;
-    }
-    if (avgScore != null && avgScore > 0) {
-      current.averageScore = Math.round(avgScore * 10) / 10;
-    }
-
-    current.subjects.push({
-      name: course.subjectName || course.name,
-      teacher: course.teacherGroupEmail || '',
-      completionRate: Number(course.content?.completionRate || 0),
-      avgScore: avgScore,
-      coursework: cw
-    });
-  }
-
-  let items = Array.from(map.values());
+  let rows = await db.select().from(classes).orderBy(asc(classes.grade), asc(classes.className));
 
   if (gradeFilter !== 'all') {
     const gradeNum = Number(gradeFilter);
-    items = items.filter(c => c.grade === gradeNum);
+    rows = rows.filter((c) => c.grade === gradeNum);
   }
+
+  const items = rows.map((r) => ({
+    id: r.classId,
+    classId: r.classId,
+    className: r.className,
+    grade: r.grade,
+    source: r.source || 'CLASSROOM_SYNC',
+    active: r.active,
+    homeroomTeacher: r.homeroomTeacher || 'Chưa phân công',
+    teacherEmail: r.teacherEmail || '',
+    room: r.room || '',
+    expectedStudents: r.expectedStudents ?? r.studentCount ?? 0,
+    studentCount: r.studentCount || 0,
+    courseCount: r.courseCount || 0,
+    courses: r.courses || [],
+    subjects: (r.subjects || []).map((s) => (typeof s === 'string' ? { name: s } : s)),
+    totalCoursework: r.totalCoursework || 0,
+    submissionsTotal: r.submissionsTotal || 0,
+    submissionsTurnedIn: r.submissionsTurnedIn || 0,
+    submissionsLate: r.submissionsLate || 0,
+    completionRate: r.completionRate != null ? Number(r.completionRate) : 0,
+    onTimeRate: r.onTimeRate != null ? Number(r.onTimeRate) : 0,
+    averageScore: r.averageScore != null ? Number(r.averageScore) : null,
+    attendanceRate: null,
+    updatedAt: r.updatedAt
+  }));
 
   items.sort((a, b) => (b.completionRate || 0) - (a.completionRate || 0));
 
   return items;
 }
 
-// 1. Lấy danh sách lớp học đã được làm giàu số liệu
+// 1. Lấy danh sách lớp học đã được làm giàu số liệu từ Postgres
 classesRouter.get(
   '/',
   firebaseAuth,
@@ -129,7 +65,163 @@ classesRouter.get(
   })
 );
 
-// 2. Lấy dữ liệu so sánh xếp hạng toàn khối / toàn trường
+// 2. Thêm lớp học thủ công (Manual Class)
+classesRouter.post(
+  '/',
+  firebaseAuth,
+  requireCapability('MANAGE_SCHEDULES'),
+  asyncRoute(async (req, res) => {
+    const schema = z.object({
+      className: z.string().trim().min(1, 'Tên lớp không được để trống'),
+      classId: z.string().trim().optional(),
+      grade: z.coerce.number().int().min(1).max(12).optional().nullable(),
+      homeroomTeacher: z.string().trim().optional().nullable(),
+      teacherEmail: z.string().trim().email('Email không đúng định dạng').or(z.literal('')).optional().nullable(),
+      expectedStudents: z.coerce.number().int().min(0).max(100).optional().nullable(),
+      room: z.string().trim().optional().nullable()
+    });
+
+    const b = schema.parse(req.body);
+    const classId = b.classId || b.className.trim().replace(/\s+/g, '_');
+    const grade = b.grade ?? (Number(classId.match(/^[6789]|1[0-2]/)?.[0]) || null);
+
+    const existing = await db.select().from(classes).where(eq(classes.classId, classId)).then((r) => r[0]);
+    if (existing) {
+      return res.status(400).json({
+        error: { message: `Lớp học có mã "${classId}" đã tồn tại trên hệ thống.` }
+      });
+    }
+
+    const [newClass] = await db
+      .insert(classes)
+      .values({
+        classId,
+        className: b.className,
+        grade,
+        source: 'MANUAL',
+        active: true,
+        homeroomTeacher: b.homeroomTeacher || null,
+        teacherEmail: b.teacherEmail || null,
+        expectedStudents: b.expectedStudents ?? 40,
+        room: b.room || null,
+        courseCount: 0,
+        courses: [],
+        subjects: [],
+        studentCount: 0,
+        totalCoursework: 0,
+        submissionsTotal: 0,
+        submissionsTurnedIn: 0,
+        submissionsLate: 0
+      })
+      .returning();
+
+    res.status(201).json({
+      ok: true,
+      message: `Đã thêm mới lớp thủ công "${b.className}" thành công.`,
+      class: newClass
+    });
+  })
+);
+
+// 3. Sửa thông tin lớp học (tên, khối, GVCN, email, sĩ số, phòng)
+classesRouter.patch(
+  '/:id',
+  firebaseAuth,
+  requireCapability('MANAGE_SCHEDULES'),
+  asyncRoute(async (req, res) => {
+    const classId = String(req.params.id);
+    const existing = await db.select().from(classes).where(eq(classes.classId, classId)).then((r) => r[0]);
+    if (!existing) {
+      return res.status(404).json({
+        error: { message: `Không tìm thấy lớp học có mã "${classId}".` }
+      });
+    }
+
+    const schema = z.object({
+      className: z.string().trim().min(1).optional(),
+      grade: z.coerce.number().int().min(1).max(12).optional().nullable(),
+      homeroomTeacher: z.string().trim().optional().nullable(),
+      teacherEmail: z.string().trim().email('Email không đúng định dạng').or(z.literal('')).optional().nullable(),
+      expectedStudents: z.coerce.number().int().min(0).max(100).optional().nullable(),
+      room: z.string().trim().optional().nullable()
+    });
+
+    const b = schema.parse(req.body);
+    const updates: Partial<typeof classes.$inferInsert> = {
+      updatedAt: new Date()
+    };
+
+    if (b.className !== undefined) updates.className = b.className;
+    if (b.grade !== undefined) updates.grade = b.grade;
+    if (b.homeroomTeacher !== undefined) updates.homeroomTeacher = b.homeroomTeacher || null;
+    if (b.teacherEmail !== undefined) updates.teacherEmail = b.teacherEmail || null;
+    if (b.expectedStudents !== undefined) updates.expectedStudents = b.expectedStudents;
+    if (b.room !== undefined) updates.room = b.room || null;
+
+    const [updatedClass] = await db
+      .update(classes)
+      .set(updates)
+      .where(eq(classes.classId, classId))
+      .returning();
+
+    res.json({
+      ok: true,
+      message: `Đã cập nhật thông tin lớp "${updatedClass?.className || classId}" thành công.`,
+      class: updatedClass
+    });
+  })
+);
+
+// 4. Xoá lớp thủ công (kiểm tra an toàn: không có schedules và courses trỏ tới)
+classesRouter.delete(
+  '/:id',
+  firebaseAuth,
+  requireCapability('MANAGE_SCHEDULES'),
+  asyncRoute(async (req, res) => {
+    const classId = String(req.params.id);
+    const existing = await db.select().from(classes).where(eq(classes.classId, classId)).then((r) => r[0]);
+    if (!existing) {
+      return res.status(404).json({
+        error: { message: `Không tìm thấy lớp học có mã "${classId}".` }
+      });
+    }
+
+    // 1. Kiểm tra ràng buộc thời khoá biểu schedules
+    const [schedCount] = await db
+      .select({ n: count() })
+      .from(schedules)
+      .where(eq(schedules.classId, classId));
+    if (schedCount && schedCount.n > 0) {
+      return res.status(400).json({
+        error: {
+          message: `Không thể xoá lớp "${existing.className}" vì đang có ${schedCount.n} tiết thời khoá biểu liên kết. Vui lòng chuyển hoặc xoá lịch trước.`
+        }
+      });
+    }
+
+    // 2. Kiểm tra ràng buộc khoá học courses
+    const [courseCount] = await db
+      .select({ n: count() })
+      .from(courses)
+      .where(eq(courses.classId, classId));
+    if (courseCount && courseCount.n > 0) {
+      return res.status(400).json({
+        error: {
+          message: `Không thể xoá lớp "${existing.className}" vì đang có ${courseCount.n} khoá học Google Classroom liên kết. Vui lòng chuyển ánh xạ hoặc xoá phiên đồng bộ trước.`
+        }
+      });
+    }
+
+    await db.delete(classes).where(eq(classes.classId, classId));
+
+    res.json({
+      ok: true,
+      message: `Đã xoá lớp học "${existing.className}" (${classId}) thành công.`
+    });
+  })
+);
+
+// 5. Lấy dữ liệu so sánh xếp hạng toàn khối / toàn trường
 classesRouter.get(
   '/compare',
   firebaseAuth,
@@ -138,8 +230,7 @@ classesRouter.get(
     const grade = String(req.query.grade || 'all');
     const items = await getEnrichedClasses(grade);
 
-    // Tính mức trung bình của nhóm dựa trên dữ liệu thực tế
-    const itemsWithScores = items.filter(c => c.averageScore != null);
+    const itemsWithScores = items.filter((c) => c.averageScore != null);
     const avgCompletion = items.length
       ? Math.round((items.reduce((acc, c) => acc + (c.completionRate || 0), 0) / items.length) * 10) / 10
       : 0;
@@ -165,7 +256,7 @@ classesRouter.get(
   })
 );
 
-// 3. Phân tích so sánh đối đầu trực diện 1 vs 1 giữa 2 lớp học (Head-to-Head Duel)
+// 6. Phân tích so sánh đối đầu trực diện 1 vs 1 giữa 2 lớp học (Head-to-Head Duel)
 classesRouter.get(
   '/duel',
   firebaseAuth,
@@ -187,12 +278,14 @@ classesRouter.get(
     const requestedA = String(req.query.classA || '');
     const requestedB = String(req.query.classB || '');
 
-    const classA = (requestedA && all.find(c => c.classId === requestedA || c.id === requestedA)) || all[0];
-    const classB = (requestedB && all.find(c => (c.classId === requestedB || c.id === requestedB) && c.classId !== classA.classId)) || (all.length > 1 ? all[1] : all[0]);
+    const classA = (requestedA && all.find((c) => c.classId === requestedA || c.id === requestedA)) || all[0];
+    const classB =
+      (requestedB && all.find((c) => (c.classId === requestedB || c.id === requestedB) && c.classId !== classA?.classId)) ||
+      (all.length > 1 ? all[1] : all[0]);
 
-    if (!classB || classA.classId === classB.classId) {
+    if (!classA || !classB || classA.classId === classB.classId) {
       return res.json({
-        classA,
+        classA: classA || null,
         classB: null,
         deltas: null,
         radarData: [],
@@ -201,7 +294,6 @@ classesRouter.get(
       });
     }
 
-    // Dữ liệu biểu đồ Radar so sánh 5 chiều
     const radarData = [
       { metric: 'Tỷ lệ nộp bài', classA: classA.completionRate || 0, classB: classB.completionRate || 0, fullMark: 100 },
       { metric: 'Nộp đúng hạn', classA: classA.onTimeRate || 0, classB: classB.onTimeRate || 0, fullMark: 100 },
@@ -210,7 +302,6 @@ classesRouter.get(
       { metric: 'Bài tập giao', classA: Math.min(100, (classA.totalCoursework || 0) * 6), classB: Math.min(100, (classB.totalCoursework || 0) * 6), fullMark: 100 }
     ];
 
-    // Tính chênh lệch
     const deltas = {
       completionRate: Math.round(((classA.completionRate || 0) - (classB.completionRate || 0)) * 10) / 10,
       onTimeRate: Math.round(((classA.onTimeRate || 0) - (classB.onTimeRate || 0)) * 10) / 10,
@@ -219,7 +310,6 @@ classesRouter.get(
       totalCoursework: (classA.totalCoursework || 0) - (classB.totalCoursework || 0)
     };
 
-    // Nhận định sư phạm và khuyến nghị vận hành cho Ban Giám hiệu
     const insights: string[] = [];
     if (deltas.completionRate > 2) {
       insights.push(`${classA.className} có tỷ lệ nộp bài vượt trội hơn ${classB.className} (+${deltas.completionRate}%). Học sinh duy trì thói quen học tập tích cực.`);
@@ -257,13 +347,13 @@ classesRouter.get(
   })
 );
 
-// 4. [NÂNG CẤP] Tự động phân công Giáo viên Chủ nhiệm chuẩn hóa của THCS Giảng Võ
+// 7. Tự động phân công Giáo viên Chủ nhiệm chuẩn hóa của THCS Giảng Võ
 classesRouter.post(
   '/auto-assign-teachers',
   firebaseAuth,
   requireCapability('VIEW_DASHBOARD'),
   asyncRoute(async (_req, res) => {
-    const all = await getEnrichedClasses('all');
+    const all = await db.select().from(classes);
     const standardTeachers = [
       { name: 'Thầy Nguyễn Văn Đức', email: 'nguyenvanduc@thcs-giangvo.edu.vn', subject: 'Toán Học', room: 'Phòng 201' },
       { name: 'Cô Trần Thị Thu', email: 'tranthithu@thcs-giangvo.edu.vn', subject: 'Ngữ Văn', room: 'Phòng 202' },
@@ -277,20 +367,18 @@ classesRouter.post(
 
     let assignedCount = 0;
     for (let i = 0; i < all.length; i++) {
-      const cls = all[i];
+      const cls = all[i]!;
       const teacher = standardTeachers[i % standardTeachers.length] || standardTeachers[0]!;
-      await col('classes').doc(cls.classId || cls.id).set(
-        {
-          className: cls.className,
-          grade: cls.grade,
+      await db
+        .update(classes)
+        .set({
           homeroomTeacher: teacher.name,
           teacherEmail: teacher.email,
           room: cls.room || teacher.room,
           expectedStudents: cls.expectedStudents || 40,
-          updatedAt: new Date().toISOString()
-        },
-        { merge: true }
-      );
+          updatedAt: new Date()
+        })
+        .where(eq(classes.classId, cls.classId));
       assignedCount++;
     }
 
@@ -302,7 +390,7 @@ classesRouter.post(
   })
 );
 
-// 5. [NÂNG CẤP] Bộ công cụ đôn đốc nộp bài tập số 1-Click (Student Nudge Center)
+// 8. Bộ công cụ đôn đốc nộp bài tập số 1-Click (Student Nudge Center)
 classesRouter.post(
   '/nudge',
   firebaseAuth,
@@ -310,58 +398,91 @@ classesRouter.post(
   asyncRoute(async (req, res) => {
     const classId = req.body?.classId || 'all';
     const all = await getEnrichedClasses('all');
-    const targetClasses = classId === 'all' ? all : all.filter(c => c.classId === classId || c.id === classId);
+    const targetClasses = classId === 'all' ? all : all.filter((c) => c.classId === classId || c.id === classId);
 
-    const now = new Date().toISOString();
+    const now = new Date();
     const nudgeId = `nudge_${Date.now()}`;
 
-    // Lưu nhật ký đôn đốc vào CSDL
-    await col('system').doc('lastNudge').set({
-      id: nudgeId,
-      createdAt: now,
-      sender: req.appUser?.displayName || 'Ban Giám Hiệu',
-      targetClasses: targetClasses.map(c => c.className),
-      targetCount: targetClasses.length,
-      message: 'Đôn đốc hoàn thành bài tập trực tuyến trước kỳ kiểm tra giữa học kỳ.'
-    }, { merge: true });
+    // Ghi nhật ký vào system_config
+    await db
+      .insert(systemConfig)
+      .values({
+        key: 'lastNudge',
+        value: {
+          id: nudgeId,
+          createdAt: now.toISOString(),
+          sender: req.appUser?.displayName || 'Ban Giám Hiệu',
+          targetClasses: targetClasses.map((c) => c.className),
+          targetCount: targetClasses.length,
+          message: 'Đôn đốc hoàn thành bài tập trực tuyến trước kỳ kiểm tra giữa học kỳ.'
+        },
+        updatedAt: now
+      })
+      .onConflictDoUpdate({
+        target: systemConfig.key,
+        set: {
+          value: {
+            id: nudgeId,
+            createdAt: now.toISOString(),
+            sender: req.appUser?.displayName || 'Ban Giám Hiệu',
+            targetClasses: targetClasses.map((c) => c.className),
+            targetCount: targetClasses.length,
+            message: 'Đôn đốc hoàn thành bài tập trực tuyến trước kỳ kiểm tra giữa học kỳ.'
+          },
+          updatedAt: now
+        }
+      });
 
-    // Tạo thông báo cảnh báo điều hành
-    await col('alerts').doc(nudgeId).set({
-      type: 'ACADEMIC_REMINDER',
-      severity: 'HIGH',
-      title: `Chỉ đạo BGH: Đôn đốc nộp bài tập số cho ${targetClasses.length} lớp học`,
-      message: `Ban Giám hiệu đã phát lệnh đôn đốc nộp bài tập Google Classroom cho các lớp: ${targetClasses.map(c => c.className).join(', ')}. Yêu cầu GVCN và GV bộ môn phối hợp liên hệ phụ huynh.`,
-      createdAt: now,
-      status: 'OPEN'
-    }, { merge: true });
+    // Tạo thông báo cảnh báo điều hành trong bảng alerts
+    await db
+      .insert(alerts)
+      .values({
+        id: nudgeId,
+        ruleId: 'ACADEMIC_REMINDER',
+        title: `Chỉ đạo BGH: Đôn đốc nộp bài tập số cho ${targetClasses.length} lớp học`,
+        severity: 'HIGH',
+        category: 'CLASSROOM',
+        message: `Ban Giám hiệu đã phát lệnh đôn đốc nộp bài tập Google Classroom cho các lớp: ${targetClasses.map((c) => c.className).join(', ')}. Yêu cầu GVCN và GV bộ môn phối hợp liên hệ phụ huynh.`,
+        status: 'NEW',
+        resolved: false,
+        createdAt: now,
+        updatedAt: now
+      })
+      .onConflictDoUpdate({
+        target: alerts.id,
+        set: {
+          title: `Chỉ đạo BGH: Đôn đốc nộp bài tập số cho ${targetClasses.length} lớp học`,
+          updatedAt: now
+        }
+      });
 
     res.json({
       ok: true,
       message: `Đã gửi thông báo đôn đốc nộp bài tập thành công tới ${targetClasses.length} lớp học và Giáo viên Chủ nhiệm!`,
       nudgedCount: targetClasses.length,
-      timestamp: now
+      timestamp: now.toISOString()
     });
   })
 );
 
-// 6. [NÂNG CẤP] Chuẩn hóa sĩ số học sinh định mức theo lớp học THCS Giảng Võ (40-42 HS/lớp)
+// 9. Chuẩn hóa sĩ số học sinh định mức theo lớp học THCS Giảng Võ (40-44 HS/lớp)
 classesRouter.post(
   '/standardize-roster',
   firebaseAuth,
   requireCapability('VIEW_DASHBOARD'),
   asyncRoute(async (_req, res) => {
-    const all = await getEnrichedClasses('all');
+    const all = await db.select().from(classes);
     let updatedCount = 0;
 
     for (const cls of all) {
-      const standardSize = 40 + (Math.abs(cls.classId?.charCodeAt(0) || 0) % 5); // 40-44 HS
-      await col('classes').doc(cls.classId || cls.id).set(
-        {
+      const standardSize = 40 + (Math.abs(cls.classId?.charCodeAt(0) || 0) % 5);
+      await db
+        .update(classes)
+        .set({
           expectedStudents: standardSize,
-          updatedAt: new Date().toISOString()
-        },
-        { merge: true }
-      );
+          updatedAt: new Date()
+        })
+        .where(eq(classes.classId, cls.classId));
       updatedCount++;
     }
 
@@ -373,54 +494,40 @@ classesRouter.post(
   })
 );
 
-// 7. [NÂNG CẤP ĐÁNH GIÁ] Xử lý Chấm Điểm & Trả Bài Nhanh (Fast Grading & SLA Resolver)
+// 10. Chấm điểm & trả bài nhanh cho bài nộp chưa có điểm
 classesRouter.post(
   '/grade-pending',
   firebaseAuth,
   requireCapability('VIEW_DASHBOARD'),
   asyncRoute(async (_req, res) => {
-    const coursesSnap = await col('courses').get();
+    const pendingSubs = await db
+      .select()
+      .from(courseSubmissions)
+      .where(and(eq(courseSubmissions.isTurnedIn, true), eq(courseSubmissions.isGraded, false)));
+
     let gradedCount = 0;
-
-    for (const courseDoc of coursesSnap.docs) {
-      const subSnap = await col('courses').doc(courseDoc.id).collection('submissions').get().catch(() => ({ docs: [] } as any));
-      for (const subDoc of subSnap.docs) {
-        const subData = subDoc.data();
-        if (subData.assignedGrade == null) {
-          await col('courses').doc(courseDoc.id).collection('submissions').doc(subDoc.id).set({
-            assignedGrade: 9.0,
-            state: 'RETURNED',
-            gradedAt: new Date().toISOString(),
-            teacherNotes: 'Bài làm xuất sắc, lập luận chặt chẽ và nộp bài đúng hạn. Điểm số đã đồng bộ vào Bảng điểm ĐGTX 1.'
-          }, { merge: true });
-          gradedCount++;
-        }
-      }
-
-      // Cập nhật điểm trung bình của khóa học
-      await col('courses').doc(courseDoc.id).set({
-        content: {
-          averageScore: 9.0,
-          submissionsTurnedIn: 1,
-          completionRate: 20.0
-        }
-      }, { merge: true });
+    for (const sub of pendingSubs) {
+      await db
+        .update(courseSubmissions)
+        .set({
+          isGraded: true,
+          updatedAt: new Date()
+        })
+        .where(eq(courseSubmissions.id, sub.id));
+      gradedCount++;
     }
 
-    // Cập nhật CSDL phân hệ phân tích
-    const { rebuildDashboard } = await import('../dashboard/dashboard.service.js');
     await rebuildDashboard().catch(() => null);
 
     res.json({
       ok: true,
-      message: `Đã hoàn thành chấm điểm và trả lời nhận xét cho ${Math.max(1, gradedCount)} bài tập nộp tồn đọng! Bảng điểm 360° đã cập nhật ĐGTX 1: 9.0 điểm.`,
-      gradedCount: Math.max(1, gradedCount),
-      score: 9.0
+      message: `Đã hoàn thành xử lý chấm điểm nhanh cho ${gradedCount} bài nộp tồn đọng!`,
+      gradedCount
     });
   })
 );
 
-// 8. [NÂNG CẤP ĐÁNH GIÁ] Mẫu Tin Nhắn Đôn Đốc Phụ Huynh Học Sinh (Zalo / SMS Template)
+// 11. Mẫu tin nhắn đôn đốc phụ huynh học sinh (Zalo / SMS Template)
 classesRouter.get(
   '/parent-nudge',
   firebaseAuth,
@@ -428,7 +535,7 @@ classesRouter.get(
   asyncRoute(async (req, res) => {
     const classId = String(req.query.classId || '12A1');
     const all = await getEnrichedClasses('all');
-    const cls = all.find(c => c.classId === classId || c.id === classId) || all[0];
+    const cls = all.find((c) => c.classId === classId || c.id === classId) || all[0];
 
     const teacherName = cls?.homeroomTeacher || 'Thầy Nguyễn Văn Đức';
     const className = cls?.className || 'Lớp 12A1';
@@ -458,55 +565,51 @@ Trân trọng cảm ơn sự đồng hành quý báu của Quý Phụ huynh vì 
   })
 );
 
-// 9. Đồng bộ số liệu thực tế 100% từ Google Classroom (Single Source of Truth, không tự seed)
+// 12. Đồng bộ số liệu thực tế từ Google Classroom sang Postgres và tổng hợp lớp học
 classesRouter.post(
   '/sync-metrics',
   firebaseAuth,
   requireCapability('VIEW_DASHBOARD'),
   asyncRoute(async (_req, res) => {
-    const coursesSnap = await col('courses').get();
+    const allCourses = await db.select().from(courses);
     let updated = 0;
 
-    for (const doc of coursesSnap.docs) {
-      const id = doc.id;
-      const membersSnap = await col('courses').doc(id).collection('members').get().catch(() => ({ docs: [] }));
-      const cwSnap = await col('courses').doc(id).collection('coursework').get().catch(() => ({ docs: [] }));
-      const subsSnap = await col('courses').doc(id).collection('submissions').get().catch(() => ({ docs: [] }));
+    for (const c of allCourses) {
+      const [members, cwList, subList] = await Promise.all([
+        db.select().from(courseMembers).where(eq(courseMembers.courseId, c.id)),
+        db.select().from(courseCoursework).where(eq(courseCoursework.courseId, c.id)),
+        db.select().from(courseSubmissions).where(eq(courseSubmissions.courseId, c.id))
+      ]);
 
-      const students = membersSnap.docs.filter((d: any) => d.data().role === 'STUDENT').length;
-      const teachers = membersSnap.docs.filter((d: any) => d.data().role === 'TEACHER').length;
-      const cwCount = cwSnap.docs.length;
-      const subTotal = subsSnap.docs.length;
-      const turnedIn = subsSnap.docs.filter((d: any) => d.data().state === 'TURNED_IN' || d.data().state === 'RETURNED').length;
-      const graded = subsSnap.docs.filter((d: any) => d.data().assignedGrade != null).length;
-      const late = subsSnap.docs.filter((d: any) => d.data().late === true).length;
-      const scores = subsSnap.docs.map((d: any) => d.data().assignedGrade).filter((g: any) => typeof g === 'number');
-      const avgScore = scores.length ? Math.round((scores.reduce((a: number, b: number) => a + b, 0) / scores.length) * 10) / 10 : null;
-      const compRate = subTotal > 0 ? Math.round((turnedIn / subTotal) * 1000) / 10 : 0;
-      const onTimeRate = turnedIn > 0 ? Math.round(((turnedIn - late) / turnedIn) * 1000) / 10 : 100;
+      const students = members.filter((m) => m.role === 'STUDENT').length;
+      const teachers = members.filter((m) => m.role === 'TEACHER').length;
+      const cwCount = cwList.length;
+      const subTotal = subList.length;
+      const turnedIn = subList.filter((s) => s.isTurnedIn).length;
+      const graded = subList.filter((s) => s.isGraded).length;
+      const late = subList.filter((s) => s.isLate && s.isTurnedIn).length;
+      const compRate = subTotal > 0 ? Math.round((turnedIn / subTotal) * 1000) / 10 : null;
+      const onTimeRate = turnedIn > 0 ? Math.round(((turnedIn - late) / turnedIn) * 1000) / 10 : null;
 
-      await col('courses').doc(id).set({
-        content: {
-          coursework: cwCount,
+      await db
+        .update(courses)
+        .set({
+          rosterStudents: students,
+          rosterTeachers: teachers,
+          contentCoursework: cwCount,
           submissionsTotal: subTotal,
           submissionsTurnedIn: turnedIn,
           submissionsGraded: graded,
           submissionsLate: late,
-          completionRate: compRate,
-          onTimeRate: onTimeRate,
-          averageScore: avgScore,
-          status: 'COMPLETE'
-        },
-        roster: {
-          students,
-          teachers,
-          status: 'COMPLETE'
-        }
-      }, { merge: true });
+          completionRate: compRate != null ? String(compRate) : null,
+          onTimeRate: onTimeRate != null ? String(onTimeRate) : null,
+          updatedAt: new Date()
+        })
+        .where(eq(courses.id, c.id));
       updated++;
     }
 
-    const { rebuildDashboard } = await import('../dashboard/dashboard.service.js');
+    await rebuildClassesFromCourses().catch(() => null);
     await rebuildDashboard().catch(() => null);
 
     res.json({

@@ -70,7 +70,6 @@ async function getEffectiveOAuthConfig() {
   return { clientId, clientSecret, redirectUri, isConfigured };
 }
 
->>>>>>> bb8dba3b6000292e0396d8950909a72864ecba4e
 // Kiểm tra trạng thái kết nối
 connectionsRouter.get(
   '/status',
