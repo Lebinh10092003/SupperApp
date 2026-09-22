@@ -27,6 +27,8 @@ import SyncAltIcon from '@mui/icons-material/SyncAltRounded';
 import PriorityHighIcon from '@mui/icons-material/PriorityHighRounded';
 import RestartAltIcon from '@mui/icons-material/RestartAltRounded';
 import PersonAddAlt1Icon from '@mui/icons-material/PersonAddAlt1Rounded';
+import GroupAddIcon from '@mui/icons-material/GroupAddRounded';
+import HowToRegIcon from '@mui/icons-material/HowToRegRounded';
 import EditIcon from '@mui/icons-material/EditRounded';
 
 import { PageHeader } from '../../components/PageHeader';
@@ -39,8 +41,10 @@ import { ChangeStatusDialog, type ChangeStatusTarget } from './dialogs/ChangeSta
 import { ChangePriorityDialog, type ChangePriorityTarget } from './dialogs/ChangePriorityDialog';
 import { ReopenIncidentDialog, type ReopenIncidentTarget } from './dialogs/ReopenIncidentDialog';
 import { AssignCommanderDialog, type AssignCommanderTarget } from './dialogs/AssignCommanderDialog';
+import { AddParticipantDialog, type AddParticipantTarget } from './dialogs/AddParticipantDialog';
 import { CorrectClassificationDialog, type CorrectClassificationTarget } from './dialogs/CorrectClassificationDialog';
 import { CAMPUS_LABEL, SLA_CLOCK_LABEL, SLA_STATUS_LABEL } from './constants';
+import { useActor } from './hooks/useActor';
 
 interface EvidenceSummary {
   evidenceId: string;
@@ -61,6 +65,8 @@ interface IncidentDetail {
   className?: string | null;
   commanderPerId?: string | null;
   commanderName?: string | null;
+  participantPerIds?: string[];
+  participantLabels?: Record<string, string>;
   lastNote?: string | null;
   reopenReason?: string | null;
   canViewEvidence?: boolean;
@@ -84,6 +90,7 @@ function formatDateTime(iso?: string) {
 export default function IncidentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { actor } = useActor();
   const [incident, setIncident] = useState<IncidentDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -94,6 +101,8 @@ export default function IncidentDetailPage() {
   const [reopenTarget, setReopenTarget] = useState<ReopenIncidentTarget | null>(null);
   const [classificationTarget, setClassificationTarget] = useState<CorrectClassificationTarget | null>(null);
   const [commanderTarget, setCommanderTarget] = useState<AssignCommanderTarget | null>(null);
+  const [addParticipantTarget, setAddParticipantTarget] = useState<AddParticipantTarget | null>(null);
+  const [acknowledging, setAcknowledging] = useState(false);
 
   const load = () => {
     if (!id) return;
@@ -110,6 +119,20 @@ export default function IncidentDetailPage() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  const handleAcknowledge = async () => {
+    if (!incident) return;
+    setAcknowledging(true);
+    try {
+      await api.post<{ incidentId: string; commanderPerId: string }>(`/api/safety/incidents/${incident.incidentId}/acknowledge`, {});
+      load();
+      setToast({ message: 'Bạn đã tiếp nhận xử lý hồ sơ này — trở thành chỉ huy sự vụ.', severity: 'success' });
+    } catch (e: any) {
+      setToast({ message: e.message, severity: 'error' });
+    } finally {
+      setAcknowledging(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -181,8 +204,14 @@ export default function IncidentDetailPage() {
                   </Typography>
                 )}
                 <Typography variant="body2">
-                  Chỉ huy: <strong>{incident.commanderName || 'Chưa chỉ định'}</strong>
+                  Chỉ huy: <strong>{incident.commanderName || 'Chưa có ai tiếp nhận'}</strong>
                 </Typography>
+                {incident.participantPerIds && incident.participantPerIds.length > 0 && (
+                  <Typography variant="body2">
+                    Người tham gia xử lý khác:{' '}
+                    <strong>{incident.participantPerIds.map((p) => incident.participantLabels?.[p] || p).join(', ')}</strong>
+                  </Typography>
+                )}
                 {incident.lastNote && <Typography variant="body2">Ghi chú gần nhất: {incident.lastNote}</Typography>}
                 {incident.reopenReason && <Typography variant="body2">Lý do mở lại: {incident.reopenReason}</Typography>}
                 <Typography variant="caption" color="text.secondary">
@@ -221,6 +250,27 @@ export default function IncidentDetailPage() {
       <Divider sx={{ my: 3 }} />
 
       <Stack direction="row" spacing={1.5} sx={{ flexWrap: 'wrap' }}>
+        {!incident.redacted && !incident.commanderPerId && (
+          <Button
+            variant="contained"
+            startIcon={<HowToRegIcon />}
+            onClick={handleAcknowledge}
+            disabled={acknowledging}
+            sx={{ bgcolor: '#16a34a', '&:hover': { bgcolor: '#15803d' }, textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
+          >
+            {acknowledging ? 'Đang tiếp nhận...' : 'Tiếp nhận xử lý'}
+          </Button>
+        )}
+        {!incident.redacted && actor?.perId && incident.commanderPerId === actor.perId && (
+          <Button
+            variant="outlined"
+            startIcon={<GroupAddIcon />}
+            onClick={() => setAddParticipantTarget({ incidentId: incident.incidentId })}
+            sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
+          >
+            Thêm người xử lý
+          </Button>
+        )}
         <Button
           variant="outlined"
           startIcon={<SyncAltIcon />}
@@ -302,6 +352,14 @@ export default function IncidentDetailPage() {
         onChanged={(result) => {
           load();
           setToast({ message: `Đã chỉ định chỉ huy: ${result.commanderName}.`, severity: 'success' });
+        }}
+      />
+      <AddParticipantDialog
+        target={addParticipantTarget}
+        onClose={() => setAddParticipantTarget(null)}
+        onChanged={(result) => {
+          load();
+          setToast({ message: `Đã thêm ${result.personName} cùng tham gia xử lý.`, severity: 'success' });
         }}
       />
       <CorrectClassificationDialog

@@ -45,6 +45,8 @@ import {
   confirmIncidentCloseByReporter,
   reopenIncident,
   assignCommander,
+  acknowledgeIncident,
+  addIncidentParticipant,
   updateIncidentClassification
 } from './incident-lifecycle.js';
 import { makeDispatchHook, makeBellHook, makeNotifyReporterHook } from './notify-hooks.js';
@@ -265,6 +267,37 @@ safetyRouter.post(
       { actor, incidentId: String(req.params.id), commanderPerId: d.commanderPerId, reason: d.reason },
       { approvedBy: d.approvedBy, dispatch, pushBell, extraRecipients, now }
     );
+    res.json(row);
+  })
+);
+
+// Tự tiếp nhận — Sin chốt 2026-09-22: ai bấm sẽ TỰ trở thành chỉ huy, không
+// qua matrix `incident.assign_commander` (chỉ Hiệu trưởng/Phó HT) vì đây là
+// hành động tự nhận trách nhiệm, không phải chỉ định người khác. Xem
+// `acknowledgeIncident` (incident-lifecycle.ts) cho phần phân quyền thật.
+safetyRouter.post(
+  '/incidents/:id/acknowledge',
+  firebaseAuth,
+  withAppError(async (req, res) => {
+    const actor = await loadActorContext(db, req.appUser!.uid);
+    const [incident] = await db.select().from(incidents).where(eq(incidents.incidentId, String(req.params.id))).limit(1);
+    const now = new Date();
+    const extraRecipients = incident ? await findLeadershipForCampus(db, incident.campusId, { now }) : [];
+    const row = await acknowledgeIncident(db, { actor, incidentId: String(req.params.id) }, { dispatch, pushBell, extraRecipients, now });
+    res.json(row);
+  })
+);
+
+// Chỉ huy hồ sơ thêm người cùng xử lý — xem `addIncidentParticipant`
+// (incident-lifecycle.ts). Route chỉ chuyển tiếp, phân quyền thật ở đó
+// (chỉ chính người chỉ huy hiện tại mới gọi được).
+safetyRouter.post(
+  '/incidents/:id/participants',
+  firebaseAuth,
+  withAppError(async (req, res) => {
+    const actor = await loadActorContext(db, req.appUser!.uid);
+    const d = req.body || {};
+    const row = await addIncidentParticipant(db, { actor, incidentId: String(req.params.id), perId: d.perId }, { dispatch, pushBell, now: new Date() });
     res.json(row);
   })
 );

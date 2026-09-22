@@ -46,7 +46,7 @@ import { markNotificationRead } from './admin-notify.js';
 import { registerPushToken, unregisterPushToken } from './push-notify.js';
 import { acknowledge } from './notify.js';
 import { getDisplayNamesByPerIds } from './people-search.js';
-import { getPersonSummariesByPerIds, formatPersonLabel } from '../identity/person-directory.js';
+import { getPersonSummariesByPerIds, formatPersonLabel, getPersonLabelsByPerIds } from '../identity/person-directory.js';
 import { filterReportItems, filterIncidentItems, sortReportItemsDefault } from './report-filters.js';
 import { resolveClassRelatedPeople } from './report-flow.js';
 
@@ -395,6 +395,17 @@ safetyQueryRouter.get(
       commanderName = map[incident.commanderPerId] ?? null;
     }
 
+    // "Người đang tiếp nhận" — Sin chốt 2026-09-22: chi tiết hồ sơ phải hiện
+    // danh sách chỉ huy + người tham gia khác (nếu có). Loại chỉ huy ra khỏi
+    // danh sách "người tham gia khác" để không hiện trùng 2 lần.
+    let participantPerIds: string[] = [];
+    let participantLabels: Record<string, string> = {};
+    if (!isRedacted) {
+      const allHandlerPerIds = Array.from(new Set([incident.commanderPerId, ...(incident.assignedTaskPerIds || [])].filter((v): v is string => !!v)));
+      participantPerIds = (incident.assignedTaskPerIds || []).filter((p) => p !== incident.commanderPerId);
+      participantLabels = await getPersonLabelsByPerIds(db, allHandlerPerIds);
+    }
+
     let homeroomConfigured: boolean | null = null;
     let gradeSupervisorConfigured: boolean | null = null;
     if (!isRedacted && incident.className) {
@@ -414,6 +425,8 @@ safetyQueryRouter.get(
       categoryLabel: isRedacted ? null : CATEGORY_CATALOG[incident.categoryCode]?.label || incident.categoryCode,
       slaClocks: slaClockMap,
       commanderName,
+      participantPerIds,
+      participantLabels,
       homeroomConfigured,
       gradeSupervisorConfigured
     });

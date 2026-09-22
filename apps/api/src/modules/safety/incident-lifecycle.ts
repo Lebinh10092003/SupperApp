@@ -445,6 +445,146 @@ export async function assignCommander(
 }
 
 // ---------------------------------------------------------------------------
+// Tự tiếp nhận — bổ sung 2026-09-22, Sin chốt cách "Xác nhận tiếp nhận" phải
+// hoạt động: ai bấm tiếp nhận sẽ TỰ trở thành chỉ huy (không cần Hiệu
+// trưởng/Phó HT chỉ định qua assignCommander ở trên — khác hẳn về phân
+// quyền: đây là hành động TỰ NHẬN, không phải CHỈ ĐỊNH người khác, nên
+// KHÔNG dùng lại `incident.assign_commander` — matrix đó chỉ cấp
+// Hiệu trưởng/Phó HT). Điều kiện duy nhất: actor phải xem được ĐẦY ĐỦ hồ sơ
+// (không bị redact theo trần bí mật — nếu chỉ thấy bản rút gọn thì không đủ
+// cơ sở để nhận trách nhiệm chỉ huy) và hồ sơ CHƯA có chỉ huy (người đến
+// trước được tiếp nhận — người đến sau thấy đã có chỉ huy thì không cần
+// bấm nữa, đúng yêu cầu "để biết được sự vụ đang có người xử lý thì những
+// người liên quan thấy được mà không cần phải nhận nữa").
+// ---------------------------------------------------------------------------
+
+export async function acknowledgeIncident(db: Db, input: { actor: Actor; incidentId: string }, opts?: SafetyOpts): Promise<{ incidentId: string; commanderPerId: string }> {
+  const now = opts?.now || new Date();
+  if (!input.actor.perId) throw new AppError('forbidden', 'Tài khoản chưa được gắn với hồ sơ nhân sự (perId) nào.');
+  const incident = await loadIncident(db, input.incidentId);
+
+  const viewAction = catalog.VIEW_ACTION_BY_CONFIDENTIALITY[incident.confidentiality] || 'incident.view_c1_c2';
+  const decision = checkAuthorization({
+    actor: input.actor,
+    action: viewAction,
+    resource: { campusId: incident.campusId, confidentiality: incident.confidentiality }
+  });
+  if (!decision.allowed || decision.conditions.includes('redacted')) {
+    throw new AppError('forbidden', 'Bạn không đủ quyền xem đầy đủ hồ sơ này để tiếp nhận xử lý.');
+  }
+  if (incident.commanderPerId) {
+    throw new AppError(
+      'already_acknowledged',
+      incident.commanderPerId === input.actor.perId ? 'Bạn đã là người tiếp nhận hồ sơ này.' : 'Hồ sơ đã có người khác tiếp nhận xử lý.'
+    );
+  }
+
+  const assignedTaskPerIds = adminArrayUnion(incident.assignedTaskPerIds, input.actor.perId);
+  await db
+    .update(incidents)
+    .set({ commanderPerId: input.actor.perId, assignedTaskPerIds, version: incident.version + 1, updatedAt: now })
+    .where(eq(incidents.incidentId, input.incidentId));
+
+  // Đồng hồ SLA "ack" coi như đã hoàn thành ngay khi có người tiếp nhận —
+  // tránh job check-sla-overdue.ts tiếp tục báo quá hạn cho việc đã xong.
+  const ackClock = await loadSlaClock(db, input.incidentId, 'ack');
+  if (ackClock && ackClock.status !== 'met') {
+    await saveSlaClock(db, { ...ackClock, status: 'met' });
+  }
+
+  await writeAuditLog(
+    db,
+    buildAuditRecord({
+      actorPerId: input.actor.perId,
+      action: 'incident.acknowledged',
+      objectId: input.incidentId,
+      before: { commander_per_id: null },
+      after: { commander_per_id: input.actor.perId },
+      now
+    })
+  );
+
+  if (opts?.pushBell) {
+    const bellRecipients = Array.from(new Set([...(incident.assignedTaskPerIds || []), input.actor.perId, ...(opts.extraRecipients || [])].filter(Boolean) as string[]));
+    await opts.pushBell(
+      db,
+      {
+        recipients: bellRecipients,
+        title: 'Đã có người tiếp nhận xử lý ' + input.incidentId,
+        message: input.incidentId + ': ' + input.actor.perId + ' đã tiếp nhận, giữ vai trò chỉ huy sự vụ.',
+        eventType: 'safety.incident.acknowledged',
+        objectId: input.incidentId,
+        actorPerId: input.actor.perId,
+        meta: { commander_per_id: input.actor.perId, campus_id: incident.campusId }
+      },
+      { now }
+    );
+  }
+
+  return { incidentId: input.incidentId, commanderPerId: input.actor.perId };
+}
+
+// ---------------------------------------------------------------------------
+// Chỉ huy hồ sơ thêm người cùng xử lý — bổ sung 2026-09-22, "sự vụ có thể có
+// nhiều người cùng xử lý thì người chỉ huy có thể thêm những người xử lý vào
+// được". Tái dùng thẳng `assignedTaskPerIds` (đã dùng để cấp bypassCeiling
+// xem hồ sơ cho người được giao việc) làm danh sách "người tham gia xử lý"
+// — KHÔNG tạo cột riêng, tránh 2 khái niệm chồng chéo (người tự động gắn
+// theo lớp qua resolveClassRelatedPeople cũng nằm chung mảng này, hợp lý vì
+// cả hai đều là "người đang xử lý hồ sơ", chỉ khác nguồn gán tự động/tay).
+// Chỉ CHÍNH người chỉ huy hiện tại mới được thêm — không phải ai xem được
+// hồ sơ cũng thêm được người khác vào.
+// ---------------------------------------------------------------------------
+
+export async function addIncidentParticipant(
+  db: Db,
+  input: { actor: Actor; incidentId: string; perId: string },
+  opts?: SafetyOpts
+): Promise<{ incidentId: string; assignedTaskPerIds: string[] }> {
+  const now = opts?.now || new Date();
+  if (!input.perId) throw new AppError('invalid_input', 'Thiếu người được thêm vào xử lý.');
+  const incident = await loadIncident(db, input.incidentId);
+
+  if (!incident.commanderPerId || incident.commanderPerId !== input.actor.perId) {
+    throw new AppError('forbidden', 'Chỉ người chỉ huy hồ sơ mới được thêm người tham gia xử lý.');
+  }
+
+  const before = incident.assignedTaskPerIds || [];
+  const assignedTaskPerIds = adminArrayUnion(before, input.perId);
+  await db.update(incidents).set({ assignedTaskPerIds, version: incident.version + 1, updatedAt: now }).where(eq(incidents.incidentId, input.incidentId));
+
+  await writeAuditLog(
+    db,
+    buildAuditRecord({
+      actorPerId: input.actor.perId!,
+      action: 'incident.participant_added',
+      objectId: input.incidentId,
+      before: { assigned_task_per_ids: before },
+      after: { assigned_task_per_ids: assignedTaskPerIds },
+      now
+    })
+  );
+
+  if (opts?.pushBell) {
+    await opts.pushBell(
+      db,
+      {
+        recipients: [input.perId],
+        title: 'Bạn được thêm vào xử lý sự vụ ' + input.incidentId,
+        message: input.incidentId + ': ' + input.actor.perId + ' đã thêm bạn cùng tham gia xử lý.',
+        eventType: 'safety.incident.participant_added',
+        objectId: input.incidentId,
+        actorPerId: input.actor.perId,
+        meta: { added_per_id: input.perId, campus_id: incident.campusId }
+      },
+      { now }
+    );
+  }
+
+  return { incidentId: input.incidentId, assignedTaskPerIds };
+}
+
+// ---------------------------------------------------------------------------
 // Sửa tay lớp gợi ý cho 1 hồ sơ ĐÃ TẠO.
 // ---------------------------------------------------------------------------
 

@@ -4,6 +4,7 @@ import {
   Alert,
   Box,
   Button,
+  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -230,7 +231,7 @@ export default function IncidentsListPage() {
                 </TableSortLabel>
               </TableCell>
               <TableCell>Bí mật</TableCell>
-              <TableCell>Chỉ huy</TableCell>
+              <TableCell>Tiếp nhận</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -256,7 +257,15 @@ export default function IncidentsListPage() {
                 <TableCell>
                   <ConfidentialityBadge confidentiality={it.confidentiality} redacted={it.redacted} />
                 </TableCell>
-                <TableCell>{it.redacted ? '—' : it.commanderName || '—'}</TableCell>
+                <TableCell>
+                  {it.redacted ? (
+                    '—'
+                  ) : it.commanderName ? (
+                    it.commanderName
+                  ) : (
+                    <Chip label="Chưa tiếp nhận" size="small" sx={{ bgcolor: '#fef3c7', color: '#92400e', fontWeight: 600 }} />
+                  )}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>

@@ -49,6 +49,8 @@ const ACTION_LABEL: Record<string, string> = {
   'config.homeroom_assignment_edited': 'Gán giáo viên chủ nhiệm',
   'evidence.download_url_issued': 'Cấp link tải minh chứng',
   'evidence.scan_infected_deleted': 'Xoá minh chứng nhiễm mã độc',
+  'incident.acknowledged': 'Tự tiếp nhận (trở thành chỉ huy)',
+  'incident.participant_added': 'Thêm người tham gia xử lý',
   'incident.assign_commander': 'Chỉ định chỉ huy hồ sơ',
   'incident.classification_corrected': 'Đã sửa phân loại hồ sơ',
   'incident.close': 'Đóng hồ sơ',

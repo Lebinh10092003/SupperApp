@@ -24,7 +24,16 @@ import { notifyRequests } from './dispatch.schema.js';
 import { assignments, dutyShifts, homeroomAssignments } from '../identity/identity.schema.js';
 import { ROLE, PRIORITY, STATE, REPORTER_CONFIRM_CLOSE_FALLBACK_DAYS } from './catalog.js';
 import type { Actor } from './authz.js';
-import { changeIncidentPriority, transitionIncidentStatus, confirmIncidentCloseByReporter, reopenIncident, assignCommander, updateIncidentClassification } from './incident-lifecycle.js';
+import {
+  changeIncidentPriority,
+  transitionIncidentStatus,
+  confirmIncidentCloseByReporter,
+  reopenIncident,
+  assignCommander,
+  acknowledgeIncident,
+  addIncidentParticipant,
+  updateIncidentClassification
+} from './incident-lifecycle.js';
 
 const skip = !process.env.DATABASE_URL;
 
@@ -344,6 +353,73 @@ test('assignCommander: hồ sơ không tồn tại -> not_found', { skip }, asyn
   const missingIncident = await throwsWithCode(() => assignCommander(db, { actor: principal(), incidentId: 'SC.KHONG_TON_TAI', commanderPerId: IL_DUTY_OFFICER, reason: 'thử' }, {}));
   assert.equal(missingIncident.threw, true);
   assert.equal(missingIncident.code, 'not_found');
+});
+
+// ---------------------------------------------------------------------
+// acknowledgeIncident / addIncidentParticipant — Sin chốt 2026-09-22: ai
+// bấm "Tiếp nhận" sẽ TỰ trở thành chỉ huy (khác assignCommander ở trên —
+// đó là CHỈ ĐỊNH người khác, chỉ Hiệu trưởng/Phó HT làm được).
+// ---------------------------------------------------------------------
+
+test('acknowledgeIncident: giáo viên khác cơ sở (không xem được đầy đủ) bị từ chối; trực ban đúng cơ sở tiếp nhận thành công; người sau không tiếp nhận được nữa', { skip }, async () => {
+  await resetTables();
+  const incidentId = await seedIncident({ priority: PRIORITY.P2 });
+
+  const teacherAck = await throwsWithCode(() => acknowledgeIncident(db, { actor: teacherOtherCampus(), incidentId }, {}));
+  assert.equal(teacherAck.threw, true);
+  assert.equal(teacherAck.code, 'forbidden');
+
+  const bellCalls: Record<string, unknown>[] = [];
+  const fakePushBell = async (_db: unknown, payload: Record<string, unknown>) => {
+    bellCalls.push(payload);
+  };
+  const acked = await acknowledgeIncident(db, { actor: dutyOfficer(IL_CAMPUS_ID), incidentId }, { pushBell: fakePushBell as never });
+  assert.equal(acked.commanderPerId, IL_DUTY_OFFICER);
+
+  const [incAfterAck] = await db.select().from(incidents).where(eq(incidents.incidentId, incidentId));
+  assert.equal(incAfterAck!.commanderPerId, IL_DUTY_OFFICER);
+  assert.ok(incAfterAck!.assignedTaskPerIds!.includes(IL_DUTY_OFFICER));
+
+  const ackAudit = await db.select().from(auditLogs).where(eq(auditLogs.action, 'incident.acknowledged'));
+  assert.equal(ackAudit.filter((r) => r.objectId === incidentId).length, 1);
+  assert.ok(bellCalls.some((b) => b.objectId === incidentId && b.eventType === 'safety.incident.acknowledged'));
+
+  // Người khác bấm tiếp nhận SAU khi đã có chỉ huy -> bị từ chối, không cướp mất chỉ huy đã có.
+  const secondAck = await throwsWithCode(() => acknowledgeIncident(db, { actor: vicePrincipal(IL_CAMPUS_ID), incidentId }, {}));
+  assert.equal(secondAck.threw, true);
+  assert.equal(secondAck.code, 'already_acknowledged');
+});
+
+test('addIncidentParticipant: chỉ chính người chỉ huy mới thêm được người tham gia; thêm thành công thì có mặt trong assignedTaskPerIds + audit + chuông báo người được thêm', { skip }, async () => {
+  await resetTables();
+  const incidentId = await seedIncident({ priority: PRIORITY.P2 });
+  await acknowledgeIncident(db, { actor: dutyOfficer(IL_CAMPUS_ID), incidentId }, {});
+
+  const notCommander = await throwsWithCode(() => addIncidentParticipant(db, { actor: principal(), incidentId, perId: IL_PRINCIPAL }, {}));
+  assert.equal(notCommander.threw, true);
+  assert.equal(notCommander.code, 'forbidden');
+
+  const bellCalls: Record<string, unknown>[] = [];
+  const fakePushBell = async (_db: unknown, payload: Record<string, unknown>) => {
+    bellCalls.push(payload);
+  };
+  const added = await addIncidentParticipant(
+    db,
+    { actor: dutyOfficer(IL_CAMPUS_ID), incidentId, perId: IL_PRINCIPAL },
+    { pushBell: fakePushBell as never }
+  );
+  assert.ok(added.assignedTaskPerIds.includes(IL_DUTY_OFFICER));
+  assert.ok(added.assignedTaskPerIds.includes(IL_PRINCIPAL));
+
+  const [incAfterAdd] = await db.select().from(incidents).where(eq(incidents.incidentId, incidentId));
+  assert.ok(incAfterAdd!.assignedTaskPerIds!.includes(IL_PRINCIPAL));
+
+  const participantAudit = await db.select().from(auditLogs).where(eq(auditLogs.action, 'incident.participant_added'));
+  assert.equal(participantAudit.filter((r) => r.objectId === incidentId).length, 1);
+
+  const bellToNewParticipant = bellCalls.find((b) => b.objectId === incidentId && b.eventType === 'safety.incident.participant_added');
+  assert.ok(bellToNewParticipant);
+  assert.ok((bellToNewParticipant!.recipients as string[]).includes(IL_PRINCIPAL));
 });
 
 // ---------------------------------------------------------------------
