@@ -16,19 +16,23 @@
  * `dispatchRequest` mà không qua `toDispatchRequestData()` bên dưới,
  * `dispatchRequest` sẽ throw "thiếu notify_request_id" ngay lập tức.
  *
- * `adapters` truyền vào ĐANG RỖNG (`{}`) — chưa có SMTP/SMS/voice/FCM thật
- * nào được cấu hình trong repo này (khác bản Firebase gốc dùng Ethereal +
- * admin.messaging()). `dispatchRequest` đã có sẵn nhánh `no_adapter_
- * configured` cho từng kênh/người khi thiếu adapter — KHÔNG throw, chỉ ghi
- * log — nên hệ thống vẫn chạy đúng, chỉ là chưa gửi được ra ngoài thật.
- * Nối SMTP/SMS thật là việc hạ tầng/vận hành riêng, chưa nằm trong phạm vi
- * port logic của Hestia/Killshot.
+ * Sin chốt 2026-09-24: đã nối kênh EMAIL thật đầu tiên qua Ethereal (xem
+ * `email-adapter.ts`) — kênh "email" giờ gửi thật (tới hộp thư test
+ * Ethereal, xem qua link preview), áp dụng cho MỌI người nhận (participant/
+ * chỉ huy/cấp cao qua `dispatchRequest`, và người báo tin qua
+ * `notifyReporterFor*`). SMS/voice_call/push VẪN CHƯA có adapter thật —
+ * `dispatchRequest` đã có sẵn nhánh `no_adapter_configured` cho từng
+ * kênh/người khi thiếu adapter — KHÔNG throw, chỉ ghi log — nên hệ thống
+ * vẫn chạy đúng, chỉ 3 kênh đó là chưa gửi được ra ngoài thật. Nối SMS/FCM
+ * thật là việc hạ tầng/vận hành riêng (cần tài khoản dịch vụ thật), chưa
+ * nằm trong phạm vi port logic của Hestia/Killshot.
  */
 
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { dispatchRequest, type RequestData, type DispatchAdapter } from './dispatch.js';
 import { pushAdminNotifications, type PushAdminNotificationsInput } from './admin-notify.js';
 import { notifyReporterForReport, notifyReporterForIncident } from './reporter-notify.js';
+import { etherealEmailAdapter } from './email-adapter.js';
 import type { notifyRequests } from './dispatch.schema.js';
 
 type Db = NodePgDatabase<Record<string, never>>;
@@ -47,8 +51,8 @@ function toDispatchRequestData(row: NotifyRequestRow): RequestData {
   };
 }
 
-/** Chưa có adapter thật nào (SMTP/SMS/voice/FCM) — `dispatchRequest` tự xử lý đúng nhánh "no_adapter_configured" cho từng kênh, không throw. */
-const ADAPTERS: Partial<Record<string, DispatchAdapter>> = {};
+/** "email" đã có adapter thật (Ethereal). SMS/voice_call/push chưa — `dispatchRequest` tự xử lý đúng nhánh "no_adapter_configured" cho từng kênh còn thiếu, không throw. */
+const ADAPTERS: Partial<Record<string, DispatchAdapter>> = { email: etherealEmailAdapter };
 
 export function makeDispatchHook() {
   return async (db: Db, request: unknown, opts?: { now?: Date }) => {
@@ -72,19 +76,15 @@ export function makeBellHook() {
   };
 }
 
-/**
- * Chưa có adapter email thật (SMTP/Ethereal) — `notifyReporterFor*` tự trả
- * `{ sent: false, reason: 'no_adapter_configured' }` khi thiếu, không throw.
- */
 export function makeNotifyReporterHook() {
   return async (db: Db, input: { reportId?: string; incidentId?: string; eventType: string }, opts?: { now?: Date }) => {
     try {
       const now = opts?.now ?? new Date();
       if (input.reportId) {
-        return await notifyReporterForReport(db, { reportId: input.reportId, eventType: input.eventType }, { now });
+        return await notifyReporterForReport(db, { reportId: input.reportId, eventType: input.eventType }, { now, emailAdapter: etherealEmailAdapter });
       }
       if (input.incidentId) {
-        return await notifyReporterForIncident(db, { incidentId: input.incidentId, eventType: input.eventType }, { now });
+        return await notifyReporterForIncident(db, { incidentId: input.incidentId, eventType: input.eventType }, { now, emailAdapter: etherealEmailAdapter });
       }
       return undefined;
     } catch (e) {
