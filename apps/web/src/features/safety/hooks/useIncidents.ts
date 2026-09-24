@@ -43,6 +43,7 @@ export interface IncidentListItem {
   contentPreview?: string | null;
   commanderPerId?: string | null;
   commanderName?: string | null;
+  assignedTaskPerIds?: string[] | null;
   slaClocks?: Record<string, IncidentSlaClock> | null;
   updatedAt?: string;
   createdAt?: string;

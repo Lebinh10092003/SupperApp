@@ -6,6 +6,7 @@ import ListAltIcon from '@mui/icons-material/ListAltRounded';
 import WarningAmberIcon from '@mui/icons-material/WarningAmberRounded';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
+import { MyIncidentsSection } from './components/MyIncidentsSection';
 
 interface IncidentStats {
   scope: string;
@@ -87,6 +88,8 @@ export default function SafetyDashboardPage() {
           </Card>
         </Grid>
       </Grid>
+
+      <MyIncidentsSection />
 
       <Box sx={{ mt: 3 }}>
         <Button variant="outlined" onClick={() => window.open('/safety/report', '_blank')}>
