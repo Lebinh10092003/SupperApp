@@ -16,16 +16,15 @@
  * `dispatchRequest` mà không qua `toDispatchRequestData()` bên dưới,
  * `dispatchRequest` sẽ throw "thiếu notify_request_id" ngay lập tức.
  *
- * Sin chốt 2026-09-24: đã nối kênh EMAIL thật đầu tiên qua Ethereal (xem
- * `email-adapter.ts`) — kênh "email" giờ gửi thật (tới hộp thư test
- * Ethereal, xem qua link preview), áp dụng cho MỌI người nhận (participant/
- * chỉ huy/cấp cao qua `dispatchRequest`, và người báo tin qua
- * `notifyReporterFor*`). SMS/voice_call/push VẪN CHƯA có adapter thật —
- * `dispatchRequest` đã có sẵn nhánh `no_adapter_configured` cho từng
- * kênh/người khi thiếu adapter — KHÔNG throw, chỉ ghi log — nên hệ thống
- * vẫn chạy đúng, chỉ 3 kênh đó là chưa gửi được ra ngoài thật. Nối SMS/FCM
- * thật là việc hạ tầng/vận hành riêng (cần tài khoản dịch vụ thật), chưa
- * nằm trong phạm vi port logic của Hestia/Killshot.
+ * Sin chốt 2026-09-24: đã nối 2 kênh thật — EMAIL qua Ethereal
+ * (`email-adapter.ts`, tới hộp thư test, xem qua link preview) và PUSH qua
+ * Web Push chuẩn RFC 8030 (`push-adapter.ts`, KHÔNG cần Firebase Cloud
+ * Messaging), áp dụng cho MỌI người nhận (participant/chỉ huy/cấp cao qua
+ * `dispatchRequest`, và người báo tin qua `notifyReporterFor*` — riêng
+ * kênh push của reporter-notify không áp dụng, người báo tin ẩn danh
+ * không có push token). SMS/voice_call KHÔNG dùng (Sin chốt: chỉ cần
+ * email + push) — `dispatchRequest` đã có sẵn nhánh `no_adapter_configured`
+ * cho 2 kênh này, không throw, hệ thống vẫn chạy đúng.
  */
 
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
@@ -33,6 +32,7 @@ import { dispatchRequest, type RequestData, type DispatchAdapter } from './dispa
 import { pushAdminNotifications, type PushAdminNotificationsInput } from './admin-notify.js';
 import { notifyReporterForReport, notifyReporterForIncident } from './reporter-notify.js';
 import { etherealEmailAdapter } from './email-adapter.js';
+import { webPushAdapter } from './push-adapter.js';
 import type { notifyRequests } from './dispatch.schema.js';
 
 type Db = NodePgDatabase<Record<string, never>>;
@@ -51,8 +51,8 @@ function toDispatchRequestData(row: NotifyRequestRow): RequestData {
   };
 }
 
-/** "email" đã có adapter thật (Ethereal). SMS/voice_call/push chưa — `dispatchRequest` tự xử lý đúng nhánh "no_adapter_configured" cho từng kênh còn thiếu, không throw. */
-const ADAPTERS: Partial<Record<string, DispatchAdapter>> = { email: etherealEmailAdapter };
+/** "email" (Ethereal) + "push" (Web Push) đã có adapter thật. SMS/voice_call chưa (không cần theo Sin chốt 2026-09-24 — chỉ dùng email + push). */
+const ADAPTERS: Partial<Record<string, DispatchAdapter>> = { email: etherealEmailAdapter, push: webPushAdapter };
 
 export function makeDispatchHook() {
   return async (db: Db, request: unknown, opts?: { now?: Date }) => {

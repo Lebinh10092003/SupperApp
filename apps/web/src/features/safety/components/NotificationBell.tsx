@@ -6,10 +6,12 @@
  * 30 giây, khớp đúng hành vi bản gốc ghi trong CLAUDE.md dự án.
  */
 import { useEffect, useState } from 'react';
-import { Badge, Box, IconButton, Menu, MenuItem, Typography, Divider, CircularProgress } from '@mui/material';
+import { Badge, Box, IconButton, Menu, MenuItem, Typography, Divider, CircularProgress, Button, Alert } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import NotificationsRoundedIcon from '@mui/icons-material/NotificationsRounded';
+import NotificationsActiveRoundedIcon from '@mui/icons-material/NotificationsActiveRounded';
 import { api } from '../../../services/api';
+import { isPushSupported, getNotificationPermission, isPushSubscribedOnThisDevice, enablePushNotifications } from '../push-subscribe';
 
 interface AdminNotification {
   notificationId: string;
@@ -27,6 +29,32 @@ export function NotificationBell() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [loading, setLoading] = useState(false);
+  // Trạng thái thông báo đẩy CỦA CHÍNH THIẾT BỊ/TRÌNH DUYỆT này (bổ sung
+  // 2026-09-24) — không phải trạng thái tài khoản (1 người có thể bật trên
+  // điện thoại nhưng chưa bật trên máy tính, mỗi thiết bị đăng ký riêng).
+  const [pushSubscribed, setPushSubscribed] = useState(false);
+  const [pushEnabling, setPushEnabling] = useState(false);
+  const [pushError, setPushError] = useState('');
+
+  useEffect(() => {
+    isPushSubscribedOnThisDevice().then(setPushSubscribed);
+  }, []);
+
+  const handleEnablePush = async () => {
+    setPushEnabling(true);
+    setPushError('');
+    const result = await enablePushNotifications();
+    setPushEnabling(false);
+    if (result.ok) {
+      setPushSubscribed(true);
+    } else if (result.reason === 'permission_denied') {
+      setPushError('Trình duyệt đã bị chặn quyền thông báo — vào cài đặt trình duyệt để bật lại.');
+    } else if (result.reason === 'unsupported') {
+      setPushError('Trình duyệt này không hỗ trợ thông báo đẩy.');
+    } else {
+      setPushError('Không bật được thông báo đẩy, thử lại sau.');
+    }
+  };
 
   const load = () => {
     api
@@ -100,6 +128,26 @@ export function NotificationBell() {
             Thông báo
           </Typography>
         </Box>
+        {!pushSubscribed && isPushSupported() && getNotificationPermission() !== 'denied' && (
+          <Box sx={{ px: 2, pb: 1.25 }}>
+            <Button
+              size="small"
+              variant="outlined"
+              fullWidth
+              startIcon={<NotificationsActiveRoundedIcon sx={{ fontSize: 16 }} />}
+              disabled={pushEnabling}
+              onClick={handleEnablePush}
+              sx={{ textTransform: 'none', fontWeight: 600 }}
+            >
+              {pushEnabling ? 'Đang bật...' : 'Bật thông báo đẩy trên thiết bị này'}
+            </Button>
+            {pushError && (
+              <Alert severity="warning" sx={{ mt: 1, fontSize: '0.75rem', py: 0 }}>
+                {pushError}
+              </Alert>
+            )}
+          </Box>
+        )}
         <Divider />
         {loading && (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>

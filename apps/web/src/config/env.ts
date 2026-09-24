@@ -7,7 +7,9 @@ const schema = z.object({
   VITE_FIREBASE_APP_ID: z.string().optional().default(''),
   VITE_API_BASE_URL: z.string().optional().default(''),
   VITE_SCHOOL_ID: z.string().default('giang-vo'),
-  VITE_SCHOOL_NAME: z.string().default('Trường THCS Giảng Võ')
+  VITE_SCHOOL_NAME: z.string().default('Trường THCS Giảng Võ'),
+  // Web Push (RFC 8030), bổ sung 2026-09-24 — khớp đúng VAPID_PUBLIC_KEY bên apps/api/.env.
+  VITE_VAPID_PUBLIC_KEY: z.string().optional().default('')
 });
 
 export const env = schema.parse(import.meta.env || {});

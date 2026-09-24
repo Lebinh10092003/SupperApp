@@ -55,7 +55,15 @@ const schema = z.object({
   ALLOW_DEV_AUTH_BYPASS: z
     .string()
     .default('false')
-    .transform((v) => v.toLowerCase() === 'true')
+    .transform((v) => v.toLowerCase() === 'true'),
+
+  // Web Push (RFC 8030) — thông báo đẩy trình duyệt thật (Sin chốt
+  // 2026-09-24). Sinh bằng `npx web-push generate-vapid-keys`, KHÔNG cần
+  // Firebase Cloud Messaging. Rỗng = kênh "push" tự rơi vào
+  // no_adapter_configured (dispatch.ts đã xử lý đúng, không throw).
+  VAPID_PUBLIC_KEY: z.string().default(''),
+  VAPID_PRIVATE_KEY: z.string().default(''),
+  VAPID_SUBJECT: z.string().default('mailto:admin@thcs-giangvo.edu.vn')
 });
 
 export const env = schema.parse(process.env);
