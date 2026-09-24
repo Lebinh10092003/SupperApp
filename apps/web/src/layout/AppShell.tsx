@@ -269,10 +269,15 @@ const navGroups: NavGroup[] = [
     ]
   },
   // Nhóm liên quan Google Classroom — Sin yêu cầu 2026-09-21 chuyển xuống
-  // CUỐI sidebar, ưu tiên module An toàn + Lịch công tác lên trên.
+  // CUỐI sidebar, ưu tiên module An toàn + Lịch công tác lên trên. Mở lại
+  // cho tài khoản thường 2026-09-25 (Sin: "mai bàn giao luôn... đảm bảo
+  // module lớp học số phải sử dụng được") — dữ liệu thật đã xác minh hoạt
+  // động (29 khóa học, đồng bộ gần nhất thành công). Các trang CẤU HÌNH hệ
+  // thống (Kết nối/Chuẩn hóa/Nhật ký/Chất lượng dữ liệu, nhóm QUẢN TRỊ HỆ
+  // THỐNG) vẫn giữ adminOnly — đó là thao tác nhạy cảm (ngắt/nối lại đồng
+  // bộ toàn trường), khác với các trang XEM/DÙNG dữ liệu ở đây.
   {
     groupTitle: 'LỚP HỌC & HỌC SINH',
-    adminOnly: true,
     items: [
       { path: '/classroom', label: 'Google Classroom', icon: <ClassroomIcon fontSize="small" /> },
       { path: '/classroom/sync-runs', label: 'Phiên đồng bộ', icon: <HistoryIcon fontSize="small" /> },
