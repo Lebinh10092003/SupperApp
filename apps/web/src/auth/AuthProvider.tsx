@@ -13,6 +13,7 @@ import {
 } from 'firebase/auth';
 import { auth, googleProvider, hasValidFirebaseConfig } from '../config/firebase';
 import { api } from '../services/api';
+import { disablePushNotifications } from '../features/safety/push-subscribe';
 
 export type Profile = {
   uid: string;
@@ -90,6 +91,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = async () => {
+    // Huỷ đăng ký thông báo đẩy trên CHÍNH thiết bị này TRƯỚC khi đăng
+    // xuất — Sin phát hiện 2026-09-24: dùng chung 1 điện thoại cho nhiều
+    // tài khoản (đăng nhập Hiệu trưởng rồi đăng xuất, đăng nhập Bùi Lan
+    // Phương), Web Push subscription của trình duyệt KHÔNG tự đổi theo
+    // tài khoản đang đăng nhập — vẫn nhận thông báo đẩy gửi cho tài khoản
+    // CŨ vì subscription đó vẫn còn đăng ký trên server. Gọi lúc còn phiên
+    // hợp lệ (firebaseAuth cần bearer token thật) — best-effort, lỗi
+    // KHÔNG được chặn đăng xuất.
+    try {
+      await disablePushNotifications();
+    } catch {
+      // ignore — không chặn đăng xuất
+    }
     setProfile(null);
     setUser(null);
     if (hasValidFirebaseConfig) {

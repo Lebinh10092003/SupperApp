@@ -128,19 +128,37 @@ export function NotificationBell() {
             Thông báo
           </Typography>
         </Box>
-        {!pushSubscribed && isPushSupported() && getNotificationPermission() !== 'denied' && (
+        {isPushSupported() && getNotificationPermission() !== 'denied' && (
           <Box sx={{ px: 2, pb: 1.25 }}>
-            <Button
-              size="small"
-              variant="outlined"
-              fullWidth
-              startIcon={<NotificationsActiveRoundedIcon sx={{ fontSize: 16 }} />}
-              disabled={pushEnabling}
-              onClick={handleEnablePush}
-              sx={{ textTransform: 'none', fontWeight: 600 }}
-            >
-              {pushEnabling ? 'Đang bật...' : 'Bật thông báo đẩy trên thiết bị này'}
-            </Button>
+            {!pushSubscribed ? (
+              <Button
+                size="small"
+                variant="outlined"
+                fullWidth
+                startIcon={<NotificationsActiveRoundedIcon sx={{ fontSize: 16 }} />}
+                disabled={pushEnabling}
+                onClick={handleEnablePush}
+                sx={{ textTransform: 'none', fontWeight: 600 }}
+              >
+                {pushEnabling ? 'Đang bật...' : 'Bật thông báo đẩy trên thiết bị này'}
+              </Button>
+            ) : (
+              // Thiết bị dùng chung nhiều tài khoản (VD điện thoại chung) —
+              // đăng ký thông báo đẩy của trình duyệt KHÔNG tự đổi theo
+              // người vừa đăng nhập, có thể vẫn đang gắn với tài khoản
+              // trước đó trên CHÍNH thiết bị này (Sin phát hiện 2026-09-24).
+              // Bấm lại nút này để gán lại đúng tài khoản đang đăng nhập.
+              <Button
+                size="small"
+                variant="text"
+                fullWidth
+                disabled={pushEnabling}
+                onClick={handleEnablePush}
+                sx={{ textTransform: 'none', fontWeight: 500, fontSize: '0.75rem', color: '#64748b' }}
+              >
+                {pushEnabling ? 'Đang đồng bộ...' : 'Đồng bộ lại thông báo đẩy cho tài khoản này'}
+              </Button>
+            )}
             {pushError && (
               <Alert severity="warning" sx={{ mt: 1, fontSize: '0.75rem', py: 0 }}>
                 {pushError}
