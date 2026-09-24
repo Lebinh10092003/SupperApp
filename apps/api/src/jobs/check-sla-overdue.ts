@@ -36,6 +36,16 @@ import { isOverdue } from '../modules/safety/sla.js';
 import { isTerminal, ID_PREFIX, type IncidentState } from '../modules/safety/catalog.js';
 import { getEscalationRecipients } from '../modules/safety/escalation-recipients.js';
 import { pushAdminNotifications } from '../modules/safety/admin-notify.js';
+import * as notify from '../modules/safety/notify.js';
+import { notifyRequests } from '../modules/safety/dispatch.schema.js';
+import { notifyRequestToRow } from '../modules/safety/shared.js';
+import { makeDispatchHook } from '../modules/safety/notify-hooks.js';
+import { PRIORITY_LABEL, type Priority } from '../modules/safety/catalog.js';
+
+// Bổ sung 2026-09-24 — cùng lý do check-unclaimed-incidents.ts: job này
+// trước đây chỉ đẩy chuông trong app, chưa hề gửi email/push dù đã có
+// adapter thật. Nối thêm dispatch thật song song với chuông.
+const dispatch = makeDispatchHook();
 
 const CLOCK_LABEL_VI: Record<string, string> = { ack: 'xác nhận tiếp nhận', assign: 'phân công' };
 
@@ -74,6 +84,20 @@ async function run() {
         },
         { now }
       );
+      {
+        const request = notify.buildNotifyRequest({
+          recipients: perIds,
+          priority: clock.priority,
+          objectId: clock.objectId,
+          objectCode: report.publicCode,
+          levelLabel: PRIORITY_LABEL[clock.priority as Priority] ?? clock.priority,
+          actionNeeded: `Đã QUÁ HẠN xác nhận tiếp nhận lúc ${clock.deadlineAt.toLocaleString('vi-VN')} mà CHƯA được chuyển thành hồ sơ — cần xử lý ngay`,
+          deepLink: '/safety/cases?q=' + encodeURIComponent(clock.objectId),
+          eventType: 'safety.report.overdue'
+        });
+        const [savedRequest] = await db.insert(notifyRequests).values({ ...notifyRequestToRow(request), createdAt: now }).returning();
+        if (savedRequest) await dispatch(db, savedRequest, { now });
+      }
       await markEscalated(clock.objectId, clock.clockLabel, now);
       escalated += 1;
       continue;
@@ -106,6 +130,20 @@ async function run() {
       },
       { now }
     );
+    {
+      const request = notify.buildNotifyRequest({
+        recipients: perIds,
+        priority: incident.priority || clock.priority,
+        objectId: incident.incidentId,
+        objectCode: incident.incidentId,
+        levelLabel: incident.priority ? (PRIORITY_LABEL[incident.priority as Priority] ?? incident.priority) : 'Chưa phân loại',
+        actionNeeded: `Đã QUÁ HẠN ${CLOCK_LABEL_VI[clock.clockLabel] || clock.clockLabel} lúc ${clock.deadlineAt.toLocaleString('vi-VN')} — cần xử lý ngay`,
+        deepLink: '/safety/incidents/' + incident.incidentId,
+        eventType: 'safety.sla.overdue'
+      });
+      const [savedRequest] = await db.insert(notifyRequests).values({ ...notifyRequestToRow(request), createdAt: now }).returning();
+      if (savedRequest) await dispatch(db, savedRequest, { now });
+    }
     await markEscalated(clock.objectId, clock.clockLabel, now);
     escalated += 1;
   }

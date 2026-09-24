@@ -103,12 +103,18 @@ export function buildNotifyRequest(input: {
   recipients: string[]; priority: Priority | string; objectId: string; objectCode: string;
   levelLabel?: string | null; actionNeeded: string; deepLink?: string | null; eventType?: string | null;
   extraParams?: Record<string, unknown>;
+  // Bổ sung 2026-09-24 — cho phép NÂNG mức khẩn thủ công độc lập với
+  // `priority` gốc của hồ sơ (VD: job leo thang "chưa ai tiếp nhận sau
+  // 48h/72h" báo tới cấp lãnh đạo — bản thân đây LÀ tín hiệu khẩn dù hồ sơ
+  // gốc chỉ P2/P3, cần kênh email/push chứ không chỉ chuông trong app).
+  // KHÔNG dùng để HẠ mức khẩn — chỉ nơi gọi tự chịu trách nhiệm chọn đúng.
+  urgencyOverride?: Urgency;
 }): NotifyRequest {
   if (!Array.isArray(input.recipients) || input.recipients.length === 0) {
     throw new Error('notify.buildNotifyRequest: thiếu danh sách người nhận.');
   }
   assertSafeParams(input.extraParams);
-  const urgency = urgencyForPriority(input.priority);
+  const urgency = input.urgencyOverride ?? urgencyForPriority(input.priority);
   const message = renderMessage(input);
   return {
     recipients: input.recipients,

@@ -24,6 +24,18 @@ import { isOverdue } from '../modules/safety/sla.js';
 import { TERMINAL_STATES, PRIORITY_LABEL, type IncidentState, type Priority } from '../modules/safety/catalog.js';
 import { findDeptHeadsForCampus, findLeadershipForCampus } from '../modules/safety/escalation-recipients.js';
 import { pushAdminNotifications } from '../modules/safety/admin-notify.js';
+import * as notify from '../modules/safety/notify.js';
+import { notifyRequests } from '../modules/safety/dispatch.schema.js';
+import { notifyRequestToRow } from '../modules/safety/shared.js';
+import { makeDispatchHook } from '../modules/safety/notify-hooks.js';
+
+// Bổ sung 2026-09-24 — job này TRƯỚC ĐÂY chỉ đẩy chuông trong app
+// (pushAdminNotifications), KHÔNG hề gửi email/push ra ngoài dù đã có
+// adapter thật (Sin phát hiện khi rà soát kênh thông báo cấp lãnh đạo) —
+// cảnh báo "chưa ai tiếp nhận" quan trọng nhất lại chỉ nằm im trong app,
+// không ai thấy nếu không đang mở. Giờ nối thêm dispatch thật song song
+// với chuông, không thay thế.
+const dispatch = makeDispatchHook();
 
 const TIER_HOURS = [24, 48, 72]; // tier 1/2/3
 
@@ -70,6 +82,20 @@ async function run() {
         },
         { now }
       );
+      {
+        const request = notify.buildNotifyRequest({
+          recipients,
+          priority: incident.priority as Priority,
+          objectId: incident.incidentId,
+          objectCode: incident.incidentId,
+          levelLabel: PRIORITY_LABEL[incident.priority as Priority],
+          actionNeeded: 'Đã quá hạn xác nhận tiếp nhận mà CHƯA có ai tiếp nhận — cần bàn giao ngay',
+          deepLink: '/safety/incidents/' + incident.incidentId,
+          eventType: 'safety.incident.unclaimed_urgent'
+        });
+        const [savedRequest] = await db.insert(notifyRequests).values({ ...notifyRequestToRow(request), createdAt: now }).returning();
+        if (savedRequest) await dispatch(db, savedRequest, { now });
+      }
       await db.update(incidents).set({ unclaimedEscalationTier: 1 }).where(eq(incidents.incidentId, incident.incidentId));
       escalated += 1;
       continue;
@@ -96,6 +122,26 @@ async function run() {
         },
         { now }
       );
+      {
+        // Từ tier 2 (48h) trở đi mới có lãnh đạo trong danh sách nhận —
+        // NÂNG khẩn lên HIGH (email+push) dù hồ sơ gốc chỉ P2/P3, vì bản
+        // thân việc "vẫn chưa ai nhận sau 48-72h" LÀ tín hiệu khẩn cần
+        // kênh mạnh hơn chuông thầm lặng. Tier 1 (chỉ Tổ trưởng) giữ
+        // nguyên mức thường — đúng thiết kế channel ladder gốc.
+        const request = notify.buildNotifyRequest({
+          recipients,
+          priority: incident.priority || 'P3',
+          objectId: incident.incidentId,
+          objectCode: incident.incidentId,
+          levelLabel: incident.priority ? PRIORITY_LABEL[incident.priority as Priority] : 'Chưa phân loại',
+          actionNeeded: `Vẫn CHƯA có ai tiếp nhận sau ${TIER_HOURS[tier - 1]} giờ — cần bàn giao cho người phụ trách phù hợp`,
+          deepLink: '/safety/incidents/' + incident.incidentId,
+          eventType: 'safety.incident.unclaimed_reminder',
+          urgencyOverride: tier >= 2 ? notify.URGENCY.HIGH : undefined
+        });
+        const [savedRequest] = await db.insert(notifyRequests).values({ ...notifyRequestToRow(request), createdAt: now }).returning();
+        if (savedRequest) await dispatch(db, savedRequest, { now });
+      }
       escalated += 1;
     }
     await db.update(incidents).set({ unclaimedEscalationTier: targetTier }).where(eq(incidents.incidentId, incident.incidentId));
