@@ -687,13 +687,14 @@ export async function addIncidentParticipant(
     })
   );
 
+  const addParticipantMessage = input.incidentId + ': ' + input.actor.perId + ' đã thêm bạn cùng tham gia xử lý.';
   if (opts?.pushBell) {
     await opts.pushBell(
       db,
       {
         recipients: [input.perId],
         title: 'Bạn được thêm vào xử lý sự vụ ' + input.incidentId,
-        message: input.incidentId + ': ' + input.actor.perId + ' đã thêm bạn cùng tham gia xử lý.',
+        message: addParticipantMessage,
         eventType: 'safety.incident.participant_added',
         objectId: input.incidentId,
         actorPerId: input.actor.perId,
@@ -702,6 +703,24 @@ export async function addIncidentParticipant(
       { now }
     );
   }
+  // Trước đây CHỈ có chuông trong app — người được thêm không biết nếu
+  // đang không mở app (Sin phản hồi 2026-09-24, cùng đợt phát hiện
+  // assignCommander/transitionIncidentStatus thiếu kênh thật). Được giao
+  // tham gia xử lý luôn cần biết ngay -> ép tối thiểu HIGH (email+push).
+  const addParticipantUrgency = notify.urgencyForPriority(incident.priority || catalog.PRIORITY.P3);
+  const addParticipantRequest = notify.buildNotifyRequest({
+    recipients: [input.perId],
+    priority: incident.priority || catalog.PRIORITY.P3,
+    objectId: input.incidentId,
+    objectCode: input.incidentId,
+    levelLabel: incident.priority ? catalog.PRIORITY_LABEL[incident.priority as catalog.Priority] : 'Chưa phân loại',
+    actionNeeded: addParticipantMessage,
+    deepLink: '/app/incidents/' + input.incidentId,
+    eventType: 'safety.incident.participant_added',
+    urgencyOverride: addParticipantUrgency === notify.URGENCY.NORMAL ? notify.URGENCY.HIGH : undefined
+  });
+  const [savedAddParticipantRequest] = await db.insert(notifyRequests).values({ ...notifyRequestToRow(addParticipantRequest), createdAt: now }).returning();
+  if (opts?.dispatch && savedAddParticipantRequest) await opts.dispatch(db, savedAddParticipantRequest, { now });
 
   return { incidentId: input.incidentId, assignedTaskPerIds };
 }
