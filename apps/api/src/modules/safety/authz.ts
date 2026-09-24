@@ -71,6 +71,13 @@ export const PERMISSION_MATRIX: Record<string, Partial<Record<RoleId, GrantLevel
   // KHÔNG nằm trong ma trận này (ma trận chỉ trả lời "vai trò có được làm
   // hành động không", không biết gì về "đối tượng nhận là ai").
   'incident.assign_commander': { [ROLE.PRINCIPAL]: 'XR', [ROLE.VICE_PRINCIPAL]: 'X', [ROLE.DEPT_HEAD]: 'XR' },
+  // Thêm người tham gia xử lý — mặc định CHỈ chỉ huy hồ sơ (đường quan hệ,
+  // `relationalGrant` khớp `resource.commanderPerId`), Sin chốt 2026-09-24
+  // thêm cấp cao (Hiệu trưởng/Phó HT/Tổ trưởng) được làm việc này trên MỌI
+  // hồ sơ dù không phải chỉ huy — KHÔNG truyền `assignedTaskPerIds` cho
+  // action này (xem addIncidentParticipant) để participant thường KHÔNG
+  // được cấp qua đường quan hệ, giữ đúng "chỉ chỉ huy hoặc cấp cao".
+  'incident.add_participant': { [ROLE.PRINCIPAL]: 'X', [ROLE.VICE_PRINCIPAL]: 'X', [ROLE.DEPT_HEAD]: 'X' },
   // Sửa tay lớp/khu vực gợi ý cho 1 hồ sơ ĐÃ TẠO. R.DUTY_OFFICER CỐ TÌNH
   // không xuất hiện -> không có quyền hành động này. `reason` bắt buộc ở
   // tầng hàm gọi (updateIncidentClassification) là ĐIỀU KIỆN RIÊNG áp dụng

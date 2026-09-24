@@ -441,8 +441,16 @@ export async function assignCommander(
     })
   );
 
-  // Báo NGAY cho người chỉ huy mới — dùng đúng mức khẩn hiện tại của hồ sơ
-  // (hồ sơ có thể CHƯA có priority nếu chưa từng được tiếp nhận).
+  // Báo NGAY cho người chỉ huy mới — hồ sơ có thể CHƯA có priority nếu
+  // chưa từng được tiếp nhận (mặc định P3). Sin phản hồi 2026-09-24: "bị
+  // gán chỉ huy thì không hiện thông báo đẩy" — mức khẩn theo priority thô
+  // (P2/P3/chưa phân loại -> NORMAL, notify.ts CHANNEL_TABLE chỉ có
+  // in_app) khiến phần lớn lượt gán chỉ huy (đa số hồ sơ KHÔNG phải P0/P1)
+  // im lặng không email/push. Được CHỈ ĐỊNH LÀM CHỈ HUY luôn là việc cần
+  // biết ngay bất kể mức ưu tiên hồ sơ -> ép tối thiểu HIGH (in_app+email+
+  // push), KHÔNG hạ nếu hồ sơ đã P0/P1 (giữ nguyên đường riêng của 2 mức
+  // đó, xem CHANNEL_TABLE).
+  const commanderAssignedUrgency = notify.urgencyForPriority(incident.priority || catalog.PRIORITY.P3);
   const request = notify.buildNotifyRequest({
     recipients: [input.commanderPerId],
     priority: incident.priority || catalog.PRIORITY.P3,
@@ -451,7 +459,8 @@ export async function assignCommander(
     levelLabel: incident.priority ? catalog.PRIORITY_LABEL[incident.priority as catalog.Priority] : 'Chưa phân loại',
     actionNeeded: 'Bạn được chỉ định làm người chỉ huy xử lý sự việc này — vào xem và tiếp nhận ngay',
     deepLink: '/app/incidents/' + input.incidentId,
-    eventType: 'safety.incident.commander_assigned'
+    eventType: 'safety.incident.commander_assigned',
+    urgencyOverride: commanderAssignedUrgency === notify.URGENCY.NORMAL ? notify.URGENCY.HIGH : undefined
   });
   const [savedRequest] = await db.insert(notifyRequests).values({ ...notifyRequestToRow(request), createdAt: now }).returning();
   if (opts?.dispatch && savedRequest) {
@@ -592,8 +601,10 @@ export async function acknowledgeIncident(
 // — KHÔNG tạo cột riêng, tránh 2 khái niệm chồng chéo (người tự động gắn
 // theo lớp qua resolveClassRelatedPeople cũng nằm chung mảng này, hợp lý vì
 // cả hai đều là "người đang xử lý hồ sơ", chỉ khác nguồn gán tự động/tay).
-// Chỉ CHÍNH người chỉ huy hiện tại mới được thêm — không phải ai xem được
-// hồ sơ cũng thêm được người khác vào.
+// Người chỉ huy hiện tại HOẶC tài khoản cấp cao (Hiệu trưởng/Phó Hiệu
+// trưởng/Tổ trưởng, action `incident.add_participant`, Sin chốt
+// 2026-09-24) mới được thêm — không phải ai xem được hồ sơ cũng thêm được
+// người khác vào.
 // ---------------------------------------------------------------------------
 
 export async function addIncidentParticipant(
@@ -605,9 +616,16 @@ export async function addIncidentParticipant(
   if (!input.perId) throw new AppError('invalid_input', 'Thiếu người được thêm vào xử lý.');
   const incident = await loadIncident(db, input.incidentId);
 
-  if (!incident.commanderPerId || incident.commanderPerId !== input.actor.perId) {
-    throw new AppError('forbidden', 'Chỉ người chỉ huy hồ sơ mới được thêm người tham gia xử lý.');
-  }
+  // Chỉ huy hồ sơ (đường quan hệ) HOẶC cấp cao — Hiệu trưởng/Phó HT/Tổ
+  // trưởng (đường vai trò, `incident.add_participant`) — Sin chốt
+  // 2026-09-24. CỐ Ý không truyền `assignedTaskPerIds` để participant
+  // thường (không phải chỉ huy/cấp cao) vẫn KHÔNG thêm được người khác.
+  const decision = checkAuthorization({
+    actor: input.actor,
+    action: 'incident.add_participant',
+    resource: { campusId: incident.campusId, commanderPerId: incident.commanderPerId ?? undefined }
+  });
+  if (!decision.allowed) throw new AppError('forbidden', 'Chỉ người chỉ huy hồ sơ hoặc tài khoản cấp cao (Hiệu trưởng/Phó Hiệu trưởng/Tổ trưởng) mới được thêm người tham gia xử lý.');
 
   const before = incident.assignedTaskPerIds || [];
   const assignedTaskPerIds = adminArrayUnion(before, input.perId);

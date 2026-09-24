@@ -476,8 +476,12 @@ function EditUserDialog({
         setError('Chưa nhập email.');
         return;
       }
-      if (!password || password.length < 6) {
-        setError('Mật khẩu tối thiểu 6 ký tự.');
+      // Không còn bắt buộc nhập mật khẩu — Sin phản hồi 2026-09-24: email đã
+      // từng tự đăng nhập Google (Firebase Auth có sẵn user) nhưng chưa có
+      // hồ sơ nội bộ thì để trống mật khẩu vẫn tạo được (backend tự dùng
+      // lại uid Firebase có sẵn, không tạo user mới, xem admin.routes.ts).
+      if (password && password.length < 6) {
+        setError('Mật khẩu tối thiểu 6 ký tự (có thể để trống nếu email này đã từng đăng nhập Google trước đó).');
         return;
       }
     }
@@ -511,7 +515,7 @@ function EditUserDialog({
         const result = await api.post<{ perId: string }>('/api/admin/safety-users', {
           displayName: displayName.trim(),
           email: email.trim(),
-          password,
+          password: password.trim() || undefined,
           roleId,
           campusId: campusId || null,
           domain: roleId === 'R.DEPT_HEAD' ? domain.trim() : null
@@ -557,7 +561,7 @@ function EditUserDialog({
           <TextField label="Email" size="small" fullWidth value={email} disabled={isEdit} onChange={(e) => setEmail(e.target.value)} />
           {!isEdit && (
             <TextField
-              label="Mật khẩu tạm (tối thiểu 6 ký tự)"
+              label="Mật khẩu tạm (bỏ trống nếu email đã từng đăng nhập Google)"
               size="small"
               fullWidth
               type={showPassword ? 'text' : 'password'}

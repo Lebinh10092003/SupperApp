@@ -280,7 +280,20 @@ adminRouter.post(
       .object({
         displayName: z.string().min(1),
         email: z.string().email(),
-        password: z.string().min(6),
+        // Không còn bắt buộc — Sin phản hồi 2026-09-24: email đã đăng nhập
+        // Google thật ít nhất 1 lần (Firebase Auth đã có user, VD dùng Gmail
+        // cá nhân đăng nhập thử) nhưng CHƯA có trong danh sách trường
+        // (`people_directory`/`access_allowlist`) trước đó bị chặn cứng ở
+        // đây ("Email này đã có tài khoản trong hệ thống") mà KHÔNG có
+        // đường nào khác để gán vai trò — route PATCH /pending/:email chỉ
+        // hoạt động với người có sẵn trong access_allowlist (đồng bộ từ
+        // Google Workspace), không áp dụng được cho trường hợp này. Giờ
+        // NHẬN DIỆN đúng 2 trường hợp: (a) email hoàn toàn mới -> vẫn tạo
+        // Firebase Auth user mới như cũ (cần password); (b) email đã có
+        // Firebase Auth user nhưng CHƯA link nội bộ (`accounts`) -> DÙNG
+        // LẠI uid đó, chỉ gán vai trò (password optional, chỉ áp dụng nếu
+        // admin có nhập).
+        password: z.string().min(6).optional(),
         roleId: z.enum(ASSIGNABLE_SAFETY_ROLES),
         campusId: z.enum(CAMPUS_IDS).nullable().optional(),
         domain: z.string().nullable().optional()
@@ -293,29 +306,38 @@ adminRouter.post(
 
     const email = b.email.toLowerCase();
     const existingByEmail = await adminAuth.getUserByEmail(email).catch(() => null);
+
     if (existingByEmail) {
-      throw new HttpError(409, 'Email này đã có tài khoản trong hệ thống', 'INVALID_OPERATION');
+      const [alreadyLinked] = await db.select({ uid: accounts.uid }).from(accounts).where(eq(accounts.uid, existingByEmail.uid)).limit(1);
+      if (alreadyLinked) {
+        throw new HttpError(409, 'Email này đã có hồ sơ nội bộ trong hệ thống — sửa vai trò qua nút Sửa ở danh sách thay vì tạo mới.', 'INVALID_OPERATION');
+      }
     }
 
-    // Cần Firebase Admin credentials thật (service account) để tạo tài
-    // khoản trực tiếp — môi trường CHƯA có (xem README bàn giao). Với
-    // người đã có trong danh sách trường cấp quyền (access_allowlist),
-    // dùng route PATCH /safety-users/pending/:email thay vì route này —
-    // không cần tạo tài khoản Firebase mới, chỉ gán vai trò trước, tài
-    // khoản thật tự sinh khi chính người đó đăng nhập bằng Google.
-    const created = await adminAuth.createUser({ email, password: b.password, displayName: b.displayName, disabled: false }).catch((e) => {
-      throw new HttpError(
-        503,
-        'Chưa thể tạo tài khoản mới trực tiếp — hệ thống thiếu cấu hình Firebase Admin (service account) thật. Nếu người này đã có trong danh sách trường cấp quyền, hãy gán vai trò trước qua mục "Chưa đăng nhập" thay vì tạo mới ở đây.',
-        'FIREBASE_ADMIN_UNAVAILABLE',
-        e instanceof Error ? e.message : String(e)
-      );
-    });
+    let uid: string;
+    if (existingByEmail) {
+      // (b) Firebase Auth đã có user (VD đã tự đăng nhập Google thử) nhưng
+      // chưa link nội bộ -> dùng lại đúng uid đó, không tạo user mới.
+      uid = existingByEmail.uid;
+      await adminAuth.updateUser(uid, { displayName: b.displayName, disabled: false, ...(b.password ? { password: b.password } : {}) }).catch(() => {});
+    } else {
+      // (a) Email hoàn toàn mới -> tạo Firebase Auth user thật, bắt buộc password.
+      if (!b.password) throw new HttpError(400, 'Email chưa có tài khoản — bắt buộc nhập mật khẩu tạm để tạo mới.', 'INVALID_INPUT');
+      const created = await adminAuth.createUser({ email, password: b.password, displayName: b.displayName, disabled: false }).catch((e) => {
+        throw new HttpError(
+          503,
+          'Chưa thể tạo tài khoản mới trực tiếp — hệ thống thiếu cấu hình Firebase Admin (service account) thật.',
+          'FIREBASE_ADMIN_UNAVAILABLE',
+          e instanceof Error ? e.message : String(e)
+        );
+      });
+      uid = created.uid;
+    }
     const perId = genPerId();
     const campusId = b.campusId ?? null;
     const domain = b.roleId === ROLE.DEPT_HEAD ? b.domain!.trim() : null;
 
-    await db.insert(accounts).values({ uid: created.uid, perId, displayName: b.displayName, email, createdByUid: q.appUser!.uid });
+    await db.insert(accounts).values({ uid, perId, displayName: b.displayName, email, createdByUid: q.appUser!.uid });
     await db.insert(peopleDirectory).values({ perId, email, phone: null }).onConflictDoUpdate({ target: peopleDirectory.perId, set: { email } });
     await db.insert(assignments).values({ perId, roleId: b.roleId, campusId, domain, createdByUid: q.appUser!.uid });
 
@@ -333,7 +355,7 @@ adminRouter.post(
       message: `roleId=${b.roleId} campusId=${campusId ?? ''} domain=${domain ?? ''}`
     });
 
-    r.json({ ok: true, uid: created.uid, perId });
+    r.json({ ok: true, uid, perId });
   })
 );
 

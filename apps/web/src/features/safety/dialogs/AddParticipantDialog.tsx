@@ -1,7 +1,8 @@
 /**
  * AddParticipantDialog.tsx — chỉ huy hồ sơ thêm người cùng tham gia xử lý,
  * `POST /api/safety/incidents/:id/participants` (`addIncidentParticipant`).
- * Chỉ hiện nút mở dialog này với đúng người đang là chỉ huy hồ sơ (xem
+ * Chỉ hiện nút mở dialog này với người đang là chỉ huy hồ sơ HOẶC tài
+ * khoản cấp cao (Hiệu trưởng/Phó Hiệu trưởng/Tổ trưởng, xem
  * `IncidentDetailPage.tsx`) — server cũng tự kiểm tra lại, KHÔNG tin client.
  */
 import { useState } from 'react';
@@ -12,6 +13,8 @@ import { PersonPicker, type PersonOption } from '../PersonPicker';
 export interface AddParticipantTarget {
   incidentId: string;
   suggested?: Array<{ perId: string; label: string }>;
+  /** Chỉ huy + người đang tham gia hiện tại — hiện trong modal để dễ phân biệt, tránh thêm trùng (Sin phản hồi 2026-09-24). */
+  current?: Array<{ perId: string; label: string }>;
 }
 
 export function AddParticipantDialog({
@@ -59,6 +62,18 @@ export function AddParticipantDialog({
             <Typography variant="body2" color="text.secondary">
               Hồ sơ <strong>{target.incidentId}</strong> — người được thêm sẽ xem được toàn bộ hồ sơ và nhận thông báo ngay.
             </Typography>
+            {target.current && target.current.length > 0 && (
+              <Stack spacing={0.75}>
+                <Typography variant="caption" color="text.secondary">
+                  Đang tham gia xử lý hồ sơ này:
+                </Typography>
+                <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }} useFlexGap>
+                  {target.current.map((c) => (
+                    <Chip key={c.perId} label={c.label} size="small" variant="outlined" sx={{ borderColor: '#cbd5e1', color: '#475569' }} />
+                  ))}
+                </Stack>
+              </Stack>
+            )}
             {target.suggested && target.suggested.length > 0 && (
               <Stack spacing={0.75}>
                 <Typography variant="caption" color="text.secondary">

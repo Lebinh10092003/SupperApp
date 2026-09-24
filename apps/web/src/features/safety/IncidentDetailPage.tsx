@@ -22,6 +22,7 @@ import {
   DialogTitle,
   Divider,
   MenuItem,
+  Snackbar,
   Stack,
   TextField,
   Typography
@@ -247,11 +248,18 @@ export default function IncidentDetailPage() {
         }
       />
 
-      {toast && (
-        <Alert severity={toast.severity} onClose={() => setToast(null)} sx={{ mb: 2.5, borderRadius: 2 }}>
-          {toast.message}
-        </Alert>
-      )}
+      <Snackbar
+        open={!!toast}
+        autoHideDuration={5000}
+        onClose={() => setToast(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        {toast ? (
+          <Alert severity={toast.severity} onClose={() => setToast(null)} sx={{ borderRadius: 2 }}>
+            {toast.message}
+          </Alert>
+        ) : undefined}
+      </Snackbar>
 
       <Stack direction="row" spacing={1} sx={{ mb: 2.5, flexWrap: 'wrap' }}>
         <StatusChip state={incident.state} />
@@ -374,11 +382,20 @@ export default function IncidentDetailPage() {
             {acknowledging ? 'Đang tiếp nhận...' : 'Tiếp nhận xử lý'}
           </Button>
         )}
-        {actor?.perId && incident.commanderPerId === actor.perId && (
+        {actor?.perId && (incident.commanderPerId === actor.perId || isSenior) && (
           <Button
             variant="outlined"
             startIcon={<GroupAddIcon />}
-            onClick={() => setAddParticipantTarget({ incidentId: incident.incidentId, suggested: incident.suggestedParticipants })}
+            onClick={() =>
+              setAddParticipantTarget({
+                incidentId: incident.incidentId,
+                suggested: incident.suggestedParticipants,
+                current: [
+                  ...(incident.commanderPerId ? [{ perId: incident.commanderPerId, label: (incident.commanderName || incident.commanderPerId) + ' (chỉ huy)' }] : []),
+                  ...(incident.participantPerIds || []).map((p) => ({ perId: p, label: incident.participantLabels?.[p] || p }))
+                ]
+              })
+            }
             sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
           >
             Thêm người xử lý

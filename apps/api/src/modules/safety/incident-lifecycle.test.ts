@@ -578,14 +578,22 @@ test('acknowledgeIncident: hồ sơ CHƯA có priority (null) -> bắt buộc ch
   assert.equal(assignClock[0]!.status, 'running');
 });
 
-test('addIncidentParticipant: chỉ chính người chỉ huy mới thêm được người tham gia; thêm thành công thì có mặt trong assignedTaskPerIds + audit + chuông báo người được thêm', { skip }, async () => {
+test('addIncidentParticipant: chỉ chỉ huy hồ sơ hoặc cấp cao mới thêm được người tham gia; thêm thành công thì có mặt trong assignedTaskPerIds + audit + chuông báo người được thêm', { skip }, async () => {
   await resetTables();
   const incidentId = await seedIncident({ priority: PRIORITY.P2 });
   await acknowledgeIncident(db, { actor: dutyOfficer(IL_CAMPUS_ID), incidentId }, {});
 
-  const notCommander = await throwsWithCode(() => addIncidentParticipant(db, { actor: principal(), incidentId, perId: IL_PRINCIPAL }, {}));
+  // Không phải chỉ huy, không phải cấp cao -> bị từ chối.
+  const notCommander = await throwsWithCode(() =>
+    addIncidentParticipant(db, { actor: teacherOtherCampus(), incidentId, perId: IL_PRINCIPAL }, {})
+  );
   assert.equal(notCommander.threw, true);
   assert.equal(notCommander.code, 'forbidden');
+
+  // Hiệu trưởng KHÔNG phải chỉ huy hồ sơ này nhưng vẫn thêm được (Sin chốt
+  // 2026-09-24: cấp cao thêm được trên MỌI hồ sơ, không cần tự tiếp nhận trước).
+  const addedBySenior = await addIncidentParticipant(db, { actor: principal(), incidentId, perId: IL_VICE_PRINCIPAL }, {});
+  assert.ok(addedBySenior.assignedTaskPerIds.includes(IL_VICE_PRINCIPAL));
 
   const bellCalls: Record<string, unknown>[] = [];
   const fakePushBell = async (_db: unknown, payload: Record<string, unknown>) => {
@@ -602,8 +610,9 @@ test('addIncidentParticipant: chỉ chính người chỉ huy mới thêm đư�
   const [incAfterAdd] = await db.select().from(incidents).where(eq(incidents.incidentId, incidentId));
   assert.ok(incAfterAdd!.assignedTaskPerIds!.includes(IL_PRINCIPAL));
 
+  // 2 bản ghi: 1 từ addedBySenior (Hiệu trưởng thêm Phó HT) + 1 từ lần thêm này (chỉ huy thêm Hiệu trưởng).
   const participantAudit = await db.select().from(auditLogs).where(eq(auditLogs.action, 'incident.participant_added'));
-  assert.equal(participantAudit.filter((r) => r.objectId === incidentId).length, 1);
+  assert.equal(participantAudit.filter((r) => r.objectId === incidentId).length, 2);
 
   const bellToNewParticipant = bellCalls.find((b) => b.objectId === incidentId && b.eventType === 'safety.incident.participant_added');
   assert.ok(bellToNewParticipant);
