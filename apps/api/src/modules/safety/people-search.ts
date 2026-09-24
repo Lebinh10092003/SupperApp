@@ -24,13 +24,14 @@ export interface PersonResult {
 }
 
 /**
- * searchPeopleByName — quét `accounts`, lọc theo `displayName` đã chuẩn
- * hoá (không dấu/không phân biệt hoa-thường) chứa `query` đã chuẩn hoá
- * tương tự (so khớp substring).
+ * searchPeopleByName — quét `accounts`, lọc theo `displayName` HOẶC
+ * `email` đã chuẩn hoá (không dấu/không phân biệt hoa-thường) chứa
+ * `query` đã chuẩn hoá tương tự (so khớp substring) — Sin yêu cầu
+ * 2026-09-24: gõ email cũng phải tìm ra được, không chỉ gõ tên.
  *
  * CHỈ trả về `{ perId, name }` cho mỗi người — TUYỆT ĐỐI không trả
  * `email`/`uid`/field nào khác (yêu cầu bảo mật đã chốt, không phải tuỳ
- * chọn).
+ * chọn) — email chỉ dùng để SO KHỚP nội bộ, không lộ ra response.
  */
 export async function searchPeopleByName(db: Db, query: string | null | undefined): Promise<PersonResult[]> {
   const raw = String(query || '').trim();
@@ -45,7 +46,9 @@ export async function searchPeopleByName(db: Db, query: string | null | undefine
     if (matched.length >= MAX_RESULTS) break;
     const name = row.displayName;
     if (!name) continue;
-    if (!normalizeForMatch(name).includes(normQuery)) continue;
+    const nameMatches = normalizeForMatch(name).includes(normQuery);
+    const emailMatches = Boolean(row.email) && normalizeForMatch(row.email).includes(normQuery);
+    if (!nameMatches && !emailMatches) continue;
     if (!row.perId) continue;
     matched.push({ perId: row.perId, name });
   }

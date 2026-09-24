@@ -67,6 +67,22 @@ test('searchPeopleByName: khớp 1 phần tên, không dấu/khác hoa-thường
   assert.equal(resultsAccent[0]!.perId, perId('001'));
 });
 
+test('searchPeopleByName: khớp email (Sin yêu cầu 2026-09-24, gõ email cũng phải tìm ra), vẫn KHÔNG trả email ra ngoài', { skip }, async () => {
+  await resetTables();
+  await seedAccount(uid('u1'), { displayName: 'Bùi Lan Phương', perId: perId('EM1'), email: 'phuongbuilan.c2giangvo@gmail.com' });
+  await seedAccount(uid('u2'), { displayName: 'Trần Thị B', perId: perId('EM2'), email: 'khac@gmail.com' });
+
+  const results = await searchPeopleByName(db, 'phuongbuilan.c2giangvo@gmail.com');
+  assert.equal(results.length, 1);
+  assert.equal(results[0]!.perId, perId('EM1'));
+  assert.equal(results[0]!.name, 'Bùi Lan Phương');
+  assert.deepEqual(Object.keys(results[0]!).sort(), ['name', 'perId']);
+
+  const partial = await searchPeopleByName(db, 'phuongbuilan');
+  assert.equal(partial.length, 1);
+  assert.equal(partial[0]!.perId, perId('EM1'));
+});
+
 test('searchPeopleByName: nhiều người khớp -> giới hạn đúng 10 kết quả', { skip }, async () => {
   await resetTables();
   for (let i = 0; i < 15; i++) {
