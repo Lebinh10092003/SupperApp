@@ -936,7 +936,29 @@ export async function resetClassroomData(): Promise<ResetClassroomDataResult> {
     let classesDeleted = 0;
     let classesReset = 0;
     for (const c of allClasses) {
-      if (!scheduleClassIds.has(c.classId)) {
+      if (c.source === 'MANUAL') {
+        // Lớp tạo thủ công không bao giờ bị xoá hẳn ở đây, kể cả khi chưa
+        // gắn thời khoá biểu — khớp đúng bảo vệ đã có ở rebuildClassesFromCourses().
+        // Chỉ reset số liệu tổng hợp từ Classroom (lớp này vốn không có số
+        // liệu Classroom thật nên set về 0/rỗng là an toàn).
+        await tx
+          .update(classes)
+          .set({
+            courseCount: 0,
+            courses: [],
+            subjects: [],
+            totalCoursework: 0,
+            submissionsTotal: 0,
+            submissionsTurnedIn: 0,
+            submissionsLate: 0,
+            completionRate: null,
+            onTimeRate: null,
+            averageScore: null,
+            updatedAt: new Date()
+          })
+          .where(eq(classes.classId, c.classId));
+        classesReset++;
+      } else if (!scheduleClassIds.has(c.classId)) {
         await tx.delete(classes).where(eq(classes.classId, c.classId));
         classesDeleted++;
       } else {
