@@ -486,6 +486,11 @@ safetyQueryRouter.get(
     const participantPerIds = (incident.assignedTaskPerIds || []).filter((p) => p !== incident.commanderPerId);
     const participantLabels = await getPersonLabelsByPerIds(db, allHandlerPerIds);
 
+    // Yêu cầu tự tham gia đang chờ chỉ huy duyệt (bổ sung 2026-09-25) — kèm
+    // tên để hiện trong UI, không bắt frontend tự tra thêm 1 lượt gọi khác.
+    const pendingJoinRequests = incident.pendingJoinRequests || [];
+    const pendingJoinRequestLabels = await getPersonLabelsByPerIds(db, pendingJoinRequests.map((r) => r.perId));
+
     let homeroomConfigured: boolean | null = null;
     let gradeSupervisorConfigured: boolean | null = null;
     // Gợi ý người tham gia phù hợp (2026-09-22, thay auto-assignment cũ) —
@@ -520,17 +525,28 @@ safetyQueryRouter.get(
 
     // Nội dung gốc từng lượt gửi tin (incidents KHÔNG lưu content — chỉ
     // reports mới có, xem saved-filters/CasesListPage 2026-09-22). CỐ Ý
-    // không kèm publicCode/email/phone người báo tin — cổng nội bộ không
-    // được thấy mã tra cứu công khai (Sin: "ẩn mã GV đi tránh giáo viên tự
-    // ý đóng case").
+    // vẫn KHÔNG kèm publicCode — cổng nội bộ không được thấy mã tra cứu
+    // công khai (Sin: "ẩn mã GV đi tránh giáo viên tự ý đóng case"). Email/
+    // phone người báo tin THÌ CÓ kèm từ 2026-09-25 (Sin đảo quyết định cũ:
+    // "phải có thông tin của người đăng sự cố để biết mà liên lạc" — lý do
+    // ẩn ban đầu chỉ nhắm vào publicCode, không áp dụng cho email/phone).
     let reportSubmissions: Array<{
       reportId: string; content: string; occurredAt: Date; channel: string; reporterRole: string | null; stillDangerous: boolean;
+      contactName: string | null; email: string | null; phone: string | null;
     }> = [];
     if (incident.reportIds && incident.reportIds.length > 0) {
-      const rows = await db.select().from(reports).where(inArray(reports.reportId, incident.reportIds));
-      reportSubmissions = rows.map((r) => ({
-        reportId: r.reportId, content: r.content || '', occurredAt: r.occurredAt, channel: r.channel, reporterRole: r.reporterRole, stillDangerous: !!r.stillDangerous
-      }));
+      const [rows, identityRows] = await Promise.all([
+        db.select().from(reports).where(inArray(reports.reportId, incident.reportIds)),
+        db.select().from(reportIdentities).where(inArray(reportIdentities.reportId, incident.reportIds))
+      ]);
+      const identityByReportId = new Map(identityRows.map((r) => [r.reportId, r]));
+      reportSubmissions = rows.map((r) => {
+        const identity = identityByReportId.get(r.reportId);
+        return {
+          reportId: r.reportId, content: r.content || '', occurredAt: r.occurredAt, channel: r.channel, reporterRole: r.reporterRole, stillDangerous: !!r.stillDangerous,
+          contactName: identity?.contactName ?? null, email: identity?.email ?? null, phone: identity?.phone ?? null
+        };
+      });
     }
 
     res.json({
@@ -547,6 +563,8 @@ safetyQueryRouter.get(
       commanderName,
       participantPerIds,
       participantLabels,
+      pendingJoinRequests,
+      pendingJoinRequestLabels,
       homeroomConfigured,
       gradeSupervisorConfigured,
       suggestedParticipants

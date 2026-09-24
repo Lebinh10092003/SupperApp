@@ -755,15 +755,21 @@ export async function addIncidentParticipant(
 // Tự tham gia / tự rời sự vụ — bổ sung 2026-09-22. KHÁC `addIncidentParticipant`
 // ở trên (chỉ huy CHỦ ĐỘNG thêm người khác): đây là actor TỰ nguyện tham
 // gia/rời chính mình, bắt buộc nêu lý do mỗi lần (audit trail rõ ràng "ai
-// vào/ra vì sao"). Không giới hạn actor phải là ai — bất kỳ ai xem được hồ
-// sơ (`incident.view`, đúng cơ sở) đều tự tham gia được.
+// vào/ra vì sao").
+//
+// Sin chốt 2026-09-25: hồ sơ CHƯA có chỉ huy thì vẫn tự do tham gia ngay
+// như cũ (không có ai để xin duyệt); cấp cao (Hiệu trưởng/Phó HT/Tổ
+// trưởng) cũng luôn tham gia được ngay. NGƯỢC LẠI — hồ sơ ĐÃ có chỉ huy và
+// actor KHÔNG phải cấp cao -> chỉ tạo YÊU CẦU chờ duyệt (`pendingJoinRequests`),
+// chỉ huy (hoặc cấp cao khác) phải approveJoinRequest/rejectJoinRequest thì
+// mới thực sự vào `assignedTaskPerIds`.
 // ---------------------------------------------------------------------------
 
 export async function joinIncident(
   db: Db,
   input: { actor: Actor; incidentId: string; reason: string },
   opts?: SafetyOpts
-): Promise<{ incidentId: string; assignedTaskPerIds: string[] }> {
+): Promise<{ incidentId: string; assignedTaskPerIds: string[]; status: 'joined' | 'pending_approval' }> {
   const now = opts?.now || new Date();
   if (!input.actor.perId) throw new AppError('forbidden', 'Tài khoản chưa được gắn với hồ sơ nhân sự (perId) nào.');
   if (!input.reason || !input.reason.trim()) {
@@ -778,42 +784,217 @@ export async function joinIncident(
     throw new AppError('already_joined', 'Bạn đã tham gia sự vụ này rồi.');
   }
 
-  const assignedTaskPerIds = adminArrayUnion(incident.assignedTaskPerIds, input.actor.perId);
-  await db.update(incidents).set({ assignedTaskPerIds, version: incident.version + 1, updatedAt: now }).where(eq(incidents.incidentId, input.incidentId));
+  // Cấp cao -> luôn được bỏ qua bước duyệt. CỐ Ý không truyền commanderPerId/
+  // assignedTaskPerIds vào resource — chỉ muốn biết "actor có VAI TRÒ cấp
+  // cao hay không", không muốn relationalGrant (VD actor đang là participant
+  // khác) vô tình cho qua.
+  const isSeniorRole = checkAuthorization({ actor: input.actor, action: 'incident.add_participant', resource: { campusId: incident.campusId } }).allowed;
+
+  if (!incident.commanderPerId || isSeniorRole) {
+    const assignedTaskPerIds = adminArrayUnion(incident.assignedTaskPerIds, input.actor.perId);
+    await db.update(incidents).set({ assignedTaskPerIds, version: incident.version + 1, updatedAt: now }).where(eq(incidents.incidentId, input.incidentId));
+
+    await writeAuditLog(
+      db,
+      buildAuditRecord({
+        actorPerId: input.actor.perId,
+        action: 'incident.participant_joined',
+        objectId: input.incidentId,
+        after: { joined_per_id: input.actor.perId },
+        reason: input.reason,
+        now
+      })
+    );
+
+    if (opts?.pushBell) {
+      const recipients = Array.from(new Set([incident.commanderPerId, ...(incident.assignedTaskPerIds || [])].filter(Boolean) as string[]));
+      if (recipients.length > 0) {
+        const joinActorName = await nameForBell(db, input.actor.perId);
+        await opts.pushBell(
+          db,
+          {
+            recipients,
+            title: 'Có người mới tham gia sự vụ ' + input.incidentId,
+            message: input.incidentId + ': ' + joinActorName + ' đã tự tham gia xử lý — lý do: ' + input.reason,
+            eventType: 'safety.incident.participant_joined',
+            objectId: input.incidentId,
+            actorPerId: input.actor.perId,
+            meta: { joined_per_id: input.actor.perId, campus_id: incident.campusId }
+          },
+          { now }
+        );
+      }
+    }
+
+    return { incidentId: input.incidentId, assignedTaskPerIds, status: 'joined' };
+  }
+
+  // Không phải cấp cao và hồ sơ đã có chỉ huy -> chỉ tạo yêu cầu chờ duyệt.
+  const existingPending = incident.pendingJoinRequests || [];
+  if (existingPending.some((r) => r.perId === input.actor!.perId)) {
+    throw new AppError('already_requested', 'Bạn đã gửi yêu cầu tham gia sự vụ này rồi, đang chờ chỉ huy duyệt.');
+  }
+  const pendingJoinRequests = [...existingPending, { perId: input.actor.perId, reason: input.reason, requestedAt: now.toISOString() }];
+  await db.update(incidents).set({ pendingJoinRequests, version: incident.version + 1, updatedAt: now }).where(eq(incidents.incidentId, input.incidentId));
 
   await writeAuditLog(
     db,
     buildAuditRecord({
       actorPerId: input.actor.perId,
-      action: 'incident.participant_joined',
+      action: 'incident.join_requested',
       objectId: input.incidentId,
-      after: { joined_per_id: input.actor.perId },
+      after: { requested_per_id: input.actor.perId },
+      reason: input.reason,
+      now
+    })
+  );
+
+  if (opts?.pushBell && incident.commanderPerId) {
+    const joinReqActorName = await nameForBell(db, input.actor.perId);
+    await opts.pushBell(
+      db,
+      {
+        recipients: [incident.commanderPerId],
+        title: 'Có người xin tham gia sự vụ ' + input.incidentId,
+        message: input.incidentId + ': ' + joinReqActorName + ' xin tham gia xử lý — lý do: ' + input.reason + '. Vào hồ sơ để duyệt/từ chối.',
+        eventType: 'safety.incident.join_requested',
+        objectId: input.incidentId,
+        actorPerId: input.actor.perId,
+        meta: { requested_per_id: input.actor.perId, campus_id: incident.campusId }
+      },
+      { now }
+    );
+  }
+
+  return { incidentId: input.incidentId, assignedTaskPerIds: incident.assignedTaskPerIds || [], status: 'pending_approval' };
+}
+
+/**
+ * Chỉ huy (hoặc cấp cao — Hiệu trưởng/Phó HT/Tổ trưởng, action
+ * `incident.add_participant`, cùng quyền với addIncidentParticipant) duyệt
+ * 1 yêu cầu tự tham gia đang chờ.
+ */
+export async function approveJoinRequest(
+  db: Db,
+  input: { actor: Actor; incidentId: string; perId: string },
+  opts?: SafetyOpts
+): Promise<{ incidentId: string; assignedTaskPerIds: string[] }> {
+  const now = opts?.now || new Date();
+  const incident = await loadIncident(db, input.incidentId);
+
+  const decision = checkAuthorization({
+    actor: input.actor,
+    action: 'incident.add_participant',
+    resource: { campusId: incident.campusId, commanderPerId: incident.commanderPerId ?? undefined }
+  });
+  if (!decision.allowed) throw new AppError('forbidden', 'Chỉ chỉ huy hồ sơ hoặc tài khoản cấp cao mới duyệt được yêu cầu tham gia.');
+
+  const pending = incident.pendingJoinRequests || [];
+  const entry = pending.find((r) => r.perId === input.perId);
+  if (!entry) throw new AppError('not_found', 'Không tìm thấy yêu cầu tham gia này (có thể đã được xử lý).');
+
+  const pendingJoinRequests = pending.filter((r) => r.perId !== input.perId);
+  const assignedTaskPerIds = adminArrayUnion(incident.assignedTaskPerIds, input.perId);
+  await db.update(incidents).set({ assignedTaskPerIds, pendingJoinRequests, version: incident.version + 1, updatedAt: now }).where(eq(incidents.incidentId, input.incidentId));
+
+  await writeAuditLog(
+    db,
+    buildAuditRecord({
+      actorPerId: input.actor.perId!,
+      action: 'incident.join_approved',
+      objectId: input.incidentId,
+      before: { requested_per_id: input.perId },
+      after: { assigned_task_per_ids: assignedTaskPerIds },
+      now
+    })
+  );
+
+  const approveMessage = input.incidentId + ': yêu cầu tham gia của bạn đã được duyệt.';
+  if (opts?.pushBell) {
+    await opts.pushBell(
+      db,
+      {
+        recipients: [input.perId],
+        title: 'Yêu cầu tham gia đã được duyệt — ' + input.incidentId,
+        message: approveMessage,
+        eventType: 'safety.incident.join_approved',
+        objectId: input.incidentId,
+        actorPerId: input.actor.perId,
+        meta: { approved_per_id: input.perId, campus_id: incident.campusId }
+      },
+      { now }
+    );
+  }
+  const approveUrgency = notify.urgencyForPriority(incident.priority || catalog.PRIORITY.P3);
+  const approveRequest = notify.buildNotifyRequest({
+    recipients: [input.perId],
+    priority: incident.priority || catalog.PRIORITY.P3,
+    objectId: input.incidentId,
+    objectCode: input.incidentId,
+    levelLabel: incident.priority ? catalog.PRIORITY_LABEL[incident.priority as catalog.Priority] : 'Chưa phân loại',
+    actionNeeded: approveMessage,
+    deepLink: '/app/incidents/' + input.incidentId,
+    eventType: 'safety.incident.join_approved',
+    urgencyOverride: approveUrgency === notify.URGENCY.NORMAL ? notify.URGENCY.HIGH : undefined
+  });
+  const [savedApproveRequest] = await db.insert(notifyRequests).values({ ...notifyRequestToRow(approveRequest), createdAt: now }).returning();
+  if (opts?.dispatch && savedApproveRequest) await opts.dispatch(db, savedApproveRequest, { now });
+
+  return { incidentId: input.incidentId, assignedTaskPerIds };
+}
+
+/** Từ chối 1 yêu cầu tự tham gia đang chờ — cùng quyền với approveJoinRequest. */
+export async function rejectJoinRequest(
+  db: Db,
+  input: { actor: Actor; incidentId: string; perId: string; reason?: string },
+  opts?: SafetyOpts
+): Promise<{ incidentId: string }> {
+  const now = opts?.now || new Date();
+  const incident = await loadIncident(db, input.incidentId);
+
+  const decision = checkAuthorization({
+    actor: input.actor,
+    action: 'incident.add_participant',
+    resource: { campusId: incident.campusId, commanderPerId: incident.commanderPerId ?? undefined }
+  });
+  if (!decision.allowed) throw new AppError('forbidden', 'Chỉ chỉ huy hồ sơ hoặc tài khoản cấp cao mới từ chối được yêu cầu tham gia.');
+
+  const pending = incident.pendingJoinRequests || [];
+  const entry = pending.find((r) => r.perId === input.perId);
+  if (!entry) throw new AppError('not_found', 'Không tìm thấy yêu cầu tham gia này (có thể đã được xử lý).');
+
+  const pendingJoinRequests = pending.filter((r) => r.perId !== input.perId);
+  await db.update(incidents).set({ pendingJoinRequests, version: incident.version + 1, updatedAt: now }).where(eq(incidents.incidentId, input.incidentId));
+
+  await writeAuditLog(
+    db,
+    buildAuditRecord({
+      actorPerId: input.actor.perId!,
+      action: 'incident.join_rejected',
+      objectId: input.incidentId,
+      before: { requested_per_id: input.perId },
       reason: input.reason,
       now
     })
   );
 
   if (opts?.pushBell) {
-    const recipients = Array.from(new Set([incident.commanderPerId, ...(incident.assignedTaskPerIds || [])].filter(Boolean) as string[]));
-    if (recipients.length > 0) {
-      const joinActorName = await nameForBell(db, input.actor.perId);
-      await opts.pushBell(
-        db,
-        {
-          recipients,
-          title: 'Có người mới tham gia sự vụ ' + input.incidentId,
-          message: input.incidentId + ': ' + joinActorName + ' đã tự tham gia xử lý — lý do: ' + input.reason,
-          eventType: 'safety.incident.participant_joined',
-          objectId: input.incidentId,
-          actorPerId: input.actor.perId,
-          meta: { joined_per_id: input.actor.perId, campus_id: incident.campusId }
-        },
-        { now }
-      );
-    }
+    await opts.pushBell(
+      db,
+      {
+        recipients: [input.perId],
+        title: 'Yêu cầu tham gia bị từ chối — ' + input.incidentId,
+        message: input.incidentId + ': yêu cầu tham gia của bạn bị từ chối.' + (input.reason ? ' Lý do: ' + input.reason : ''),
+        eventType: 'safety.incident.join_rejected',
+        objectId: input.incidentId,
+        actorPerId: input.actor.perId,
+        meta: { rejected_per_id: input.perId, campus_id: incident.campusId }
+      },
+      { now }
+    );
   }
 
-  return { incidentId: input.incidentId, assignedTaskPerIds };
+  return { incidentId: input.incidentId };
 }
 
 export async function leaveIncident(

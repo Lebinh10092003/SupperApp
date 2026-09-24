@@ -47,6 +47,8 @@ import {
   acknowledgeIncident,
   addIncidentParticipant,
   joinIncident,
+  approveJoinRequest,
+  rejectJoinRequest,
   leaveIncident,
   requestCancelAcknowledgment,
   approveCancelAcknowledgment,
@@ -295,6 +297,30 @@ safetyRouter.post(
     const actor = await loadActorContext(db, req.appUser!.uid);
     const d = req.body || {};
     const row = await joinIncident(db, { actor, incidentId: String(req.params.id), reason: d.reason }, { dispatch, pushBell, now: new Date() });
+    res.json(row);
+  })
+);
+
+// Duyệt/từ chối yêu cầu tự tham gia — chỉ huy hồ sơ hoặc cấp cao (Hiệu
+// trưởng/Phó HT/Tổ trưởng), xem `approveJoinRequest`/`rejectJoinRequest`
+// (incident-lifecycle.ts).
+safetyRouter.post(
+  '/incidents/:id/join-requests/:perId/approve',
+  firebaseAuth,
+  withAppError(async (req, res) => {
+    const actor = await loadActorContext(db, req.appUser!.uid);
+    const row = await approveJoinRequest(db, { actor, incidentId: String(req.params.id), perId: String(req.params.perId) }, { dispatch, pushBell, now: new Date() });
+    res.json(row);
+  })
+);
+
+safetyRouter.post(
+  '/incidents/:id/join-requests/:perId/reject',
+  firebaseAuth,
+  withAppError(async (req, res) => {
+    const actor = await loadActorContext(db, req.appUser!.uid);
+    const d = req.body || {};
+    const row = await rejectJoinRequest(db, { actor, incidentId: String(req.params.id), perId: String(req.params.perId), reason: d.reason }, { dispatch, pushBell, now: new Date() });
     res.json(row);
   })
 );

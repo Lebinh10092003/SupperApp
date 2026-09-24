@@ -50,6 +50,14 @@ export const incidents = pgTable('incidents', {
   cancelRequestedBy: text('cancel_requested_by'),
   cancelRequestReason: text('cancel_request_reason'),
   cancelRequestedAt: timestamp('cancel_requested_at', { withTimezone: true }),
+  // Yêu cầu TỰ THAM GIA đang chờ chỉ huy duyệt (bổ sung 2026-09-25, Sin
+  // chốt: "trừ tài khoản cấp cao thì ai muốn chủ động tham gia sự cố phải
+  // được chỉ huy duyệt nếu vụ đã có chỉ huy"). KHÁC yêu cầu huỷ tiếp nhận
+  // ở chỗ có thể có NHIỀU người cùng xin tham gia 1 lúc -> dùng mảng thay
+  // vì 3 cột đơn lẻ như cancelRequested*. Hồ sơ CHƯA có chỉ huy hoặc actor
+  // là cấp cao (Hiệu trưởng/Phó HT/Tổ trưởng) vẫn tham gia được NGAY, bỏ
+  // qua mảng này hoàn toàn — xem joinIncident (incident-lifecycle.ts).
+  pendingJoinRequests: jsonb('pending_join_requests').$type<Array<{ perId: string; reason: string; requestedAt: string }>>(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull()
 });

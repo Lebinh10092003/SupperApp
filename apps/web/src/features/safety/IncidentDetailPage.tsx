@@ -21,6 +21,7 @@ import {
   DialogContent,
   DialogTitle,
   Divider,
+  Link as MuiLink,
   MenuItem,
   Snackbar,
   Stack,
@@ -66,6 +67,9 @@ interface ReportSubmission {
   channel: string;
   reporterRole: string | null;
   stillDangerous: boolean;
+  contactName: string | null;
+  email: string | null;
+  phone: string | null;
 }
 
 interface IncidentDetail {
@@ -84,6 +88,8 @@ interface IncidentDetail {
   commanderName?: string | null;
   participantPerIds?: string[];
   participantLabels?: Record<string, string>;
+  pendingJoinRequests?: Array<{ perId: string; reason: string; requestedAt: string }>;
+  pendingJoinRequestLabels?: Record<string, string>;
   lastNote?: string | null;
   reopenReason?: string | null;
   cancelRequestedBy?: string | null;
@@ -331,6 +337,57 @@ export default function IncidentDetailPage() {
             </CardContent>
           </Card>
 
+          {(isCommander || isSenior) && incident.pendingJoinRequests && incident.pendingJoinRequests.length > 0 && (
+            <Card sx={{ borderRadius: 3, border: '1px solid #fde68a', bgcolor: '#fffbeb', boxShadow: 'none' }}>
+              <CardContent>
+                <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1.5 }}>
+                  Yêu cầu tham gia đang chờ duyệt ({incident.pendingJoinRequests.length})
+                </Typography>
+                <Stack spacing={1.5} divider={<Divider />}>
+                  {incident.pendingJoinRequests.map((r) => (
+                    <Box key={r.perId} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap' }}>
+                      <Box>
+                        <Typography variant="body2" fontWeight={700}>
+                          {incident.pendingJoinRequestLabels?.[r.perId] || r.perId}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          Lý do: {r.reason} — {formatDateTime(r.requestedAt)}
+                        </Typography>
+                      </Box>
+                      <Stack direction="row" spacing={1}>
+                        <Button
+                          size="small"
+                          variant="contained"
+                          onClick={async () => {
+                            await api.post(`/api/safety/incidents/${incident.incidentId}/join-requests/${r.perId}/approve`, {});
+                            load();
+                            setToast({ message: `Đã duyệt cho ${incident.pendingJoinRequestLabels?.[r.perId] || r.perId} tham gia.`, severity: 'success' });
+                          }}
+                          sx={{ bgcolor: '#16a34a', '&:hover': { bgcolor: '#15803d' }, textTransform: 'none', fontWeight: 600 }}
+                        >
+                          Duyệt
+                        </Button>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          color="error"
+                          onClick={async () => {
+                            await api.post(`/api/safety/incidents/${incident.incidentId}/join-requests/${r.perId}/reject`, {});
+                            load();
+                            setToast({ message: `Đã từ chối yêu cầu của ${incident.pendingJoinRequestLabels?.[r.perId] || r.perId}.`, severity: 'success' });
+                          }}
+                          sx={{ textTransform: 'none', fontWeight: 600 }}
+                        >
+                          Từ chối
+                        </Button>
+                      </Stack>
+                    </Box>
+                  ))}
+                </Stack>
+              </CardContent>
+            </Card>
+          )}
+
           {incident.slaClocks && Object.keys(incident.slaClocks).length > 0 && (
             <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none' }}>
               <CardContent>
@@ -365,6 +422,15 @@ export default function IncidentDetailPage() {
                         {formatDateTime(r.occurredAt)}
                         {r.stillDangerous ? ' — còn nguy hiểm lúc gửi' : ''}
                       </Typography>
+                      {(r.contactName || r.email || r.phone) && (
+                        <Typography variant="body2" sx={{ mt: 0.5 }}>
+                          Liên hệ người báo tin
+                          {r.contactName ? ' (' + r.contactName + ')' : ''}:{' '}
+                          {r.email && <MuiLink href={`mailto:${r.email}`}>{r.email}</MuiLink>}
+                          {r.email && r.phone ? ' · ' : ''}
+                          {r.phone && <MuiLink href={`tel:${r.phone}`}>{r.phone}</MuiLink>}
+                        </Typography>
+                      )}
                     </Box>
                   ))}
                 </Stack>
@@ -417,9 +483,18 @@ export default function IncidentDetailPage() {
             Huỷ tiếp nhận
           </Button>
         )}
-        {actor?.perId && incident.commanderPerId && incident.commanderPerId !== actor.perId && !(incident.participantPerIds || []).includes(actor.perId) && (
-          <Button variant="outlined" startIcon={<GroupAddIcon />} onClick={() => setJoinDialogOpen(true)} sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}>
-            Tham gia sự vụ
+        {actor?.perId &&
+          incident.commanderPerId &&
+          incident.commanderPerId !== actor.perId &&
+          !(incident.participantPerIds || []).includes(actor.perId) &&
+          !(incident.pendingJoinRequests || []).some((r) => r.perId === actor.perId) && (
+            <Button variant="outlined" startIcon={<GroupAddIcon />} onClick={() => setJoinDialogOpen(true)} sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}>
+              Tham gia sự vụ
+            </Button>
+          )}
+        {actor?.perId && (incident.pendingJoinRequests || []).some((r) => r.perId === actor.perId) && (
+          <Button variant="outlined" disabled sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}>
+            Đang chờ chỉ huy duyệt tham gia
           </Button>
         )}
         {actor?.perId && incident.commanderPerId !== actor.perId && (incident.participantPerIds || []).includes(actor.perId) && (
@@ -533,14 +608,22 @@ export default function IncidentDetailPage() {
       <ReasonPromptDialog
         open={joinDialogOpen}
         title="Tham gia sự vụ"
-        description={`Bạn sẽ tự thêm mình vào danh sách người tham gia xử lý ${incident.incidentId}.`}
+        description={
+          incident.commanderPerId && !isSenior
+            ? `Hồ sơ ${incident.incidentId} đã có chỉ huy — yêu cầu tham gia của bạn cần chỉ huy duyệt trước khi có hiệu lực.`
+            : `Bạn sẽ tự thêm mình vào danh sách người tham gia xử lý ${incident.incidentId}.`
+        }
         confirmLabel="Tham gia"
         confirmColor="#2563eb"
         onClose={() => setJoinDialogOpen(false)}
         onSubmit={async (reason) => {
-          await api.post(`/api/safety/incidents/${incident.incidentId}/join`, { reason });
+          const result = await api.post<{ status: 'joined' | 'pending_approval' }>(`/api/safety/incidents/${incident.incidentId}/join`, { reason });
           load();
-          setToast({ message: 'Đã tham gia sự vụ.', severity: 'success' });
+          setToast(
+            result.status === 'pending_approval'
+              ? { message: 'Đã gửi yêu cầu tham gia — đang chờ chỉ huy duyệt.', severity: 'success' }
+              : { message: 'Đã tham gia sự vụ.', severity: 'success' }
+          );
         }}
       />
       <ReasonPromptDialog

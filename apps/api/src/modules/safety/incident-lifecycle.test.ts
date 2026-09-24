@@ -34,6 +34,8 @@ import {
   acknowledgeIncident,
   addIncidentParticipant,
   joinIncident,
+  approveJoinRequest,
+  rejectJoinRequest,
   leaveIncident,
   requestCancelAcknowledgment,
   approveCancelAcknowledgment,
@@ -469,7 +471,7 @@ test('assignCommander: Tổ trưởng CHỈ bàn giao được cho cấp dưới
   assert.equal(toPrincipal.code, 'forbidden');
 });
 
-test('joinIncident/leaveIncident: bắt buộc lý do; tự tham gia thì có mặt trong assignedTaskPerIds; không tham gia 2 lần; chỉ huy không dùng leave; rời rồi thì không còn trong danh sách', { skip }, async () => {
+test('joinIncident/leaveIncident: bắt buộc lý do; hồ sơ đã có chỉ huy + actor không cấp cao -> chờ duyệt; chỉ huy duyệt xong mới có mặt trong assignedTaskPerIds; không tham gia 2 lần; chỉ huy không dùng leave; rời rồi thì không còn trong danh sách', { skip }, async () => {
   await resetTables();
   const incidentId = await seedIncident({ priority: PRIORITY.P2, commanderPerId: IL_PRINCIPAL, assignedTaskPerIds: [IL_PRINCIPAL] });
 
@@ -477,8 +479,20 @@ test('joinIncident/leaveIncident: bắt buộc lý do; tự tham gia thì có m�
   assert.equal(noReason.threw, true);
   assert.equal(noReason.code, 'reason_required');
 
-  const joined = await joinIncident(db, { actor: dutyOfficer(IL_CAMPUS_ID), incidentId, reason: 'Hỗ trợ xử lý vì đang trực' }, {});
-  assert.ok(joined.assignedTaskPerIds.includes(IL_DUTY_OFFICER));
+  // Trực ban (không cấp cao) xin tham gia hồ sơ ĐÃ có chỉ huy -> chỉ vào hàng chờ, CHƯA có trong assignedTaskPerIds (Sin chốt 2026-09-25).
+  const requested = await joinIncident(db, { actor: dutyOfficer(IL_CAMPUS_ID), incidentId, reason: 'Hỗ trợ xử lý vì đang trực' }, {});
+  assert.equal(requested.status, 'pending_approval');
+  assert.ok(!requested.assignedTaskPerIds.includes(IL_DUTY_OFFICER));
+
+  const requestAgain = await throwsWithCode(() => joinIncident(db, { actor: dutyOfficer(IL_CAMPUS_ID), incidentId, reason: 'Thử xin lại' }, {}));
+  assert.equal(requestAgain.threw, true);
+  assert.equal(requestAgain.code, 'already_requested');
+
+  // Chỉ huy (IL_PRINCIPAL) duyệt -> mới thực sự thành participant.
+  const approved = await approveJoinRequest(db, { actor: principal(), incidentId, perId: IL_DUTY_OFFICER }, {});
+  assert.ok(approved.assignedTaskPerIds.includes(IL_DUTY_OFFICER));
+  const [incAfterApprove] = await db.select().from(incidents).where(eq(incidents.incidentId, incidentId));
+  assert.deepEqual(incAfterApprove!.pendingJoinRequests, []);
 
   const joinAgain = await throwsWithCode(() => joinIncident(db, { actor: dutyOfficer(IL_CAMPUS_ID), incidentId, reason: 'Thử tham gia lại' }, {}));
   assert.equal(joinAgain.threw, true);
@@ -496,8 +510,44 @@ test('joinIncident/leaveIncident: bắt buộc lý do; tự tham gia thì có m�
   assert.equal(leaveAgain.code, 'not_participant');
 
   const joinAudit = await db.select().from(auditLogs).where(eq(auditLogs.objectId, incidentId));
-  assert.ok(joinAudit.some((a) => a.action === 'incident.participant_joined' && a.reason === 'Hỗ trợ xử lý vì đang trực'));
+  assert.ok(joinAudit.some((a) => a.action === 'incident.join_requested' && a.reason === 'Hỗ trợ xử lý vì đang trực'));
+  assert.ok(joinAudit.some((a) => a.action === 'incident.join_approved'));
   assert.ok(joinAudit.some((a) => a.action === 'incident.participant_left' && a.reason === 'Đã bàn giao xong ca trực'));
+});
+
+test('joinIncident: cấp cao hoặc hồ sơ CHƯA có chỉ huy -> tham gia NGAY, không cần chờ duyệt; rejectJoinRequest hoạt động đúng; người không phải chỉ huy/cấp cao không duyệt/từ chối được', { skip }, async () => {
+  await resetTables();
+
+  // Hồ sơ CHƯA có chỉ huy -> ai xem được cũng tham gia ngay.
+  const incidentNoCommander = await seedIncident({ priority: PRIORITY.P2 });
+  const joinedNoCommander = await joinIncident(db, { actor: dutyOfficer(IL_CAMPUS_ID), incidentId: incidentNoCommander, reason: 'Hỗ trợ ngay' }, {});
+  assert.equal(joinedNoCommander.status, 'joined');
+  assert.ok(joinedNoCommander.assignedTaskPerIds.includes(IL_DUTY_OFFICER));
+
+  // Hồ sơ ĐÃ có chỉ huy, actor là cấp cao (Phó HT) -> vẫn tham gia ngay, không qua hàng chờ.
+  const incidentWithCommander = await seedIncident({ priority: PRIORITY.P2, commanderPerId: IL_DUTY_OFFICER, assignedTaskPerIds: [IL_DUTY_OFFICER] });
+  const joinedSenior = await joinIncident(db, { actor: vicePrincipal(IL_CAMPUS_ID), incidentId: incidentWithCommander, reason: 'Hỗ trợ khẩn' }, {});
+  assert.equal(joinedSenior.status, 'joined');
+  assert.ok(joinedSenior.assignedTaskPerIds.includes(IL_VICE_PRINCIPAL));
+
+  // rejectJoinRequest: Trực ban (không phải chỉ huy hồ sơ này, không cấp cao) xin tham gia -> chờ duyệt -> Phó HT (cấp cao) từ chối được.
+  const requesterPerId = IL_DUTY_OFFICER;
+  const incidentReject = await seedIncident({ priority: PRIORITY.P2, commanderPerId: IL_PRINCIPAL, assignedTaskPerIds: [IL_PRINCIPAL] });
+  await joinIncident(db, { actor: dutyOfficer(IL_CAMPUS_ID), incidentId: incidentReject, reason: 'Muốn hỗ trợ' }, {});
+
+  const notCommanderReject = await throwsWithCode(() => rejectJoinRequest(db, { actor: dutyOfficer(IL_CAMPUS_ID), incidentId: incidentReject, perId: requesterPerId }, {}));
+  assert.equal(notCommanderReject.threw, true);
+  assert.equal(notCommanderReject.code, 'forbidden');
+
+  const rejected = await rejectJoinRequest(db, { actor: vicePrincipal(IL_CAMPUS_ID), incidentId: incidentReject, perId: requesterPerId, reason: 'Không cần thêm người' }, {});
+  assert.equal(rejected.incidentId, incidentReject);
+  const [incAfterReject] = await db.select().from(incidents).where(eq(incidents.incidentId, incidentReject));
+  assert.deepEqual(incAfterReject!.pendingJoinRequests, []);
+  assert.ok(!incAfterReject!.assignedTaskPerIds!.includes(requesterPerId));
+
+  const rejectAgain = await throwsWithCode(() => rejectJoinRequest(db, { actor: vicePrincipal(IL_CAMPUS_ID), incidentId: incidentReject, perId: requesterPerId }, {}));
+  assert.equal(rejectAgain.threw, true);
+  assert.equal(rejectAgain.code, 'not_found');
 });
 
 test('requestCancelAcknowledgment/approveCancelAcknowledgment: chỉ chỉ huy được yêu cầu, bắt buộc lý do, chỉ cấp trên được duyệt; duyệt thì xoá chỉ huy, từ chối thì giữ nguyên', { skip }, async () => {
