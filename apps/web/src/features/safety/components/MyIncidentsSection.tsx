@@ -13,7 +13,7 @@
  * KHÔNG xoá `assignedTaskPerIds`, nên hồ sơ đã đóng vẫn tự nhiên nằm trong
  * danh sách này — không cần xử lý gì thêm cho "đã từng làm".
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -28,6 +28,7 @@ import {
   TableCell,
   TableContainer,
   TableHead,
+  TablePagination,
   TableRow,
   TableSortLabel,
   TextField,
@@ -73,6 +74,8 @@ export function MyIncidentsSection() {
   const [searchText, setSearchText] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('updatedAt');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   // Thống kê tính trên TOÀN BỘ "của tôi", KHÔNG bị bộ lọc bên dưới ảnh
   // hưởng — lọc chỉ để thu hẹp bảng hiển thị, không đổi ý nghĩa 2 con số này.
@@ -108,6 +111,12 @@ export function MyIncidentsSection() {
     });
     return copy;
   }, [filtered, sortKey, sortDir]);
+
+  const paged = useMemo(() => sorted.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage), [sorted, page, rowsPerPage]);
+
+  useEffect(() => {
+    setPage(0);
+  }, [priorityFilter, stateFilter, searchText]);
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -217,7 +226,7 @@ export function MyIncidentsSection() {
                 </TableCell>
               </TableRow>
             )}
-            {sorted.map((it) => (
+            {paged.map((it) => (
               <TableRow key={it.incidentId} hover sx={{ cursor: 'pointer' }} onClick={() => navigate(`/safety/incidents/${it.incidentId}`)}>
                 <TableCell sx={{ fontWeight: 600 }}>{it.incidentId}</TableCell>
                 <TableCell>{it.categoryLabel || it.categoryCode || '—'}</TableCell>
@@ -245,6 +254,20 @@ export function MyIncidentsSection() {
             ))}
           </TableBody>
         </Table>
+        <TablePagination
+          component="div"
+          count={sorted.length}
+          page={page}
+          onPageChange={(_, p) => setPage(p)}
+          rowsPerPage={rowsPerPage}
+          onRowsPerPageChange={(e) => {
+            setRowsPerPage(Number(e.target.value));
+            setPage(0);
+          }}
+          rowsPerPageOptions={[10, 25, 50]}
+          labelRowsPerPage="Số dòng/trang"
+          labelDisplayedRows={({ from, to, count }) => `${from}–${to} / ${count}`}
+        />
       </TableContainer>
     </Box>
   );

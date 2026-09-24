@@ -89,13 +89,13 @@ export default function SafetyDashboardPage() {
         </Grid>
       </Grid>
 
-      <MyIncidentsSection />
-
-      <Box sx={{ mt: 3 }}>
+      <Box sx={{ mb: 3 }}>
         <Button variant="outlined" onClick={() => window.open('/safety/report', '_blank')}>
           Xem trang báo cáo công khai
         </Button>
       </Box>
+
+      <MyIncidentsSection />
     </>
   );
 }
