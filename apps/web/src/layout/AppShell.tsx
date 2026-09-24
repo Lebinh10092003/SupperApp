@@ -114,7 +114,6 @@ const GROUP_DISPLAY_ORDER = [
 const navGroups: NavGroup[] = [
   {
     groupTitle: 'TỔNG QUAN',
-    adminOnly: true,
     items: [
       { path: '/', label: 'Tổng quan điều hành', icon: <DashboardIcon fontSize="small" /> },
       { path: '/today', label: 'Hoạt động hôm nay', icon: <TodayIcon fontSize="small" />, badge: 'LIVE' },
@@ -199,7 +198,6 @@ const navGroups: NavGroup[] = [
   },
   {
     groupTitle: 'PHÂN TÍCH & BÁO CÁO',
-    adminOnly: true,
     items: [
       {
         path: '/executive',
@@ -223,33 +221,25 @@ const navGroups: NavGroup[] = [
         path: '/connections',
         label: 'Kết nối Google Classroom',
         icon: <LinkIcon fontSize="small" />,
-        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL'],
-        adminOnly: true
+        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL']
       },
       {
         path: '/catalog/mapping',
         label: 'Chuẩn hóa Dữ liệu Trường',
         icon: <AutoFixHighIcon fontSize="small" />,
-        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL'],
-        adminOnly: true
+        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL']
       },
       {
         path: '/audit/classroom',
         label: 'Nhật ký kiểm toán Classroom',
         icon: <HistoryIcon fontSize="small" />,
-        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL'],
-        adminOnly: true
+        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL']
       },
       {
         path: '/data-quality',
         label: 'Chất lượng dữ liệu',
         icon: <DataQualityIcon fontSize="small" />,
-        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL'],
-        // Nội dung trang này (Roster Completeness/Class Mapping/mapping
-        // Classroom...) thực chất toàn số liệu Google Classroom — Sin phát
-        // hiện 2026-09-21 tài khoản Hiệu trưởng vẫn thấy mục này dù đã ẩn
-        // "Kết nối/Chuẩn hóa/Nhật ký" Classroom khác cùng nhóm.
-        adminOnly: true
+        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL']
       },
       {
         path: '/admin',

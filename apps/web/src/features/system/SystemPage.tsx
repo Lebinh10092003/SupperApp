@@ -44,7 +44,13 @@ const STATE_STYLE: Record<ServiceState, { bg: string; color: string; border: str
 };
 
 export default function SystemPage() {
-  const [health, setHealth] = useState<{ status: string; database: string; version: string } | null>(null);
+  const [health, setHealth] = useState<{
+    status: string;
+    database: string;
+    version: string;
+    classroomSync?: 'ok' | 'not_configured' | 'stale' | 'error';
+    clamav?: 'ok' | 'not_configured';
+  } | null>(null);
   const [loading, setLoading] = useState(false);
   const [latency, setLatency] = useState<number | null>(null);
   const [checkedAt, setCheckedAt] = useState<Date | null>(null);
@@ -52,7 +58,7 @@ export default function SystemPage() {
   const checkStatus = () => {
     setLoading(true);
     const start = performance.now();
-    api<{ status: string; database: string; version: string }>('/health')
+    api<{ status: string; database: string; version: string; classroomSync?: 'ok' | 'not_configured' | 'stale' | 'error'; clamav?: 'ok' | 'not_configured' }>('/health')
       .then((res) => {
         setLatency(Math.round(performance.now() - start));
         setHealth(res);
@@ -73,10 +79,23 @@ export default function SystemPage() {
   const apiState: ServiceState = loading ? 'CHECKING' : health ? 'ONLINE' : 'ERROR';
   const dbState: ServiceState = loading ? 'CHECKING' : health?.database === 'ok' ? 'ONLINE' : 'ERROR';
 
-  // Hai dịch vụ dưới đây KHÔNG có cách kiểm tra thật từ trình duyệt (không
-  // gọi API nào xác nhận được) — hiện đang thật sự CHƯA cấu hình, không
-  // phải lỗi tạm thời, nên hiển thị cứng "Chưa cấu hình" thay vì giả vờ
-  // gọi kiểm tra rồi báo "Hoạt động" sai sự thật như bản cũ.
+  // Classroom sync + ClamAV: /health giờ tự kiểm tra thật ở backend (Sin
+  // phát hiện 2026-09-25 khi rà soát trước bàn giao — bản cũ hiển thị cứng
+  // "Chưa cấu hình" cho cả 2, viết từ lúc chưa cấu hình xong và không được
+  // cập nhật lại, dù thực tế cả DWD lẫn clamav-daemon đã chạy thật trên
+  // VPS từ lâu — xem health.routes.ts).
+  const classroomSyncState: ServiceState =
+    loading ? 'CHECKING' : health?.classroomSync === 'ok' ? 'ONLINE' : health?.classroomSync === 'stale' || health?.classroomSync === 'error' ? 'ERROR' : 'NOT_CONFIGURED';
+  const clamavState: ServiceState = loading ? 'CHECKING' : health?.clamav === 'ok' ? 'ONLINE' : 'NOT_CONFIGURED';
+  const classroomSyncDesc =
+    health?.classroomSync === 'ok'
+      ? 'Đã cấu hình Service Account ủy quyền toàn domain (DWD) — dữ liệu Học sinh/Giáo viên/Lớp học đồng bộ THẬT từ Google Classroom, lần gần nhất thành công trong 48 giờ qua.'
+      : health?.classroomSync === 'stale'
+        ? 'Đã cấu hình DWD nhưng lần đồng bộ thành công gần nhất đã quá 48 giờ — kiểm tra lại cron đồng bộ.'
+        : health?.classroomSync === 'error'
+          ? 'Đã cấu hình DWD nhưng lần đồng bộ gần nhất KHÔNG thành công — xem "Phiên đồng bộ" để biết chi tiết lỗi.'
+          : 'Chưa cấu hình Service Account ủy quyền toàn domain (DWD) — dữ liệu Học sinh/Giáo viên/Lớp học đang là dữ liệu mẫu.';
+
   const services: ServiceStatus[] = [
     {
       name: 'Backend API',
@@ -89,21 +108,24 @@ export default function SystemPage() {
       name: 'Cơ sở dữ liệu PostgreSQL',
       category: 'Database',
       status: dbState,
-      desc: 'PostgreSQL tự host — hiện chạy trên máy cục bộ, chưa chuyển lên VPS. Kiểm tra bằng truy vấn "select 1" thật.',
+      desc: 'PostgreSQL tự host trên VPS. Kiểm tra bằng truy vấn "select 1" thật.',
       icon: <StorageIcon sx={{ color: '#10b981' }} />
     },
     {
       name: 'Đồng bộ Google Classroom (DWD)',
       category: 'Tích hợp Google Workspace',
-      status: 'NOT_CONFIGURED',
-      desc: 'Chưa cấu hình Service Account ủy quyền toàn domain lẫn OAuth cá nhân — dữ liệu Học sinh/Giáo viên/Lớp học/Điểm danh/Meet hiện là DỮ LIỆU MẪU, chưa phải dữ liệu thật của trường.',
+      status: classroomSyncState,
+      desc: classroomSyncDesc,
       icon: <SecurityIcon sx={{ color: '#94a3b8' }} />
     },
     {
       name: 'Quét mã độc minh chứng (ClamAV)',
       category: 'Bảo mật module An toàn',
-      status: 'NOT_CONFIGURED',
-      desc: 'Đã có sẵn code gọi ClamAV daemon thật (clamscan) chạy cùng máy chủ API — nhưng clamd CHƯA được cài/chạy ở môi trường này, nên file minh chứng tải lên vẫn kẹt ở trạng thái "chờ quét". Sẽ tự hoạt động khi VPS cài clamav-daemon.',
+      status: clamavState,
+      desc:
+        clamavState === 'ONLINE'
+          ? 'clamd đang chạy thật trên VPS (clamav-daemon) — file minh chứng tải lên được quét mã độc thật trước khi lưu.'
+          : 'clamd CHƯA được cài/chạy ở môi trường này, nên file minh chứng tải lên vẫn kẹt ở trạng thái "chờ quét".',
       icon: <GppMaybeIcon sx={{ color: '#94a3b8' }} />
     }
   ];
@@ -161,7 +183,7 @@ export default function SystemPage() {
                 </Typography>
               </Box>
               <Typography variant="body2" sx={{ color: '#dbeafe', fontSize: '0.8125rem' }}>
-                Chạy cục bộ (local) — chưa triển khai lên VPS/máy chủ thật
+                Đang chạy trên VPS thật (production)
                 {notConfiguredCount > 0 && ` • ${notConfiguredCount} tích hợp chưa cấu hình (xem bên dưới)`}
                 {checkedAt && ` • Kiểm tra lúc ${checkedAt.toLocaleTimeString('vi-VN')}`}
               </Typography>
@@ -250,7 +272,7 @@ export default function SystemPage() {
           <Grid container spacing={2}>
             <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Nơi chạy backend</Typography>
-              <Typography variant="body2" fontWeight={600} sx={{ color: '#0f172a', mt: 0.5 }}>Máy cục bộ (chưa triển khai VPS)</Typography>
+              <Typography variant="body2" fontWeight={600} sx={{ color: '#0f172a', mt: 0.5 }}>VPS (systemd, /opt/supperapp)</Typography>
             </Grid>
             <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Cơ sở dữ liệu</Typography>

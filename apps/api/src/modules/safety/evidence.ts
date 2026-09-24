@@ -138,7 +138,7 @@ export type ScanBufferFn = (buffer: Buffer, opts?: ScanOpts) => Promise<ScanResu
 let clamInstance: any = null;
 let clamInitError: string | null = null;
 
-async function getClamInstance(): Promise<any> {
+export async function getClamInstance(): Promise<any> {
   if (clamInstance) return clamInstance;
   if (clamInitError) throw new Error(clamInitError);
   try {
