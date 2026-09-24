@@ -27,6 +27,7 @@ import { incidents } from './incidents.schema.js';
 import { reports } from './reports.schema.js';
 import { assignments } from '../identity/identity.schema.js';
 import { activateP0, notifyP1Escalation, notifyReporterAndAudit, resolveClassRelatedPeople, type SafetyOpts as ReportFlowOpts } from './report-flow.js';
+import { getDisplayNamesByPerIds } from './people-search.js';
 
 /**
  * `opts` dùng chung cho mọi hàm trong file này — mở rộng `SafetyOpts` của
@@ -44,6 +45,22 @@ async function loadIncident(db: Db, incidentId: string) {
   const [row] = await db.select().from(incidents).where(eq(incidents.incidentId, incidentId)).limit(1);
   if (!row) throw new AppError('not_found', 'Không tìm thấy hồ sơ ' + incidentId);
   return row;
+}
+
+/**
+ * Tra tên hiển thị của MỘT NGƯỜI cho nội dung chuông thông báo — Sin phản
+ * hồi 2026-09-24: toàn bộ message trong file này ghép thẳng `actor.perId`
+ * (mã dạng "PER_xxx") vào câu, không ai đọc hiểu được. Trả về mã gốc nếu
+ * không tra được tên (không throw — không để lỗi tra tên chặn luồng chính).
+ */
+async function nameForBell(db: Db, perId: string | null | undefined): Promise<string> {
+  if (!perId) return '(không rõ)';
+  try {
+    const names = await getDisplayNamesByPerIds(db, [perId]);
+    return names[perId] || perId;
+  } catch {
+    return perId;
+  }
 }
 
 type StoredPauseEntry = { from: string; to: string | null; reason: string; approved_by: string };
@@ -162,12 +179,13 @@ export async function changeIncidentPriority(
     const bellRecipients = Array.from(
       new Set([input.actor.perId, incident.commanderPerId || null, ...(Array.isArray(incident.assignedTaskPerIds) ? incident.assignedTaskPerIds : [])].filter(Boolean) as string[])
     );
+    const actorName = await nameForBell(db, input.actor.perId);
     await opts.pushBell(
       db,
       {
         recipients: bellRecipients,
         title: 'Đã đổi mức ưu tiên hồ sơ ' + input.incidentId,
-        message: input.incidentId + ': ' + incident.priority + ' → ' + input.toPriority + ' — ' + input.actor.perId + ' vừa cập nhật.',
+        message: input.incidentId + ': ' + incident.priority + ' → ' + input.toPriority + ' — ' + actorName + ' vừa cập nhật.',
         eventType: 'safety.incident.priority_changed',
         objectId: input.incidentId,
         actorPerId: input.actor.perId,
@@ -280,7 +298,8 @@ export async function transitionIncidentStatus(
   const bellRecipients = Array.from(new Set([...(incident.assignedTaskPerIds || []), ...(opts?.extraRecipients || [])].filter((p): p is string => !!p && p !== input.actor.perId)));
   if (bellRecipients.length > 0) {
     const stateChangeTitle = isClosing ? 'Đã đóng hồ sơ ' + input.incidentId : 'Đổi trạng thái hồ sơ ' + input.incidentId;
-    const stateChangeMessage = input.incidentId + ': ' + incident.state + ' → ' + input.toState + ' — ' + input.actor.perId + ' cập nhật.' + (input.note ? ' Ghi chú: ' + input.note : '');
+    const stateChangeActorName = await nameForBell(db, input.actor.perId);
+    const stateChangeMessage = input.incidentId + ': ' + incident.state + ' → ' + input.toState + ' — ' + stateChangeActorName + ' cập nhật.' + (input.note ? ' Ghi chú: ' + input.note : '');
     if (opts?.pushBell) {
       await opts.pushBell(
         db,
@@ -516,13 +535,18 @@ export async function assignCommander(
   // opts.extraRecipients — module này KHÔNG tự query).
   if (opts?.pushBell) {
     const bellRecipients = Array.from(new Set([input.actor.perId, previousCommanderPerId, input.commanderPerId, ...(opts.extraRecipients || [])].filter(Boolean) as string[]));
-    const commanderLabel = previousCommanderPerId ? previousCommanderPerId + ' → ' + input.commanderPerId : input.commanderPerId;
+    const [previousCommanderName, newCommanderName, reassignActorName] = await Promise.all([
+      previousCommanderPerId ? nameForBell(db, previousCommanderPerId) : Promise.resolve(null),
+      nameForBell(db, input.commanderPerId),
+      nameForBell(db, input.actor.perId)
+    ]);
+    const commanderLabel = previousCommanderName ? previousCommanderName + ' → ' + newCommanderName : newCommanderName;
     await opts.pushBell(
       db,
       {
         recipients: bellRecipients,
         title: 'Đã đổi người chỉ huy sự vụ ' + input.incidentId,
-        message: input.incidentId + ': ' + commanderLabel + ' — ' + input.actor.perId + ' vừa cập nhật.',
+        message: input.incidentId + ': ' + commanderLabel + ' — ' + reassignActorName + ' vừa cập nhật.',
         eventType: 'safety.incident.commander_reassigned',
         objectId: input.incidentId,
         actorPerId: input.actor.perId,
@@ -619,12 +643,13 @@ export async function acknowledgeIncident(
 
   if (opts?.pushBell) {
     const bellRecipients = Array.from(new Set([...(incident.assignedTaskPerIds || []), input.actor.perId, ...(opts.extraRecipients || [])].filter(Boolean) as string[]));
+    const ackActorName = await nameForBell(db, input.actor.perId);
     await opts.pushBell(
       db,
       {
         recipients: bellRecipients,
         title: 'Đã có người tiếp nhận xử lý ' + input.incidentId,
-        message: input.incidentId + ': ' + input.actor.perId + ' đã tiếp nhận, giữ vai trò chỉ huy sự vụ.',
+        message: input.incidentId + ': ' + ackActorName + ' đã tiếp nhận, giữ vai trò chỉ huy sự vụ.',
         eventType: 'safety.incident.acknowledged',
         objectId: input.incidentId,
         actorPerId: input.actor.perId,
@@ -687,7 +712,8 @@ export async function addIncidentParticipant(
     })
   );
 
-  const addParticipantMessage = input.incidentId + ': ' + input.actor.perId + ' đã thêm bạn cùng tham gia xử lý.';
+  const addParticipantActorName = await nameForBell(db, input.actor.perId);
+  const addParticipantMessage = input.incidentId + ': ' + addParticipantActorName + ' đã thêm bạn cùng tham gia xử lý.';
   if (opts?.pushBell) {
     await opts.pushBell(
       db,
@@ -770,12 +796,13 @@ export async function joinIncident(
   if (opts?.pushBell) {
     const recipients = Array.from(new Set([incident.commanderPerId, ...(incident.assignedTaskPerIds || [])].filter(Boolean) as string[]));
     if (recipients.length > 0) {
+      const joinActorName = await nameForBell(db, input.actor.perId);
       await opts.pushBell(
         db,
         {
           recipients,
           title: 'Có người mới tham gia sự vụ ' + input.incidentId,
-          message: input.incidentId + ': ' + input.actor.perId + ' đã tự tham gia xử lý — lý do: ' + input.reason,
+          message: input.incidentId + ': ' + joinActorName + ' đã tự tham gia xử lý — lý do: ' + input.reason,
           eventType: 'safety.incident.participant_joined',
           objectId: input.incidentId,
           actorPerId: input.actor.perId,
@@ -824,12 +851,13 @@ export async function leaveIncident(
   );
 
   if (opts?.pushBell && incident.commanderPerId) {
+    const leaveActorName = await nameForBell(db, input.actor.perId);
     await opts.pushBell(
       db,
       {
         recipients: [incident.commanderPerId],
         title: 'Có người rời khỏi sự vụ ' + input.incidentId,
-        message: input.incidentId + ': ' + input.actor.perId + ' đã rời sự vụ — lý do: ' + input.reason,
+        message: input.incidentId + ': ' + leaveActorName + ' đã rời sự vụ — lý do: ' + input.reason,
         eventType: 'safety.incident.participant_left',
         objectId: input.incidentId,
         actorPerId: input.actor.perId,
@@ -891,12 +919,13 @@ export async function requestCancelAcknowledgment(
   if (opts?.pushBell) {
     const recipients = Array.from(new Set([...(opts.extraRecipients || [])].filter(Boolean) as string[]));
     if (recipients.length > 0) {
+      const cancelReqActorName = await nameForBell(db, input.actor.perId);
       await opts.pushBell(
         db,
         {
           recipients,
           title: 'Yêu cầu huỷ tiếp nhận sự vụ ' + input.incidentId,
-          message: input.incidentId + ': ' + input.actor.perId + ' xin huỷ tiếp nhận — lý do: ' + reason,
+          message: input.incidentId + ': ' + cancelReqActorName + ' xin huỷ tiếp nhận — lý do: ' + reason,
           eventType: 'safety.incident.cancel_acknowledgment_requested',
           objectId: input.incidentId,
           actorPerId: input.actor.perId,
@@ -957,12 +986,13 @@ export async function approveCancelAcknowledgment(
     );
 
     if (opts?.pushBell) {
+      const approveActorName = await nameForBell(db, input.actor.perId);
       await opts.pushBell(
         db,
         {
           recipients: [requestedBy],
           title: 'Yêu cầu huỷ tiếp nhận đã được duyệt — ' + input.incidentId,
-          message: input.incidentId + ': ' + input.actor.perId + ' đã duyệt huỷ tiếp nhận — lý do gốc: ' + requestReason,
+          message: input.incidentId + ': ' + approveActorName + ' đã duyệt huỷ tiếp nhận — lý do gốc: ' + requestReason,
           eventType: 'safety.incident.acknowledgment_cancelled',
           objectId: input.incidentId,
           actorPerId: input.actor.perId,
@@ -991,12 +1021,13 @@ export async function approveCancelAcknowledgment(
     );
 
     if (opts?.pushBell) {
+      const rejectActorName = await nameForBell(db, input.actor.perId);
       await opts.pushBell(
         db,
         {
           recipients: [requestedBy],
           title: 'Yêu cầu huỷ tiếp nhận đã bị từ chối — ' + input.incidentId,
-          message: input.incidentId + ': ' + input.actor.perId + ' đã từ chối yêu cầu huỷ tiếp nhận của bạn.',
+          message: input.incidentId + ': ' + rejectActorName + ' đã từ chối yêu cầu huỷ tiếp nhận của bạn.',
           eventType: 'safety.incident.cancel_acknowledgment_rejected',
           objectId: input.incidentId,
           actorPerId: input.actor.perId,

@@ -39,6 +39,22 @@ import { makeDispatchHook } from '../safety/notify-hooks.js';
 
 type Db = NodePgDatabase<Record<string, never>>;
 
+/**
+ * Tra tên hiển thị 1 người cho nội dung chuông/email/push — Sin phản hồi
+ * 2026-09-24: message ghép thẳng perId (mã "PER_xxx") vào câu, không ai
+ * đọc hiểu được (cùng lỗi đã sửa ở incident-lifecycle.ts). Trả về mã gốc
+ * nếu không tra được tên (không throw — không chặn luồng nghiệp vụ chính).
+ */
+async function nameForBell(db: Db, perId: string | null | undefined): Promise<string> {
+  if (!perId) return '(không rõ)';
+  try {
+    const labels = await getPersonLabelsByPerIds(db, [perId]);
+    return labels[perId] || perId;
+  } catch {
+    return perId;
+  }
+}
+
 // `admin_notifications` (bảng "chuông thông báo") ĐANG nằm ở module An
 // toàn vì được xây trước — chính tài liệu ở đó đã ghi rõ CHỦ Ý dùng chung
 // cho "mọi module trong Super App", chưa module nào khác nối vào (Lịch
@@ -363,7 +379,7 @@ export async function createEvent(db: Db, input: CreateEventInput, opts: { now?:
     {
       recipients: [row.chairPerId, ...(row.participantPerIds || [])],
       title: 'Lịch công tác mới: ' + row.title,
-      message: input.createdByPerId + ' vừa tạo lịch "' + row.title + '" — bạn được mời tham dự.',
+      message: (await nameForBell(db, input.createdByPerId)) + ' vừa tạo lịch "' + row.title + '" — bạn được mời tham dự.',
       eventType: 'work_schedule.event.created',
       objectId: row.id,
       actorPerId: input.createdByPerId,
@@ -450,7 +466,7 @@ export async function updateRevisionEvent(
     {
       recipients: [finalEvent.chairPerId, ...(finalEvent.participantPerIds || [])],
       title: 'Lịch vừa được sửa lại: ' + finalEvent.title,
-      message: input.actorPerId + ' vừa cập nhật nội dung lịch "' + finalEvent.title + '".',
+      message: (await nameForBell(db, input.actorPerId)) + ' vừa cập nhật nội dung lịch "' + finalEvent.title + '".',
       eventType: 'work_schedule.event.updated_for_revision',
       objectId: input.eventId,
       actorPerId: input.actorPerId,
@@ -509,7 +525,7 @@ export async function changeEventStatus(
       {
         recipients: [before.createdByPerId],
         title: 'Lịch cần sửa lại: ' + before.title,
-        message: input.actorPerId + ' yêu cầu sửa lại lịch "' + before.title + '" — lý do: ' + input.note,
+        message: (await nameForBell(db, input.actorPerId)) + ' yêu cầu sửa lại lịch "' + before.title + '" — lý do: ' + input.note,
         eventType: 'work_schedule.event.revision_required',
         objectId: input.eventId,
         actorPerId: input.actorPerId,
@@ -525,7 +541,7 @@ export async function changeEventStatus(
       {
         recipients: [before.createdByPerId, before.chairPerId, ...(before.participantPerIds || [])],
         title: 'Lịch đã bị hủy: ' + before.title,
-        message: input.actorPerId + ' đã hủy lịch "' + before.title + '" — lý do: ' + input.note,
+        message: (await nameForBell(db, input.actorPerId)) + ' đã hủy lịch "' + before.title + '" — lý do: ' + input.note,
         eventType: 'work_schedule.event.cancelled',
         objectId: input.eventId,
         actorPerId: input.actorPerId,
@@ -621,7 +637,7 @@ export async function approveEvent(
       {
         recipients: [before.createdByPerId],
         title: 'Lịch vừa được duyệt 1 bước: ' + before.title,
-        message: input.actorPerId + ' vừa duyệt lịch "' + before.title + '" (còn chờ bước duyệt tiếp theo).',
+        message: (await nameForBell(db, input.actorPerId)) + ' vừa duyệt lịch "' + before.title + '" (còn chờ bước duyệt tiếp theo).',
         eventType: 'work_schedule.event.approval_step',
         objectId: input.eventId,
         actorPerId: input.actorPerId,
@@ -701,7 +717,7 @@ export async function createTask(db: Db, input: CreateTaskInput, opts: { now?: D
       {
         recipients: [row.assigneePerId, ...(row.collaboratorPerIds || [])],
         title: 'Việc mới được giao: ' + row.title,
-        message: input.createdByPerId + ' vừa giao việc "' + row.title + '" cho bạn, hạn ' + row.dueAt.toISOString(),
+        message: (await nameForBell(db, input.createdByPerId)) + ' vừa giao việc "' + row.title + '" cho bạn, hạn ' + row.dueAt.toLocaleString('vi-VN'),
         eventType: 'work_schedule.task.created',
         objectId: row.id,
         actorPerId: input.createdByPerId,
@@ -770,7 +786,7 @@ export async function changeTaskStatus(
         recipients: [otherPartyPerId],
         title: (isCancelled ? 'Việc đã bị hủy: ' : 'Việc đổi trạng thái: ') + before.title,
         message:
-          input.actorPerId +
+          (await nameForBell(db, input.actorPerId)) +
           ' đã chuyển việc "' +
           before.title +
           '" sang trạng thái ' +
@@ -835,7 +851,7 @@ export async function acceptOrReturnTask(
       recipients: [before.assigneePerId],
       title: (input.nextStatus === 'COMPLETED' ? 'Việc đã được nghiệm thu: ' : 'Việc bị trả lại: ') + before.title,
       message:
-        input.actorPerId +
+        (await nameForBell(db, input.actorPerId)) +
         (input.nextStatus === 'COMPLETED' ? ' đã nghiệm thu việc "' : ' trả lại việc "') +
         before.title +
         '".' +

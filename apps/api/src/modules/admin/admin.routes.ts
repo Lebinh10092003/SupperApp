@@ -294,6 +294,11 @@ adminRouter.post(
         // LẠI uid đó, chỉ gán vai trò (password optional, chỉ áp dụng nếu
         // admin có nhập).
         password: z.string().min(6).optional(),
+        // Sin yêu cầu 2026-09-24: cần gọi thẳng/gửi mail thường khi gấp,
+        // không chỉ trong app — trước đây field này tồn tại ở DB
+        // (people_directory.phone) nhưng không có UI nào nhập được, luôn
+        // ghi cứng null lúc tạo tài khoản.
+        phone: z.string().trim().min(1).nullable().optional(),
         roleId: z.enum(ASSIGNABLE_SAFETY_ROLES),
         campusId: z.enum(CAMPUS_IDS).nullable().optional(),
         domain: z.string().nullable().optional()
@@ -338,7 +343,8 @@ adminRouter.post(
     const domain = b.roleId === ROLE.DEPT_HEAD ? b.domain!.trim() : null;
 
     await db.insert(accounts).values({ uid, perId, displayName: b.displayName, email, createdByUid: q.appUser!.uid });
-    await db.insert(peopleDirectory).values({ perId, email, phone: null }).onConflictDoUpdate({ target: peopleDirectory.perId, set: { email } });
+    const phone = b.phone?.trim() || null;
+    await db.insert(peopleDirectory).values({ perId, email, phone }).onConflictDoUpdate({ target: peopleDirectory.perId, set: { email, phone } });
     await db.insert(assignments).values({ perId, roleId: b.roleId, campusId, domain, createdByUid: q.appUser!.uid });
 
     const appRole = mapSafetyRoleToAppRole(b.roleId, false);
@@ -368,6 +374,7 @@ adminRouter.patch(
     const b = z
       .object({
         displayName: z.string().min(1).optional(),
+        phone: z.string().trim().min(1).nullable().optional(),
         roleId: z.enum(ASSIGNABLE_SAFETY_ROLES),
         oldRoleId: z.string().nullable().optional(),
         campusId: z.enum(CAMPUS_IDS).nullable().optional(),
@@ -385,6 +392,13 @@ adminRouter.patch(
     if (b.displayName) {
       await db.update(accounts).set({ displayName: b.displayName }).where(eq(accounts.uid, uid));
       await adminAuth.updateUser(uid, { displayName: b.displayName }).catch(() => {});
+    }
+    if (b.phone !== undefined) {
+      const phone = b.phone?.trim() || null;
+      await db
+        .insert(peopleDirectory)
+        .values({ perId: account.perId, email: account.email, phone })
+        .onConflictDoUpdate({ target: peopleDirectory.perId, set: { phone } });
     }
 
     const campusId = b.campusId ?? null;
@@ -435,6 +449,7 @@ adminRouter.patch(
     const b = z
       .object({
         displayName: z.string().min(1).optional(),
+        phone: z.string().trim().min(1).nullable().optional(),
         roleId: z.enum(ASSIGNABLE_SAFETY_ROLES),
         oldRoleId: z.string().nullable().optional(),
         campusId: z.enum(CAMPUS_IDS).nullable().optional(),
@@ -456,13 +471,17 @@ adminRouter.patch(
       throw new HttpError(409, 'Người này đã đăng nhập rồi — sửa qua route quản lý theo tài khoản, không phải route này', 'INVALID_OPERATION');
     }
 
+    const phone = b.phone?.trim() || null;
     let [dir] = await db.select().from(peopleDirectory).where(eq(peopleDirectory.email, email)).limit(1);
     if (!dir) {
       const perId = genPerId();
-      await db.insert(peopleDirectory).values({ perId, email, phone: null, displayName: b.displayName || email });
-      dir = { perId, email, phone: null, displayName: b.displayName || email };
-    } else if (b.displayName && b.displayName !== dir.displayName) {
-      await db.update(peopleDirectory).set({ displayName: b.displayName }).where(eq(peopleDirectory.perId, dir.perId));
+      await db.insert(peopleDirectory).values({ perId, email, phone, displayName: b.displayName || email });
+      dir = { perId, email, phone, displayName: b.displayName || email };
+    } else {
+      const set: Partial<typeof peopleDirectory.$inferInsert> = {};
+      if (b.displayName && b.displayName !== dir.displayName) set.displayName = b.displayName;
+      if (b.phone !== undefined) set.phone = phone;
+      if (Object.keys(set).length > 0) await db.update(peopleDirectory).set(set).where(eq(peopleDirectory.perId, dir.perId));
     }
 
     const campusId = b.campusId ?? null;

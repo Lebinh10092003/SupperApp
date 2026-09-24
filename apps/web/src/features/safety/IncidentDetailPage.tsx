@@ -47,6 +47,7 @@ import { ReopenIncidentDialog, type ReopenIncidentTarget } from './dialogs/Reope
 import { AssignCommanderDialog, type AssignCommanderTarget } from './dialogs/AssignCommanderDialog';
 import { AddParticipantDialog, type AddParticipantTarget } from './dialogs/AddParticipantDialog';
 import { ReasonPromptDialog } from './dialogs/ReasonPromptDialog';
+import { ContactInfoButton } from './components/ContactInfoButton';
 import { CorrectClassificationDialog, type CorrectClassificationTarget } from './dialogs/CorrectClassificationDialog';
 import { CAMPUS_LABEL, SLA_CLOCK_LABEL, SLA_STATUS_LABEL } from './constants';
 import { useActor } from './hooks/useActor';
@@ -302,14 +303,24 @@ export default function IncidentDetailPage() {
                     Lớp liên quan: <strong>{incident.className}</strong>
                   </Typography>
                 )}
-                <Typography variant="body2">
-                  Chỉ huy: <strong>{incident.commanderName || 'Chưa có ai tiếp nhận'}</strong>
-                </Typography>
-                {incident.participantPerIds && incident.participantPerIds.length > 0 && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
                   <Typography variant="body2">
-                    Người tham gia xử lý khác:{' '}
-                    <strong>{incident.participantPerIds.map((p) => incident.participantLabels?.[p] || p).join(', ')}</strong>
+                    Chỉ huy: <strong>{incident.commanderName || 'Chưa có ai tiếp nhận'}</strong>
                   </Typography>
+                  {incident.commanderPerId && <ContactInfoButton perId={incident.commanderPerId} name={incident.commanderName || incident.commanderPerId} />}
+                </Box>
+                {incident.participantPerIds && incident.participantPerIds.length > 0 && (
+                  <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5, flexWrap: 'wrap' }}>
+                    <Typography variant="body2">Người tham gia xử lý khác:</Typography>
+                    {incident.participantPerIds.map((p) => (
+                      <Box key={p} sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.25 }}>
+                        <Typography variant="body2" fontWeight={700}>
+                          {incident.participantLabels?.[p] || p}
+                        </Typography>
+                        <ContactInfoButton perId={p} name={incident.participantLabels?.[p] || p} />
+                      </Box>
+                    ))}
+                  </Box>
                 )}
                 {incident.lastNote && <Typography variant="body2">Ghi chú gần nhất: {incident.lastNote}</Typography>}
                 {incident.reopenReason && <Typography variant="body2">Lý do mở lại: {incident.reopenReason}</Typography>}

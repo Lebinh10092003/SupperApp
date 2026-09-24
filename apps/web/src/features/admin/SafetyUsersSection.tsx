@@ -443,6 +443,7 @@ function EditUserDialog({
   const isEdit = !!user;
   const [displayName, setDisplayName] = useState(user?.displayName || '');
   const [email, setEmail] = useState(user?.email || '');
+  const [phone, setPhone] = useState(user?.phone || '');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [roleId, setRoleId] = useState(user?.roleId || 'R.TEACHER');
@@ -492,6 +493,7 @@ function EditUserDialog({
       if (isEdit && user!.uid) {
         await api.patch(`/api/admin/safety-users/${user!.uid}`, {
           displayName: displayName.trim(),
+          phone: phone.trim() || null,
           roleId,
           oldRoleId: user!.roleId,
           campusId: campusId || null,
@@ -504,6 +506,7 @@ function EditUserDialog({
         // nên không sửa được ở đây — chỉ sửa vai trò/cơ sở/tổ.
         const result = await api.patch<{ perId: string }>(`/api/admin/safety-users/pending/${encodeURIComponent(user!.email)}`, {
           displayName: displayName.trim(),
+          phone: phone.trim() || null,
           roleId,
           oldRoleId: user!.roleId,
           campusId: campusId || null,
@@ -515,6 +518,7 @@ function EditUserDialog({
         const result = await api.post<{ perId: string }>('/api/admin/safety-users', {
           displayName: displayName.trim(),
           email: email.trim(),
+          phone: phone.trim() || null,
           password: password.trim() || undefined,
           roleId,
           campusId: campusId || null,
@@ -559,6 +563,13 @@ function EditUserDialog({
           {error && <Alert severity="error">{error}</Alert>}
           <TextField label="Tên hiển thị" size="small" fullWidth value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
           <TextField label="Email" size="small" fullWidth value={email} disabled={isEdit} onChange={(e) => setEmail(e.target.value)} />
+          <TextField
+            label="Số điện thoại (tuỳ chọn — để gọi/nhắn khi gấp)"
+            size="small"
+            fullWidth
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+          />
           {!isEdit && (
             <TextField
               label="Mật khẩu tạm (bỏ trống nếu email đã từng đăng nhập Google)"

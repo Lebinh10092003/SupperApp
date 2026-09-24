@@ -47,6 +47,7 @@ import { registerPushToken, unregisterPushToken } from './push-notify.js';
 import { acknowledge } from './notify.js';
 import { getDisplayNamesByPerIds } from './people-search.js';
 import { getPersonSummariesByPerIds, formatPersonLabel, getPersonLabelsByPerIds, findPeopleByRolesAndCampus } from '../identity/person-directory.js';
+import { peopleDirectory } from '../identity/identity.schema.js';
 import { filterReportItems, filterIncidentItems, sortReportItemsDefault } from './report-filters.js';
 import { resolveClassRelatedPeople } from './report-flow.js';
 import * as notify from './notify.js';
@@ -105,6 +106,44 @@ safetyQueryRouter.get(
       }
     }
     res.status(200).json({ publicCode: String(publicCode), state: friendlyState, updatedAt: report.occurredAt, canConfirmClose });
+  })
+);
+
+/**
+ * Xem thông tin liên hệ (email/SĐT) của 1 nhóm người theo perId — Sin yêu
+ * cầu 2026-09-24: cần gọi thẳng/gửi mail thường cho chỉ huy/người tham gia
+ * hồ sơ khi cần gấp, không chỉ trong app. KHÁC `people/search`
+ * (`people-search.ts`) ở chỗ đó là tìm theo TÊN (cố ý KHÔNG trả email để
+ * chống dò người), còn đây là XEM chi tiết của người ĐÃ BIẾT trước perId
+ * (đang hiện tên trên hồ sơ) — chỉ cần đăng nhập + có vai trò an toàn nào
+ * đó (không giới hạn thêm theo từng hồ sơ, vì people_directory vốn không
+ * gắn theo hồ sơ cụ thể nào).
+ */
+safetyQueryRouter.get(
+  '/people/contact',
+  firebaseAuth,
+  asyncRoute(async (req, res) => {
+    const actor = await loadActorContext(db, req.appUser!.uid);
+    if (!actor.roles || actor.roles.length === 0) {
+      throw new HttpError(403, 'Tài khoản chưa được phân vai trò nào trong hệ thống.', 'PERMISSION_ERROR');
+    }
+    const perIds = String(req.query.perIds || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (perIds.length === 0) return void res.json({ results: [] });
+    const [dirRows, names] = await Promise.all([
+      db.select().from(peopleDirectory).where(inArray(peopleDirectory.perId, perIds)),
+      getDisplayNamesByPerIds(db, perIds)
+    ]);
+    const dirByPerId = new Map(dirRows.map((d) => [d.perId, d]));
+    const results = perIds.map((perId) => ({
+      perId,
+      name: names[perId] || perId,
+      email: dirByPerId.get(perId)?.email ?? null,
+      phone: dirByPerId.get(perId)?.phone ?? null
+    }));
+    res.json({ results });
   })
 );
 
