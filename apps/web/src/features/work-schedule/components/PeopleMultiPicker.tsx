@@ -9,7 +9,7 @@
  * khi muốn mời toàn trường tham dự 1 lịch.
  */
 import { useEffect, useMemo, useState } from 'react';
-import { Autocomplete, Button, CircularProgress, Stack, TextField } from '@mui/material';
+import { Autocomplete, Button, CircularProgress, Stack, TextField, Typography } from '@mui/material';
 import { api } from '../../../services/api';
 import type { PersonOption } from '../../safety/PersonPicker';
 
@@ -88,6 +88,12 @@ export function PeopleMultiPicker({
         isOptionEqualToValue={(a, b) => a.perId === b.perId}
         loading={loading}
         disabled={disabled}
+        // Trường ~100 người, bấm "Chọn toàn bộ" trước đây render HẾT từng
+        // chip trong ô -> modal dài vô tận (Sin phản hồi 2026-09-24). Chỉ
+        // hiện 4 chip đầu + "+N" còn lại (limitTags chuẩn MUI), vẫn đủ để
+        // bỏ chọn từng người nếu cần (bấm vào ô để xem/xoá lại).
+        limitTags={4}
+        getLimitTagsText={(more) => `+${more} người khác`}
         noOptionsText={query.length < 2 ? 'Gõ ít nhất 2 ký tự để tìm' : 'Không tìm thấy'}
         renderInput={(params) => (
           <TextField
@@ -114,6 +120,11 @@ export function PeopleMultiPicker({
           <Button size="small" color="inherit" onClick={() => onChange([])} disabled={disabled} sx={{ textTransform: 'none', alignSelf: 'flex-start' }}>
             Bỏ chọn hết
           </Button>
+        )}
+        {value.length > 0 && (
+          <Typography variant="caption" sx={{ color: '#64748b', alignSelf: 'center' }}>
+            Đã chọn {value.length} người
+          </Typography>
         )}
       </Stack>
     </Stack>
