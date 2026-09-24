@@ -35,16 +35,31 @@ export function formatPersonLabel(perId: string, summary?: PersonSummary | null)
  * `className` (1 lớp đúng 1 GVCN), KHÔNG có index theo perId, nhưng bảng
  * này nhỏ (1 dòng/lớp toàn trường) nên chấp nhận scan thẳng, không thêm
  * index riêng (Sin chốt 2026-09-22, xem plan "GVCN hiển thị theo lớp").
+ *
+ * Trả về đúng PHẦN HẬU TỐ "GVCN (<lớp>)" — nơi gọi PHẢI nối thêm vào SAU
+ * tên thật (`"${tên} - ${override}"`), KHÔNG được dùng để THAY THẾ tên
+ * (Sin chốt 2026-09-24: bản cũ trả nguyên "GVCN – <lớp>" rồi các nơi gọi
+ * lấy đè hẳn lên tên thật, làm mất tên thật của GVCN ở khắp nơi hiển thị
+ * — tìm người, danh sách toàn trường, tên chỉ huy/người tham gia...).
  * Trả `null` nếu perId đó không phải GVCN lớp nào.
  */
 export async function resolveHomeroomOverride(db: Db, perId: string | null | undefined): Promise<string | null> {
   if (!perId) return null;
   const rows = await db.select().from(homeroomAssignments).where(eq(homeroomAssignments.perId, perId));
   if (rows.length === 0) return null;
-  return 'GVCN – ' + rows.map((r) => r.className).join(', ');
+  return 'GVCN (' + rows.map((r) => r.className).join(', ') + ')';
 }
 
-/** Bản BATCH của `resolveHomeroomOverride` — dùng khi cần tra nhiều perId 1 lần (VD `people-search.ts`). */
+/**
+ * Ghép tên thật với hậu tố GVCN nếu có — dùng chung ở mọi nơi hiển thị tên
+ * người để không lặp lại logic nối chuỗi (Sin chốt 2026-09-24).
+ */
+export function withHomeroomSuffix(name: string | null | undefined, homeroomSuffix: string | null | undefined, fallback: string): string {
+  const base = name || fallback;
+  return homeroomSuffix ? `${base} - ${homeroomSuffix}` : base;
+}
+
+/** Bản BATCH của `resolveHomeroomOverride` — dùng khi cần tra nhiều perId 1 lần (VD `people-search.ts`). Trả hậu tố "GVCN (<lớp>)", KHÔNG phải tên đầy đủ — xem `withHomeroomSuffix`. */
 export async function getHomeroomOverridesByPerIds(db: Db, perIds: Array<string | null | undefined> | undefined): Promise<Record<string, string>> {
   const ids = Array.from(new Set((perIds || []).filter((v): v is string => Boolean(v))));
   const out: Record<string, string> = {};
@@ -56,7 +71,7 @@ export async function getHomeroomOverridesByPerIds(db: Db, perIds: Array<string 
     list.push(r.className);
     byPerId.set(r.perId, list);
   }
-  for (const [perId, classNames] of byPerId) out[perId] = 'GVCN – ' + classNames.join(', ');
+  for (const [perId, classNames] of byPerId) out[perId] = 'GVCN (' + classNames.join(', ') + ')';
   return out;
 }
 
@@ -83,9 +98,11 @@ export async function getPersonSummariesByPerIds(
     rolesByPerId.set(a.perId, set);
   }
 
-  // GVCN gắn theo LỚP phụ trách (bổ sung 2026-09-22, Sin chốt) — ghi đè
-  // HOÀN TOÀN "Tên (Vai trò)" bằng "GVCN – <tên lớp>" bất cứ đâu tên người
-  // đó hiển thị (kể cả ở tài khoản khác nhìn thấy tên người đó).
+  // GVCN gắn theo LỚP phụ trách (bổ sung 2026-09-22, Sin chốt) — NỐI THÊM
+  // "- GVCN (<tên lớp>)" vào SAU tên thật bất cứ đâu tên người đó hiển thị
+  // (kể cả ở tài khoản khác nhìn thấy tên người đó). Sin chốt 2026-09-24:
+  // trước đây GHI ĐÈ HẲN tên thật, làm mất luôn tên người — sửa lại thành
+  // nối thêm để vẫn nhận ra được là ai.
   const classNamesByPerId = new Map<string, string[]>();
   for (const hr of homeroomRows) {
     const list = classNamesByPerId.get(hr.perId) ?? [];
@@ -97,7 +114,8 @@ export async function getPersonSummariesByPerIds(
     if (!acc.perId) continue;
     const homeroomClasses = classNamesByPerId.get(acc.perId);
     if (homeroomClasses && homeroomClasses.length > 0) {
-      map[acc.perId] = { perId: acc.perId, name: 'GVCN – ' + homeroomClasses.join(', '), roleLabel: null };
+      const suffix = 'GVCN (' + homeroomClasses.join(', ') + ')';
+      map[acc.perId] = { perId: acc.perId, name: withHomeroomSuffix(acc.displayName, suffix, acc.perId), roleLabel: null };
       continue;
     }
     const roleSet = rolesByPerId.get(acc.perId);

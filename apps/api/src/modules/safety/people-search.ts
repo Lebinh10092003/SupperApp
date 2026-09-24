@@ -11,7 +11,7 @@
 
 import { inArray } from 'drizzle-orm';
 import { accounts } from '../identity/identity.schema.js';
-import { getHomeroomOverridesByPerIds } from '../identity/person-directory.js';
+import { getHomeroomOverridesByPerIds, withHomeroomSuffix } from '../identity/person-directory.js';
 import { normalizeForMatch } from './text-match.js';
 import type { Db } from './shared.js';
 
@@ -50,9 +50,9 @@ export async function searchPeopleByName(db: Db, query: string | null | undefine
     matched.push({ perId: row.perId, name });
   }
 
-  // GVCN gắn theo lớp phụ trách -> ghi đè tên hiển thị (Sin chốt 2026-09-22).
+  // GVCN gắn theo lớp phụ trách -> nối thêm "- GVCN (<lớp>)" sau tên thật (Sin chốt 2026-09-24).
   const overrides = await getHomeroomOverridesByPerIds(db, matched.map((m) => m.perId));
-  return matched.slice(0, MAX_RESULTS).map((m) => ({ perId: m.perId, name: overrides[m.perId] || m.name }));
+  return matched.slice(0, MAX_RESULTS).map((m) => ({ perId: m.perId, name: withHomeroomSuffix(m.name, overrides[m.perId], m.perId) }));
 }
 
 /**
@@ -70,7 +70,7 @@ export async function listAllPeople(db: Db): Promise<PersonResult[]> {
     out.push({ perId: row.perId, name: row.displayName });
   }
   const overrides = await getHomeroomOverridesByPerIds(db, out.map((p) => p.perId));
-  return out.map((p) => ({ perId: p.perId, name: overrides[p.perId] || p.name }));
+  return out.map((p) => ({ perId: p.perId, name: withHomeroomSuffix(p.name, overrides[p.perId], p.perId) }));
 }
 
 /**
@@ -95,7 +95,7 @@ export async function getDisplayNamesByPerIds(db: Db, perIds: Array<string | nul
   const rows = await db.select().from(accounts).where(inArray(accounts.perId, ids));
   const overrides = await getHomeroomOverridesByPerIds(db, ids);
   for (const row of rows) {
-    if (row.perId) map[row.perId] = overrides[row.perId] || row.displayName || null;
+    if (row.perId) map[row.perId] = row.displayName ? withHomeroomSuffix(row.displayName, overrides[row.perId], row.perId) : overrides[row.perId] || null;
   }
   return map;
 }

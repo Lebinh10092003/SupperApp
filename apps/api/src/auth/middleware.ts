@@ -8,7 +8,7 @@ import { can, type Capability, type Role, type UserScope } from './roles.js';
 import { bootstrapSuperAdminEmails, bootstrapSuperAdminDomains, env } from '../config/env.js';
 import { ensureSafetyAccountLinked } from '../modules/identity/auto-link.js';
 import { accounts } from '../modules/identity/identity.schema.js';
-import { resolveHomeroomOverride } from '../modules/identity/person-directory.js';
+import { resolveHomeroomOverride, withHomeroomSuffix } from '../modules/identity/person-directory.js';
 
 export interface AppUser {
   uid: string;
@@ -84,6 +84,23 @@ export async function firebaseAuth(req: Request, _res: Response, next: NextFunct
       console.error('[Auth] ensureSafetyAccountLinked lỗi (bỏ qua, không chặn đăng nhập):', e);
     });
 
+    // Nối "- GVCN (<lớp>)" vào tên hiển thị trên toàn app (navbar...) nếu
+    // uid này gắn với 1 perId đang là GVCN — tra qua `accounts` (module
+    // Safety, khoá theo uid) vì đây là hệ perId/GVCN duy nhất trong app
+    // (Sin chốt 2026-09-24, "tất cả các mục hiển thị trên trang"). Best-
+    // effort: lỗi tra cứu KHÔNG được chặn đăng nhập.
+    const withGvcnSuffix = async (uid: string, name: string): Promise<string> => {
+      try {
+        const [acc] = await db.select().from(accounts).where(eq(accounts.uid, uid)).limit(1);
+        if (!acc?.perId) return name;
+        const suffix = await resolveHomeroomOverride(db, acc.perId);
+        return withHomeroomSuffix(name, suffix, name);
+      } catch (e) {
+        console.error('[Auth] Tra cứu GVCN cho displayName lỗi (bỏ qua, không chặn đăng nhập):', e);
+        return name;
+      }
+    };
+
     // Tự động cấp SYSTEM_SUPER_ADMIN cho email trong bootstrap config
     if (isBootstrapSuperAdmin(email)) {
       if (!existing) {
@@ -95,7 +112,7 @@ export async function firebaseAuth(req: Request, _res: Response, next: NextFunct
           displayName: d.name || email
         });
       }
-      req.appUser = { uid: d.uid, email, role: 'SYSTEM_SUPER_ADMIN', active: true, displayName: d.name || email };
+      req.appUser = { uid: d.uid, email, role: 'SYSTEM_SUPER_ADMIN', active: true, displayName: await withGvcnSuffix(d.uid, d.name || email) };
       return next();
     }
 
@@ -112,7 +129,7 @@ export async function firebaseAuth(req: Request, _res: Response, next: NextFunct
       email,
       role: (existing.role as Role) || 'TEACHER',
       active: true,
-      displayName: existing.displayName || d.name,
+      displayName: await withGvcnSuffix(d.uid, existing.displayName || d.name),
       scope: (existing.scope as UserScope) ?? undefined
     };
     next();
