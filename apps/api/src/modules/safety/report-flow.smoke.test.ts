@@ -243,9 +243,9 @@ test('report-flow: liên thông lớp <-> GVCN + phụ trách khối', { skip },
     const [incLop] = await db.select().from(incidents).where(eq(incidents.incidentId, createdLop.incidentId));
     assert.ok(incLop);
     assert.equal(incLop.className, '38A2');
-    // Sin chốt 2026-09-22: KHÔNG còn tự gán GVCN vào assignedTaskPerIds —
-    // chỉ báo (bell/dispatch), GVCN tự bấm "Tham gia sự vụ" nếu muốn xử lý.
-    assert.ok(!(incLop.assignedTaskPerIds || []).includes(PER_GVCN_8A2));
+    // Sin chốt 2026-09-24 (đảo lại 2026-09-22): GVCN được TỰ ĐỘNG thêm vào
+    // assignedTaskPerIds ngay lúc tạo hồ sơ, kèm báo (bell/dispatch).
+    assert.ok((incLop.assignedTaskPerIds || []).includes(PER_GVCN_8A2));
     const [p0AuditLop] = (await db.select().from(auditLogs).where(eq(auditLogs.objectId, createdLop.incidentId)))
       .filter((a) => a.action === 'safety.incident.p0_activated');
     assert.ok(p0AuditLop);
@@ -280,7 +280,7 @@ test('report-flow: liên thông lớp <-> GVCN + phụ trách khối', { skip },
     assert.equal(repKhoi.gradeSupervisorPerId, PER_KHOI8);
     const [incKhoi] = await db.select().from(incidents).where(eq(incidents.incidentId, repKhoi.incidentId));
     assert.ok(incKhoi);
-    assert.ok(!(incKhoi.assignedTaskPerIds || []).includes(PER_GVCN_8A3) && !(incKhoi.assignedTaskPerIds || []).includes(PER_KHOI8));
+    assert.ok((incKhoi.assignedTaskPerIds || []).includes(PER_GVCN_8A3) && (incKhoi.assignedTaskPerIds || []).includes(PER_KHOI8));
     assert.equal(bellCallsKhoi.length, 1);
   } finally {
     await cleanup();

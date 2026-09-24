@@ -248,14 +248,18 @@ export async function createIncidentFromReport(db: Db, input: CreateIncidentFrom
   const state = priority === catalog.PRIORITY.P0 ? catalog.STATE.EMERGENCY : catalog.STATE.NEW;
 
   const effectiveClassName = report.className || null;
-  // Sin chốt 2026-09-22: KHÔNG còn tự động gán GVCN/GV phụ trách khối vào
-  // hồ sơ — chỉ GỢI Ý (qua `resolveClassRelatedPeople`, dùng để tra tên
-  // hiển thị gợi ý ở dialog "Thêm người tham gia" và để BÁO cho họ biết có
-  // sự việc liên quan lớp/khối mình, không còn tự cấp quyền xử lý). Muốn
-  // thật sự tham gia xử lý thì phải tự bấm "Tham gia sự vụ" (joinIncident).
+  // Sin chốt 2026-09-24 (ĐẢO LẠI quyết định 2026-09-22 bên dưới): GVCN/GV
+  // phụ trách khối của lớp gắn với hồ sơ giờ được TỰ ĐỘNG thêm làm người
+  // tham gia (assignedTaskPerIds) NGAY lúc tạo hồ sơ, không chỉ gợi ý/báo
+  // suông nữa — kèm thông báo (dưới) để họ biết mình vừa được gán tự động.
+  // Hồ sơ CHƯA có chỉ huy thì bất kỳ người tham gia nào (kể cả người vừa
+  // được gán tự động ở đây) đều tự bấm "Tiếp nhận xử lý" để trở thành chỉ
+  // huy được luôn — không cần thay đổi gì thêm ở acknowledgeIncident, hàm
+  // đó vốn đã chỉ kiểm tra quyền xem hồ sơ (incident.view), không phân
+  // biệt actor đã là participant hay chưa.
   const { homeroomPerId, gradeSupervisorPerId } = await resolveClassRelatedPeople(db, effectiveClassName);
   const classRelatedPerIds = Array.from(new Set([homeroomPerId, gradeSupervisorPerId].filter((v): v is string => !!v)));
-  const assignedTaskPerIds: string[] = [];
+  const assignedTaskPerIds: string[] = [...classRelatedPerIds];
 
   await db.insert(incidents).values({
     incidentId,
@@ -310,7 +314,7 @@ export async function createIncidentFromReport(db: Db, input: CreateIncidentFrom
         objectId: incidentId,
         objectCode: incidentId,
         levelLabel: priority ? catalog.PRIORITY_LABEL[priority] : 'Chưa phân loại',
-        actionNeeded: 'Có sự việc liên quan đến lớp/khối bạn phụ trách — xem và phối hợp xử lý',
+        actionNeeded: 'Bạn vừa được TỰ ĐỘNG thêm làm người tham gia xử lý sự việc liên quan lớp/khối bạn phụ trách',
         deepLink: '/app/incidents/' + incidentId,
         eventType: 'safety.incident.homeroom_notified'
       });
@@ -319,7 +323,7 @@ export async function createIncidentFromReport(db: Db, input: CreateIncidentFrom
       if (opts?.pushBell) {
         await opts.pushBell(db, {
           recipients: classRelatedPerIds,
-          title: 'Sự việc mới liên quan lớp/khối bạn phụ trách',
+          title: 'Bạn vừa được gán tự động vào 1 sự việc mới (lớp/khối bạn phụ trách)',
           message: request.message,
           eventType: 'safety.incident.homeroom_notified',
           objectId: incidentId,

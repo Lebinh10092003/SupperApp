@@ -678,7 +678,7 @@ test('changeIncidentPriority: nâng lên P1 -> gọi notifyP1Escalation thật, 
   assert.equal(match.length, 1);
 });
 
-test('updateIncidentClassification: đổi className thật -> resolveClassRelatedPeople tra đúng GVCN, BÁO cho GVCN (notify) nhưng KHÔNG tự gán vào assignedTaskPerIds (Sin chốt 2026-09-22, bỏ auto-assignment)', { skip }, async () => {
+test('updateIncidentClassification: đổi className thật -> resolveClassRelatedPeople tra đúng GVCN, TỰ ĐỘNG thêm vào assignedTaskPerIds + BÁO cho GVCN (Sin chốt 2026-09-24, đảo lại 2026-09-22)', { skip }, async () => {
   await resetTables();
   await db.insert(homeroomAssignments).values({ className: IL_CLASS_NAME, perId: IL_HOMEROOM_PER_ID, name: 'Cô GVCN thử nghiệm IL' });
   const incidentId = await seedIncident({ campusId: 'CS.01', className: '8A1' });
@@ -688,7 +688,7 @@ test('updateIncidentClassification: đổi className thật -> resolveClassRelat
   assert.ok(updated.notifiedPerIds.includes(IL_HOMEROOM_PER_ID));
 
   const [row] = await db.select().from(incidents).where(eq(incidents.incidentId, incidentId));
-  assert.ok(!(row!.assignedTaskPerIds || []).includes(IL_HOMEROOM_PER_ID), 'GVCN chỉ được BÁO, không tự thêm vào assignedTaskPerIds nữa');
+  assert.ok((row!.assignedTaskPerIds || []).includes(IL_HOMEROOM_PER_ID), 'GVCN phải được tự động thêm vào assignedTaskPerIds');
 
   const notifyRows = await db.select().from(notifyRequests).where(eq(notifyRequests.objectId, incidentId));
   assert.ok(notifyRows.some((r) => r.eventType === 'safety.incident.homeroom_notified' && (r.recipients as string[]).includes(IL_HOMEROOM_PER_ID)));
@@ -697,7 +697,7 @@ test('updateIncidentClassification: đổi className thật -> resolveClassRelat
   assert.ok(homeroomAudit.some((r) => r.objectId === incidentId));
 });
 
-test('updateIncidentClassification: đổi lớp KHÔNG đụng gì tới assignedTaskPerIds sẵn có (chỉ huy/người tham gia thật không bị ảnh hưởng bởi việc sửa lớp)', { skip }, async () => {
+test('updateIncidentClassification: đổi lớp CỘNG THÊM GVCN lớp mới vào assignedTaskPerIds, KHÔNG xoá chỉ huy/người tham gia sẵn có (Sin chốt 2026-09-24)', { skip }, async () => {
   await resetTables();
   await db.insert(homeroomAssignments).values({ className: IL_OLD_CLASS_NAME, perId: IL_OLD_HOMEROOM_PER_ID, name: 'Cô GVCN lớp cũ IL' });
   await db.insert(homeroomAssignments).values({ className: IL_CLASS_NAME, perId: IL_HOMEROOM_PER_ID, name: 'Cô GVCN lớp mới IL' });
@@ -706,5 +706,5 @@ test('updateIncidentClassification: đổi lớp KHÔNG đụng gì tới assign
   await updateIncidentClassification(db, { actor: principal(), incidentId, className: IL_CLASS_NAME, reason: 'Người báo tin ghi nhầm lớp, đính chính lại' }, {});
 
   const [row] = await db.select().from(incidents).where(eq(incidents.incidentId, incidentId));
-  assert.deepEqual(row!.assignedTaskPerIds, [IL_PRINCIPAL], 'assignedTaskPerIds giữ nguyên, không bị đụng bởi việc sửa lớp');
+  assert.deepEqual(row!.assignedTaskPerIds, [IL_PRINCIPAL, IL_HOMEROOM_PER_ID], 'giữ nguyên người cũ, cộng thêm đúng GVCN lớp mới');
 });

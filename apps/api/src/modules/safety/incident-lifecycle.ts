@@ -1047,10 +1047,11 @@ export async function updateIncidentClassification(
 
   const effectiveClassName = input.className !== undefined ? input.className || null : previousClassName;
 
-  // Sin chốt 2026-09-22: sửa lớp KHÔNG còn tự gán/rút quyền xem hồ sơ của
-  // GVCN/GV khối — chỉ đổi tên lớp + BÁO cho GVCN/GV khối MỚI biết có sự
-  // việc liên quan (thuần thông tin), họ tự bấm "Tham gia sự vụ" nếu muốn
-  // xử lý. `assignedTaskPerIds` không còn bị đụng tới ở hàm này nữa.
+  // Sin chốt 2026-09-24 (ĐẢO LẠI quyết định 2026-09-22 ghi ở dưới): sửa
+  // lớp giờ TỰ ĐỘNG thêm GVCN/GV khối MỚI vào assignedTaskPerIds (thật sự
+  // thành người tham gia, không chỉ báo suông) + vẫn báo cho họ biết. Cũ:
+  // "sửa lớp KHÔNG còn tự gán/rút quyền xem hồ sơ của GVCN/GV khối — chỉ
+  // đổi tên lớp + BÁO, họ tự bấm Tham gia sự vụ nếu muốn xử lý."
   const newlyAddedPerIds: string[] = [];
   let homeroomPerId: string | null = null;
   let gradeSupervisorPerId: string | null = null;
@@ -1064,10 +1065,16 @@ export async function updateIncidentClassification(
     }
   }
 
+  let assignedTaskPerIds = incident.assignedTaskPerIds || [];
+  for (const perId of newlyAddedPerIds) {
+    assignedTaskPerIds = adminArrayUnion(assignedTaskPerIds, perId);
+  }
+
   await db
     .update(incidents)
     .set({
       className: effectiveClassName,
+      assignedTaskPerIds,
       version: incident.version + 1,
       updatedAt: now
     })
@@ -1086,7 +1093,7 @@ export async function updateIncidentClassification(
     })
   );
 
-  // Báo (thuần thông tin, KHÔNG cấp quyền) cho GVCN/GV khối MỚI.
+  // Báo cho GVCN/GV khối MỚI biết mình VỪA được tự động thêm làm người tham gia.
   if (newlyAddedPerIds.length > 0) {
     const request = notify.buildNotifyRequest({
       recipients: newlyAddedPerIds,
@@ -1094,7 +1101,7 @@ export async function updateIncidentClassification(
       objectId: input.incidentId,
       objectCode: input.incidentId,
       levelLabel: incident.priority ? catalog.PRIORITY_LABEL[incident.priority as catalog.Priority] : 'Chưa phân loại',
-      actionNeeded: 'Hồ sơ vừa được sửa lại lớp, có liên quan đến lớp/khối bạn phụ trách — xem và cân nhắc tham gia xử lý nếu cần',
+      actionNeeded: 'Hồ sơ vừa được sửa lại lớp — bạn vừa được TỰ ĐỘNG thêm làm người tham gia xử lý',
       deepLink: '/app/incidents/' + input.incidentId,
       eventType: 'safety.incident.homeroom_notified'
     });
@@ -1107,7 +1114,7 @@ export async function updateIncidentClassification(
         db,
         {
           recipients: newlyAddedPerIds,
-          title: 'Hồ sơ ' + input.incidentId + ' vừa được sửa lại lớp, có liên quan đến bạn',
+          title: 'Bạn vừa được gán tự động vào hồ sơ ' + input.incidentId + ' (sửa lại lớp)',
           message: request.message,
           eventType: 'safety.incident.homeroom_notified',
           objectId: input.incidentId,
