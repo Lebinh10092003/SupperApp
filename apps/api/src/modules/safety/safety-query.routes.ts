@@ -49,6 +49,13 @@ import { getDisplayNamesByPerIds } from './people-search.js';
 import { getPersonSummariesByPerIds, formatPersonLabel, getPersonLabelsByPerIds, findPeopleByRolesAndCampus } from '../identity/person-directory.js';
 import { filterReportItems, filterIncidentItems, sortReportItemsDefault } from './report-filters.js';
 import { resolveClassRelatedPeople } from './report-flow.js';
+import * as notify from './notify.js';
+import * as catalog from './catalog.js';
+import { notifyRequestToRow } from './shared.js';
+import { makeDispatchHook, makeBellHook } from './notify-hooks.js';
+
+const dispatch = makeDispatchHook();
+const pushBell = makeBellHook();
 
 export const safetyQueryRouter = Router();
 
@@ -111,7 +118,52 @@ safetyQueryRouter.post(
     }
     const [code] = await db.select().from(publicCodes).where(eq(publicCodes.code, String(publicCode))).limit(1);
     if (!code?.reportId) throw new HttpError(404, 'Không tìm thấy mã tra cứu này.', 'NOT_FOUND');
-    await db.insert(reportSupplements).values({ reportId: code.reportId, content: String(content).trim(), createdAt: new Date() });
+    const now = new Date();
+    await db.insert(reportSupplements).values({ reportId: code.reportId, content: String(content).trim(), createdAt: now });
+
+    // Báo đội xử lý — Sin phát hiện 2026-09-24: trước đây route này CHỈ
+    // ghi vào bảng, KHÔNG báo ai cả — chỉ huy/người tham gia hồ sơ không
+    // có cách nào biết người báo tin vừa bổ sung thêm thông tin trừ khi tự
+    // mở lại đúng hồ sơ đó để kiểm tra. Chỉ áp dụng khi tin báo ĐÃ gộp vào
+    // 1 hồ sơ (mergedIntoIncidentId) — tin báo CHƯA phân loại thì chưa có
+    // ai phụ trách để báo.
+    const [report] = await db.select().from(reports).where(eq(reports.reportId, code.reportId)).limit(1);
+    if (report?.mergedIntoIncidentId) {
+      const [incident] = await db.select().from(incidents).where(eq(incidents.incidentId, report.mergedIntoIncidentId)).limit(1);
+      if (incident) {
+        const recipients = Array.from(new Set((incident.assignedTaskPerIds || []).filter((p): p is string => !!p)));
+        if (recipients.length > 0) {
+          const message = report.mergedIntoIncidentId + ': người báo tin vừa bổ sung thêm thông tin — vào xem chi tiết.';
+          await pushBell(
+            db,
+            {
+              recipients,
+              title: 'Có bổ sung thông tin mới cho ' + report.mergedIntoIncidentId,
+              message,
+              eventType: 'safety.report.supplement_added',
+              objectId: report.mergedIntoIncidentId,
+              meta: { report_id: code.reportId, campus_id: incident.campusId }
+            },
+            { now }
+          );
+          const supplementUrgency = notify.urgencyForPriority(incident.priority || catalog.PRIORITY.P3);
+          const request = notify.buildNotifyRequest({
+            recipients,
+            priority: incident.priority || catalog.PRIORITY.P3,
+            objectId: report.mergedIntoIncidentId,
+            objectCode: report.mergedIntoIncidentId,
+            levelLabel: incident.priority ? catalog.PRIORITY_LABEL[incident.priority as catalog.Priority] : 'Chưa phân loại',
+            actionNeeded: message,
+            deepLink: '/app/incidents/' + report.mergedIntoIncidentId,
+            eventType: 'safety.report.supplement_added',
+            urgencyOverride: supplementUrgency === notify.URGENCY.NORMAL ? notify.URGENCY.HIGH : undefined
+          });
+          const [savedRequest] = await db.insert(notifyRequests).values({ ...notifyRequestToRow(request), createdAt: now }).returning();
+          if (savedRequest) await dispatch(db, savedRequest, { now });
+        }
+      }
+    }
+
     res.status(201).json({ ok: true });
   })
 );

@@ -270,6 +270,50 @@ export async function transitionIncidentStatus(
     await notifyReporterAndAudit(db, opts, { incidentId: input.incidentId, eventType: 'reporter.notified.in_progress' }, now);
   }
 
+  // Chỉ huy + người tham gia hồ sơ — Sin phát hiện 2026-09-24: hàm này
+  // trước giờ CHỈ báo người báo tin (reporter), KHÔNG hề báo đội xử lý nội
+  // bộ khi đổi trạng thái/đóng hồ sơ (không giống các hàm khác trong file
+  // này đều có pushBell). Đóng hồ sơ luôn ép tối thiểu HIGH (email+push) vì
+  // là mốc kết thúc quan trọng bất kể mức ưu tiên hồ sơ, giống lý do đã áp
+  // dụng cho assignCommander; các lần đổi trạng thái khác chỉ cần chuông
+  // trong app (đỡ gây phiền với việc chưa hẳn cần hành động ngay).
+  const bellRecipients = Array.from(new Set([...(incident.assignedTaskPerIds || []), ...(opts?.extraRecipients || [])].filter((p): p is string => !!p && p !== input.actor.perId)));
+  if (bellRecipients.length > 0) {
+    const stateChangeTitle = isClosing ? 'Đã đóng hồ sơ ' + input.incidentId : 'Đổi trạng thái hồ sơ ' + input.incidentId;
+    const stateChangeMessage = input.incidentId + ': ' + incident.state + ' → ' + input.toState + ' — ' + input.actor.perId + ' cập nhật.' + (input.note ? ' Ghi chú: ' + input.note : '');
+    if (opts?.pushBell) {
+      await opts.pushBell(
+        db,
+        {
+          recipients: bellRecipients,
+          title: stateChangeTitle,
+          message: stateChangeMessage,
+          eventType: isClosing ? 'safety.incident.closed' : 'safety.incident.state_changed',
+          objectId: input.incidentId,
+          actorPerId: input.actor.perId,
+          meta: { from_state: incident.state, to_state: input.toState, campus_id: incident.campusId }
+        },
+        { now }
+      );
+    }
+    if (isClosing) {
+      const closeUrgency = notify.urgencyForPriority(incident.priority || catalog.PRIORITY.P3);
+      const request = notify.buildNotifyRequest({
+        recipients: bellRecipients,
+        priority: incident.priority || catalog.PRIORITY.P3,
+        objectId: input.incidentId,
+        objectCode: input.incidentId,
+        levelLabel: incident.priority ? catalog.PRIORITY_LABEL[incident.priority as catalog.Priority] : 'Chưa phân loại',
+        actionNeeded: stateChangeMessage,
+        deepLink: '/app/incidents/' + input.incidentId,
+        eventType: 'safety.incident.closed',
+        urgencyOverride: closeUrgency === notify.URGENCY.NORMAL ? notify.URGENCY.HIGH : undefined
+      });
+      const [savedRequest] = await db.insert(notifyRequests).values({ ...notifyRequestToRow(request), createdAt: now }).returning();
+      if (opts?.dispatch && savedRequest) await opts.dispatch(db, savedRequest, { now });
+    }
+  }
+
   return { incidentId: input.incidentId, state: input.toState };
 }
 

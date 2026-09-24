@@ -211,7 +211,7 @@ safetyRouter.patch(
     const row = await transitionIncidentStatus(
       db,
       { actor, incidentId: String(req.params.id), toState: d.toState, note: d.note, reason: d.reason },
-      { notifyReporter }
+      { notifyReporter, dispatch, pushBell }
     );
     res.json(row);
   })

@@ -266,6 +266,60 @@ test('transitionIncidentStatus: dự phòng nhân viên tự đóng sau N ngày 
   assert.equal(staffFallbackClose.state, STATE.CLOSED);
 });
 
+test('transitionIncidentStatus: đổi trạng thái/đóng hồ sơ báo CHUÔNG + kênh thật (email/push) cho chỉ huy/người tham gia, không chỉ báo người báo tin (Sin phát hiện 2026-09-24)', { skip }, async () => {
+  await resetTables();
+  const incidentId = await seedIncident({
+    state: STATE.CLASSIFYING,
+    priority: PRIORITY.P2,
+    commanderPerId: IL_DUTY_OFFICER,
+    assignedTaskPerIds: [IL_DUTY_OFFICER, IL_PRINCIPAL]
+  });
+
+  const bellCalls: Record<string, unknown>[] = [];
+  const dispatchCalls: unknown[] = [];
+  const fakePushBell = async (_db: unknown, payload: Record<string, unknown>) => {
+    bellCalls.push(payload);
+  };
+  const fakeDispatch = async (_db: unknown, request: unknown) => {
+    dispatchCalls.push(request);
+  };
+
+  await transitionIncidentStatus(
+    db,
+    { actor: dutyOfficer('CS.01'), incidentId, toState: STATE.ASSIGNED },
+    { pushBell: fakePushBell as never, dispatch: fakeDispatch as never }
+  );
+  // Đổi trạng thái thường (không đóng) -> có chuông, KHÔNG cần bắt buộc kênh thật.
+  const stateChangedBell = bellCalls.find((b) => b.eventType === 'safety.incident.state_changed');
+  assert.ok(stateChangedBell);
+  assert.ok((stateChangedBell!.recipients as string[]).includes(IL_PRINCIPAL));
+  assert.ok(!(stateChangedBell!.recipients as string[]).includes(IL_DUTY_OFFICER)); // không tự báo chính actor
+
+  await transitionIncidentStatus(
+    db,
+    { actor: dutyOfficer('CS.01'), incidentId, toState: STATE.IN_PROGRESS },
+    { pushBell: fakePushBell as never, dispatch: fakeDispatch as never }
+  );
+  const closeRequestedAt = new Date('2026-08-21T09:00:00+07:00');
+  await transitionIncidentStatus(
+    db,
+    { actor: dutyOfficer('CS.01'), incidentId, toState: STATE.CLOSE_REQUESTED },
+    { now: closeRequestedAt, pushBell: fakePushBell as never, dispatch: fakeDispatch as never }
+  );
+  const afterFallback = new Date(closeRequestedAt.getTime() + REPORTER_CONFIRM_CLOSE_FALLBACK_DAYS * 24 * 60 * 60 * 1000 + 60 * 1000);
+  await transitionIncidentStatus(
+    db,
+    { actor: dutyOfficer('CS.01'), incidentId, toState: STATE.CLOSED },
+    { now: afterFallback, pushBell: fakePushBell as never, dispatch: fakeDispatch as never }
+  );
+
+  // Đóng hồ sơ -> có chuông + BẮT BUỘC gửi qua kênh thật (email/push), dù hồ sơ chỉ P2 (bình thường sẽ chỉ NORMAL/chuông).
+  const closedBell = bellCalls.find((b) => b.eventType === 'safety.incident.closed');
+  assert.ok(closedBell);
+  assert.ok((closedBell!.recipients as string[]).includes(IL_PRINCIPAL));
+  assert.equal(dispatchCalls.length, 1);
+});
+
 // ---------------------------------------------------------------------
 // reopenIncident
 // ---------------------------------------------------------------------
