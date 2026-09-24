@@ -63,7 +63,18 @@ const schema = z.object({
   // no_adapter_configured (dispatch.ts đã xử lý đúng, không throw).
   VAPID_PUBLIC_KEY: z.string().default(''),
   VAPID_PRIVATE_KEY: z.string().default(''),
-  VAPID_SUBJECT: z.string().default('mailto:admin@thcs-giangvo.edu.vn')
+  VAPID_SUBJECT: z.string().default('mailto:admin@thcs-giangvo.edu.vn'),
+
+  // SMTP thật (Sin chốt 2026-09-24, dùng Google Workspace của trường) —
+  // rỗng = email-adapter.ts tự rơi về Ethereal (SMTP test, không tới hộp
+  // thư thật). Google Workspace: SMTP_HOST=smtp.gmail.com, SMTP_PORT=587,
+  // SMTP_USER=<email @thcs-giangvo.edu.vn>, SMTP_PASS=<App Password, tạo
+  // ở myaccount.google.com/apppasswords — cần bật Xác minh 2 bước trước>.
+  SMTP_HOST: z.string().default(''),
+  SMTP_PORT: z.coerce.number().default(587),
+  SMTP_USER: z.string().default(''),
+  SMTP_PASS: z.string().default(''),
+  SMTP_FROM: z.string().default('')
 });
 
 export const env = schema.parse(process.env);

@@ -16,22 +16,22 @@
  * `dispatchRequest` mà không qua `toDispatchRequestData()` bên dưới,
  * `dispatchRequest` sẽ throw "thiếu notify_request_id" ngay lập tức.
  *
- * Sin chốt 2026-09-24: đã nối 2 kênh thật — EMAIL qua Ethereal
- * (`email-adapter.ts`, tới hộp thư test, xem qua link preview) và PUSH qua
- * Web Push chuẩn RFC 8030 (`push-adapter.ts`, KHÔNG cần Firebase Cloud
- * Messaging), áp dụng cho MỌI người nhận (participant/chỉ huy/cấp cao qua
- * `dispatchRequest`, và người báo tin qua `notifyReporterFor*` — riêng
- * kênh push của reporter-notify không áp dụng, người báo tin ẩn danh
- * không có push token). SMS/voice_call KHÔNG dùng (Sin chốt: chỉ cần
- * email + push) — `dispatchRequest` đã có sẵn nhánh `no_adapter_configured`
- * cho 2 kênh này, không throw, hệ thống vẫn chạy đúng.
+ * Sin chốt 2026-09-24: đã nối 2 kênh thật — EMAIL (`email-adapter.ts`,
+ * SMTP thật khi có cấu hình `.env` SMTP_HOST/SMTP_USER/SMTP_PASS, tự rơi
+ * về Ethereal test khi chưa có) và PUSH qua Web Push chuẩn RFC 8030
+ * (`push-adapter.ts`, KHÔNG cần Firebase Cloud Messaging), áp dụng cho MỌI
+ * người nhận (participant/chỉ huy/cấp cao qua `dispatchRequest`, và người
+ * báo tin qua `notifyReporterFor*` — riêng kênh push của reporter-notify
+ * không áp dụng, người báo tin ẩn danh không có push token). SMS/voice_call
+ * KHÔNG dùng (Sin chốt: chỉ cần email + push) — `dispatchRequest` đã có
+ * sẵn nhánh `no_adapter_configured` cho 2 kênh này, không throw.
  */
 
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { dispatchRequest, type RequestData, type DispatchAdapter } from './dispatch.js';
 import { pushAdminNotifications, type PushAdminNotificationsInput } from './admin-notify.js';
 import { notifyReporterForReport, notifyReporterForIncident } from './reporter-notify.js';
-import { etherealEmailAdapter } from './email-adapter.js';
+import { emailAdapter } from './email-adapter.js';
 import { webPushAdapter } from './push-adapter.js';
 import type { notifyRequests } from './dispatch.schema.js';
 
@@ -52,7 +52,7 @@ function toDispatchRequestData(row: NotifyRequestRow): RequestData {
 }
 
 /** "email" (Ethereal) + "push" (Web Push) đã có adapter thật. SMS/voice_call chưa (không cần theo Sin chốt 2026-09-24 — chỉ dùng email + push). */
-const ADAPTERS: Partial<Record<string, DispatchAdapter>> = { email: etherealEmailAdapter, push: webPushAdapter };
+const ADAPTERS: Partial<Record<string, DispatchAdapter>> = { email: emailAdapter, push: webPushAdapter };
 
 export function makeDispatchHook() {
   return async (db: Db, request: unknown, opts?: { now?: Date }) => {
@@ -81,10 +81,10 @@ export function makeNotifyReporterHook() {
     try {
       const now = opts?.now ?? new Date();
       if (input.reportId) {
-        return await notifyReporterForReport(db, { reportId: input.reportId, eventType: input.eventType }, { now, emailAdapter: etherealEmailAdapter });
+        return await notifyReporterForReport(db, { reportId: input.reportId, eventType: input.eventType }, { now, emailAdapter });
       }
       if (input.incidentId) {
-        return await notifyReporterForIncident(db, { incidentId: input.incidentId, eventType: input.eventType }, { now, emailAdapter: etherealEmailAdapter });
+        return await notifyReporterForIncident(db, { incidentId: input.incidentId, eventType: input.eventType }, { now, emailAdapter });
       }
       return undefined;
     } catch (e) {
