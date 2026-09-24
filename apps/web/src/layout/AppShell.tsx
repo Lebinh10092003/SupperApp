@@ -38,6 +38,7 @@ import KeyRoundedIcon from '@mui/icons-material/KeyRounded';
 import PersonRoundedIcon from '@mui/icons-material/PersonRounded';
 import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
 import SyncIcon from '@mui/icons-material/SyncRounded';
+import RefreshIcon from '@mui/icons-material/RefreshRounded';
 import MenuIcon from '@mui/icons-material/Menu';
 import LogoutIcon from '@mui/icons-material/LogoutRounded';
 import DashboardIcon from '@mui/icons-material/DashboardRounded';
@@ -1014,6 +1015,16 @@ export function AppShell({ children }: { children: ReactNode }) {
                 {getCurrentSemesterLabel()}
               </Typography>
             </Box>
+
+            {/* Làm mới toàn bộ dữ liệu — Sin phản hồi 2026-09-24: mở app từ
+                icon "Thêm vào Màn hình chính" trên điện thoại (chế độ
+                standalone) không có nút tải lại của trình duyệt như tab
+                Safari/Chrome thường -> cần 1 nút làm mới ngay trong app. */}
+            <Tooltip title="Làm mới toàn bộ dữ liệu">
+              <IconButton size="small" onClick={() => window.location.reload()} sx={{ color: '#475569' }}>
+                <RefreshIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
 
             <NotificationBell />
           </Box>

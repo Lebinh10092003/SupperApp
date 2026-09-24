@@ -48,6 +48,54 @@ export interface RequestData {
   urgency?: string;
 }
 
+/**
+ * Tiêu đề thân thiện cho push/email theo `event_type` — Sin phản hồi
+ * 2026-09-24 sau khi test thông báo đẩy thật trên điện thoại: server gửi
+ * thành công (`dispatch_log` ghi status "sent") nhưng tiêu đề hiện ra là
+ * MÃ NỘI BỘ THÔ (VD "safety.sla.overdue") vì trước đây không có map, rơi
+ * thẳng vào fallback `requestData.event_type`. Nội dung chi tiết vẫn nằm ở
+ * `message` (đã có sẵn, đủ thông tin) — map này CHỈ đổi dòng tiêu đề.
+ */
+const EVENT_TYPE_TITLE: Record<string, string> = {
+  'safety.incident.acknowledged': 'Đã tiếp nhận xử lý sự vụ',
+  'safety.incident.acknowledgment_cancelled': 'Đã huỷ tiếp nhận sự vụ',
+  'safety.incident.cancel_acknowledgment_rejected': 'Yêu cầu huỷ tiếp nhận bị từ chối',
+  'safety.incident.cancel_acknowledgment_requested': 'Yêu cầu huỷ tiếp nhận cần duyệt',
+  'safety.incident.commander_assigned': 'Bạn được chỉ định làm chỉ huy sự vụ',
+  'safety.incident.commander_reassigned': 'Đã đổi người chỉ huy sự vụ',
+  'incident.reassign_commander': 'Đã đổi người chỉ huy sự vụ',
+  'safety.incident.homeroom_notified': 'Có sự vụ liên quan lớp bạn phụ trách',
+  'safety.incident.merged_duplicate': 'Sự vụ đã được gộp trùng',
+  'safety.incident.p0_activated': 'KHẨN CẤP P0 — cần xử lý ngay',
+  'safety.incident.p1_escalation_notified': 'Sự vụ P1 cần xử lý gấp',
+  'safety.incident.participant_added': 'Bạn được thêm vào xử lý sự vụ',
+  'safety.incident.participant_joined': 'Có người mới tham gia xử lý sự vụ',
+  'safety.incident.participant_left': 'Có người rời khỏi sự vụ',
+  'safety.incident.priority_changed': 'Sự vụ đã đổi mức ưu tiên',
+  'safety.incident.unclaimed_reminder': 'Nhắc: sự vụ chưa ai tiếp nhận',
+  'safety.incident.unclaimed_urgent': 'CẢNH BÁO: sự vụ vẫn chưa ai tiếp nhận',
+  'safety.sla.overdue': 'Đã quá hạn xử lý theo SLA',
+  'safety.report.overdue': 'Tin báo chưa xử lý đã quá hạn',
+  'safety.report.urgent_notified': 'Tin báo khẩn cấp mới',
+  'reporter.confirm_close_requested': 'Cần bạn xác nhận đóng hồ sơ',
+  'reporter.notified.closed': 'Hồ sơ của bạn đã được đóng',
+  'reporter.notified.in_progress': 'Hồ sơ của bạn đang được xử lý',
+  'reporter.notified.received': 'Đã tiếp nhận tin báo của bạn',
+  'work_schedule.event.approval_step': 'Lịch công tác đã duyệt 1 bước',
+  'work_schedule.event.cancelled': 'Lịch công tác đã bị huỷ',
+  'work_schedule.event.created': 'Lịch công tác mới',
+  'work_schedule.event.published': 'Lịch công tác đã được ban hành',
+  'work_schedule.event.revision_required': 'Lịch công tác cần sửa lại',
+  'work_schedule.event.updated_for_revision': 'Lịch công tác đã được sửa lại',
+  'work_schedule.task.created': 'Bạn có công việc mới được giao',
+  'work_schedule.task.status_changed': 'Công việc đã đổi trạng thái'
+};
+
+function friendlyTitle(eventType: string | null | undefined): string {
+  if (eventType && EVENT_TYPE_TITLE[eventType]) return EVENT_TYPE_TITLE[eventType]!;
+  return 'Thông báo từ SuperApp';
+}
+
 export interface DispatchLogEntry {
   channel: string;
   per_id?: string;
@@ -101,7 +149,7 @@ export async function dispatchRequest(
         }
         for (const token of tokens) {
           try {
-            const result = await adapter.send({ to: token, title: requestData.event_type || requestData.urgency || 'Thông báo', body: requestData.message, objectId: requestData.object_id });
+            const result = await adapter.send({ to: token, title: friendlyTitle(requestData.event_type), body: requestData.message, objectId: requestData.object_id });
             log.push({ channel, per_id: perId, status: result?.status ?? 'sent', ...(result?.invalidToken ? { invalid_token: true } : {}) });
             if (result?.invalidToken) await removeInvalidToken(db, token);
           } catch (e) {
@@ -128,7 +176,7 @@ export async function dispatchRequest(
       try {
         let result;
         if (channel === 'email') {
-          result = await adapter.send({ to: contact!.email, subject: `[${requestData.object_id}] ${requestData.event_type || requestData.urgency || ''}`, text: requestData.message });
+          result = await adapter.send({ to: contact!.email, subject: `[${requestData.object_id}] ${friendlyTitle(requestData.event_type)}`, text: requestData.message });
         } else {
           result = await adapter.send({ to: contact!.phone, body: requestData.message });
         }
