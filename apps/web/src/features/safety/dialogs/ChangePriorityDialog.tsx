@@ -8,10 +8,10 @@ import { api } from '../../../services/api';
 import { isApprovalRequiredMessage } from './dialog-utils';
 
 const PRIORITY_OPTIONS = [
-  { value: 'P0', label: 'P0 — Đỏ (nguy hiểm tức thời tính mạng/sức khỏe)' },
-  { value: 'P1', label: 'P1 — Cam (nguy cơ nghiêm trọng / leo thang nhanh)' },
-  { value: 'P2', label: 'P2 — Vàng (cần phối hợp, không nguy hiểm tức thời)' },
-  { value: 'P3', label: 'P3 — Xanh (nguy cơ thông thường / phòng ngừa)' }
+  { value: 'P0', label: 'P0 — Khẩn cấp (nguy hiểm tức thời tính mạng/sức khỏe)' },
+  { value: 'P1', label: 'P1 — Nghiêm trọng (nguy cơ nghiêm trọng / leo thang nhanh)' },
+  { value: 'P2', label: 'P2 — Cần xử lý (cần phối hợp, không nguy hiểm tức thời)' },
+  { value: 'P3', label: 'P3 — Thông thường (nguy cơ thông thường / phòng ngừa)' }
 ];
 
 export interface ChangePriorityTarget {

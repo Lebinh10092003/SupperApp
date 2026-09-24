@@ -21,11 +21,16 @@ export type Priority = (typeof PRIORITY)[keyof typeof PRIORITY];
 
 export const PRIORITY_ORDER: Priority[] = [PRIORITY.P0, PRIORITY.P1, PRIORITY.P2, PRIORITY.P3];
 
+// Nhãn theo MỨC ĐỘ NGHIÊM TRỌNG, không phải theo tên màu (Sin chốt
+// 2026-09-24) — "P2 - Vàng"/"P0 - Đỏ" không nói lên được gì cho người đọc
+// thông báo, phải đọc được ngay là khẩn cấp tới đâu. Dùng ở cả tiêu đề
+// thông báo thật (report-flow.ts, incident-lifecycle.ts,
+// check-unclaimed-incidents.ts) lẫn UI (PriorityChip.tsx bên web).
 export const PRIORITY_LABEL: Record<Priority, string> = {
-  P0: 'P0 - Đỏ',
-  P1: 'P1 - Cam',
-  P2: 'P2 - Vàng',
-  P3: 'P3 - Xanh'
+  P0: 'P0 — Khẩn cấp',
+  P1: 'P1 — Nghiêm trọng',
+  P2: 'P2 — Cần xử lý',
+  P3: 'P3 — Thông thường'
 };
 
 /** SLA đề xuất (phút). P0/P1 tính theo giờ đồng hồ (wall); P2/P3 theo giờ làm việc (business). */

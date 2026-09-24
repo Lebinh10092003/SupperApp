@@ -571,10 +571,10 @@ export default function IncidentDetailPage() {
               {incident.suggestedPriority && ` Gợi ý theo nhóm sự cố: ${incident.suggestedPriority}.`}
             </Typography>
             <TextField select autoFocus label="Mức ưu tiên" value={ackPriority} onChange={(e) => setAckPriority(e.target.value)} fullWidth>
-              <MenuItem value="P0">P0 — Đỏ (nguy hiểm tức thời tính mạng/sức khỏe)</MenuItem>
-              <MenuItem value="P1">P1 — Cam (nguy cơ nghiêm trọng / leo thang nhanh)</MenuItem>
-              <MenuItem value="P2">P2 — Cam đậm (cần phối hợp, không nguy hiểm tức thời)</MenuItem>
-              <MenuItem value="P3">P3 — Xám (nguy cơ thông thường / phòng ngừa)</MenuItem>
+              <MenuItem value="P0">P0 — Khẩn cấp (nguy hiểm tức thời tính mạng/sức khỏe)</MenuItem>
+              <MenuItem value="P1">P1 — Nghiêm trọng (nguy cơ nghiêm trọng / leo thang nhanh)</MenuItem>
+              <MenuItem value="P2">P2 — Cần xử lý (cần phối hợp, không nguy hiểm tức thời)</MenuItem>
+              <MenuItem value="P3">P3 — Thông thường (nguy cơ thông thường / phòng ngừa)</MenuItem>
             </TextField>
           </Stack>
         </DialogContent>

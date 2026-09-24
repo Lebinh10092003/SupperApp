@@ -85,7 +85,7 @@ export default function EmergencyCockpitPage() {
             >
               <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
                 <Stack direction="row" spacing={1} sx={{ mb: 1, flexWrap: 'wrap' }}>
-                  <PriorityChip priority={it.priority} />
+                  <PriorityChip priority={it.priority} compact />
                   <StatusChip state={it.state} />
                   <Chip size="small" label={CAMPUS_LABEL[it.campusId] || it.campusId} sx={{ bgcolor: '#f8fafc', color: '#334155', fontWeight: 600, height: 24 }} />
                 </Stack>

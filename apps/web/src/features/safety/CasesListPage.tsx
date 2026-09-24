@@ -364,7 +364,7 @@ export default function CasesListPage() {
                   </Typography>
                 </TableCell>
                 <TableCell>
-                  <PriorityChip priority={it.priority} />
+                  <PriorityChip priority={it.priority} compact />
                 </TableCell>
                 <TableCell>
                   <StatusChip state={it.state} />
