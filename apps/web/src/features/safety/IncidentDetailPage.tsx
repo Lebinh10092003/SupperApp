@@ -430,7 +430,11 @@ export default function IncidentDetailPage() {
             Mở lại hồ sơ
           </Button>
         )}
-        {isSenior && (
+        {/* Chỉ hiện khi ĐÃ có chỉ huy (đổi chỉ huy) — Sin chốt 2026-09-24:
+            lúc CHƯA có chỉ huy, nút này trùng hệt lựa chọn "Chỉ định người
+            khác" trong modal xác nhận tiếp nhận (setAckChoiceOpen ở trên),
+            giữ cả 2 là thừa. */}
+        {isSenior && incident.commanderPerId && (
           <Button
             variant="outlined"
             startIcon={<PersonAddAlt1Icon />}
@@ -443,7 +447,7 @@ export default function IncidentDetailPage() {
             }
             sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
           >
-            Chỉ định chỉ huy
+            Đổi chỉ huy
           </Button>
         )}
         {canEdit && (
