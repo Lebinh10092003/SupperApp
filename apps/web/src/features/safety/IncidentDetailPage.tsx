@@ -132,6 +132,11 @@ export default function IncidentDetailPage() {
   const [acknowledging, setAcknowledging] = useState(false);
   const [ackDialogOpen, setAckDialogOpen] = useState(false);
   const [ackPriority, setAckPriority] = useState('');
+  // Bấm "Tiếp nhận xử lý" KHÔNG được gọi thẳng API nữa (Sin chốt
+  // 2026-09-24) — phải qua modal xác nhận này trước. Tài khoản cấp cao
+  // thấy thêm lựa chọn "Chỉ định người khác" ngay trong modal, dẫn sang
+  // AssignCommanderDialog có sẵn thay vì tự tiếp nhận.
+  const [ackChoiceOpen, setAckChoiceOpen] = useState(false);
 
   const load = () => {
     if (!id) return;
@@ -362,7 +367,7 @@ export default function IncidentDetailPage() {
           <Button
             variant="contained"
             startIcon={<HowToRegIcon />}
-            onClick={handleAcknowledge}
+            onClick={() => setAckChoiceOpen(true)}
             disabled={acknowledging}
             sx={{ bgcolor: '#16a34a', '&:hover': { bgcolor: '#15803d' }, textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
           >
@@ -519,6 +524,44 @@ export default function IncidentDetailPage() {
           setToast({ message: 'Đã rời khỏi sự vụ.', severity: 'success' });
         }}
       />
+      <Dialog open={ackChoiceOpen} onClose={() => setAckChoiceOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>Tiếp nhận xử lý hồ sơ</DialogTitle>
+        <DialogContent dividers sx={{ borderColor: '#e2e8f0' }}>
+          <Typography variant="body2" color="text.secondary">
+            Bạn sắp trở thành <strong>chỉ huy</strong> của hồ sơ {incident.incidentId} — chịu trách nhiệm phân công, đổi trạng thái, đổi mức ưu tiên cho đến khi bàn giao/huỷ tiếp nhận.
+            {isSenior ? ' Bạn cũng có thể chỉ định người khác làm chỉ huy thay vì tự tiếp nhận.' : ''}
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 2, borderTop: '1px solid #e2e8f0', flexWrap: 'wrap', gap: 1 }}>
+          <Button onClick={() => setAckChoiceOpen(false)} sx={{ textTransform: 'none', color: '#64748b' }}>
+            Huỷ
+          </Button>
+          {isSenior && (
+            <Button
+              variant="outlined"
+              startIcon={<PersonAddAlt1Icon />}
+              onClick={() => {
+                setAckChoiceOpen(false);
+                setCommanderTarget({ incidentId: incident.incidentId, commanderPerId: incident.commanderPerId, commanderName: incident.commanderName });
+              }}
+              sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
+            >
+              Chỉ định người khác
+            </Button>
+          )}
+          <Button
+            variant="contained"
+            startIcon={<HowToRegIcon />}
+            onClick={() => {
+              setAckChoiceOpen(false);
+              handleAcknowledge();
+            }}
+            sx={{ bgcolor: '#16a34a', '&:hover': { bgcolor: '#15803d' }, textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
+          >
+            Xác nhận tiếp nhận
+          </Button>
+        </DialogActions>
+      </Dialog>
       <Dialog open={ackDialogOpen} onClose={() => setAckDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ fontWeight: 700 }}>Chọn mức ưu tiên để tiếp nhận</DialogTitle>
         <DialogContent dividers sx={{ borderColor: '#e2e8f0' }}>
