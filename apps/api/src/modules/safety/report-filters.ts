@@ -106,7 +106,7 @@ export function sortReportItemsDefault<T extends ReportListItem>(items: T[] | nu
 export interface IncidentListItem {
   incidentId?: string;
   campusId?: string;
-  priority?: string;
+  priority?: string | null;
   state?: string;
   // Hồ sơ bị "redacted" (trần bí mật thấp hơn) không còn các field này —
   // để optional thay vì bắt buộc, giống hệt bản gốc JS không typed cứng.

@@ -5,9 +5,7 @@
  * — route list->detail lồng nhau ĐẦU TIÊN trong app (không có tiền lệ để
  * copy quy ước `useParams`).
  *
- * StatusChip/PriorityChip/ConfidentialityBadge import từ `./components/*`
- * (bản thật, Chunk A/Hestia, PR #12) — trước đó dùng stub `./temp-chips`
- * tạm thời, đã xoá sau khi Chunk A merge.
+ * StatusChip/PriorityChip import từ `./components/*`.
  */
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
@@ -18,8 +16,14 @@ import {
   Card,
   CardContent,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Divider,
+  MenuItem,
   Stack,
+  TextField,
   Typography
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBackRounded';
@@ -35,13 +39,13 @@ import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
 import { StatusChip } from './components/StatusChip';
 import { PriorityChip } from './components/PriorityChip';
-import { ConfidentialityBadge } from './components/ConfidentialityBadge';
 import { EvidenceGallery } from './EvidenceGallery';
 import { ChangeStatusDialog, type ChangeStatusTarget } from './dialogs/ChangeStatusDialog';
 import { ChangePriorityDialog, type ChangePriorityTarget } from './dialogs/ChangePriorityDialog';
 import { ReopenIncidentDialog, type ReopenIncidentTarget } from './dialogs/ReopenIncidentDialog';
 import { AssignCommanderDialog, type AssignCommanderTarget } from './dialogs/AssignCommanderDialog';
 import { AddParticipantDialog, type AddParticipantTarget } from './dialogs/AddParticipantDialog';
+import { ReasonPromptDialog } from './dialogs/ReasonPromptDialog';
 import { CorrectClassificationDialog, type CorrectClassificationTarget } from './dialogs/CorrectClassificationDialog';
 import { CAMPUS_LABEL, SLA_CLOCK_LABEL, SLA_STATUS_LABEL } from './constants';
 import { useActor } from './hooks/useActor';
@@ -64,20 +68,25 @@ interface ReportSubmission {
 
 interface IncidentDetail {
   incidentId: string;
-  priority: 'P0' | 'P1' | 'P2' | 'P3';
+  // Nullable từ 2026-09-22 — hồ sơ CHƯA ai tiếp nhận thì chưa có mức ưu tiên.
+  priority: 'P0' | 'P1' | 'P2' | 'P3' | null;
+  suggestedPriority?: 'P0' | 'P1' | 'P2' | 'P3' | null;
   confidentiality: 'C1' | 'C2' | 'C3' | 'C4';
   state: string;
   campusId: string;
-  redacted?: boolean;
   categoryCode?: string;
   categoryLabel?: string | null;
   className?: string | null;
+  suggestedParticipants?: Array<{ perId: string; label: string }>;
   commanderPerId?: string | null;
   commanderName?: string | null;
   participantPerIds?: string[];
   participantLabels?: Record<string, string>;
   lastNote?: string | null;
   reopenReason?: string | null;
+  cancelRequestedBy?: string | null;
+  cancelRequestReason?: string | null;
+  cancelRequestedAt?: string | null;
   canViewEvidence?: boolean;
   evidenceList?: EvidenceSummary[];
   reportSubmissions?: ReportSubmission[];
@@ -87,6 +96,10 @@ interface IncidentDetail {
 }
 
 const STATE_CLOSED = 'Đã đóng';
+const SENIOR_ROLE_IDS = new Set(['R.PRINCIPAL', 'R.VICE_PRINCIPAL', 'R.DEPT_HEAD']);
+function isSeniorRole(actor: { roles: Array<{ roleId: string }> } | null | undefined) {
+  return !!actor?.roles?.some((r) => SENIOR_ROLE_IDS.has(r.roleId));
+}
 
 function formatDateTime(iso?: string) {
   if (!iso) return '—';
@@ -112,7 +125,13 @@ export default function IncidentDetailPage() {
   const [classificationTarget, setClassificationTarget] = useState<CorrectClassificationTarget | null>(null);
   const [commanderTarget, setCommanderTarget] = useState<AssignCommanderTarget | null>(null);
   const [addParticipantTarget, setAddParticipantTarget] = useState<AddParticipantTarget | null>(null);
+  const [joinDialogOpen, setJoinDialogOpen] = useState(false);
+  const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
+  const [cancelAckDialogOpen, setCancelAckDialogOpen] = useState(false);
+  const [decidingCancel, setDecidingCancel] = useState(false);
   const [acknowledging, setAcknowledging] = useState(false);
+  const [ackDialogOpen, setAckDialogOpen] = useState(false);
+  const [ackPriority, setAckPriority] = useState('');
 
   const load = () => {
     if (!id) return;
@@ -132,6 +151,13 @@ export default function IncidentDetailPage() {
 
   const handleAcknowledge = async () => {
     if (!incident) return;
+    // Hồ sơ chưa có mức ưu tiên (chưa ai chọn) -> BẮT BUỘC chọn trước khi
+    // tiếp nhận, mở dialog thay vì gọi thẳng API (Sin chốt 2026-09-22).
+    if (!incident.priority) {
+      setAckPriority(incident.suggestedPriority || '');
+      setAckDialogOpen(true);
+      return;
+    }
     setAcknowledging(true);
     try {
       await api.post<{ incidentId: string; commanderPerId: string }>(`/api/safety/incidents/${incident.incidentId}/acknowledge`, {});
@@ -141,6 +167,35 @@ export default function IncidentDetailPage() {
       setToast({ message: e.message, severity: 'error' });
     } finally {
       setAcknowledging(false);
+    }
+  };
+
+  const handleAcknowledgeWithPriority = async () => {
+    if (!incident || !ackPriority) return;
+    setAcknowledging(true);
+    try {
+      await api.post<{ incidentId: string; commanderPerId: string }>(`/api/safety/incidents/${incident.incidentId}/acknowledge`, { priority: ackPriority });
+      setAckDialogOpen(false);
+      load();
+      setToast({ message: 'Bạn đã tiếp nhận xử lý hồ sơ này — trở thành chỉ huy sự vụ.', severity: 'success' });
+    } catch (e: any) {
+      setToast({ message: e.message, severity: 'error' });
+    } finally {
+      setAcknowledging(false);
+    }
+  };
+
+  const decideCancelAcknowledgment = async (approve: boolean) => {
+    if (!incident) return;
+    setDecidingCancel(true);
+    try {
+      await api.post(`/api/safety/incidents/${incident.incidentId}/cancel-acknowledgment/decide`, { approve });
+      load();
+      setToast({ message: approve ? 'Đã duyệt huỷ tiếp nhận.' : 'Đã từ chối yêu cầu huỷ tiếp nhận.', severity: 'success' });
+    } catch (e: any) {
+      setToast({ message: e.message, severity: 'error' });
+    } finally {
+      setDecidingCancel(false);
     }
   };
 
@@ -165,6 +220,16 @@ export default function IncidentDetailPage() {
 
   if (!incident) return null;
 
+  // Sin chốt 2026-09-22: "người tiếp nhận hoặc người tham gia hoặc tài
+  // khoản cấp cao mới đổi trạng thái được" — chỉ gợi ý hiển thị phía
+  // client, phân quyền thật vẫn ở server (authz.ts).
+  const isSenior = isSeniorRole(actor);
+  const isCommander = !!actor?.perId && incident.commanderPerId === actor.perId;
+  const isParticipant = !!actor?.perId && (incident.participantPerIds || []).includes(actor.perId);
+  const canEdit = isCommander || isParticipant || isSenior;
+  // Đổi ưu tiên THU HẸP HƠN — chỉ chỉ huy hoặc cấp cao, participant thường không đổi được.
+  const canEditPriority = isCommander || isSenior;
+
   return (
     <>
       <PageHeader
@@ -186,19 +251,30 @@ export default function IncidentDetailPage() {
       <Stack direction="row" spacing={1} sx={{ mb: 2.5, flexWrap: 'wrap' }}>
         <StatusChip state={incident.state} />
         <PriorityChip priority={incident.priority} />
-        <ConfidentialityBadge confidentiality={incident.confidentiality} redacted={incident.redacted} />
       </Stack>
 
-      {incident.redacted ? (
-        <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none' }}>
-          <CardContent>
-            <Typography variant="body2" color="text.secondary">
-              Bạn không đủ quyền xem đầy đủ chi tiết hồ sơ này — trần bí mật hiện tại thấp hơn mức {incident.confidentiality} của hồ sơ. Chỉ hiển thị mã và mức ưu tiên/bí mật ở trên.
-            </Typography>
-          </CardContent>
-        </Card>
-      ) : (
-        <Stack spacing={2.5}>
+      {incident.cancelRequestedAt && (
+        <Alert
+          severity="warning"
+          sx={{ mb: 2.5, borderRadius: 2 }}
+          action={
+            isSeniorRole(actor) ? (
+              <Stack direction="row" spacing={1}>
+                <Button size="small" variant="contained" color="success" disabled={decidingCancel} onClick={() => decideCancelAcknowledgment(true)} sx={{ textTransform: 'none' }}>
+                  Duyệt huỷ
+                </Button>
+                <Button size="small" variant="outlined" color="error" disabled={decidingCancel} onClick={() => decideCancelAcknowledgment(false)} sx={{ textTransform: 'none' }}>
+                  Từ chối
+                </Button>
+              </Stack>
+            ) : undefined
+          }
+        >
+          Đang chờ duyệt huỷ tiếp nhận — {incident.commanderName || incident.cancelRequestedBy} xin huỷ, lý do: {incident.cancelRequestReason}
+        </Alert>
+      )}
+
+      <Stack spacing={2.5}>
           <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none' }}>
             <CardContent>
               <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1.5 }}>
@@ -278,12 +354,11 @@ export default function IncidentDetailPage() {
             </CardContent>
           </Card>
         </Stack>
-      )}
 
       <Divider sx={{ my: 3 }} />
 
       <Stack direction="row" spacing={1.5} sx={{ flexWrap: 'wrap' }}>
-        {!incident.redacted && !incident.commanderPerId && (
+        {!incident.commanderPerId && (
           <Button
             variant="contained"
             startIcon={<HowToRegIcon />}
@@ -294,32 +369,51 @@ export default function IncidentDetailPage() {
             {acknowledging ? 'Đang tiếp nhận...' : 'Tiếp nhận xử lý'}
           </Button>
         )}
-        {!incident.redacted && actor?.perId && incident.commanderPerId === actor.perId && (
+        {actor?.perId && incident.commanderPerId === actor.perId && (
           <Button
             variant="outlined"
             startIcon={<GroupAddIcon />}
-            onClick={() => setAddParticipantTarget({ incidentId: incident.incidentId })}
+            onClick={() => setAddParticipantTarget({ incidentId: incident.incidentId, suggested: incident.suggestedParticipants })}
             sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
           >
             Thêm người xử lý
           </Button>
         )}
-        <Button
-          variant="outlined"
-          startIcon={<SyncAltIcon />}
-          onClick={() => setStatusTarget({ incidentId: incident.incidentId, state: incident.state })}
-          sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
-        >
-          Đổi trạng thái
-        </Button>
-        <Button
-          variant="outlined"
-          startIcon={<PriorityHighIcon />}
-          onClick={() => setPriorityTarget({ incidentId: incident.incidentId, priority: incident.priority })}
-          sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
-        >
-          Đổi ưu tiên
-        </Button>
+        {actor?.perId && incident.commanderPerId === actor.perId && !incident.cancelRequestedAt && (
+          <Button variant="outlined" color="error" onClick={() => setCancelAckDialogOpen(true)} sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}>
+            Huỷ tiếp nhận
+          </Button>
+        )}
+        {actor?.perId && incident.commanderPerId && incident.commanderPerId !== actor.perId && !(incident.participantPerIds || []).includes(actor.perId) && (
+          <Button variant="outlined" startIcon={<GroupAddIcon />} onClick={() => setJoinDialogOpen(true)} sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}>
+            Tham gia sự vụ
+          </Button>
+        )}
+        {actor?.perId && incident.commanderPerId !== actor.perId && (incident.participantPerIds || []).includes(actor.perId) && (
+          <Button variant="outlined" color="error" onClick={() => setLeaveDialogOpen(true)} sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}>
+            Rời khỏi sự vụ
+          </Button>
+        )}
+        {canEdit && (
+          <Button
+            variant="outlined"
+            startIcon={<SyncAltIcon />}
+            onClick={() => setStatusTarget({ incidentId: incident.incidentId, state: incident.state })}
+            sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
+          >
+            Đổi trạng thái
+          </Button>
+        )}
+        {canEditPriority && (
+          <Button
+            variant="outlined"
+            startIcon={<PriorityHighIcon />}
+            onClick={() => setPriorityTarget({ incidentId: incident.incidentId, priority: incident.priority })}
+            sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
+          >
+            Đổi ưu tiên
+          </Button>
+        )}
         {incident.state === STATE_CLOSED && (
           <Button
             variant="outlined"
@@ -331,28 +425,32 @@ export default function IncidentDetailPage() {
             Mở lại hồ sơ
           </Button>
         )}
-        <Button
-          variant="outlined"
-          startIcon={<PersonAddAlt1Icon />}
-          onClick={() =>
-            setCommanderTarget({
-              incidentId: incident.incidentId,
-              commanderPerId: incident.commanderPerId,
-              commanderName: incident.commanderName
-            })
-          }
-          sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
-        >
-          Chỉ định chỉ huy
-        </Button>
-        <Button
-          variant="outlined"
-          startIcon={<EditIcon />}
-          onClick={() => setClassificationTarget({ incidentId: incident.incidentId, currentClassName: incident.className || null })}
-          sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
-        >
-          Sửa lớp liên quan
-        </Button>
+        {isSenior && (
+          <Button
+            variant="outlined"
+            startIcon={<PersonAddAlt1Icon />}
+            onClick={() =>
+              setCommanderTarget({
+                incidentId: incident.incidentId,
+                commanderPerId: incident.commanderPerId,
+                commanderName: incident.commanderName
+              })
+            }
+            sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
+          >
+            Chỉ định chỉ huy
+          </Button>
+        )}
+        {canEdit && (
+          <Button
+            variant="outlined"
+            startIcon={<EditIcon />}
+            onClick={() => setClassificationTarget({ incidentId: incident.incidentId, currentClassName: incident.className || null })}
+            sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
+          >
+            Sửa lớp liên quan
+          </Button>
+        )}
       </Stack>
 
       <ChangeStatusDialog
@@ -395,17 +493,84 @@ export default function IncidentDetailPage() {
           setToast({ message: `Đã thêm ${result.personName} cùng tham gia xử lý.`, severity: 'success' });
         }}
       />
+      <ReasonPromptDialog
+        open={joinDialogOpen}
+        title="Tham gia sự vụ"
+        description={`Bạn sẽ tự thêm mình vào danh sách người tham gia xử lý ${incident.incidentId}.`}
+        confirmLabel="Tham gia"
+        confirmColor="#2563eb"
+        onClose={() => setJoinDialogOpen(false)}
+        onSubmit={async (reason) => {
+          await api.post(`/api/safety/incidents/${incident.incidentId}/join`, { reason });
+          load();
+          setToast({ message: 'Đã tham gia sự vụ.', severity: 'success' });
+        }}
+      />
+      <ReasonPromptDialog
+        open={leaveDialogOpen}
+        title="Rời khỏi sự vụ"
+        description={`Bạn sẽ rời khỏi danh sách người tham gia xử lý ${incident.incidentId}.`}
+        confirmLabel="Rời sự vụ"
+        confirmColor="#dc2626"
+        onClose={() => setLeaveDialogOpen(false)}
+        onSubmit={async (reason) => {
+          await api.post(`/api/safety/incidents/${incident.incidentId}/leave`, { reason });
+          load();
+          setToast({ message: 'Đã rời khỏi sự vụ.', severity: 'success' });
+        }}
+      />
+      <Dialog open={ackDialogOpen} onClose={() => setAckDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>Chọn mức ưu tiên để tiếp nhận</DialogTitle>
+        <DialogContent dividers sx={{ borderColor: '#e2e8f0' }}>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <Typography variant="body2" color="text.secondary">
+              Hồ sơ {incident.incidentId} chưa được phân loại mức ưu tiên — bắt buộc chọn trước khi tiếp nhận xử lý.
+              {incident.suggestedPriority && ` Gợi ý theo nhóm sự cố: ${incident.suggestedPriority}.`}
+            </Typography>
+            <TextField select autoFocus label="Mức ưu tiên" value={ackPriority} onChange={(e) => setAckPriority(e.target.value)} fullWidth>
+              <MenuItem value="P0">P0 — Đỏ (nguy hiểm tức thời tính mạng/sức khỏe)</MenuItem>
+              <MenuItem value="P1">P1 — Cam (nguy cơ nghiêm trọng / leo thang nhanh)</MenuItem>
+              <MenuItem value="P2">P2 — Cam đậm (cần phối hợp, không nguy hiểm tức thời)</MenuItem>
+              <MenuItem value="P3">P3 — Xám (nguy cơ thông thường / phòng ngừa)</MenuItem>
+            </TextField>
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ p: 2, borderTop: '1px solid #e2e8f0' }}>
+          <Button onClick={() => setAckDialogOpen(false)} sx={{ textTransform: 'none', color: '#64748b' }}>
+            Hủy
+          </Button>
+          <Button
+            variant="contained"
+            disabled={!ackPriority || acknowledging}
+            onClick={handleAcknowledgeWithPriority}
+            sx={{ bgcolor: '#16a34a', color: '#fff', '&:hover': { bgcolor: '#15803d' }, textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
+          >
+            {acknowledging ? 'Đang tiếp nhận...' : 'Tiếp nhận với mức này'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <ReasonPromptDialog
+        open={cancelAckDialogOpen}
+        title="Huỷ tiếp nhận"
+        description={`Yêu cầu sẽ gửi tới cấp trên (Tổ trưởng/Phó Hiệu trưởng/Hiệu trưởng) duyệt trước khi ${incident.incidentId} thực sự về trạng thái chưa ai tiếp nhận.`}
+        confirmLabel="Gửi yêu cầu huỷ"
+        confirmColor="#dc2626"
+        onClose={() => setCancelAckDialogOpen(false)}
+        onSubmit={async (reason) => {
+          await api.post(`/api/safety/incidents/${incident.incidentId}/cancel-acknowledgment/request`, { reason });
+          load();
+          setToast({ message: 'Đã gửi yêu cầu huỷ tiếp nhận, đang chờ cấp trên duyệt.', severity: 'success' });
+        }}
+      />
       <CorrectClassificationDialog
         target={classificationTarget}
         onClose={() => setClassificationTarget(null)}
         onChanged={(result) => {
           load();
           const base = result.className ? `Đã cập nhật lớp liên quan: ${result.className}.` : 'Đã xoá lớp liên quan.';
-          const revoked = result.removedPerIds?.length
-            ? ` Đã rút quyền xem hồ sơ của ${result.removedPerIds.length} người thuộc lớp cũ (không còn liên quan).`
-            : '';
+          const notified = result.notifiedPerIds?.length ? ` Đã báo cho ${result.notifiedPerIds.length} GVCN/GV phụ trách khối liên quan.` : '';
           setToast({
-            message: base + revoked,
+            message: base + notified,
             severity: 'success'
           });
         }}

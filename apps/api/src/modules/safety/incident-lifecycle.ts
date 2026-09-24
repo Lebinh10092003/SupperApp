@@ -100,13 +100,18 @@ export async function changeIncidentPriority(
   const now = opts?.now || new Date();
   const incident = await loadIncident(db, input.incidentId);
 
-  const escalating = catalog.isEscalation(incident.priority, input.toPriority);
+  // Hồ sơ CHƯA có priority (chưa ai tiếp nhận) -> coi việc CHỌN mức đầu tiên
+  // là "nâng mức" (an toàn hơn, đòi quyền raise_priority thay vì lower).
+  const escalating = incident.priority ? catalog.isEscalation(incident.priority, input.toPriority) : true;
   const action = escalating ? 'incident.raise_priority' : 'incident.lower_priority';
 
+  // CHỈ truyền commanderPerId (KHÔNG truyền assignedTaskPerIds) — Sin chốt
+  // 2026-09-22: đổi mức ưu tiên chỉ dành cho chỉ huy hoặc cấp cao, participant
+  // thường (dù đang tham gia hồ sơ) KHÔNG được đổi, khác hẳn transitionIncidentStatus.
   const decision = checkAuthorization({
     actor: input.actor,
     action,
-    resource: { campusId: incident.campusId, confidentiality: incident.confidentiality }
+    resource: { campusId: incident.campusId, commanderPerId: incident.commanderPerId ?? undefined }
   });
   if (!decision.allowed) throw new AppError('forbidden', decision.reason!);
   if (decision.conditions.includes('require_reason') && !input.reason) {
@@ -117,11 +122,16 @@ export async function changeIncidentPriority(
   }
 
   // Tính lại CẢ HAI đồng hồ (ack + assign) theo đúng quy tắc "không mất thời hạn".
+  // Hồ sơ CHƯA từng có priority (chưa qua acknowledgeIncident) -> chưa có
+  // clock nào -> đăng ký MỚI (startAt = now) thay vì recompute.
   for (const label of ['ack', 'assign'] as const) {
     const clock = await loadSlaClock(db, input.incidentId, label);
     if (clock) {
       const newClock = sla.recomputeOnPriorityChange(clock, { toPriority: input.toPriority as catalog.Priority, calendar: opts?.calendar });
       await saveSlaClock(db, newClock);
+    } else {
+      const newClock = sla.registerSlaClock({ objectId: input.incidentId, clockLabel: label, priority: input.toPriority as catalog.Priority, startAt: now, calendar: opts?.calendar });
+      await db.insert(slaClocks).values(slaClockToRow(newClock));
     }
   }
 
@@ -198,7 +208,6 @@ export async function transitionIncidentStatus(
     action,
     resource: {
       campusId: incident.campusId,
-      confidentiality: incident.confidentiality,
       commanderPerId: incident.commanderPerId ?? undefined,
       assignedTaskPerIds: incident.assignedTaskPerIds || []
     }
@@ -327,7 +336,7 @@ export async function reopenIncident(db: Db, input: { actor: Actor; incidentId: 
   const decision = checkAuthorization({
     actor: input.actor,
     action: 'incident.reopen',
-    resource: { campusId: incident.campusId, confidentiality: incident.confidentiality }
+    resource: { campusId: incident.campusId }
   });
   if (!decision.allowed) throw new AppError('forbidden', decision.reason!);
   if (decision.conditions.includes('require_approval') && !opts?.approvedBy) {
@@ -371,7 +380,7 @@ export async function assignCommander(
   const decision = checkAuthorization({
     actor: input.actor,
     action: 'incident.assign_commander',
-    resource: { campusId: incident.campusId, confidentiality: incident.confidentiality }
+    resource: { campusId: incident.campusId }
   });
   if (!decision.allowed) throw new AppError('forbidden', decision.reason!);
   if (decision.conditions.includes('require_reason') && !input.reason) {
@@ -432,13 +441,14 @@ export async function assignCommander(
     })
   );
 
-  // Báo NGAY cho người chỉ huy mới — dùng đúng mức khẩn hiện tại của hồ sơ.
+  // Báo NGAY cho người chỉ huy mới — dùng đúng mức khẩn hiện tại của hồ sơ
+  // (hồ sơ có thể CHƯA có priority nếu chưa từng được tiếp nhận).
   const request = notify.buildNotifyRequest({
     recipients: [input.commanderPerId],
-    priority: incident.priority,
+    priority: incident.priority || catalog.PRIORITY.P3,
     objectId: input.incidentId,
     objectCode: input.incidentId,
-    levelLabel: catalog.PRIORITY_LABEL[incident.priority as catalog.Priority],
+    levelLabel: incident.priority ? catalog.PRIORITY_LABEL[incident.priority as catalog.Priority] : 'Chưa phân loại',
     actionNeeded: 'Bạn được chỉ định làm người chỉ huy xử lý sự việc này — vào xem và tiếp nhận ngay',
     deepLink: '/app/incidents/' + input.incidentId,
     eventType: 'safety.incident.commander_assigned'
@@ -478,27 +488,29 @@ export async function assignCommander(
 // trưởng/Phó HT chỉ định qua assignCommander ở trên — khác hẳn về phân
 // quyền: đây là hành động TỰ NHẬN, không phải CHỈ ĐỊNH người khác, nên
 // KHÔNG dùng lại `incident.assign_commander` — matrix đó chỉ cấp
-// Hiệu trưởng/Phó HT). Điều kiện duy nhất: actor phải xem được ĐẦY ĐỦ hồ sơ
-// (không bị redact theo trần bí mật — nếu chỉ thấy bản rút gọn thì không đủ
-// cơ sở để nhận trách nhiệm chỉ huy) và hồ sơ CHƯA có chỉ huy (người đến
-// trước được tiếp nhận — người đến sau thấy đã có chỉ huy thì không cần
-// bấm nữa, đúng yêu cầu "để biết được sự vụ đang có người xử lý thì những
-// người liên quan thấy được mà không cần phải nhận nữa").
+// Hiệu trưởng/Phó HT). Điều kiện duy nhất: actor xem được hồ sơ (đúng cơ
+// sở) và hồ sơ CHƯA có chỉ huy (người đến trước được tiếp nhận — người đến
+// sau thấy đã có chỉ huy thì không cần bấm nữa, đúng yêu cầu "để biết được
+// sự vụ đang có người xử lý thì những người liên quan thấy được mà không
+// cần phải nhận nữa").
 // ---------------------------------------------------------------------------
 
-export async function acknowledgeIncident(db: Db, input: { actor: Actor; incidentId: string }, opts?: SafetyOpts): Promise<{ incidentId: string; commanderPerId: string }> {
+export async function acknowledgeIncident(
+  db: Db,
+  input: { actor: Actor; incidentId: string; priority?: string },
+  opts?: SafetyOpts
+): Promise<{ incidentId: string; commanderPerId: string; priority: string }> {
   const now = opts?.now || new Date();
   if (!input.actor.perId) throw new AppError('forbidden', 'Tài khoản chưa được gắn với hồ sơ nhân sự (perId) nào.');
   const incident = await loadIncident(db, input.incidentId);
 
-  const viewAction = catalog.VIEW_ACTION_BY_CONFIDENTIALITY[incident.confidentiality] || 'incident.view_c1_c2';
   const decision = checkAuthorization({
     actor: input.actor,
-    action: viewAction,
-    resource: { campusId: incident.campusId, confidentiality: incident.confidentiality }
+    action: 'incident.view',
+    resource: { campusId: incident.campusId }
   });
-  if (!decision.allowed || decision.conditions.includes('redacted')) {
-    throw new AppError('forbidden', 'Bạn không đủ quyền xem đầy đủ hồ sơ này để tiếp nhận xử lý.');
+  if (!decision.allowed) {
+    throw new AppError('forbidden', 'Bạn không đủ quyền xem hồ sơ này để tiếp nhận xử lý.');
   }
   if (incident.commanderPerId) {
     throw new AppError(
@@ -507,17 +519,37 @@ export async function acknowledgeIncident(db: Db, input: { actor: Actor; inciden
     );
   }
 
+  // Chưa có priority (chưa ai chọn mức ưu tiên) -> BẮT BUỘC chọn ngay lúc
+  // tiếp nhận (Sin chốt 2026-09-22) — gợi ý phía frontend qua
+  // `suggestedPriorityForCategory`, KHÔNG tự áp nếu actor không xác nhận.
+  let priority = incident.priority;
+  if (!priority) {
+    if (!input.priority || !catalog.isValidPriority(input.priority)) {
+      throw new AppError('priority_required', 'Bắt buộc chọn mức ưu tiên khi tiếp nhận hồ sơ chưa được phân loại.');
+    }
+    priority = input.priority;
+  }
+
   const assignedTaskPerIds = adminArrayUnion(incident.assignedTaskPerIds, input.actor.perId);
   await db
     .update(incidents)
-    .set({ commanderPerId: input.actor.perId, assignedTaskPerIds, version: incident.version + 1, updatedAt: now })
+    .set({ commanderPerId: input.actor.perId, assignedTaskPerIds, priority, version: incident.version + 1, updatedAt: now })
     .where(eq(incidents.incidentId, input.incidentId));
 
-  // Đồng hồ SLA "ack" coi như đã hoàn thành ngay khi có người tiếp nhận —
-  // tránh job check-sla-overdue.ts tiếp tục báo quá hạn cho việc đã xong.
   const ackClock = await loadSlaClock(db, input.incidentId, 'ack');
-  if (ackClock && ackClock.status !== 'met') {
-    await saveSlaClock(db, { ...ackClock, status: 'met' });
+  if (ackClock) {
+    // Đồng hồ SLA "ack" đã có sẵn từ lúc tạo (priority không null lúc tạo) —
+    // coi như đã hoàn thành ngay khi có người tiếp nhận, tránh
+    // check-sla-overdue.ts tiếp tục báo quá hạn cho việc đã xong.
+    if (ackClock.status !== 'met') await saveSlaClock(db, { ...ackClock, status: 'met' });
+  } else {
+    // Chưa có clock nào (priority null lúc tạo) -> đăng ký CẢ HAI đồng hồ
+    // NGAY BÂY GIỜ, startAt = now (KHÔNG phải lúc tạo hồ sơ — trước đó
+    // chưa có priority để tính hạn được). "ack" coi như xong ngay.
+    const newAck = sla.registerSlaClock({ objectId: input.incidentId, clockLabel: 'ack', priority: priority as catalog.Priority, startAt: now, calendar: opts?.calendar });
+    await db.insert(slaClocks).values(slaClockToRow({ ...newAck, status: 'met' }));
+    const newAssign = sla.registerSlaClock({ objectId: input.incidentId, clockLabel: 'assign', priority: priority as catalog.Priority, startAt: now, calendar: opts?.calendar });
+    await db.insert(slaClocks).values(slaClockToRow(newAssign));
   }
 
   await writeAuditLog(
@@ -549,7 +581,7 @@ export async function acknowledgeIncident(db: Db, input: { actor: Actor; inciden
     );
   }
 
-  return { incidentId: input.incidentId, commanderPerId: input.actor.perId };
+  return { incidentId: input.incidentId, commanderPerId: input.actor.perId, priority };
 }
 
 // ---------------------------------------------------------------------------
@@ -613,6 +645,291 @@ export async function addIncidentParticipant(
 }
 
 // ---------------------------------------------------------------------------
+// Tự tham gia / tự rời sự vụ — bổ sung 2026-09-22. KHÁC `addIncidentParticipant`
+// ở trên (chỉ huy CHỦ ĐỘNG thêm người khác): đây là actor TỰ nguyện tham
+// gia/rời chính mình, bắt buộc nêu lý do mỗi lần (audit trail rõ ràng "ai
+// vào/ra vì sao"). Không giới hạn actor phải là ai — bất kỳ ai xem được hồ
+// sơ (`incident.view`, đúng cơ sở) đều tự tham gia được.
+// ---------------------------------------------------------------------------
+
+export async function joinIncident(
+  db: Db,
+  input: { actor: Actor; incidentId: string; reason: string },
+  opts?: SafetyOpts
+): Promise<{ incidentId: string; assignedTaskPerIds: string[] }> {
+  const now = opts?.now || new Date();
+  if (!input.actor.perId) throw new AppError('forbidden', 'Tài khoản chưa được gắn với hồ sơ nhân sự (perId) nào.');
+  if (!input.reason || !input.reason.trim()) {
+    throw new AppError('reason_required', 'Bắt buộc nhập lý do khi tham gia sự vụ.');
+  }
+  const incident = await loadIncident(db, input.incidentId);
+
+  const decision = checkAuthorization({ actor: input.actor, action: 'incident.view', resource: { campusId: incident.campusId } });
+  if (!decision.allowed) throw new AppError('forbidden', decision.reason!);
+
+  if (incident.commanderPerId === input.actor.perId || (incident.assignedTaskPerIds || []).includes(input.actor.perId)) {
+    throw new AppError('already_joined', 'Bạn đã tham gia sự vụ này rồi.');
+  }
+
+  const assignedTaskPerIds = adminArrayUnion(incident.assignedTaskPerIds, input.actor.perId);
+  await db.update(incidents).set({ assignedTaskPerIds, version: incident.version + 1, updatedAt: now }).where(eq(incidents.incidentId, input.incidentId));
+
+  await writeAuditLog(
+    db,
+    buildAuditRecord({
+      actorPerId: input.actor.perId,
+      action: 'incident.participant_joined',
+      objectId: input.incidentId,
+      after: { joined_per_id: input.actor.perId },
+      reason: input.reason,
+      now
+    })
+  );
+
+  if (opts?.pushBell) {
+    const recipients = Array.from(new Set([incident.commanderPerId, ...(incident.assignedTaskPerIds || [])].filter(Boolean) as string[]));
+    if (recipients.length > 0) {
+      await opts.pushBell(
+        db,
+        {
+          recipients,
+          title: 'Có người mới tham gia sự vụ ' + input.incidentId,
+          message: input.incidentId + ': ' + input.actor.perId + ' đã tự tham gia xử lý — lý do: ' + input.reason,
+          eventType: 'safety.incident.participant_joined',
+          objectId: input.incidentId,
+          actorPerId: input.actor.perId,
+          meta: { joined_per_id: input.actor.perId, campus_id: incident.campusId }
+        },
+        { now }
+      );
+    }
+  }
+
+  return { incidentId: input.incidentId, assignedTaskPerIds };
+}
+
+export async function leaveIncident(
+  db: Db,
+  input: { actor: Actor; incidentId: string; reason: string },
+  opts?: SafetyOpts
+): Promise<{ incidentId: string; assignedTaskPerIds: string[] }> {
+  const now = opts?.now || new Date();
+  if (!input.actor.perId) throw new AppError('forbidden', 'Tài khoản chưa được gắn với hồ sơ nhân sự (perId) nào.');
+  if (!input.reason || !input.reason.trim()) {
+    throw new AppError('reason_required', 'Bắt buộc nhập lý do khi rời sự vụ.');
+  }
+  const incident = await loadIncident(db, input.incidentId);
+
+  if (incident.commanderPerId === input.actor.perId) {
+    throw new AppError('invalid_state', 'Bạn đang là chỉ huy sự vụ này — dùng chức năng "Huỷ tiếp nhận" thay vì rời.');
+  }
+  if (!(incident.assignedTaskPerIds || []).includes(input.actor.perId)) {
+    throw new AppError('not_participant', 'Bạn hiện không tham gia sự vụ này.');
+  }
+
+  const assignedTaskPerIds = (incident.assignedTaskPerIds || []).filter((p) => p !== input.actor.perId);
+  await db.update(incidents).set({ assignedTaskPerIds, version: incident.version + 1, updatedAt: now }).where(eq(incidents.incidentId, input.incidentId));
+
+  await writeAuditLog(
+    db,
+    buildAuditRecord({
+      actorPerId: input.actor.perId,
+      action: 'incident.participant_left',
+      objectId: input.incidentId,
+      after: { left_per_id: input.actor.perId },
+      reason: input.reason,
+      now
+    })
+  );
+
+  if (opts?.pushBell && incident.commanderPerId) {
+    await opts.pushBell(
+      db,
+      {
+        recipients: [incident.commanderPerId],
+        title: 'Có người rời khỏi sự vụ ' + input.incidentId,
+        message: input.incidentId + ': ' + input.actor.perId + ' đã rời sự vụ — lý do: ' + input.reason,
+        eventType: 'safety.incident.participant_left',
+        objectId: input.incidentId,
+        actorPerId: input.actor.perId,
+        meta: { left_per_id: input.actor.perId, campus_id: incident.campusId }
+      },
+      { now }
+    );
+  }
+
+  return { incidentId: input.incidentId, assignedTaskPerIds };
+}
+
+// ---------------------------------------------------------------------------
+// Huỷ tiếp nhận — quy trình yêu cầu/duyệt thật, bổ sung 2026-09-22 (Sin chốt
+// "phải được xác nhận ở tk cấp trên mới cho huỷ" nghĩa là 1 luồng
+// request/approve thật, KHÔNG phải honor-system gõ mã người duyệt như
+// `approvedBy` ở các action khác). Chỉ CHÍNH chỉ huy hiện tại được yêu cầu;
+// chỉ Tổ trưởng/Phó HT/Hiệu trưởng đúng cơ sở được duyệt/từ chối. Mỗi hồ sơ
+// chỉ có 1 yêu cầu treo tại 1 thời điểm (3 cột cancelRequested*).
+// ---------------------------------------------------------------------------
+
+export async function requestCancelAcknowledgment(
+  db: Db,
+  input: { actor: Actor; incidentId: string; reason: string },
+  opts?: SafetyOpts
+): Promise<{ incidentId: string; cancelRequestedBy: string; cancelRequestReason: string }> {
+  const now = opts?.now || new Date();
+  if (!input.actor.perId) throw new AppError('forbidden', 'Tài khoản chưa được gắn với hồ sơ nhân sự (perId) nào.');
+  if (!input.reason || !input.reason.trim()) {
+    throw new AppError('reason_required', 'Bắt buộc nhập lý do khi yêu cầu huỷ tiếp nhận.');
+  }
+  const incident = await loadIncident(db, input.incidentId);
+
+  if (!incident.commanderPerId || incident.commanderPerId !== input.actor.perId) {
+    throw new AppError('forbidden', 'Chỉ người đang tiếp nhận (chỉ huy) hồ sơ mới được yêu cầu huỷ tiếp nhận.');
+  }
+  if (incident.cancelRequestedAt) {
+    throw new AppError('already_requested', 'Đã có 1 yêu cầu huỷ tiếp nhận đang chờ duyệt cho hồ sơ này.');
+  }
+
+  const reason = input.reason.trim();
+  await db
+    .update(incidents)
+    .set({ cancelRequestedBy: input.actor.perId, cancelRequestReason: reason, cancelRequestedAt: now, version: incident.version + 1, updatedAt: now })
+    .where(eq(incidents.incidentId, input.incidentId));
+
+  await writeAuditLog(
+    db,
+    buildAuditRecord({
+      actorPerId: input.actor.perId,
+      action: 'incident.cancel_acknowledgment_requested',
+      objectId: input.incidentId,
+      after: { cancel_requested_by: input.actor.perId },
+      reason,
+      now
+    })
+  );
+
+  if (opts?.pushBell) {
+    const recipients = Array.from(new Set([...(opts.extraRecipients || [])].filter(Boolean) as string[]));
+    if (recipients.length > 0) {
+      await opts.pushBell(
+        db,
+        {
+          recipients,
+          title: 'Yêu cầu huỷ tiếp nhận sự vụ ' + input.incidentId,
+          message: input.incidentId + ': ' + input.actor.perId + ' xin huỷ tiếp nhận — lý do: ' + reason,
+          eventType: 'safety.incident.cancel_acknowledgment_requested',
+          objectId: input.incidentId,
+          actorPerId: input.actor.perId,
+          meta: { cancel_requested_by: input.actor.perId, campus_id: incident.campusId }
+        },
+        { now }
+      );
+    }
+  }
+
+  return { incidentId: input.incidentId, cancelRequestedBy: input.actor.perId, cancelRequestReason: reason };
+}
+
+export async function approveCancelAcknowledgment(
+  db: Db,
+  input: { actor: Actor; incidentId: string; approve: boolean; note?: string },
+  opts?: SafetyOpts
+): Promise<{ incidentId: string; approved: boolean }> {
+  const now = opts?.now || new Date();
+  const incident = await loadIncident(db, input.incidentId);
+
+  const decision = checkAuthorization({ actor: input.actor, action: 'incident.approve_cancel_acknowledgment', resource: { campusId: incident.campusId } });
+  if (!decision.allowed) throw new AppError('forbidden', decision.reason!);
+
+  if (!incident.cancelRequestedAt || !incident.cancelRequestedBy) {
+    throw new AppError('not_found', 'Không có yêu cầu huỷ tiếp nhận nào đang chờ duyệt cho hồ sơ này.');
+  }
+
+  const requestedBy = incident.cancelRequestedBy;
+  const requestReason = incident.cancelRequestReason;
+
+  if (input.approve) {
+    const assignedTaskPerIds = (incident.assignedTaskPerIds || []).filter((p) => p !== requestedBy);
+    await db
+      .update(incidents)
+      .set({
+        commanderPerId: null,
+        assignedTaskPerIds,
+        cancelRequestedBy: null,
+        cancelRequestReason: null,
+        cancelRequestedAt: null,
+        version: incident.version + 1,
+        updatedAt: now
+      })
+      .where(eq(incidents.incidentId, input.incidentId));
+
+    await writeAuditLog(
+      db,
+      buildAuditRecord({
+        actorPerId: input.actor.perId!,
+        action: 'incident.acknowledgment_cancelled',
+        objectId: input.incidentId,
+        before: { commander_per_id: requestedBy },
+        after: { commander_per_id: null },
+        reason: input.note,
+        now
+      })
+    );
+
+    if (opts?.pushBell) {
+      await opts.pushBell(
+        db,
+        {
+          recipients: [requestedBy],
+          title: 'Yêu cầu huỷ tiếp nhận đã được duyệt — ' + input.incidentId,
+          message: input.incidentId + ': ' + input.actor.perId + ' đã duyệt huỷ tiếp nhận — lý do gốc: ' + requestReason,
+          eventType: 'safety.incident.acknowledgment_cancelled',
+          objectId: input.incidentId,
+          actorPerId: input.actor.perId,
+          meta: { cancelled_commander_per_id: requestedBy, campus_id: incident.campusId }
+        },
+        { now }
+      );
+    }
+  } else {
+    await db
+      .update(incidents)
+      .set({ cancelRequestedBy: null, cancelRequestReason: null, cancelRequestedAt: null, version: incident.version + 1, updatedAt: now })
+      .where(eq(incidents.incidentId, input.incidentId));
+
+    await writeAuditLog(
+      db,
+      buildAuditRecord({
+        actorPerId: input.actor.perId!,
+        action: 'incident.cancel_acknowledgment_rejected',
+        objectId: input.incidentId,
+        before: { cancel_requested_by: requestedBy },
+        after: { cancel_requested_by: null },
+        reason: input.note,
+        now
+      })
+    );
+
+    if (opts?.pushBell) {
+      await opts.pushBell(
+        db,
+        {
+          recipients: [requestedBy],
+          title: 'Yêu cầu huỷ tiếp nhận đã bị từ chối — ' + input.incidentId,
+          message: input.incidentId + ': ' + input.actor.perId + ' đã từ chối yêu cầu huỷ tiếp nhận của bạn.',
+          eventType: 'safety.incident.cancel_acknowledgment_rejected',
+          objectId: input.incidentId,
+          actorPerId: input.actor.perId,
+          meta: { requested_by: requestedBy, campus_id: incident.campusId }
+        },
+        { now }
+      );
+    }
+  }
+
+  return { incidentId: input.incidentId, approved: input.approve };
+}
+
+// ---------------------------------------------------------------------------
 // Gộp 2 sự vụ trùng nhau — bổ sung 2026-09-22, thay cho cơ chế cũ "gộp tin
 // báo vào hồ sơ có sẵn" (submitReport giờ luôn tự tạo incident ngay từ lúc
 // gửi tin, xem report-flow.ts — không còn "tin báo chưa phải hồ sơ" để gộp
@@ -641,7 +958,7 @@ export async function mergeDuplicateIncidents(
   const decision = checkAuthorization({
     actor: input.actor,
     action: 'incident.manage',
-    resource: { campusId: duplicate.campusId, confidentiality: duplicate.confidentiality }
+    resource: { campusId: duplicate.campusId }
   });
   if (!decision.allowed) throw new AppError('forbidden', decision.reason!);
 
@@ -702,9 +1019,7 @@ export async function updateIncidentClassification(
 ): Promise<{
   incidentId: string;
   className: string | null;
-  assignedTaskPerIds: string[];
-  newlyAddedPerIds: string[];
-  removedPerIds: string[];
+  notifiedPerIds: string[];
   homeroomPerId: string | null;
   gradeSupervisorPerId: string | null;
 }> {
@@ -714,10 +1029,14 @@ export async function updateIncidentClassification(
   }
   const incident = await loadIncident(db, input.incidentId);
 
+  // Truyền commanderPerId/assignedTaskPerIds — Sin chốt 2026-09-22: sửa lớp
+  // áp cùng điều kiện với transitionIncidentStatus (chỉ huy/tham gia/cấp
+  // cao), khác đổi mức ưu tiên (chỉ chỉ huy/cấp cao, không cho participant
+  // thường).
   const decision = checkAuthorization({
     actor: input.actor,
     action: 'incident.correct_classification',
-    resource: { campusId: incident.campusId, confidentiality: incident.confidentiality }
+    resource: { campusId: incident.campusId, commanderPerId: incident.commanderPerId ?? undefined, assignedTaskPerIds: incident.assignedTaskPerIds || [] }
   });
   if (!decision.allowed) throw new AppError('forbidden', decision.reason!);
   if (decision.conditions.includes('require_approval') && !opts?.approvedBy) {
@@ -728,38 +1047,20 @@ export async function updateIncidentClassification(
 
   const effectiveClassName = input.className !== undefined ? input.className || null : previousClassName;
 
-  let assignedTaskPerIds: string[] = Array.isArray(incident.assignedTaskPerIds) ? incident.assignedTaskPerIds.slice() : [];
+  // Sin chốt 2026-09-22: sửa lớp KHÔNG còn tự gán/rút quyền xem hồ sơ của
+  // GVCN/GV khối — chỉ đổi tên lớp + BÁO cho GVCN/GV khối MỚI biết có sự
+  // việc liên quan (thuần thông tin), họ tự bấm "Tham gia sự vụ" nếu muốn
+  // xử lý. `assignedTaskPerIds` không còn bị đụng tới ở hàm này nữa.
+  const newlyAddedPerIds: string[] = [];
   let homeroomPerId: string | null = null;
   let gradeSupervisorPerId: string | null = null;
-  const newlyAddedPerIds: string[] = [];
-  const removedPerIds: string[] = [];
 
-  // CHỈ tra lại người liên quan khi lớp THỰC SỰ đổi (không truyền
-  // className -> giữ nguyên lớp cũ, không tra lại người).
   if (input.className !== undefined && effectiveClassName !== previousClassName) {
     const resolved = await resolveClassRelatedPeople(db, effectiveClassName);
     homeroomPerId = resolved.homeroomPerId;
     gradeSupervisorPerId = resolved.gradeSupervisorPerId;
     for (const perId of [homeroomPerId, gradeSupervisorPerId]) {
-      if (perId && !assignedTaskPerIds.includes(perId)) {
-        assignedTaskPerIds.push(perId);
-        newlyAddedPerIds.push(perId);
-      }
-    }
-
-    // Sin xác nhận 2026-09-21: GVCN/GV khối của lớp CŨ phải bị RÚT quyền
-    // ngay khi lớp đổi — trừ khi họ vẫn còn lý do khác để giữ quyền (đang
-    // là chỉ huy hồ sơ, hoặc vẫn trùng với người của lớp MỚI). Trước đây
-    // code chỉ CỘNG DỒN người mới vào `assignedTaskPerIds`, không bao giờ
-    // rút người của lớp cũ ra — đổi lớp nhiều lần sẽ tích luỹ ngày càng
-    // nhiều người không còn liên quan vẫn xem được hồ sơ.
-    const oldResolved = await resolveClassRelatedPeople(db, previousClassName);
-    const stillRelevant = new Set([homeroomPerId, gradeSupervisorPerId, incident.commanderPerId].filter(Boolean) as string[]);
-    for (const perId of [oldResolved.homeroomPerId, oldResolved.gradeSupervisorPerId]) {
-      if (perId && !stillRelevant.has(perId) && assignedTaskPerIds.includes(perId)) {
-        assignedTaskPerIds = assignedTaskPerIds.filter((id) => id !== perId);
-        removedPerIds.push(perId);
-      }
+      if (perId) newlyAddedPerIds.push(perId);
     }
   }
 
@@ -767,7 +1068,6 @@ export async function updateIncidentClassification(
     .update(incidents)
     .set({
       className: effectiveClassName,
-      assignedTaskPerIds,
       version: incident.version + 1,
       updatedAt: now
     })
@@ -779,24 +1079,22 @@ export async function updateIncidentClassification(
       actorPerId: input.actor.perId!,
       action: 'incident.classification_corrected',
       objectId: input.incidentId,
-      before: { class_name: previousClassName, removed_per_ids: removedPerIds },
-      after: { class_name: effectiveClassName, newly_added_per_ids: newlyAddedPerIds },
+      before: { class_name: previousClassName },
+      after: { class_name: effectiveClassName, notified_per_ids: newlyAddedPerIds },
       reason: input.reason,
       now
     })
   );
 
-  // Có người MỚI (GVCN/phụ trách khối mới) -> báo ngay, dùng ĐÚNG cơ chế
-  // dispatch/pushBell/audit mà createIncidentFromReport đã dùng khi gắn
-  // người mới liên quan tới lớp.
+  // Báo (thuần thông tin, KHÔNG cấp quyền) cho GVCN/GV khối MỚI.
   if (newlyAddedPerIds.length > 0) {
     const request = notify.buildNotifyRequest({
       recipients: newlyAddedPerIds,
-      priority: incident.priority,
+      priority: incident.priority || catalog.PRIORITY.P3,
       objectId: input.incidentId,
       objectCode: input.incidentId,
-      levelLabel: catalog.PRIORITY_LABEL[incident.priority as catalog.Priority],
-      actionNeeded: 'Hồ sơ vừa được sửa lại lớp, có liên quan đến lớp/khối bạn phụ trách — xem và phối hợp xử lý',
+      levelLabel: incident.priority ? catalog.PRIORITY_LABEL[incident.priority as catalog.Priority] : 'Chưa phân loại',
+      actionNeeded: 'Hồ sơ vừa được sửa lại lớp, có liên quan đến lớp/khối bạn phụ trách — xem và cân nhắc tham gia xử lý nếu cần',
       deepLink: '/app/incidents/' + input.incidentId,
       eventType: 'safety.incident.homeroom_notified'
     });
@@ -831,5 +1129,5 @@ export async function updateIncidentClassification(
     );
   }
 
-  return { incidentId: input.incidentId, className: effectiveClassName, assignedTaskPerIds, newlyAddedPerIds, removedPerIds, homeroomPerId, gradeSupervisorPerId };
+  return { incidentId: input.incidentId, className: effectiveClassName, notifiedPerIds: newlyAddedPerIds, homeroomPerId, gradeSupervisorPerId };
 }

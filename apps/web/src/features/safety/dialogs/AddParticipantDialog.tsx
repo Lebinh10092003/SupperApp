@@ -5,12 +5,13 @@
  * `IncidentDetailPage.tsx`) — server cũng tự kiểm tra lại, KHÔNG tin client.
  */
 import { useState } from 'react';
-import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack, Typography } from '@mui/material';
+import { Alert, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Stack, Typography } from '@mui/material';
 import { api } from '../../../services/api';
 import { PersonPicker, type PersonOption } from '../PersonPicker';
 
 export interface AddParticipantTarget {
   incidentId: string;
+  suggested?: Array<{ perId: string; label: string }>;
 }
 
 export function AddParticipantDialog({
@@ -58,7 +59,24 @@ export function AddParticipantDialog({
             <Typography variant="body2" color="text.secondary">
               Hồ sơ <strong>{target.incidentId}</strong> — người được thêm sẽ xem được toàn bộ hồ sơ và nhận thông báo ngay.
             </Typography>
-            <PersonPicker label="Người tham gia xử lý" value={person} onChange={setPerson} />
+            {target.suggested && target.suggested.length > 0 && (
+              <Stack spacing={0.75}>
+                <Typography variant="caption" color="text.secondary">
+                  Gợi ý theo lớp/nhóm sự cố này:
+                </Typography>
+                <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }} useFlexGap>
+                  {target.suggested.map((s) => (
+                    <Chip
+                      key={s.perId}
+                      label={s.label}
+                      onClick={() => setPerson({ perId: s.perId, name: s.label })}
+                      sx={{ bgcolor: '#eff6ff', color: '#1d4ed8', fontWeight: 600 }}
+                    />
+                  ))}
+                </Stack>
+              </Stack>
+            )}
+            <PersonPicker label="Hoặc tìm người tham gia xử lý" value={person} onChange={setPerson} />
             {error && <Alert severity="error">{error}</Alert>}
           </Stack>
         )}

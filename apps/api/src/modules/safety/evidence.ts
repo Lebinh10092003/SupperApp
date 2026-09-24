@@ -428,37 +428,23 @@ export async function getSignedDownloadUrl(bucket: EvidenceBucket, storagePath: 
 
 export interface EvidenceIncidentView {
   campus_id?: string | null;
-  confidentiality?: string;
   commander_per_id?: string | null;
   assigned_task_per_ids?: string[];
 }
 
 /**
  * canViewEvidence — quyền xem/tải minh chứng dùng chung cho tầng route
- * (field `can_view_evidence`).
- *
- * Trước 2026-09-21: hồ sơ bị "redacted" (trần bí mật actor thấp hơn mức hồ
- * sơ) KHÔNG được coi là đủ quyền xem minh chứng, dù checkAuthorization trả
- * allowed:true cho bản ghi rút gọn — ngay cả khi actor có lý do quan hệ
- * chính đáng (đang phụ trách hồ sơ) mà KHÔNG rơi đúng 2 trường hợp
- * bypassCeiling cứng ở authz.ts (chỉ huy/được giao nhiệm vụ) thì vẫn bị
- * chặn xem ảnh dù mở được hồ sơ.
- *
- * Sin chốt chính sách 2026-09-21: ai có quyền/phạm vi để MỞ được hồ sơ
- * (checkAuthorization allowed:true — đã qua đủ vai trò/phạm vi tổ
- * chức/lĩnh vực) thì cũng xem được minh chứng của đúng hồ sơ đó, KHÔNG áp
- * thêm điều kiện "không bị redacted" nữa — bỏ hẳn phần so sánh trần bí mật
- * C1-C4 riêng cho việc xem minh chứng.
+ * (field `can_view_evidence`). Từ 2026-09-22 (bỏ hoàn toàn C1-C4): ai mở
+ * được hồ sơ (`incident.view`, đúng cơ sở) thì cũng xem được minh chứng
+ * của đúng hồ sơ đó — không còn điều kiện nào khác.
  */
 export function canViewEvidence(actor: Actor, resourceIncident?: EvidenceIncidentView | null): boolean {
   const incident = resourceIncident || {};
-  const confidentiality = incident.confidentiality || 'C1';
   const decision = checkAuthorization({
     actor,
-    action: catalog.VIEW_ACTION_BY_CONFIDENTIALITY[confidentiality] || 'incident.view_c1_c2',
+    action: 'incident.view',
     resource: {
       campusId: incident.campus_id,
-      confidentiality,
       commanderPerId: incident.commander_per_id ?? undefined,
       assignedTaskPerIds: incident.assigned_task_per_ids || []
     }

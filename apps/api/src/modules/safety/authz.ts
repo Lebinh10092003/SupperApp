@@ -1,18 +1,25 @@
 /**
  * authz.ts — S5 "Phân quyền và ngữ cảnh truy cập", port 1-1 từ `authz.js`
- * (project An toàn, Firebase). Cài đúng 9 bước đánh giá quyền.
+ * (project An toàn, Firebase). Cài đúng 8 bước đánh giá quyền — BỚT 1 bước
+ * so với bản gốc: Sin chốt 2026-09-22 bỏ HOÀN TOÀN cơ chế C1-C4 (cả rút
+ * gọn nội dung theo trần bí mật lẫn ranh giới xem theo vai trò), lý do:
+ * giữ lại sẽ đóng băng thao tác thật (VD chỉ Hiệu trưởng mới đủ trần C4
+ * để tiếp nhận ca xâm hại/tự hại, trong khi Tư vấn tâm lý/Y tế mới là
+ * người nên xử lý). Bước "Mức bí mật" cũ (bước 6) đã bị XOÁ HẲN — số thứ
+ * tự các bước còn lại giữ nguyên tên gọi trong comment để dễ đối chiếu với
+ * lịch sử, không dồn lại số.
  *
  * Module THUẦN LOGIC (không tự query DB) — nơi gọi (route layer) chịu
  * trách nhiệm nạp `actor` (qua `loadActorContext` ở modules/identity) rồi
  * truyền vào đây.
  *
- * QUAN TRỌNG: đảo thứ tự 9 bước là tạo lỗ hổng — KHÔNG tự ý sắp xếp lại.
+ * QUAN TRỌNG: đảo thứ tự các bước còn lại là tạo lỗ hổng — KHÔNG tự ý sắp xếp lại.
  *
  * Nguồn đối chiếu:
  * /Users/macbook/Projects/thcs-giangvo-super-app-lich-cong-tac/App_Canh_bao_an_toan_backend_v0_1/functions/src/authz.js
  */
 
-import { ROLE, ROLE_DEFAULT_CEILING, confidentialityRank, isValidConfidentiality, type Confidentiality, type RoleId } from './catalog.js';
+import { ROLE, type RoleId } from './catalog.js';
 
 /** Danh sách cấm tuyệt đối — không vai trò nào được bỏ qua, bất kể điều kiện khác. */
 export const ABSOLUTE_FORBIDDEN_ACTIONS = new Set([
@@ -28,25 +35,36 @@ type GrantLevel = 'X' | 'XR' | 'D';
 
 /** Ma trận quyền tối thiểu — 'X' cho phép, 'XR' cho phép + bắt buộc lý do, 'D' cho phép nhưng cần phê duyệt cấp trên. */
 export const PERMISSION_MATRIX: Record<string, Partial<Record<RoleId, GrantLevel>>> = {
-  'incident.view_c1_c2': { [ROLE.PRINCIPAL]: 'X', [ROLE.VICE_PRINCIPAL]: 'X', [ROLE.DUTY_OFFICER]: 'X', [ROLE.TEACHER]: 'X' },
-  'incident.view_c3': { [ROLE.PRINCIPAL]: 'X', [ROLE.VICE_PRINCIPAL]: 'X', [ROLE.DUTY_OFFICER]: 'XR' },
-  'incident.view_c4': { [ROLE.PRINCIPAL]: 'X' },
-  // Xem/tải minh chứng (S8): KHÔNG còn action riêng ở đây — Sin xác nhận
-  // 2026-09-21 ai xem được NỘI DUNG hồ sơ đầy đủ (không bị redacted) thì
-  // cũng xem được minh chứng của đúng hồ sơ đó, dùng lại thẳng
-  // `catalog.VIEW_ACTION_BY_CONFIDENTIALITY` (xem `evidence.ts::canViewEvidence`)
-  // thay vì action `incident.view_evidence` cũ (trước đây chỉ cấp cho 3 vai
-  // trò tĩnh, khiến Tổ trưởng/GVCN/Chỉ huy sự cố xem được hồ sơ nhưng không
-  // xem được ảnh đính kèm của chính hồ sơ đó).
-  // Chuyển trạng thái thông thường — KHÔNG áp cho đóng P0/P1 hay mở lại (đi
-  // qua action riêng vì yêu cầu phê duyệt khác nhau).
-  'incident.manage': {
-    [ROLE.PRINCIPAL]: 'X', [ROLE.VICE_PRINCIPAL]: 'X', [ROLE.DUTY_OFFICER]: 'X',
-    [ROLE.DEPT_HEAD]: 'X', [ROLE.HEALTH]: 'X', [ROLE.COUNSELOR]: 'X',
+  // Xem hồ sơ — Sin chốt 2026-09-22 bỏ hẳn 3 mức view_c1_c2/c3/c4, gộp
+  // thành 1 action duy nhất cấp cho mọi vai trò nghiệp vụ an toàn (không
+  // còn ranh giới theo mức bí mật — chỉ còn ranh giới theo cơ sở/lĩnh vực
+  // ở bước 4/5 như mọi action khác).
+  'incident.view': {
+    [ROLE.PRINCIPAL]: 'X', [ROLE.VICE_PRINCIPAL]: 'X', [ROLE.DUTY_OFFICER]: 'X', [ROLE.DEPT_HEAD]: 'X',
+    [ROLE.TEACHER]: 'X', [ROLE.HOMEROOM]: 'X', [ROLE.HEALTH]: 'X', [ROLE.COUNSELOR]: 'X',
     [ROLE.SECURITY]: 'X', [ROLE.FACILITY]: 'X'
   },
-  'incident.raise_priority': { [ROLE.PRINCIPAL]: 'X', [ROLE.VICE_PRINCIPAL]: 'X', [ROLE.DUTY_OFFICER]: 'X', [ROLE.TEACHER]: 'X' },
-  'incident.lower_priority': { [ROLE.PRINCIPAL]: 'XR', [ROLE.VICE_PRINCIPAL]: 'D' },
+  // Xem/tải minh chứng (S8): dùng thẳng action `incident.view` ở trên (xem
+  // `evidence.ts::canViewEvidence`) — ai mở được hồ sơ thì xem được minh
+  // chứng của đúng hồ sơ đó.
+  // Chuyển trạng thái thông thường — KHÔNG áp cho đóng P0/P1 hay mở lại (đi
+  // qua action riêng vì yêu cầu phê duyệt khác nhau). Sin chốt 2026-09-22:
+  // "người không tiếp nhận sự vụ không đổi trạng thái được" — đường VAI TRÒ
+  // ở đây CHỈ còn cấp cao (Tổ trưởng/Phó HT/Hiệu trưởng, được sửa MỌI hồ sơ
+  // không cần đang tham gia); người KHÔNG cấp cao chỉ còn đường quan hệ
+  // (bước 7, `relationalGrant`) — tức phải đang là chỉ huy/người tham gia
+  // ĐÚNG hồ sơ đó mới được (xem `transitionIncidentStatus`/
+  // `updateIncidentClassification` truyền resource.commanderPerId/
+  // assignedTaskPerIds cho checkAuthorization).
+  'incident.manage': { [ROLE.PRINCIPAL]: 'X', [ROLE.VICE_PRINCIPAL]: 'X', [ROLE.DEPT_HEAD]: 'X' },
+  // Đổi mức ưu tiên — THU HẸP HƠN "incident.manage": chỉ chỉ huy hồ sơ
+  // (KHÔNG phải participant thường) hoặc cấp cao mới đổi được (Sin: "chỉ có
+  // chỉ huy hoặc người uỷ quyền sự vụ có thể chọn mức ưu tiên"). Đạt được
+  // bằng cách `changeIncidentPriority` CHỈ truyền `resource.commanderPerId`
+  // (không truyền `assignedTaskPerIds`) cho checkAuthorization — participant
+  // thường không khớp `relationalGrant` nữa.
+  'incident.raise_priority': { [ROLE.PRINCIPAL]: 'X', [ROLE.VICE_PRINCIPAL]: 'X', [ROLE.DEPT_HEAD]: 'X' },
+  'incident.lower_priority': { [ROLE.PRINCIPAL]: 'XR', [ROLE.VICE_PRINCIPAL]: 'D', [ROLE.DEPT_HEAD]: 'D' },
   // Tổ trưởng được bàn giao thêm 2026-09-22 (Sin chốt) — chỉ giao được cho
   // cấp dưới, ràng buộc đó nằm ở HANDOFF_TARGET_ROLES_BY_ACTOR_ROLE
   // (catalog.ts), kiểm tra trong assignCommander (incident-lifecycle.ts),
@@ -62,9 +80,16 @@ export const PERMISSION_MATRIX: Record<string, Partial<Record<RoleId, GrantLevel
     [ROLE.PRINCIPAL]: 'X', [ROLE.VICE_PRINCIPAL]: 'X', [ROLE.DUTY_OFFICER]: 'X',
     [ROLE.DEPT_HEAD]: 'X', [ROLE.OFFICE_ADMIN]: 'X', [ROLE.TEACHER]: 'X'
   },
-  'incident.close_p2_p3': { [ROLE.PRINCIPAL]: 'X', [ROLE.VICE_PRINCIPAL]: 'X', [ROLE.DUTY_OFFICER]: 'X' },
+  // Đóng P2/P3 — cùng nguyên tắc "incident.manage" ở trên: đường vai trò chỉ
+  // còn cấp cao, Trực ban/participant thường đóng được ĐÚNG hồ sơ mình đang
+  // tham gia qua đường quan hệ (relationalGrant), không còn đóng tràn.
+  'incident.close_p2_p3': { [ROLE.PRINCIPAL]: 'X', [ROLE.VICE_PRINCIPAL]: 'X', [ROLE.DEPT_HEAD]: 'X' },
   'incident.close_p0_p1': { [ROLE.PRINCIPAL]: 'X', [ROLE.VICE_PRINCIPAL]: 'D' },
   'incident.reopen': { [ROLE.PRINCIPAL]: 'XR', [ROLE.VICE_PRINCIPAL]: 'D' },
+  // Duyệt/từ chối yêu cầu huỷ tiếp nhận (bổ sung 2026-09-22) — CHỈ cấp trên
+  // (Tổ trưởng/Phó HT/Hiệu trưởng) mới quyết định được, người yêu cầu (chỉ
+  // huy hiện tại) không tự duyệt cho chính mình.
+  'incident.approve_cancel_acknowledgment': { [ROLE.PRINCIPAL]: 'X', [ROLE.VICE_PRINCIPAL]: 'X', [ROLE.DEPT_HEAD]: 'X' },
   'incident.export': { [ROLE.PRINCIPAL]: 'XR', [ROLE.VICE_PRINCIPAL]: 'D', [ROLE.OFFICE_ADMIN]: 'D' },
   'conflict.override_soft': { [ROLE.PRINCIPAL]: 'X', [ROLE.VICE_PRINCIPAL]: 'XR', [ROLE.DEPT_HEAD]: 'D', [ROLE.OFFICE_ADMIN]: 'D' },
   'catalog.edit': { [ROLE.PRINCIPAL]: 'X', [ROLE.VICE_PRINCIPAL]: 'D', [ROLE.OFFICE_ADMIN]: 'X', [ROLE.SYS_ADMIN]: 'D' },
@@ -101,7 +126,6 @@ export interface Actor {
 export interface Resource {
   campusId?: string | null;
   domain?: string | null;
-  confidentiality?: string;
   assignedTaskPerIds?: string[];
   commanderPerId?: string;
 }
@@ -109,29 +133,11 @@ export interface Resource {
 export interface AuthzDecision {
   allowed: boolean;
   reason: string | null;
-  conditions: Array<'require_reason' | 'require_approval' | 'redacted'>;
+  conditions: Array<'require_reason' | 'require_approval'>;
 }
 
 function decide(allowed: boolean, reason?: string | null, extra?: Partial<AuthzDecision>): AuthzDecision {
   return { allowed: !!allowed, reason: reason ?? null, conditions: [], ...extra };
-}
-
-function actorHasRole(actor: Actor, roleId: RoleId): boolean {
-  return (actor.roles ?? []).some((r) => r.roleId === roleId);
-}
-
-/** Trần bí mật hiệu lực cao nhất trong số các vai trò đang có của actor. */
-export function actorCeiling(actor: Actor): Confidentiality {
-  let best: Confidentiality = 'C1';
-  for (const r of actor.roles ?? []) {
-    const c = (r.ceiling as Confidentiality) || ROLE_DEFAULT_CEILING[r.roleId as RoleId] || 'C1';
-    if (confidentialityRank(c) > confidentialityRank(best)) best = c;
-  }
-  // Trực ban được nâng C2 -> C3 khi đang trong ca.
-  if (actorHasRole(actor, ROLE.DUTY_OFFICER) && actor.onDutyNow) {
-    if (confidentialityRank('C3') > confidentialityRank(best)) best = 'C3';
-  }
-  return best;
 }
 
 export function inOrgScope(actor: Actor, resource: Resource): boolean {
@@ -152,38 +158,30 @@ export function inDomainScope(actor: Actor, resource: Resource): boolean {
 }
 
 /**
- * Bước 7 — quyền tạm thời theo quan hệ/thời gian.
- *
- * `bypassCeiling`: chỉ true cho 2 lý do gắn CHẶT với đúng 1 hồ sơ cụ thể
- * (được giao nhiệm vụ / là người chỉ huy vụ việc) — vì khi đó chính người
- * có thẩm quyền tạo hồ sơ đã CHỌN đưa người này vào xử lý hồ sơ ĐÓ. Hai lý
- * do còn lại (đang trực ca / đang được ủy quyền) là quyền RỘNG áp cho
- * nhiều hồ sơ cùng lúc nên vẫn phải qua đúng trần bí mật ở Bước 6.
+ * Bước 7 — quyền tạm thời theo quan hệ/thời gian (đang trực ca / đang được
+ * ủy quyền / được giao nhiệm vụ trên đúng hồ sơ / là chỉ huy hồ sơ đó).
  */
-// Mọi action xem hồ sơ đều có dạng "incident.view_c..." — dùng regex khớp
-// "view_" ngay sau dấu chấm hoặc ở đầu chuỗi (không dùng indexOf === 0, vì
-// action luôn có tiền tố "incident." nên không bao giờ khớp — lỗi ẩn đã
-// gặp ở bản gốc).
-const VIEW_ACTION_RE = /(^|\.)view_/;
+// Khớp mọi action xem hồ sơ (VD "incident.view") — dùng regex khớp "view"
+// ngay sau dấu chấm hoặc ở đầu chuỗi.
+const VIEW_ACTION_RE = /(^|\.)view($|_)/;
 
 export interface RelationalGrant {
   granted: boolean;
   reason?: string;
-  bypassCeiling?: boolean;
 }
 
 export function relationalGrant(actor: Actor, action: string, resource: Resource): RelationalGrant {
   if (actor.onDutyNow && (action === 'incident.activate_p0' || VIEW_ACTION_RE.test(action))) {
-    return { granted: true, reason: 'Đang trong ca trực tại cơ sở.', bypassCeiling: false };
+    return { granted: true, reason: 'Đang trong ca trực tại cơ sở.' };
   }
   if (actor.activeDelegations?.some((d) => !resource.campusId || d.campusId === resource.campusId)) {
-    return { granted: true, reason: 'Đang được ủy quyền còn hiệu lực.', bypassCeiling: false };
+    return { granted: true, reason: 'Đang được ủy quyền còn hiệu lực.' };
   }
   if (resource.assignedTaskPerIds?.includes(actor.perId ?? '')) {
-    return { granted: true, reason: 'Được giao nhiệm vụ trong hồ sơ này.', bypassCeiling: true };
+    return { granted: true, reason: 'Được giao nhiệm vụ trong hồ sơ này.' };
   }
   if (resource.commanderPerId && resource.commanderPerId === actor.perId) {
-    return { granted: true, reason: 'Là người chỉ huy vụ việc (R.INCIDENT_CMD theo vụ việc).', bypassCeiling: true };
+    return { granted: true, reason: 'Là người chỉ huy vụ việc (R.INCIDENT_CMD theo vụ việc).' };
   }
   return { granted: false };
 }
@@ -228,17 +226,7 @@ export function checkAuthorization(input: { actor: Actor; action: string; resour
   }
 
   // Bước 7 — Quan hệ/thời gian: LUÔN tính `relationalGrant()`, KHÔNG chỉ
-  // khi đường vai trò chưa cấp quyền. Sửa lỗi 2026-09-11 (Sin phản hồi
-  // sau khi verify thật): trước đây chỉ tính khi `!grantedVia`, khiến
-  // bypassCeiling (chỉ huy vụ việc/được giao nhiệm vụ trên đúng hồ sơ)
-  // KHÔNG BAO GIỜ áp dụng cho actor đã có sẵn quyền role-based ở mức
-  // ceiling thấp hơn hồ sơ — mà đây là trường hợp PHỔ BIẾN NHẤT (mọi
-  // R.TEACHER đều có baseline quyền xem C1/C2), không phải trường hợp
-  // hiếm không có role nào cả. Hệ quả cũ: chỉ huy/người được giao việc
-  // vẫn bị redact ngay với chính hồ sơ mình đang xử lý. bypassCeiling
-  // giờ được xét ĐỘC LẬP với việc đường vai trò đã cấp quyền hay chưa —
-  // vẫn giữ đúng thứ tự 9 bước (7 rồi mới 6), chỉ sửa ĐIỀU KIỆN chạy
-  // bước 7, không đảo thứ tự.
+  // khi đường vai trò chưa cấp quyền.
   const relational = relationalGrant(actor, action, resource);
   if (!grantedVia && relational.granted) {
     grantedVia = 'relation';
@@ -251,18 +239,7 @@ export function checkAuthorization(input: { actor: Actor; action: string; resour
     return decide(false, 'Không có vai trò nào cho phép thực hiện hành động này, và không có quyền tạm thời theo quan hệ/thời gian.');
   }
 
-  // Bước 6 — Mức bí mật (áp dụng cả 2 đường, TRỪ khi có bypassCeiling từ
-  // quan hệ tạm thời — dù đường cấp quyền CHÍNH là 'role', bypassCeiling
-  // của quan hệ tạm thời vẫn áp dụng nếu actor thoả điều kiện đó).
-  const skipCeiling = relational.granted && relational.bypassCeiling;
-  if (!skipCeiling && resource.confidentiality && isValidConfidentiality(resource.confidentiality)) {
-    const ceiling = actorCeiling(actor);
-    if (confidentialityRank(ceiling) < confidentialityRank(resource.confidentiality)) {
-      return decide(true, 'Trần bí mật thấp hơn mức của hồ sơ — chỉ trả về bản ghi rút gọn (mã và mức), không trả nội dung.', {
-        conditions: ['redacted']
-      });
-    }
-  }
+  // Bước 6 (mức bí mật) ĐÃ XOÁ — Sin chốt 2026-09-22 bỏ hoàn toàn C1-C4.
 
   const finalReason = grantedVia === 'role'
     ? 'Được phép theo vai trò trong đúng phạm vi được phân công.'

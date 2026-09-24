@@ -33,7 +33,7 @@ import { asyncRoute, HttpError } from '../../core/http.js';
 import { db } from '../../core/db/client.js';
 import { loadActorContext, type ActorContext } from '../identity/actor-context.js';
 import { inOrgScope } from './authz.js';
-import { findLeadershipForCampus } from './escalation-recipients.js';
+import { findLeadershipForCampus, findDeptHeadsForCampus } from './escalation-recipients.js';
 import { publicCodes } from './ids.schema.js';
 import { incidents } from './incidents.schema.js';
 import { AppError } from './shared.js';
@@ -46,6 +46,10 @@ import {
   assignCommander,
   acknowledgeIncident,
   addIncidentParticipant,
+  joinIncident,
+  leaveIncident,
+  requestCancelAcknowledgment,
+  approveCancelAcknowledgment,
   mergeDuplicateIncidents,
   updateIncidentClassification
 } from './incident-lifecycle.js';
@@ -67,6 +71,7 @@ const APP_ERROR_STATUS: Record<string, number> = {
   invalid_transition: 409,
   terminal_state: 409,
   reason_required: 400,
+  priority_required: 400,
   approval_required: 403,
   reporter_confirmation_pending: 409,
   no_recipients: 422
@@ -258,10 +263,11 @@ safetyRouter.post(
   firebaseAuth,
   withAppError(async (req, res) => {
     const actor = await loadActorContext(db, req.appUser!.uid);
+    const d = req.body || {};
     const [incident] = await db.select().from(incidents).where(eq(incidents.incidentId, String(req.params.id))).limit(1);
     const now = new Date();
     const extraRecipients = incident ? await findLeadershipForCampus(db, incident.campusId, { now }) : [];
-    const row = await acknowledgeIncident(db, { actor, incidentId: String(req.params.id) }, { dispatch, pushBell, extraRecipients, now });
+    const row = await acknowledgeIncident(db, { actor, incidentId: String(req.params.id), priority: d.priority }, { dispatch, pushBell, extraRecipients, now });
     res.json(row);
   })
 );
@@ -276,6 +282,62 @@ safetyRouter.post(
     const actor = await loadActorContext(db, req.appUser!.uid);
     const d = req.body || {};
     const row = await addIncidentParticipant(db, { actor, incidentId: String(req.params.id), perId: d.perId }, { dispatch, pushBell, now: new Date() });
+    res.json(row);
+  })
+);
+
+// Tự tham gia / tự rời sự vụ — xem `joinIncident`/`leaveIncident`
+// (incident-lifecycle.ts). Bắt buộc lý do mỗi lần.
+safetyRouter.post(
+  '/incidents/:id/join',
+  firebaseAuth,
+  withAppError(async (req, res) => {
+    const actor = await loadActorContext(db, req.appUser!.uid);
+    const d = req.body || {};
+    const row = await joinIncident(db, { actor, incidentId: String(req.params.id), reason: d.reason }, { dispatch, pushBell, now: new Date() });
+    res.json(row);
+  })
+);
+
+safetyRouter.post(
+  '/incidents/:id/leave',
+  firebaseAuth,
+  withAppError(async (req, res) => {
+    const actor = await loadActorContext(db, req.appUser!.uid);
+    const d = req.body || {};
+    const row = await leaveIncident(db, { actor, incidentId: String(req.params.id), reason: d.reason }, { dispatch, pushBell, now: new Date() });
+    res.json(row);
+  })
+);
+
+// Huỷ tiếp nhận — quy trình yêu cầu/duyệt thật, xem
+// `requestCancelAcknowledgment`/`approveCancelAcknowledgment`
+// (incident-lifecycle.ts). Diện nhận thông báo yêu cầu treo: Tổ trưởng +
+// Phó HT/Hiệu trưởng đúng cơ sở (gộp findDeptHeadsForCampus +
+// findLeadershipForCampus, cùng cách route /commander đã dùng).
+safetyRouter.post(
+  '/incidents/:id/cancel-acknowledgment/request',
+  firebaseAuth,
+  withAppError(async (req, res) => {
+    const actor = await loadActorContext(db, req.appUser!.uid);
+    const d = req.body || {};
+    const [incident] = await db.select().from(incidents).where(eq(incidents.incidentId, String(req.params.id))).limit(1);
+    const now = new Date();
+    const extraRecipients = incident
+      ? Array.from(new Set([...(await findDeptHeadsForCampus(db, incident.campusId, { now })), ...(await findLeadershipForCampus(db, incident.campusId, { now }))]))
+      : [];
+    const row = await requestCancelAcknowledgment(db, { actor, incidentId: String(req.params.id), reason: d.reason }, { dispatch, pushBell, extraRecipients, now });
+    res.json(row);
+  })
+);
+
+safetyRouter.post(
+  '/incidents/:id/cancel-acknowledgment/decide',
+  firebaseAuth,
+  withAppError(async (req, res) => {
+    const actor = await loadActorContext(db, req.appUser!.uid);
+    const d = req.body || {};
+    const row = await approveCancelAcknowledgment(db, { actor, incidentId: String(req.params.id), approve: !!d.approve, note: d.note }, { dispatch, pushBell, now: new Date() });
     res.json(row);
   })
 );

@@ -7,6 +7,8 @@ import { HttpError } from '../core/http.js';
 import { can, type Capability, type Role, type UserScope } from './roles.js';
 import { bootstrapSuperAdminEmails, bootstrapSuperAdminDomains, env } from '../config/env.js';
 import { ensureSafetyAccountLinked } from '../modules/identity/auto-link.js';
+import { accounts } from '../modules/identity/identity.schema.js';
+import { resolveHomeroomOverride } from '../modules/identity/person-directory.js';
 
 export interface AppUser {
   uid: string;

@@ -11,6 +11,7 @@
 
 import { inArray } from 'drizzle-orm';
 import { accounts } from '../identity/identity.schema.js';
+import { getHomeroomOverridesByPerIds } from '../identity/person-directory.js';
 import { normalizeForMatch } from './text-match.js';
 import type { Db } from './shared.js';
 
@@ -39,17 +40,19 @@ export async function searchPeopleByName(db: Db, query: string | null | undefine
   if (!normQuery) return [];
 
   const rows = await db.select().from(accounts);
-  const out: PersonResult[] = [];
+  const matched: Array<{ perId: string; name: string }> = [];
   for (const row of rows) {
-    if (out.length >= MAX_RESULTS) break;
+    if (matched.length >= MAX_RESULTS) break;
     const name = row.displayName;
     if (!name) continue;
     if (!normalizeForMatch(name).includes(normQuery)) continue;
     if (!row.perId) continue;
-    out.push({ perId: row.perId, name });
+    matched.push({ perId: row.perId, name });
   }
 
-  return out.slice(0, MAX_RESULTS);
+  // GVCN gắn theo lớp phụ trách -> ghi đè tên hiển thị (Sin chốt 2026-09-22).
+  const overrides = await getHomeroomOverridesByPerIds(db, matched.map((m) => m.perId));
+  return matched.slice(0, MAX_RESULTS).map((m) => ({ perId: m.perId, name: overrides[m.perId] || m.name }));
 }
 
 /**
@@ -66,7 +69,8 @@ export async function listAllPeople(db: Db): Promise<PersonResult[]> {
     if (!row.perId || !row.displayName) continue;
     out.push({ perId: row.perId, name: row.displayName });
   }
-  return out;
+  const overrides = await getHomeroomOverridesByPerIds(db, out.map((p) => p.perId));
+  return out.map((p) => ({ perId: p.perId, name: overrides[p.perId] || p.name }));
 }
 
 /**
@@ -89,8 +93,9 @@ export async function getDisplayNamesByPerIds(db: Db, perIds: Array<string | nul
   if (ids.length === 0) return map;
 
   const rows = await db.select().from(accounts).where(inArray(accounts.perId, ids));
+  const overrides = await getHomeroomOverridesByPerIds(db, ids);
   for (const row of rows) {
-    if (row.perId) map[row.perId] = row.displayName || null;
+    if (row.perId) map[row.perId] = overrides[row.perId] || row.displayName || null;
   }
   return map;
 }

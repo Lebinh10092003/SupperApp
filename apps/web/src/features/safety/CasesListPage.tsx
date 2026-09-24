@@ -5,9 +5,11 @@
  * tạo `incidents` row ngay lúc gửi tin (report-flow.ts), không còn khái
  * niệm "tin báo chưa phải hồ sơ" để tách thành 2 danh sách nữa.
  *
- * Nút "Tiếp nhận"/"Bàn giao" đặt NGAY Ở DÒNG (không cần vào chi tiết) theo
- * đúng yêu cầu — chỉ hiện khi CHƯA có người phụ trách; đã có người phụ
- * trách thì chỉ hiện tên, không cần bấm gì nữa.
+ * Sin chốt 2026-09-22: bỏ nút thao tác nhanh (Tiếp nhận/Bàn giao) ngay
+ * trên dòng danh sách — cột "Người phụ trách" chỉ còn hiển thị tên/chip
+ * "Chưa tiếp nhận", bấm vào cả dòng mới vào trang chi tiết để thao tác.
+ * Cột "Nhóm sự cố" cũng chỉ hiện rút gọn (truncate + tooltip), giống cột
+ * "Nội dung" — xem chi tiết đầy đủ phải bấm vào dòng.
  */
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -38,8 +40,6 @@ import {
 } from '@mui/material';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutlineRounded';
 import ListAltIcon from '@mui/icons-material/ListAltRounded';
-import HowToRegIcon from '@mui/icons-material/HowToRegRounded';
-import PersonAddAlt1Icon from '@mui/icons-material/PersonAddAlt1Rounded';
 import BookmarkAddIcon from '@mui/icons-material/BookmarkAddRounded';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlineRounded';
 import { PageHeader } from '../../components/PageHeader';
@@ -47,8 +47,6 @@ import { api } from '../../services/api';
 import { useIncidents, type IncidentListItem } from './hooks/useIncidents';
 import { StatusChip } from './components/StatusChip';
 import { PriorityChip } from './components/PriorityChip';
-import { ConfidentialityBadge } from './components/ConfidentialityBadge';
-import { AssignCommanderDialog, type AssignCommanderTarget } from './dialogs/AssignCommanderDialog';
 import { CAMPUS_IDS, CAMPUS_LABEL, STATE_OPTIONS } from './constants';
 
 const PRIORITY_OPTIONS = ['P0', 'P1', 'P2', 'P3'];
@@ -89,8 +87,6 @@ export default function CasesListPage() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
   const [toast, setToast] = useState<{ message: string; severity: 'success' | 'error' } | null>(null);
-  const [ackingId, setAckingId] = useState<string | null>(null);
-  const [commanderTarget, setCommanderTarget] = useState<AssignCommanderTarget | null>(null);
 
   const [savedFilters, setSavedFilters] = useState<SavedFilterRow[]>([]);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
@@ -174,25 +170,6 @@ export default function CasesListPage() {
     } catch (e: any) {
       setToast({ message: e.message, severity: 'error' });
     }
-  };
-
-  const handleAcknowledge = async (item: IncidentListItem, ev: React.MouseEvent) => {
-    ev.stopPropagation();
-    setAckingId(item.incidentId);
-    try {
-      await api.post(`/api/safety/incidents/${item.incidentId}/acknowledge`, {});
-      setToast({ message: `Bạn đã tiếp nhận xử lý ${item.incidentId}.`, severity: 'success' });
-      refetch();
-    } catch (e: any) {
-      setToast({ message: e.message, severity: 'error' });
-    } finally {
-      setAckingId(null);
-    }
-  };
-
-  const openHandoff = (item: IncidentListItem, ev: React.MouseEvent) => {
-    ev.stopPropagation();
-    setCommanderTarget({ incidentId: item.incidentId, commanderPerId: item.commanderPerId, commanderName: item.commanderName });
   };
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -360,14 +337,13 @@ export default function CasesListPage() {
                   Trạng thái
                 </TableSortLabel>
               </TableCell>
-              <TableCell>Bí mật</TableCell>
               <TableCell>Người phụ trách</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {!loading && paged.length === 0 && (
               <TableRow>
-                <TableCell colSpan={9} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                <TableCell colSpan={8} align="center" sx={{ py: 4, color: 'text.secondary' }}>
                   Không có sự vụ nào.
                 </TableCell>
               </TableRow>
@@ -377,15 +353,15 @@ export default function CasesListPage() {
                 <TableCell>{it.updatedAt ? new Date(it.updatedAt).toLocaleString('vi-VN') : '—'}</TableCell>
                 <TableCell>{it.incidentId}</TableCell>
                 <TableCell>{CAMPUS_LABEL[it.campusId] || it.campusId}</TableCell>
-                <TableCell>{it.redacted ? <em>—</em> : it.categoryLabel || it.categoryCode}</TableCell>
+                <TableCell sx={{ maxWidth: 180 }}>
+                  <Typography variant="body2" noWrap title={it.categoryLabel || it.categoryCode || ''}>
+                    {it.categoryLabel || it.categoryCode}
+                  </Typography>
+                </TableCell>
                 <TableCell sx={{ maxWidth: 260 }}>
-                  {it.redacted ? (
-                    <em>—</em>
-                  ) : (
-                    <Typography variant="body2" noWrap title={it.contentPreview || ''}>
-                      {it.contentPreview || <em>(không có nội dung)</em>}
-                    </Typography>
-                  )}
+                  <Typography variant="body2" noWrap title={it.contentPreview || ''}>
+                    {it.contentPreview || <em>(không có nội dung)</em>}
+                  </Typography>
                 </TableCell>
                 <TableCell>
                   <PriorityChip priority={it.priority} />
@@ -394,36 +370,7 @@ export default function CasesListPage() {
                   <StatusChip state={it.state} />
                 </TableCell>
                 <TableCell>
-                  <ConfidentialityBadge confidentiality={it.confidentiality} redacted={it.redacted} />
-                </TableCell>
-                <TableCell>
-                  {it.redacted ? (
-                    '—'
-                  ) : it.commanderName ? (
-                    it.commanderName
-                  ) : (
-                    <Stack direction="row" spacing={0.5}>
-                      <Tooltip title="Tự tiếp nhận, trở thành người phụ trách">
-                        <span>
-                          <Button
-                            size="small"
-                            variant="contained"
-                            startIcon={<HowToRegIcon />}
-                            disabled={ackingId === it.incidentId}
-                            onClick={(ev) => handleAcknowledge(it, ev)}
-                            sx={{ bgcolor: '#16a34a', '&:hover': { bgcolor: '#15803d' }, textTransform: 'none', fontSize: 12 }}
-                          >
-                            Tiếp nhận
-                          </Button>
-                        </span>
-                      </Tooltip>
-                      <Tooltip title="Bàn giao cho người khác phụ trách">
-                        <IconButton size="small" onClick={(ev) => openHandoff(it, ev)} sx={{ color: '#2563eb' }}>
-                          <PersonAddAlt1Icon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    </Stack>
-                  )}
+                  {it.commanderName || <Chip label="Chưa tiếp nhận" size="small" sx={{ bgcolor: '#fef3c7', color: '#92400e', fontWeight: 600 }} />}
                 </TableCell>
               </TableRow>
             ))}
@@ -444,15 +391,6 @@ export default function CasesListPage() {
           labelDisplayedRows={({ from, to, count }) => `${from}–${to} / ${count}`}
         />
       </TableContainer>
-
-      <AssignCommanderDialog
-        target={commanderTarget}
-        onClose={() => setCommanderTarget(null)}
-        onChanged={(result) => {
-          refetch();
-          setToast({ message: `Đã bàn giao cho ${result.commanderName}.`, severity: 'success' });
-        }}
-      />
 
       <Dialog open={saveDialogOpen} onClose={() => setSaveDialogOpen(false)} maxWidth="xs" fullWidth>
         <DialogTitle sx={{ fontWeight: 700 }}>Lưu bộ lọc hiện tại</DialogTitle>

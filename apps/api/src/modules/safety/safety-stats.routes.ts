@@ -99,8 +99,10 @@ safetyStatsRouter.get(
     const now = new Date();
     const thirtyDaysAgoMs = now.getTime() - 30 * 24 * 3600 * 1000;
     for (const it of filtered) {
-      const cur = byPriority[it.priority];
-      if (cur !== undefined) byPriority[it.priority] = cur + 1;
+      if (it.priority) {
+        const cur = byPriority[it.priority];
+        if (cur !== undefined) byPriority[it.priority] = cur + 1;
+      }
       byState[it.state] = (byState[it.state] || 0) + 1;
       byCategory[it.categoryCode] = (byCategory[it.categoryCode] || 0) + 1;
       byCampus[it.campusId] = (byCampus[it.campusId] || 0) + 1;

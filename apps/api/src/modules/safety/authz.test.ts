@@ -14,7 +14,7 @@ function actor(overrides: Partial<Actor> = {}): Actor {
 test('bước 1 — phiên hết hạn từ chối dù có vai trò Hiệu trưởng', () => {
   assert.equal(checkAuthorization({
     actor: actor({ roles: [{ roleId: ROLE.PRINCIPAL }], session: { valid: false, revoked: false } }),
-    action: 'incident.view_c4', resource: {}
+    action: 'incident.view', resource: {}
   }).allowed, false);
 });
 
@@ -47,19 +47,19 @@ test('bước 4 — phạm vi tổ chức: Phó HT khác cơ sở bị từ ch�
   }).allowed, true);
 });
 
-test('bước 6 — trần bí mật thấp hơn mức hồ sơ -> allowed=true nhưng redacted', () => {
-  const redacted = checkAuthorization({
-    actor: actor({ roles: [{ roleId: ROLE.DEPT_HEAD, campusId: 'CS.01', ceiling: 'C2' }] }),
-    action: 'incident.manage', resource: { campusId: 'CS.01', confidentiality: 'C3' }
+test('bước 6 (mức bí mật) ĐÃ BỎ 2026-09-22 — vai trò có quyền base thì luôn allowed=true, không còn "redacted"', () => {
+  const decision = checkAuthorization({
+    actor: actor({ roles: [{ roleId: ROLE.DEPT_HEAD, campusId: 'CS.01' }] }),
+    action: 'incident.manage', resource: { campusId: 'CS.01' }
   });
-  assert.equal(redacted.allowed, true);
-  assert.ok(redacted.conditions.includes('redacted'));
+  assert.equal(decision.allowed, true);
+  assert.deepEqual(decision.conditions, []);
 });
 
 test('bước 7 — Trực ban đang ca được xem dù không khớp ma trận vai trò', () => {
   assert.equal(checkAuthorization({
-    actor: actor({ roles: [{ roleId: ROLE.DUTY_OFFICER, campusId: 'CS.01', ceiling: 'C2' }], onDutyNow: true }),
-    action: 'incident.view_c1_c2', resource: { campusId: 'CS.01' }
+    actor: actor({ roles: [{ roleId: ROLE.DUTY_OFFICER, campusId: 'CS.01' }], onDutyNow: true }),
+    action: 'incident.view', resource: { campusId: 'CS.01' }
   }).allowed, true);
 });
 
@@ -70,28 +70,27 @@ test('bước 7 — người chỉ huy vụ việc (commanderPerId) có quyền 
   }).allowed, true);
 });
 
-test('bước 6+7 — được giao nhiệm vụ đúng hồ sơ bypass trần bí mật; quyền rộng (ca trực) KHÔNG bypass', () => {
+test('bỏ C1-C4 (2026-09-22) — GVCN không có vai trò khớp ma trận vẫn xem được hồ sơ mình được giao (qua quan hệ), không được nếu không liên quan; Trực ban trong ca xem được hồ sơ trước đây coi là C4', () => {
   const gvcnDuocGan = checkAuthorization({
-    actor: actor({ perId: 'PER.GVCN_8A2', roles: [{ roleId: ROLE.HOMEROOM, campusId: 'CS.01', ceiling: 'C2' }] }),
-    action: 'incident.view_c3',
-    resource: { campusId: 'CS.01', confidentiality: 'C3', assignedTaskPerIds: ['PER.GVCN_8A2'] }
+    actor: actor({ perId: 'PER.GVCN_8A2', roles: [{ roleId: ROLE.HOMEROOM, campusId: 'CS.01' }] }),
+    action: 'incident.view',
+    resource: { campusId: 'CS.01', assignedTaskPerIds: ['PER.GVCN_8A2'] }
   });
   assert.equal(gvcnDuocGan.allowed, true);
-  assert.ok(!gvcnDuocGan.conditions.includes('redacted'));
 
-  const gvcnKhongDuocGan = checkAuthorization({
-    actor: actor({ perId: 'PER.GVCN_8A2', roles: [{ roleId: ROLE.HOMEROOM, campusId: 'CS.01', ceiling: 'C2' }] }),
-    action: 'incident.view_c3',
-    resource: { campusId: 'CS.01', confidentiality: 'C3', assignedTaskPerIds: ['PER.NGUOI_KHAC'] }
+  const nguoiNgoaiCuoc = checkAuthorization({
+    actor: actor({ perId: 'PER.KHONG_CO_VAI_TRO', roles: [] }),
+    action: 'incident.view',
+    resource: { campusId: 'CS.01', assignedTaskPerIds: ['PER.NGUOI_KHAC'] }
   });
-  assert.equal(gvcnKhongDuocGan.allowed, false);
+  assert.equal(nguoiNgoaiCuoc.allowed, false);
 
-  const trucBanXemC4 = checkAuthorization({
-    actor: actor({ roles: [{ roleId: ROLE.DUTY_OFFICER, campusId: 'CS.01', ceiling: 'C2' }], onDutyNow: true }),
-    action: 'incident.view_c4', resource: { campusId: 'CS.01', confidentiality: 'C4' }
+  const trucBanXem = checkAuthorization({
+    actor: actor({ roles: [{ roleId: ROLE.DUTY_OFFICER, campusId: 'CS.01' }], onDutyNow: true }),
+    action: 'incident.view', resource: { campusId: 'CS.01' }
   });
-  assert.equal(trucBanXemC4.allowed, true);
-  assert.ok(trucBanXemC4.conditions.includes('redacted'));
+  assert.equal(trucBanXem.allowed, true);
+  assert.deepEqual(trucBanXem.conditions, []);
 });
 
 test('bước 8 — XR cần require_reason, D cần require_approval', () => {

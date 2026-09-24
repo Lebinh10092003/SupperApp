@@ -30,8 +30,8 @@ import { firebaseAuth } from '../../auth/middleware.js';
 import { asyncRoute, HttpError } from '../../core/http.js';
 import { db } from '../../core/db/client.js';
 import { loadActorContext } from '../identity/actor-context.js';
-import { checkAuthorization, actorCeiling, inOrgScope, type Actor } from './authz.js';
-import { CATEGORY_CATALOG, confidentialityRank, VIEW_ACTION_BY_CONFIDENTIALITY, type Confidentiality } from './catalog.js';
+import { checkAuthorization, inOrgScope, type Actor } from './authz.js';
+import { CATEGORY_CATALOG, relevantRolesForCategory, suggestedPriorityForCategory, type Confidentiality } from './catalog.js';
 import { publicCodes } from './ids.schema.js';
 import { reports, reportIdentities, reportSupplements } from './reports.schema.js';
 import { incidents } from './incidents.schema.js';
@@ -46,7 +46,7 @@ import { markNotificationRead } from './admin-notify.js';
 import { registerPushToken, unregisterPushToken } from './push-notify.js';
 import { acknowledge } from './notify.js';
 import { getDisplayNamesByPerIds } from './people-search.js';
-import { getPersonSummariesByPerIds, formatPersonLabel, getPersonLabelsByPerIds } from '../identity/person-directory.js';
+import { getPersonSummariesByPerIds, formatPersonLabel, getPersonLabelsByPerIds, findPeopleByRolesAndCampus } from '../identity/person-directory.js';
 import { filterReportItems, filterIncidentItems, sortReportItemsDefault } from './report-filters.js';
 import { resolveClassRelatedPeople } from './report-flow.js';
 
@@ -132,8 +132,8 @@ async function assertCanViewReport(actor: Actor, mergedIntoIncidentId: string | 
   if (!incident) return;
   const decision = checkAuthorization({
     actor,
-    action: VIEW_ACTION_BY_CONFIDENTIALITY[incident.confidentiality] || 'incident.view_c1_c2',
-    resource: { campusId: incident.campusId, confidentiality: incident.confidentiality, commanderPerId: incident.commanderPerId ?? undefined, assignedTaskPerIds: incident.assignedTaskPerIds || [] }
+    action: 'incident.view',
+    resource: { campusId: incident.campusId, commanderPerId: incident.commanderPerId ?? undefined, assignedTaskPerIds: incident.assignedTaskPerIds || [] }
   });
   if (!decision.allowed) throw new HttpError(403, decision.reason ?? 'Không đủ quyền.', 'PERMISSION_ERROR');
 }
@@ -183,7 +183,6 @@ safetyQueryRouter.get(
       channel: r.channel,
       className: r.className,
       suggestedClassNames: r.suggestedClassNames || [],
-      redacted: false as boolean,
       canViewEvidence: false as boolean,
       evidenceList: [] as Array<{ evidenceId: string; fileType: string; sizeBytes: number; scanStatus: string }>
     }));
@@ -198,15 +197,10 @@ safetyQueryRouter.get(
     const limit = q.limit ? Number(q.limit) : 50;
     const sliced = items.slice(0, limit);
 
-    const ceiling = actorCeiling(actor);
+    // Bỏ hoàn toàn C1-C4 (2026-09-22) — không còn rút gọn theo trần bí mật,
+    // ai qua được lọc phạm vi cơ sở ở trên thì xem đầy đủ.
     for (const it of sliced) {
-      if (confidentialityRank(it.confidentiality) > confidentialityRank(ceiling)) {
-        it.content = '';
-        it.className = null;
-        it.suggestedClassNames = [];
-        it.redacted = true;
-      }
-      it.canViewEvidence = canViewEvidence(actor, { campus_id: it.campusId, confidentiality: it.confidentiality });
+      it.canViewEvidence = canViewEvidence(actor, { campus_id: it.campusId });
     }
     const evidenceMap = new Map<string, Awaited<ReturnType<typeof listEvidenceSummaryForReportIds>>>();
     const viewableIds = sliced.filter((it) => it.canViewEvidence).map((it) => it.reportId);
@@ -267,19 +261,12 @@ safetyQueryRouter.get(
       className: r.className,
       suggestedClassNames: r.suggestedClassNames || [],
       mergedIntoIncidentId: r.mergedIntoIncidentId,
-      redacted: false as boolean,
       canViewEvidence: false as boolean,
       evidenceList: [] as Array<{ evidenceId: string; fileType: string; sizeBytes: number; scanStatus: string }>
     };
 
-    const ceiling = actorCeiling(actor);
-    if (confidentialityRank(item.confidentiality) > confidentialityRank(ceiling)) {
-      item.content = '';
-      item.className = null;
-      item.suggestedClassNames = [];
-      item.redacted = true;
-    }
-    item.canViewEvidence = canViewEvidence(actor, { campus_id: item.campusId, confidentiality: item.confidentiality });
+    // Bỏ hoàn toàn C1-C4 (2026-09-22) — không còn rút gọn theo trần bí mật.
+    item.canViewEvidence = canViewEvidence(actor, { campus_id: item.campusId });
     item.evidenceList = item.canViewEvidence ? await listEvidenceSummaryForReportIds([item.reportId]) : [];
 
     await db.insert(auditLogs).values({ occurredAt: new Date(), actorPerId: actor.perId, action: 'safety.report.view', objectId: item.reportId });
@@ -302,20 +289,15 @@ safetyQueryRouter.get(
     // mình chỉ vì không nằm trong N bản ghi mới nhất TOÀN TRƯỜNG.
     const rows = await db.select().from(incidents).orderBy(desc(incidents.updatedAt)).limit(Math.max(limit * 4, 1000));
     type IncidentRow = (typeof rows)[number];
-    type VisibleItem = Partial<IncidentRow> & Pick<IncidentRow, 'incidentId' | 'priority' | 'confidentiality' | 'state' | 'campusId'> & { redacted?: boolean };
-    const visible: VisibleItem[] = [];
+    const visible: IncidentRow[] = [];
     for (const incident of rows) {
       const decision = checkAuthorization({
         actor,
-        action: VIEW_ACTION_BY_CONFIDENTIALITY[incident.confidentiality] || 'incident.view_c1_c2',
-        resource: { campusId: incident.campusId, confidentiality: incident.confidentiality, commanderPerId: incident.commanderPerId ?? undefined, assignedTaskPerIds: incident.assignedTaskPerIds || [] }
+        action: 'incident.view',
+        resource: { campusId: incident.campusId, commanderPerId: incident.commanderPerId ?? undefined, assignedTaskPerIds: incident.assignedTaskPerIds || [] }
       });
       if (!decision.allowed) continue;
-      if (decision.conditions.includes('redacted')) {
-        visible.push({ incidentId: incident.incidentId, priority: incident.priority, confidentiality: incident.confidentiality, state: incident.state, campusId: incident.campusId, redacted: true });
-      } else {
-        visible.push(incident);
-      }
+      visible.push(incident);
     }
 
     const categoryCodes = q.categoryCodes ? q.categoryCodes.split(',').filter(Boolean) : undefined;
@@ -363,7 +345,7 @@ safetyQueryRouter.get(
         categoryLabel: it.categoryCode ? CATEGORY_CATALOG[it.categoryCode]?.label || it.categoryCode : null,
         slaClocks: clockMap[it.incidentId] || null,
         commanderName: it.commanderPerId ? (commanderNameMap[it.commanderPerId] ?? null) : null,
-        contentPreview: it.redacted ? null : (it.reportIds?.[0] ? contentByReportId.get(it.reportIds[0]) ?? null : null)
+        contentPreview: it.reportIds?.[0] ? contentByReportId.get(it.reportIds[0]) ?? null : null
       }))
     );
   })
@@ -380,20 +362,19 @@ safetyQueryRouter.get(
     if (!incident) throw new HttpError(404, 'Không tìm thấy hồ sơ ' + incidentId, 'NOT_FOUND');
     const decision = checkAuthorization({
       actor,
-      action: VIEW_ACTION_BY_CONFIDENTIALITY[incident.confidentiality] || 'incident.view_c1_c2',
-      resource: { campusId: incident.campusId, confidentiality: incident.confidentiality, commanderPerId: incident.commanderPerId ?? undefined, assignedTaskPerIds: incident.assignedTaskPerIds || [] }
+      action: 'incident.view',
+      resource: { campusId: incident.campusId, commanderPerId: incident.commanderPerId ?? undefined, assignedTaskPerIds: incident.assignedTaskPerIds || [] }
     });
     if (!decision.allowed) throw new HttpError(403, decision.reason ?? 'Không đủ quyền.', 'PERMISSION_ERROR');
 
     await db.insert(auditLogs).values({
       occurredAt: new Date(),
       actorPerId: actor.perId,
-      action: incident.confidentiality === 'C3' ? 'incident.view_c3' : incident.confidentiality === 'C4' ? 'incident.view_c4' : 'incident.view',
+      action: 'incident.view',
       objectId: incident.incidentId
     });
 
-    const isRedacted = decision.conditions.includes('redacted');
-    const canView = canViewEvidence(actor, { campus_id: incident.campusId, confidentiality: incident.confidentiality, commander_per_id: incident.commanderPerId, assigned_task_per_ids: incident.assignedTaskPerIds || [] });
+    const canView = canViewEvidence(actor, { campus_id: incident.campusId, commander_per_id: incident.commanderPerId, assigned_task_per_ids: incident.assignedTaskPerIds || [] });
     const evidenceList = canView ? await listEvidenceSummaryForReportIds(incident.reportIds || []) : [];
 
     const clockRows = await db.select().from(slaClocks).where(eq(slaClocks.objectId, incident.incidentId));
@@ -410,20 +391,40 @@ safetyQueryRouter.get(
     // "Người đang tiếp nhận" — Sin chốt 2026-09-22: chi tiết hồ sơ phải hiện
     // danh sách chỉ huy + người tham gia khác (nếu có). Loại chỉ huy ra khỏi
     // danh sách "người tham gia khác" để không hiện trùng 2 lần.
-    let participantPerIds: string[] = [];
-    let participantLabels: Record<string, string> = {};
-    if (!isRedacted) {
-      const allHandlerPerIds = Array.from(new Set([incident.commanderPerId, ...(incident.assignedTaskPerIds || [])].filter((v): v is string => !!v)));
-      participantPerIds = (incident.assignedTaskPerIds || []).filter((p) => p !== incident.commanderPerId);
-      participantLabels = await getPersonLabelsByPerIds(db, allHandlerPerIds);
-    }
+    const allHandlerPerIds = Array.from(new Set([incident.commanderPerId, ...(incident.assignedTaskPerIds || [])].filter((v): v is string => !!v)));
+    const participantPerIds = (incident.assignedTaskPerIds || []).filter((p) => p !== incident.commanderPerId);
+    const participantLabels = await getPersonLabelsByPerIds(db, allHandlerPerIds);
 
     let homeroomConfigured: boolean | null = null;
     let gradeSupervisorConfigured: boolean | null = null;
-    if (!isRedacted && incident.className) {
+    // Gợi ý người tham gia phù hợp (2026-09-22, thay auto-assignment cũ) —
+    // GVCN/GV khối của lớp liên quan + người giữ đúng vai trò liên quan tới
+    // nhóm sự cố này, đúng cơ sở. CHỈ gợi ý, dialog "Thêm người tham gia"
+    // tự chọn, KHÔNG tự cấp quyền.
+    const suggestedParticipantIds = new Set<string>();
+    const suggestedParticipants: Array<{ perId: string; label: string }> = [];
+    if (incident.className) {
       const classRelated = await resolveClassRelatedPeople(db, incident.className);
       homeroomConfigured = !!classRelated.homeroomPerId;
       gradeSupervisorConfigured = !!classRelated.gradeSupervisorPerId;
+      const classRelatedIds = [classRelated.homeroomPerId, classRelated.gradeSupervisorPerId].filter((v): v is string => !!v);
+      if (classRelatedIds.length > 0) {
+        const labels = await getPersonLabelsByPerIds(db, classRelatedIds);
+        for (const perId of classRelatedIds) {
+          if (suggestedParticipantIds.has(perId)) continue;
+          suggestedParticipantIds.add(perId);
+          suggestedParticipants.push({ perId, label: labels[perId] || perId });
+        }
+      }
+    }
+    const relevantRoles = relevantRolesForCategory(incident.categoryCode);
+    if (relevantRoles.length > 0) {
+      const roleMatches = await findPeopleByRolesAndCampus(db, relevantRoles, incident.campusId);
+      for (const m of roleMatches) {
+        if (suggestedParticipantIds.has(m.perId)) continue;
+        suggestedParticipantIds.add(m.perId);
+        suggestedParticipants.push(m);
+      }
     }
 
     // Nội dung gốc từng lượt gửi tin (incidents KHÔNG lưu content — chỉ
@@ -434,29 +435,30 @@ safetyQueryRouter.get(
     let reportSubmissions: Array<{
       reportId: string; content: string; occurredAt: Date; channel: string; reporterRole: string | null; stillDangerous: boolean;
     }> = [];
-    if (!isRedacted && incident.reportIds && incident.reportIds.length > 0) {
+    if (incident.reportIds && incident.reportIds.length > 0) {
       const rows = await db.select().from(reports).where(inArray(reports.reportId, incident.reportIds));
       reportSubmissions = rows.map((r) => ({
         reportId: r.reportId, content: r.content || '', occurredAt: r.occurredAt, channel: r.channel, reporterRole: r.reporterRole, stillDangerous: !!r.stillDangerous
       }));
     }
 
-    const base = isRedacted
-      ? { incidentId: incident.incidentId, priority: incident.priority, confidentiality: incident.confidentiality, state: incident.state, campusId: incident.campusId, redacted: true }
-      : incident;
-
     res.json({
-      ...base,
+      ...incident,
       canViewEvidence: canView,
       evidenceList,
       reportSubmissions,
-      categoryLabel: isRedacted ? null : CATEGORY_CATALOG[incident.categoryCode]?.label || incident.categoryCode,
+      categoryLabel: CATEGORY_CATALOG[incident.categoryCode]?.label || incident.categoryCode,
+      // GỢI Ý mức ưu tiên khi hồ sơ chưa được phân loại (priority null) — CHỈ
+      // gợi ý hiển thị pre-fill ở dialog tiếp nhận, KHÔNG tự áp (Sin chốt
+      // 2026-09-22, xem acknowledgeIncident).
+      suggestedPriority: incident.priority ? null : suggestedPriorityForCategory(incident.categoryCode),
       slaClocks: slaClockMap,
       commanderName,
       participantPerIds,
       participantLabels,
       homeroomConfigured,
-      gradeSupervisorConfigured
+      gradeSupervisorConfigured,
+      suggestedParticipants
     });
   })
 );
@@ -512,8 +514,8 @@ safetyQueryRouter.get(
     if (incident) {
       const decision = checkAuthorization({
         actor,
-        action: VIEW_ACTION_BY_CONFIDENTIALITY[incident.confidentiality] || 'incident.view_c1_c2',
-        resource: { campusId: incident.campusId, confidentiality: incident.confidentiality, commanderPerId: incident.commanderPerId ?? undefined, assignedTaskPerIds: incident.assignedTaskPerIds || [] }
+        action: 'incident.view',
+        resource: { campusId: incident.campusId, commanderPerId: incident.commanderPerId ?? undefined, assignedTaskPerIds: incident.assignedTaskPerIds || [] }
       });
       if (!decision.allowed) throw new HttpError(403, decision.reason ?? 'Không đủ quyền.', 'PERMISSION_ERROR');
     } else if (!actor.roles || actor.roles.length === 0) {

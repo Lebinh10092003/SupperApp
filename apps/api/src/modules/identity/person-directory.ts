@@ -11,9 +11,9 @@
  * fallback về mã thô, không throw — tên chỉ là dữ liệu hiển thị phụ trợ).
  */
 
-import { inArray } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { accounts, assignments } from './identity.schema.js';
+import { accounts, assignments, homeroomAssignments } from './identity.schema.js';
 import { ROLE_LABEL, type RoleId } from './roles.js';
 
 type Db = NodePgDatabase<Record<string, never>>;
@@ -30,6 +30,36 @@ export function formatPersonLabel(perId: string, summary?: PersonSummary | null)
   return summary.roleLabel ? `${summary.name} (${summary.roleLabel})` : summary.name;
 }
 
+/**
+ * Tra ngược `homeroom_assignments` theo `perId` — bảng khoá chính là
+ * `className` (1 lớp đúng 1 GVCN), KHÔNG có index theo perId, nhưng bảng
+ * này nhỏ (1 dòng/lớp toàn trường) nên chấp nhận scan thẳng, không thêm
+ * index riêng (Sin chốt 2026-09-22, xem plan "GVCN hiển thị theo lớp").
+ * Trả `null` nếu perId đó không phải GVCN lớp nào.
+ */
+export async function resolveHomeroomOverride(db: Db, perId: string | null | undefined): Promise<string | null> {
+  if (!perId) return null;
+  const rows = await db.select().from(homeroomAssignments).where(eq(homeroomAssignments.perId, perId));
+  if (rows.length === 0) return null;
+  return 'GVCN – ' + rows.map((r) => r.className).join(', ');
+}
+
+/** Bản BATCH của `resolveHomeroomOverride` — dùng khi cần tra nhiều perId 1 lần (VD `people-search.ts`). */
+export async function getHomeroomOverridesByPerIds(db: Db, perIds: Array<string | null | undefined> | undefined): Promise<Record<string, string>> {
+  const ids = Array.from(new Set((perIds || []).filter((v): v is string => Boolean(v))));
+  const out: Record<string, string> = {};
+  if (ids.length === 0) return out;
+  const rows = await db.select().from(homeroomAssignments).where(inArray(homeroomAssignments.perId, ids));
+  const byPerId = new Map<string, string[]>();
+  for (const r of rows) {
+    const list = byPerId.get(r.perId) ?? [];
+    list.push(r.className);
+    byPerId.set(r.perId, list);
+  }
+  for (const [perId, classNames] of byPerId) out[perId] = 'GVCN – ' + classNames.join(', ');
+  return out;
+}
+
 export async function getPersonSummariesByPerIds(
   db: Db,
   perIds: Array<string | null | undefined> | undefined,
@@ -41,6 +71,7 @@ export async function getPersonSummariesByPerIds(
 
   const accountRows = await db.select().from(accounts).where(inArray(accounts.perId, ids));
   const assignmentRows = await db.select().from(assignments).where(inArray(assignments.perId, ids));
+  const homeroomRows = await db.select().from(homeroomAssignments).where(inArray(homeroomAssignments.perId, ids));
 
   const rolesByPerId = new Map<string, Set<string>>();
   for (const a of assignmentRows) {
@@ -52,8 +83,23 @@ export async function getPersonSummariesByPerIds(
     rolesByPerId.set(a.perId, set);
   }
 
+  // GVCN gắn theo LỚP phụ trách (bổ sung 2026-09-22, Sin chốt) — ghi đè
+  // HOÀN TOÀN "Tên (Vai trò)" bằng "GVCN – <tên lớp>" bất cứ đâu tên người
+  // đó hiển thị (kể cả ở tài khoản khác nhìn thấy tên người đó).
+  const classNamesByPerId = new Map<string, string[]>();
+  for (const hr of homeroomRows) {
+    const list = classNamesByPerId.get(hr.perId) ?? [];
+    list.push(hr.className);
+    classNamesByPerId.set(hr.perId, list);
+  }
+
   for (const acc of accountRows) {
     if (!acc.perId) continue;
+    const homeroomClasses = classNamesByPerId.get(acc.perId);
+    if (homeroomClasses && homeroomClasses.length > 0) {
+      map[acc.perId] = { perId: acc.perId, name: 'GVCN – ' + homeroomClasses.join(', '), roleLabel: null };
+      continue;
+    }
     const roleSet = rolesByPerId.get(acc.perId);
     map[acc.perId] = {
       perId: acc.perId,
@@ -62,6 +108,30 @@ export async function getPersonSummariesByPerIds(
     };
   }
   return map;
+}
+
+/**
+ * Tìm người theo đúng vai trò (bất kỳ trong danh sách) + đúng cơ sở —
+ * dùng để GỢI Ý người tham gia xử lý phù hợp theo nhóm sự cố (bổ sung
+ * 2026-09-22, thay auto-assignment cũ). Chỉ tính assignment còn hiệu lực.
+ */
+export async function findPeopleByRolesAndCampus(
+  db: Db,
+  roleIds: RoleId[],
+  campusId: string,
+  now: Date = new Date()
+): Promise<Array<{ perId: string; label: string }>> {
+  if (roleIds.length === 0) return [];
+  const rows = await db.select().from(assignments).where(and(inArray(assignments.roleId, roleIds), eq(assignments.campusId, campusId)));
+  const perIds = Array.from(
+    new Set(
+      rows
+        .filter((a) => (!a.fromDate || a.fromDate.getTime() <= now.getTime()) && (!a.toDate || a.toDate.getTime() >= now.getTime()))
+        .map((a) => a.perId)
+    )
+  );
+  const labels = await getPersonLabelsByPerIds(db, perIds, now);
+  return perIds.map((perId) => ({ perId, label: labels[perId] || perId }));
 }
 
 /** Tiện ích cho route: trả thẳng map `perId -> "Tên (Chức vụ)"` đã format sẵn. */

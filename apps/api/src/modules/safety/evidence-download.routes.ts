@@ -59,10 +59,10 @@ evidenceDownloadRouter.post(
     if (report.mergedIntoIncidentId) {
       const [incRow] = await db.select().from(incidents).where(eq(incidents.incidentId, report.mergedIntoIncidentId)).limit(1);
       if (incRow) {
-        incident = { campus_id: incRow.campusId, confidentiality: incRow.confidentiality, commander_per_id: incRow.commanderPerId, assigned_task_per_ids: incRow.assignedTaskPerIds ?? [] };
+        incident = { campus_id: incRow.campusId, commander_per_id: incRow.commanderPerId, assigned_task_per_ids: incRow.assignedTaskPerIds ?? [] };
       }
     }
-    const evidenceResource: EvidenceIncidentView = incident || { campus_id: report.campusId, confidentiality: report.confidentiality };
+    const evidenceResource: EvidenceIncidentView = incident || { campus_id: report.campusId };
     if (!canViewEvidence(actor, evidenceResource)) {
       throw new HttpError(403, 'Bạn không có quyền xem minh chứng của hồ sơ này.', 'PERMISSION_ERROR');
     }

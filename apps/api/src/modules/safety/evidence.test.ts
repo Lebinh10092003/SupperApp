@@ -230,39 +230,19 @@ test('evidence: getSignedDownloadUrl — hết hạn 5 phút, ép tải xuống'
   assert.ok(url.includes('expires=' + (now.getTime() + 5 * 60 * 1000)));
 });
 
-test('evidence: canViewEvidence — dùng đúng action theo mức bí mật hồ sơ (VIEW_ACTION_BY_CONFIDENTIALITY), y hệt quyền xem hồ sơ đầy đủ — Sin xác nhận 2026-09-21: ai xem được hồ sơ không bị redacted thì cũng xem được minh chứng, không cần action riêng khắt khe hơn', () => {
+test('evidence: canViewEvidence — Sin chốt 2026-09-22: bỏ hoàn toàn C1-C4, dùng thẳng action incident.view cho mọi hồ sơ bất kể mức bí mật cũ', () => {
   const principalActor = { perId: 'PER.00000001', session: { valid: true, revoked: false }, roles: [{ roleId: catalog.ROLE.PRINCIPAL }] };
   const teacherActor = { perId: 'PER.00000002', session: { valid: true, revoked: false }, roles: [{ roleId: catalog.ROLE.TEACHER, campusId: 'CS.01' }] };
-  const teacherAssignedActor = { perId: 'PER.00000003', session: { valid: true, revoked: false }, roles: [{ roleId: catalog.ROLE.TEACHER, campusId: 'CS.01' }] };
-  const incidentC3 = {
-    campus_id: 'CS.01', confidentiality: 'C3', priority: 'P1',
-    commander_per_id: null, assigned_task_per_ids: [teacherAssignedActor.perId]
-  };
-  assert.equal(canViewEvidence(principalActor, incidentC3), true);
-  assert.equal(canViewEvidence(teacherActor, incidentC3), false);
-  assert.equal(canViewEvidence(teacherAssignedActor, incidentC3), true);
+  const teacherOtherCampus = { perId: 'PER.00000003', session: { valid: true, revoked: false }, roles: [{ roleId: catalog.ROLE.TEACHER, campusId: 'CS.99' }] };
+  const incident = { campus_id: 'CS.01', priority: 'P1', commander_per_id: null, assigned_task_per_ids: [] };
 
-  // Sin 2026-09-21: giáo viên bất kỳ xem được ĐẦY ĐỦ hồ sơ C1/C2 (không bị
-  // redacted, đúng ma trận `incident.view_c1_c2`) thì cũng phải xem được
-  // minh chứng của đúng hồ sơ đó — trước đây action `incident.view_evidence`
-  // riêng KHÔNG có giáo viên trong ma trận nên luôn bị chặn dù xem được hồ
-  // sơ, đây chính là điều Sin phản hồi là sai.
-  const incidentC1 = { campus_id: 'CS.01', confidentiality: 'C1', priority: 'P3', commander_per_id: null, assigned_task_per_ids: [] };
-  assert.equal(canViewEvidence(teacherActor, incidentC1), true);
-});
-
-test('evidence: canViewEvidence — Sin chốt 2026-09-21: bỏ hẳn chặn theo trần bí mật (redacted), ai mở được hồ sơ (dù bị rút gọn nội dung) cũng xem được minh chứng', () => {
-  // Trực ban KHÔNG trong ca -> trần mặc định C2, thấp hơn hồ sơ C3 -> trước
-  // đây bị chặn evidence dù role đã được cấp quyền xem (XR) hồ sơ này (chỉ
-  // là rút gọn nội dung, không phải bị từ chối truy cập).
-  const dutyOfficerOffShift = {
-    perId: 'PER.00000004',
-    session: { valid: true, revoked: false },
-    roles: [{ roleId: catalog.ROLE.DUTY_OFFICER, campusId: 'CS.01' }],
-    onDutyNow: false
-  };
-  const incidentC3 = { campus_id: 'CS.01', confidentiality: 'C3', priority: 'P1', commander_per_id: null, assigned_task_per_ids: [] };
-  assert.equal(canViewEvidence(dutyOfficerOffShift, incidentC3), true);
+  assert.equal(canViewEvidence(principalActor, incident), true);
+  // Giáo viên đúng cơ sở xem được, kể cả hồ sơ trước đây sẽ là mức bí mật
+  // cao nhất (C4, xâm hại/tự hại) — Sin chốt bỏ hẳn ranh giới đó (2026-09-22).
+  assert.equal(canViewEvidence(teacherActor, incident), true);
+  // Vẫn còn chặn theo PHẠM VI CƠ SỞ (không liên quan gì C1-C4) — giáo viên
+  // cơ sở khác không xem được.
+  assert.equal(canViewEvidence(teacherOtherCampus, incident), false);
 });
 
 test('evidence: quét mã độc thật (S8) — opts.scanBuffer tiêm được, KHÔNG cần mạng thật', { skip }, async () => {

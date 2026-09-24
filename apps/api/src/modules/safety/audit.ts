@@ -64,8 +64,7 @@ export function buildAuditRecord(input: AuditRecordInput): AuditRecord {
 /** Các hành động BẮT BUỘC phải có audit log — tự kiểm tra ở tầng gọi (module safety) không quên ghi nhật ký cho hành động nhạy cảm. */
 export const MANDATORY_AUDIT_ACTIONS = new Set([
   'auth.login', 'auth.login_failed',
-  'incident.view_c3', 'incident.view_c4',
-  'incident.priority_changed', 'incident.confidentiality_changed',
+  'incident.priority_changed',
   'incident.reassign_commander', 'incident.reopen', 'incident.close',
   'incident.classification_corrected',
   'schedule.event_approved', 'schedule.event_rejected', 'schedule.event_cancelled',

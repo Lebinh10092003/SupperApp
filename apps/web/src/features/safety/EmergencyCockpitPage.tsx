@@ -16,7 +16,6 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmberRounded';
 import { PageHeader } from '../../components/PageHeader';
 import { StatusChip } from './components/StatusChip';
 import { PriorityChip } from './components/PriorityChip';
-import { ConfidentialityBadge } from './components/ConfidentialityBadge';
 import { useIncidents } from './hooks/useIncidents';
 import { CAMPUS_LABEL, SLA_CLOCK_LABEL } from './constants';
 
@@ -88,7 +87,6 @@ export default function EmergencyCockpitPage() {
                 <Stack direction="row" spacing={1} sx={{ mb: 1, flexWrap: 'wrap' }}>
                   <PriorityChip priority={it.priority} />
                   <StatusChip state={it.state} />
-                  <ConfidentialityBadge confidentiality={it.confidentiality} redacted={it.redacted} />
                   <Chip size="small" label={CAMPUS_LABEL[it.campusId] || it.campusId} sx={{ bgcolor: '#f8fafc', color: '#334155', fontWeight: 600, height: 24 }} />
                 </Stack>
                 <Typography variant="subtitle2" fontWeight={700} color="#0f172a">

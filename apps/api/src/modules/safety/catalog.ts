@@ -250,24 +250,26 @@ export const ROLE = {
 } as const;
 export type RoleId = (typeof ROLE)[keyof typeof ROLE];
 
-export const ROLE_DEFAULT_CEILING: Record<RoleId, Confidentiality> = {
-  [ROLE.PRINCIPAL]: 'C4',
-  [ROLE.VICE_PRINCIPAL]: 'C3',
-  [ROLE.DUTY_OFFICER]: 'C2',
-  [ROLE.DEPT_HEAD]: 'C2',
-  [ROLE.OFFICE_ADMIN]: 'C2',
-  [ROLE.TEACHER]: 'C1',
-  [ROLE.HOMEROOM]: 'C2',
-  [ROLE.HEALTH]: 'C3',
-  [ROLE.COUNSELOR]: 'C3',
-  [ROLE.SECURITY]: 'C2',
-  [ROLE.FACILITY]: 'C1',
-  [ROLE.INCIDENT_CMD]: 'C4', // theo mức của đúng hồ sơ được giao — xử lý ở authz.ts
-  [ROLE.SYS_ADMIN]: 'C1', // không có quyền nội dung mặc định
-  [ROLE.AUDITOR]: 'C2',
-  [ROLE.EXTERNAL]: 'C1',
-  [ROLE.REPORTER]: 'C1'
+// ROLE_DEFAULT_CEILING (trần bí mật theo vai trò) ĐÃ XOÁ — Sin chốt
+// 2026-09-22 bỏ hoàn toàn C1-C4 khỏi cơ chế phân quyền.
+
+/**
+ * Vai trò "liên quan" theo NHÓM sự cố (`CATEGORY_CATALOG[].group`) — dùng
+ * để GỢI Ý (không tự gán) người tham gia xử lý phù hợp trong dialog "Thêm
+ * người tham gia" (bổ sung 2026-09-22, thay cho auto-assignment cũ đã bỏ).
+ */
+export const GROUP_RELEVANT_ROLES: Record<string, RoleId[]> = {
+  student_safety: [ROLE.COUNSELOR, ROLE.HOMEROOM, ROLE.SECURITY],
+  health: [ROLE.HEALTH],
+  facility: [ROLE.FACILITY],
+  security_traffic: [ROLE.SECURITY, ROLE.FACILITY],
+  other_group: []
 };
+
+export function relevantRolesForCategory(categoryCode: string): RoleId[] {
+  const group = CATEGORY_CATALOG[categoryCode]?.group;
+  return (group && GROUP_RELEVANT_ROLES[group]) || [];
+}
 
 /**
  * Bàn giao chỉ huy (assignCommander) theo đúng cấp bậc — Sin chốt
@@ -334,22 +336,7 @@ export const EVIDENCE_LIMITS = {
 
 export const EVIDENCE_ORPHAN_TTL_MS = 2 * 60 * 60 * 1000;
 
-/**
- * Hành động phân quyền theo ĐÚNG mức bí mật của hồ sơ — dùng để quyết định
- * "actor này xem được ĐẦY ĐỦ hồ sơ này hay chỉ bản rút gọn (redacted)".
- * Sin xác nhận 2026-09-21: minh chứng đính kèm (ảnh/video) KHÔNG cần một
- * lớp quyền RIÊNG khắt khe hơn nội dung hồ sơ — ai xem được đầy đủ hồ sơ
- * (không bị redacted) thì cũng xem được minh chứng của đúng hồ sơ đó; việc
- * xoá minh chứng sau khi xử lý xong do quy trình nội bộ tự đảm nhiệm, không
- * phải do hệ thống chặn quyền xem trước. Vì vậy `canViewEvidence()` (xem
- * `evidence.ts`) dùng LẠI đúng bảng này thay vì action `incident.view_evidence`
- * riêng (đã bỏ — trước đây chỉ cấp cho đúng 3 vai trò Hiệu trưởng/Phó
- * HT/Trực ban, khiến Tổ trưởng/GVCN/Chỉ huy sự cố xem được hồ sơ nhưng lại
- * không xem được ảnh đính kèm của chính hồ sơ đó).
- */
-export const VIEW_ACTION_BY_CONFIDENTIALITY: Record<string, string> = {
-  C1: 'incident.view_c1_c2',
-  C2: 'incident.view_c1_c2',
-  C3: 'incident.view_c3',
-  C4: 'incident.view_c4'
-};
+// VIEW_ACTION_BY_CONFIDENTIALITY ĐÃ XOÁ — Sin chốt 2026-09-22 bỏ hoàn
+// toàn C1-C4. Mọi nơi trước đây tra bảng này (safety-query.routes.ts,
+// evidence.ts, incident-lifecycle.ts) giờ dùng thẳng action cố định
+// `'incident.view'` (xem authz.ts PERMISSION_MATRIX).

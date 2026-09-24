@@ -16,7 +16,7 @@ const PRIORITY_OPTIONS = [
 
 export interface ChangePriorityTarget {
   incidentId: string;
-  priority: string;
+  priority: string | null;
 }
 
 export function ChangePriorityDialog({
@@ -75,7 +75,7 @@ export function ChangePriorityDialog({
         {target && (
           <Stack spacing={2} sx={{ pt: 1 }}>
             <Typography variant="body2" color="text.secondary">
-              Hồ sơ <strong>{target.incidentId}</strong> — ưu tiên hiện tại: <strong>{target.priority}</strong>
+              Hồ sơ <strong>{target.incidentId}</strong> — ưu tiên hiện tại: <strong>{target.priority || 'Chưa phân loại'}</strong>
             </Typography>
             <TextField select label="Mức ưu tiên mới" value={toPriority} onChange={(e) => setToPriority(e.target.value)} fullWidth>
               {PRIORITY_OPTIONS.map((p) => (

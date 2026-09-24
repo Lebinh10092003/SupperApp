@@ -12,7 +12,11 @@ export const incidents = pgTable('incidents', {
   className: text('class_name'),
   suggestedClassNames: jsonb('suggested_class_names').$type<string[]>(),
   reporterRole: text('reporter_role'),
-  priority: text('priority').notNull(),
+  // NULLABLE từ 2026-09-22 (Sin chốt) — sự vụ CHƯA ai tiếp nhận thì mức ưu
+  // tiên để TRỐNG (trừ khi người báo tin chọn "vẫn đang diễn ra" -> P0 ngay
+  // lúc tạo). Bắt buộc chọn khi tiếp nhận (acknowledgeIncident), xem
+  // incident-lifecycle.ts.
+  priority: text('priority'),
   confidentiality: text('confidentiality').notNull(),
   state: text('state').notNull(),
   reportIds: jsonb('report_ids').$type<string[]>(),
@@ -39,6 +43,13 @@ export const incidents = pgTable('incidents', {
   // mốc). Reset về 0 khi có người tiếp nhận (không còn cần theo dõi nữa)
   // hoặc khi đổi mức ưu tiên (hạn tính lại từ đầu).
   unclaimedEscalationTier: integer('unclaimed_escalation_tier').notNull().default(0),
+  // Yêu cầu huỷ tiếp nhận đang chờ duyệt (bổ sung 2026-09-22) — chỉ 1 yêu
+  // cầu treo tại 1 thời điểm trên 1 sự vụ, nên không cần bảng riêng. Set
+  // đủ 3 cột khi chỉ huy gọi requestCancelAcknowledgment(), xoá cả 3 khi
+  // cấp trên duyệt/từ chối qua approveCancelAcknowledgment().
+  cancelRequestedBy: text('cancel_requested_by'),
+  cancelRequestReason: text('cancel_request_reason'),
+  cancelRequestedAt: timestamp('cancel_requested_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull()
 });

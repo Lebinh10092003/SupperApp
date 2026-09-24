@@ -85,6 +85,27 @@
       "when": 1790007500000,
       "tag": "0011_add_classes_fields",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1790060373102,
+      "tag": "0012_colorful_edwin_jarvis",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1790064016426,
+      "tag": "0013_flowery_pestilence",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1790064675833,
+      "tag": "0014_last_reaper",
+      "breakpoints": true
     }
   ]
 }

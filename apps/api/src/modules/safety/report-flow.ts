@@ -154,10 +154,15 @@ export async function submitReport(db: Db, input: SubmitReportInput, opts?: Safe
       now
     }));
 
-    const initialPriority =
+    // Sin chốt 2026-09-22: "chỉ có khẩn cấp nếu người gặp vấn đề chọn sự việc
+    // vẫn đang diễn ra" — nếu KHÔNG stillDangerous (và không có priorityOverride
+    // nội bộ), để TRỐNG mức ưu tiên (không còn tự gán `suggestedPriorityForCategory`
+    // làm giá trị THẬT — hàm đó giờ chỉ dùng làm GỢI Ý lúc tiếp nhận, xem
+    // `acknowledgeIncident` trong incident-lifecycle.ts).
+    const initialPriority: catalog.Priority | null =
       catalog.isValidPriority(input.priorityOverride) ? input.priorityOverride
       : input.stillDangerous ? catalog.PRIORITY.P0
-      : catalog.suggestedPriorityForCategory(input.categoryCode);
+      : null;
 
     const linkedEvidenceIds = await linkEvidenceToReport(db, { evidenceIds: input.evidenceIds || [], reportId }, { now });
 
@@ -220,7 +225,8 @@ export async function resolveUrgentReportNotify(db: Db, reportId: string, now: D
 // ---------------------------------------------------------------------------
 export interface CreateIncidentFromReportInput {
   reportId: string;
-  priority: catalog.Priority;
+  // Nullable từ 2026-09-22 — xem submitReport() ở trên.
+  priority: catalog.Priority | null;
 }
 
 export async function createIncidentFromReport(db: Db, input: CreateIncidentFromReportInput, opts?: SafetyOpts) {
@@ -235,7 +241,6 @@ export async function createIncidentFromReport(db: Db, input: CreateIncidentFrom
     throw new AppError('already_activated', 'Tin báo này đã có hồ sơ (' + report.mergedIntoIncidentId + '), không tạo hồ sơ mới lần nữa.');
   }
 
-  if (!input.priority) throw new AppError('invalid_input', 'Thiếu priority khi tạo hồ sơ mới.');
   const priority = input.priority;
 
   const incidentId = await ids.allocateSequentialId(db, catalog.ID_PREFIX.INCIDENT, { now });
@@ -243,9 +248,14 @@ export async function createIncidentFromReport(db: Db, input: CreateIncidentFrom
   const state = priority === catalog.PRIORITY.P0 ? catalog.STATE.EMERGENCY : catalog.STATE.NEW;
 
   const effectiveClassName = report.className || null;
+  // Sin chốt 2026-09-22: KHÔNG còn tự động gán GVCN/GV phụ trách khối vào
+  // hồ sơ — chỉ GỢI Ý (qua `resolveClassRelatedPeople`, dùng để tra tên
+  // hiển thị gợi ý ở dialog "Thêm người tham gia" và để BÁO cho họ biết có
+  // sự việc liên quan lớp/khối mình, không còn tự cấp quyền xử lý). Muốn
+  // thật sự tham gia xử lý thì phải tự bấm "Tham gia sự vụ" (joinIncident).
   const { homeroomPerId, gradeSupervisorPerId } = await resolveClassRelatedPeople(db, effectiveClassName);
   const classRelatedPerIds = Array.from(new Set([homeroomPerId, gradeSupervisorPerId].filter((v): v is string => !!v)));
-  const assignedTaskPerIds = classRelatedPerIds;
+  const assignedTaskPerIds: string[] = [];
 
   await db.insert(incidents).values({
     incidentId,
@@ -275,11 +285,15 @@ export async function createIncidentFromReport(db: Db, input: CreateIncidentFrom
     after: { priority, campus_id: report.campusId, category_code: report.categoryCode, class_name: effectiveClassName }, now
   }));
 
-  // Đăng ký CẢ HAI đồng hồ S10: ack + assign.
-  const ackClock = sla.registerSlaClock({ objectId: incidentId, clockLabel: 'ack', priority, startAt: now, calendar: opts?.calendar });
-  await db.insert(slaClocks).values(slaClockToRow(ackClock));
-  const assignClock = sla.registerSlaClock({ objectId: incidentId, clockLabel: 'assign', priority, startAt: now, calendar: opts?.calendar });
-  await db.insert(slaClocks).values(slaClockToRow(assignClock));
+  // Đăng ký CẢ HAI đồng hồ S10: ack + assign — CHỈ khi đã có priority thật
+  // (chưa ai tiếp nhận thì chưa có hạn để tính, xem acknowledgeIncident
+  // trong incident-lifecycle.ts — nơi đăng ký clock khi priority null).
+  if (priority) {
+    const ackClock = sla.registerSlaClock({ objectId: incidentId, clockLabel: 'ack', priority, startAt: now, calendar: opts?.calendar });
+    await db.insert(slaClocks).values(slaClockToRow(ackClock));
+    const assignClock = sla.registerSlaClock({ objectId: incidentId, clockLabel: 'assign', priority, startAt: now, calendar: opts?.calendar });
+    await db.insert(slaClocks).values(slaClockToRow(assignClock));
+  }
 
   if (priority === catalog.PRIORITY.P0) {
     await activateP0(db, { incidentId, campusId: report.campusId, categoryCode: report.categoryCode, extraRecipients: classRelatedPerIds }, opts);
@@ -290,10 +304,12 @@ export async function createIncidentFromReport(db: Db, input: CreateIncidentFrom
     if (classRelatedPerIds.length > 0) {
       const request = notify.buildNotifyRequest({
         recipients: classRelatedPerIds,
-        priority,
+        // Chưa có priority thật (đang chờ tiếp nhận) -> dùng mức thấp nhất
+        // CHỈ để định tuyến kênh gửi (in_app), KHÔNG lưu vào hồ sơ.
+        priority: priority || catalog.PRIORITY.P3,
         objectId: incidentId,
         objectCode: incidentId,
-        levelLabel: catalog.PRIORITY_LABEL[priority],
+        levelLabel: priority ? catalog.PRIORITY_LABEL[priority] : 'Chưa phân loại',
         actionNeeded: 'Có sự việc liên quan đến lớp/khối bạn phụ trách — xem và phối hợp xử lý',
         deepLink: '/app/incidents/' + incidentId,
         eventType: 'safety.incident.homeroom_notified'

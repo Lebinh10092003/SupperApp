@@ -88,7 +88,7 @@ async function run() {
         {
           recipients,
           title: `Sự vụ chưa có người tiếp nhận sau ${TIER_HOURS[tier - 1]}h — ${incident.incidentId}`,
-          message: `Hồ sơ ${incident.incidentId} (mức ${incident.priority}) vẫn CHƯA có ai tiếp nhận sau ${TIER_HOURS[tier - 1]} giờ — cần bàn giao cho người phụ trách phù hợp.`,
+          message: `Hồ sơ ${incident.incidentId} (mức ${incident.priority ?? 'Chưa phân loại'}) vẫn CHƯA có ai tiếp nhận sau ${TIER_HOURS[tier - 1]} giờ — cần bàn giao cho người phụ trách phù hợp.`,
           eventType: 'safety.incident.unclaimed_reminder',
           objectId: incident.incidentId,
           actorPerId: null,

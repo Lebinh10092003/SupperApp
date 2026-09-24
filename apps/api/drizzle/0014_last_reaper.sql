@@ -1,0 +1,1 @@
+ALTER TABLE "incidents" ALTER COLUMN "priority" DROP NOT NULL;

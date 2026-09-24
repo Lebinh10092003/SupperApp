@@ -243,7 +243,9 @@ test('report-flow: liên thông lớp <-> GVCN + phụ trách khối', { skip },
     const [incLop] = await db.select().from(incidents).where(eq(incidents.incidentId, createdLop.incidentId));
     assert.ok(incLop);
     assert.equal(incLop.className, '38A2');
-    assert.ok(incLop.assignedTaskPerIds?.includes(PER_GVCN_8A2));
+    // Sin chốt 2026-09-22: KHÔNG còn tự gán GVCN vào assignedTaskPerIds —
+    // chỉ báo (bell/dispatch), GVCN tự bấm "Tham gia sự vụ" nếu muốn xử lý.
+    assert.ok(!(incLop.assignedTaskPerIds || []).includes(PER_GVCN_8A2));
     const [p0AuditLop] = (await db.select().from(auditLogs).where(eq(auditLogs.objectId, createdLop.incidentId)))
       .filter((a) => a.action === 'safety.incident.p0_activated');
     assert.ok(p0AuditLop);
@@ -278,7 +280,7 @@ test('report-flow: liên thông lớp <-> GVCN + phụ trách khối', { skip },
     assert.equal(repKhoi.gradeSupervisorPerId, PER_KHOI8);
     const [incKhoi] = await db.select().from(incidents).where(eq(incidents.incidentId, repKhoi.incidentId));
     assert.ok(incKhoi);
-    assert.ok(incKhoi.assignedTaskPerIds?.includes(PER_GVCN_8A3) && incKhoi.assignedTaskPerIds?.includes(PER_KHOI8));
+    assert.ok(!(incKhoi.assignedTaskPerIds || []).includes(PER_GVCN_8A3) && !(incKhoi.assignedTaskPerIds || []).includes(PER_KHOI8));
     assert.equal(bellCallsKhoi.length, 1);
   } finally {
     await cleanup();
@@ -460,6 +462,28 @@ test('report-flow: reporter_role copy nguyên trạng từ tin báo gốc sang h
     const [repInvalidDoc] = await db.select().from(reports).where(eq(reports.reportId, repInvalid.reportId));
     assert.ok(repInvalidDoc);
     assert.equal(repInvalidDoc.reporterRole, null);
+  } finally {
+    await cleanup();
+  }
+});
+
+test('report-flow: submitReport KHÔNG stillDangerous và KHÔNG priorityOverride -> priority để TRỐNG (null), state NEW, KHÔNG đăng ký SLA clock lúc tạo (Sin chốt 2026-09-22)', { skip }, async () => {
+  await cleanup();
+  try {
+    const now = new Date('2026-08-21T08:00:00+07:00');
+    const rep = await submitReportT({
+      campusId: CAMPUS, categoryCode: 'facility_general', content: 'Cửa lớp bị kẹt, không nguy hiểm ngay',
+      stillDangerous: false, idempotencyKey: 'rf-idem-null-priority-1'
+    }, { now, dispatch: async () => {}, pushBell: async () => {} });
+
+    assert.equal(rep.initialPriority, null);
+    const [incident] = await db.select().from(incidents).where(eq(incidents.incidentId, rep.incidentId));
+    assert.equal(incident!.priority, null);
+    assert.equal(incident!.state, STATE.NEW);
+    assert.equal(incident!.commanderPerId, null);
+
+    const clocks = await db.select().from(slaClocks).where(eq(slaClocks.objectId, rep.incidentId));
+    assert.equal(clocks.length, 0, 'chưa có priority thì chưa đăng ký SLA clock nào');
   } finally {
     await cleanup();
   }
