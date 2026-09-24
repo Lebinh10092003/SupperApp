@@ -32,6 +32,10 @@ import {
 import { evaluateEventApproval, canAcceptOrReturnTask, type ActorAssignment } from './work-schedule.authz.js';
 import { pushAdminNotifications, type PushAdminNotificationsInput } from '../safety/admin-notify.js';
 import { getPersonLabelsByPerIds } from '../identity/person-directory.js';
+import * as notify from '../safety/notify.js';
+import { notifyRequests } from '../safety/dispatch.schema.js';
+import { notifyRequestToRow } from '../safety/shared.js';
+import { makeDispatchHook } from '../safety/notify-hooks.js';
 
 type Db = NodePgDatabase<Record<string, never>>;
 
@@ -52,6 +56,42 @@ async function tryPushBell(db: Db, input: PushAdminNotificationsInput, opts?: { 
     await pushAdminNotifications(db, input, opts);
   } catch (e) {
     console.error('[work-schedule] pushAdminNotifications lỗi (không chặn luồng nghiệp vụ chính):', e);
+  }
+}
+
+// Bổ sung 2026-09-24 — Sin chốt sau khi rà soát: module này (giống An toàn
+// trước đây) mới chỉ có chuông trong app, chưa hề gửi email/push thật dù đã
+// có adapter thật (email-adapter.ts, push-adapter.ts, dùng chung toàn Super
+// App qua notify-hooks.ts). Nối thêm SONG SONG với chuông ở CẢ 9 điểm gọi
+// tryPushBell — dùng chung 1 hàm này để không lặp code 9 lần. `urgency`
+// mặc định NORMAL (chỉ in_app, giữ nguyên hành vi cũ) — truyền
+// `notify.URGENCY.HIGH` ở lời gọi cho các sự kiện CẦN HÀNH ĐỘNG thật (yêu
+// cầu duyệt, giao việc, huỷ lịch...) để có thêm email+push.
+const dispatch = makeDispatchHook();
+async function notifyAll(
+  db: Db,
+  input: PushAdminNotificationsInput & { deepLink?: string; urgency?: notify.Urgency },
+  opts?: { now?: Date }
+): Promise<void> {
+  await tryPushBell(db, input, opts);
+  const recipients = (input.recipients || []).filter((v): v is string => !!v);
+  if (recipients.length === 0) return;
+  try {
+    const now = opts?.now ?? new Date();
+    const request = notify.buildNotifyRequest({
+      recipients,
+      priority: 'P2', // không dùng để tính urgency — urgencyOverride ở dưới luôn thắng
+      objectId: input.objectId || 'work-schedule',
+      objectCode: input.title,
+      actionNeeded: input.message,
+      deepLink: input.deepLink,
+      eventType: input.eventType,
+      urgencyOverride: input.urgency ?? notify.URGENCY.NORMAL
+    });
+    const [savedRequest] = await db.insert(notifyRequests).values({ ...notifyRequestToRow(request), createdAt: now }).returning();
+    if (savedRequest) await dispatch(db, savedRequest, { now });
+  } catch (e) {
+    console.error('[work-schedule] dispatch email/push lỗi (không chặn luồng nghiệp vụ chính):', e);
   }
 }
 
@@ -318,7 +358,7 @@ export async function createEvent(db: Db, input: CreateEventInput, opts: { now?:
   const [freshRow] = await db.select().from(ltcEvents).where(eq(ltcEvents.id, row.id)).limit(1);
   const finalRow = freshRow ?? row;
 
-  await tryPushBell(
+  await notifyAll(
     db,
     {
       recipients: [row.chairPerId, ...(row.participantPerIds || [])],
@@ -326,7 +366,8 @@ export async function createEvent(db: Db, input: CreateEventInput, opts: { now?:
       message: input.createdByPerId + ' vừa tạo lịch "' + row.title + '" — bạn được mời tham dự.',
       eventType: 'work_schedule.event.created',
       objectId: row.id,
-      actorPerId: input.createdByPerId
+      actorPerId: input.createdByPerId,
+      deepLink: '/work-schedule'
     },
     opts
   );
@@ -404,7 +445,7 @@ export async function updateRevisionEvent(
   const [freshAfter] = await db.select().from(ltcEvents).where(eq(ltcEvents.id, input.eventId)).limit(1);
   const finalEvent = freshAfter ?? after!;
 
-  await tryPushBell(
+  await notifyAll(
     db,
     {
       recipients: [finalEvent.chairPerId, ...(finalEvent.participantPerIds || [])],
@@ -412,7 +453,8 @@ export async function updateRevisionEvent(
       message: input.actorPerId + ' vừa cập nhật nội dung lịch "' + finalEvent.title + '".',
       eventType: 'work_schedule.event.updated_for_revision',
       objectId: input.eventId,
-      actorPerId: input.actorPerId
+      actorPerId: input.actorPerId,
+      deepLink: '/work-schedule'
     },
     opts
   );
@@ -462,7 +504,7 @@ export async function changeEventStatus(
   await writeAuditLog(db, { entityType: 'event', entityId: input.eventId, action: 'event.status_changed', actorPerId: input.actorPerId, before, after });
 
   if (nextStatus === 'REVISION_REQUIRED') {
-    await tryPushBell(
+    await notifyAll(
       db,
       {
         recipients: [before.createdByPerId],
@@ -470,13 +512,15 @@ export async function changeEventStatus(
         message: input.actorPerId + ' yêu cầu sửa lại lịch "' + before.title + '" — lý do: ' + input.note,
         eventType: 'work_schedule.event.revision_required',
         objectId: input.eventId,
-        actorPerId: input.actorPerId
+        actorPerId: input.actorPerId,
+        deepLink: '/work-schedule',
+        urgency: notify.URGENCY.HIGH
       },
       opts
     );
   }
   if (nextStatus === 'CANCELLED') {
-    await tryPushBell(
+    await notifyAll(
       db,
       {
         recipients: [before.createdByPerId, before.chairPerId, ...(before.participantPerIds || [])],
@@ -484,7 +528,9 @@ export async function changeEventStatus(
         message: input.actorPerId + ' đã hủy lịch "' + before.title + '" — lý do: ' + input.note,
         eventType: 'work_schedule.event.cancelled',
         objectId: input.eventId,
-        actorPerId: input.actorPerId
+        actorPerId: input.actorPerId,
+        deepLink: '/work-schedule',
+        urgency: notify.URGENCY.HIGH
       },
       opts
     );
@@ -555,7 +601,7 @@ export async function approveEvent(
   });
 
   if (decision.becomesPublished) {
-    await tryPushBell(
+    await notifyAll(
       db,
       {
         recipients: [before.createdByPerId, before.chairPerId, ...(before.participantPerIds || [])],
@@ -563,12 +609,14 @@ export async function approveEvent(
         message: 'Lịch "' + before.title + '" đã được duyệt xong (ban hành).',
         eventType: 'work_schedule.event.published',
         objectId: input.eventId,
-        actorPerId: input.actorPerId
+        actorPerId: input.actorPerId,
+        deepLink: '/work-schedule',
+        urgency: notify.URGENCY.HIGH
       },
       opts
     );
   } else {
-    await tryPushBell(
+    await notifyAll(
       db,
       {
         recipients: [before.createdByPerId],
@@ -576,7 +624,8 @@ export async function approveEvent(
         message: input.actorPerId + ' vừa duyệt lịch "' + before.title + '" (còn chờ bước duyệt tiếp theo).',
         eventType: 'work_schedule.event.approval_step',
         objectId: input.eventId,
-        actorPerId: input.actorPerId
+        actorPerId: input.actorPerId,
+        deepLink: '/work-schedule'
       },
       opts
     );
@@ -647,7 +696,7 @@ export async function createTask(db: Db, input: CreateTaskInput, opts: { now?: D
   await writeAuditLog(db, { entityType: 'task', entityId: row.id, action: 'task.created', actorPerId: input.createdByPerId, after: row });
 
   if (row.assigneePerId !== input.createdByPerId) {
-    await tryPushBell(
+    await notifyAll(
       db,
       {
         recipients: [row.assigneePerId, ...(row.collaboratorPerIds || [])],
@@ -655,7 +704,9 @@ export async function createTask(db: Db, input: CreateTaskInput, opts: { now?: D
         message: input.createdByPerId + ' vừa giao việc "' + row.title + '" cho bạn, hạn ' + row.dueAt.toISOString(),
         eventType: 'work_schedule.task.created',
         objectId: row.id,
-        actorPerId: input.createdByPerId
+        actorPerId: input.createdByPerId,
+        deepLink: '/work-schedule/tasks',
+        urgency: notify.URGENCY.HIGH
       },
       opts
     );
@@ -712,7 +763,8 @@ export async function changeTaskStatus(
   const otherPartyPerId = input.actorPerId === before.assigneePerId ? before.createdByPerId : before.assigneePerId;
   if (otherPartyPerId && otherPartyPerId !== input.actorPerId) {
     const isCancelled = nextStatus === 'CANCELLED';
-    await tryPushBell(
+    const needsAction = nextStatus === 'PENDING_ACCEPTANCE' || isCancelled;
+    await notifyAll(
       db,
       {
         recipients: [otherPartyPerId],
@@ -727,7 +779,9 @@ export async function changeTaskStatus(
           (isCancelled && input.note ? ' Lý do: ' + input.note : ''),
         eventType: 'work_schedule.task.status_changed',
         objectId: input.taskId,
-        actorPerId: input.actorPerId
+        actorPerId: input.actorPerId,
+        deepLink: '/work-schedule/tasks',
+        urgency: needsAction ? notify.URGENCY.HIGH : undefined
       },
       opts
     );
@@ -775,7 +829,7 @@ export async function acceptOrReturnTask(
     after
   });
 
-  await tryPushBell(
+  await notifyAll(
     db,
     {
       recipients: [before.assigneePerId],
@@ -788,7 +842,9 @@ export async function acceptOrReturnTask(
         (input.note ? ' Ghi chú: ' + input.note : ''),
       eventType: input.nextStatus === 'COMPLETED' ? 'work_schedule.task.accepted' : 'work_schedule.task.returned',
       objectId: input.taskId,
-      actorPerId: input.actorPerId
+      actorPerId: input.actorPerId,
+      deepLink: '/work-schedule/tasks',
+      urgency: input.nextStatus === 'RETURNED' ? notify.URGENCY.HIGH : undefined
     },
     opts
   );
