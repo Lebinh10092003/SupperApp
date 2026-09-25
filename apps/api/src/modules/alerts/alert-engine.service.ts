@@ -15,6 +15,7 @@ export interface AlertRule {
 const DEFAULT_RULES: AlertRule[] = [
   { id: 'RULE_ABSENCE_HIGH', name: 'Nghỉ học liên tiếp', threshold: 3, unit: 'buổi', enabled: true, severity: 'HIGH' },
   { id: 'RULE_SUBMISSION_LATE', name: 'Tỷ lệ nộp bài muộn', threshold: 25, unit: '%', enabled: true, severity: 'WARNING' },
+  { id: 'RULE_SUBMISSION_LOW', name: 'Tỷ lệ nộp bài tập thấp', threshold: 70, unit: '%', enabled: true, severity: 'HIGH' },
   { id: 'RULE_MEET_SHORT', name: 'Thời lượng học Meet thấp', threshold: 50, unit: '%', enabled: true, severity: 'WARNING' },
   { id: 'RULE_INACTIVE_CLASS', name: 'Lớp học không hoạt động', threshold: 14, unit: 'ngày', enabled: true, severity: 'CRITICAL' }
 ];
@@ -125,6 +126,43 @@ export async function evaluateAlertRules(): Promise<{ evaluated: number; generat
                 set: {
                   severity: rule.severity || 'WARNING',
                   message: `Khóa học "${course.name}" có ${late}/${turnedIn} bài nộp muộn (${lateRate.toFixed(1)}%, vượt ngưỡng ${rule.threshold}%).`,
+                  updatedAt: new Date()
+                }
+              });
+            generated++;
+          }
+        }
+      }
+    }
+
+    if (rule.id === 'RULE_SUBMISSION_LOW') {
+      for (const course of allCourses) {
+        const total = course.submissionsTotal;
+        const turnedIn = course.submissionsTurnedIn;
+        if (total >= 10) {
+          const compRate = (turnedIn / total) * 100;
+          if (compRate < rule.threshold) {
+            const alertId = `alert_low_sub_${course.id}`;
+            await db
+              .insert(alerts)
+              .values({
+                id: alertId,
+                ruleId: rule.id,
+                title: `Tỷ lệ nộp bài thấp: ${course.name}`,
+                severity: rule.severity || 'HIGH',
+                category: 'CLASSROOM',
+                targetId: course.id,
+                targetName: course.name,
+                classId: course.classId || null,
+                message: `Khóa học "${course.name}" có tỷ lệ nộp bài mới chỉ đạt ${compRate.toFixed(1)}% (${turnedIn}/${total} bài), dưới ngưỡng quy định ${rule.threshold}%.`,
+                action: 'Đôn đốc GVCN và Giáo viên bộ môn nhắc nhở học sinh nộp bài tập số.',
+                resolved: false
+              })
+              .onConflictDoUpdate({
+                target: alerts.id,
+                set: {
+                  severity: rule.severity || 'HIGH',
+                  message: `Khóa học "${course.name}" có tỷ lệ nộp bài mới chỉ đạt ${compRate.toFixed(1)}% (${turnedIn}/${total} bài), dưới ngưỡng quy định ${rule.threshold}%.`,
                   updatedAt: new Date()
                 }
               });

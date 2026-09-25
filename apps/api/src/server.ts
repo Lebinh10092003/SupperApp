@@ -117,5 +117,8 @@ app.use(errorHandler);
 
 app.listen(env.PORT, () => {
   console.log(`School Intelligence API listening on port ${env.PORT}`);
+  import('./modules/classroom/auto-sync-scheduler.service.js')
+    .then((m) => m.initAutoSyncScheduler())
+    .catch((err) => console.warn('Lỗi khởi động scheduler:', err));
 });
 

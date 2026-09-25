@@ -59,3 +59,69 @@ systemRouter.post(
     r.json(result);
   })
 );
+
+// Lấy thông tin cấu hình Năm học & Học kỳ
+systemRouter.get(
+  '/academic-years',
+  firebaseAuth,
+  requireCapability('VIEW_DASHBOARD'),
+  asyncRoute(async (_req, res) => {
+    const { systemConfig } = await import('./system.schema.js');
+    const row = await db
+      .select()
+      .from(systemConfig)
+      .where(eq(systemConfig.key, 'academic_years_config'))
+      .then((r) => r[0] ?? null);
+
+    const defaultConfig = {
+      currentYear: '2025–2026',
+      currentSemester: 'HK1',
+      availableYears: ['2024–2025', '2025–2026', '2026–2027'],
+      semesters: ['HK1', 'HK2', 'FULL_YEAR']
+    };
+
+    res.json({ ok: true, ...(row?.value ? { ...defaultConfig, ...(row.value as any) } : defaultConfig) });
+  })
+);
+
+// Cập nhật Năm học & Học kỳ hiện tại
+systemRouter.post(
+  '/academic-years',
+  firebaseAuth,
+  requireCapability('MANAGE_INFRASTRUCTURE'),
+  asyncRoute(async (req, res) => {
+    const { systemConfig } = await import('./system.schema.js');
+    const { currentYear, currentSemester, availableYears } = req.body || {};
+
+    const row = await db
+      .select()
+      .from(systemConfig)
+      .where(eq(systemConfig.key, 'academic_years_config'))
+      .then((r) => r[0] ?? null);
+
+    const prev = (row?.value as any) || {
+      currentYear: '2025–2026',
+      currentSemester: 'HK1',
+      availableYears: ['2024–2025', '2025–2026', '2026–2027'],
+      semesters: ['HK1', 'HK2', 'FULL_YEAR']
+    };
+
+    const updated = {
+      ...prev,
+      currentYear: currentYear || prev.currentYear,
+      currentSemester: currentSemester || prev.currentSemester,
+      availableYears: availableYears || prev.availableYears,
+      updatedAt: new Date().toISOString()
+    };
+
+    await db
+      .insert(systemConfig)
+      .values({ key: 'academic_years_config', value: updated })
+      .onConflictDoUpdate({
+        target: systemConfig.key,
+        set: { value: updated, updatedAt: new Date() }
+      });
+
+    res.json({ ok: true, message: 'Đã cập nhật cấu hình Năm học & Học kỳ thành công!', config: updated });
+  })
+);

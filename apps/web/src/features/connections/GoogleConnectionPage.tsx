@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Box,
   Card,
@@ -21,7 +21,13 @@ import {
   DialogTitle,
   DialogContent,
   DialogContentText,
-  DialogActions
+  DialogActions,
+  Switch,
+  FormControlLabel,
+  MenuItem,
+  Select,
+  InputLabel,
+  FormControl
 } from '@mui/material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import CloudDoneIcon from '@mui/icons-material/CloudDoneRounded';
@@ -38,6 +44,9 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmberRounded';
 import SettingsIcon from '@mui/icons-material/SettingsRounded';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMoreRounded';
 import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutlineRounded';
+import ScheduleIcon from '@mui/icons-material/ScheduleRounded';
+import AccessTimeIcon from '@mui/icons-material/AccessTimeRounded';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutlineRounded';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
 import { useAuth } from '../../auth/AuthProvider';
@@ -81,12 +90,43 @@ export default function GoogleConnectionPage() {
   // Mode B input
   const [saJson, setSaJson] = useState('');
 
+  // DWD State & Config
+  const [dwdConfig, setDwdConfig] = useState<any>(null);
+  const [dwdAdminSubject, setDwdAdminSubject] = useState('');
+  const [dwdDomain, setDwdDomain] = useState('thcsgiangvo.edu.vn');
+  const [dwdTesting, setDwdTesting] = useState(false);
+  const [dwdTestResult, setDwdTestResult] = useState<any>(null);
+  const [savingDwdConfig, setSavingDwdConfig] = useState(false);
+  const [copiedDwdClientId, setCopiedDwdClientId] = useState(false);
+
+  // Auto-Sync Scheduler State
+  const [autoSyncConfig, setAutoSyncConfig] = useState<any>(null);
+  const [autoSyncLoading, setAutoSyncLoading] = useState(false);
+  const [triggeringSync, setTriggeringSync] = useState(false);
+
   // Xoá dữ liệu Classroom (hành động phá huỷ — không thể hoàn tác)
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [resetPreview, setResetPreview] = useState<{ courses: number; students: number; teachers: number; classesAffected: number } | null>(null);
   const [resetPreviewLoading, setResetPreviewLoading] = useState(false);
   const [resetConfirmText, setResetConfirmText] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
+
+  const loadDwdAndAutoSync = async () => {
+    try {
+      const [dwdRes, autoSyncRes] = await Promise.all([
+        api<any>('/api/connections/dwd/config').catch(() => null),
+        api<any>('/api/classroom/auto-sync').catch(() => null)
+      ]);
+      if (dwdRes?.ok) {
+        setDwdConfig(dwdRes);
+        setDwdAdminSubject(dwdRes.adminSubject || '');
+        setDwdDomain(dwdRes.domain || 'thcsgiangvo.edu.vn');
+      }
+      if (autoSyncRes?.ok && autoSyncRes.config) {
+        setAutoSyncConfig(autoSyncRes.config);
+      }
+    } catch {}
+  };
 
   const loadStatus = async () => {
     try {
@@ -130,6 +170,7 @@ export default function GoogleConnectionPage() {
     }
 
     loadStatus();
+    loadDwdAndAutoSync();
   }, [location.search]);
 
   // 2. Điền sẵn email người dùng nếu chưa nhập
@@ -278,6 +319,79 @@ export default function GoogleConnectionPage() {
     }
   };
 
+  const handleTestDwd = async () => {
+    try {
+      setDwdTesting(true);
+      setDwdTestResult(null);
+      const res = await api<any>('/api/connections/dwd/test', {
+        method: 'POST',
+        body: JSON.stringify({ adminSubject: dwdAdminSubject })
+      });
+      setDwdTestResult({ success: true, ...res });
+      setMsg({ text: res.message || 'Kết nối DWD thành công!', type: 'success' });
+      loadStatus();
+    } catch (e: any) {
+      setDwdTestResult({ success: false, message: e.message || 'Lỗi kiểm tra DWD' });
+    } finally {
+      setDwdTesting(false);
+    }
+  };
+
+  const handleSaveDwdConfig = async () => {
+    try {
+      setSavingDwdConfig(true);
+      await api<any>('/api/connections/dwd/config', {
+        method: 'POST',
+        body: JSON.stringify({ adminSubject: dwdAdminSubject, domain: dwdDomain })
+      });
+      setMsg({ text: 'Đã lưu cấu hình Google Workspace DWD thành công!', type: 'success' });
+      loadDwdAndAutoSync();
+    } catch (e: any) {
+      setMsg({ text: `Không thể lưu cấu hình DWD: ${e.message}`, type: 'error' });
+    } finally {
+      setSavingDwdConfig(false);
+    }
+  };
+
+  const handleCopyDwdClientId = () => {
+    const cid = dwdConfig?.clientId || '';
+    if (cid) {
+      navigator.clipboard.writeText(cid);
+      setCopiedDwdClientId(true);
+      setTimeout(() => setCopiedDwdClientId(false), 2500);
+    }
+  };
+
+  const handleSaveAutoSync = async (updates: any) => {
+    try {
+      setAutoSyncLoading(true);
+      const res = await api<any>('/api/classroom/auto-sync', {
+        method: 'POST',
+        body: JSON.stringify(updates)
+      });
+      setAutoSyncConfig(res.config);
+      setMsg({ text: 'Đã cập nhật lịch tự động đồng bộ thành công!', type: 'success' });
+    } catch (e: any) {
+      setMsg({ text: `Lỗi cập nhật lịch: ${e.message}`, type: 'error' });
+    } finally {
+      setAutoSyncLoading(false);
+    }
+  };
+
+  const handleTriggerAutoSyncNow = async () => {
+    try {
+      setTriggeringSync(true);
+      const res = await api<any>('/api/classroom/auto-sync/trigger', { method: 'POST' });
+      setMsg({ text: res.message || 'Đã thực thi phiên đồng bộ tự động thành công!', type: 'success' });
+      loadStatus();
+      loadDwdAndAutoSync();
+    } catch (e: any) {
+      setMsg({ text: `Lỗi kích hoạt đồng bộ: ${e.message}`, type: 'error' });
+    } finally {
+      setTriggeringSync(false);
+    }
+  };
+
   const handleManualSync = async () => {
     setSyncing(true);
     try {
@@ -419,6 +533,114 @@ export default function GoogleConnectionPage() {
               />
             </Stack>
           </Box>
+        </CardContent>
+      </Card>
+
+      {/* Auto-Sync Scheduler Card */}
+      <Card sx={{ mb: 3, bgcolor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+        <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2, mb: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Box sx={{ p: 1, borderRadius: '8px', bgcolor: autoSyncConfig?.enabled ? '#ecfdf5' : '#f8fafc', color: autoSyncConfig?.enabled ? '#059669' : '#64748b', display: 'grid', placeItems: 'center', border: '1px solid #e2e8f0' }}>
+                <ScheduleIcon sx={{ fontSize: 22 }} />
+              </Box>
+              <Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography variant="subtitle1" fontWeight={700} color="#0f172a">
+                    Lịch Tự Động Đồng Bộ Google Classroom (Scheduled Background Sync)
+                  </Typography>
+                  <Chip
+                    label={autoSyncConfig?.enabled ? 'ĐANG BẬT' : 'ĐANG TẮT'}
+                    size="small"
+                    color={autoSyncConfig?.enabled ? 'success' : 'default'}
+                    sx={{ fontWeight: 700, fontSize: '0.7rem', height: 20 }}
+                  />
+                </Box>
+                <Typography variant="body2" color="#64748b" sx={{ fontSize: '0.8125rem' }}>
+                  Hệ thống tự động chạy tác vụ nền để kéo bài tập, điểm số, bài nộp mới nhất từ Google Classroom mà không cần thao tác tay.
+                </Typography>
+              </Box>
+            </Box>
+
+            <Stack direction="row" spacing={1.5} alignItems="center">
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={Boolean(autoSyncConfig?.enabled)}
+                    onChange={(e) => handleSaveAutoSync({ enabled: e.target.checked })}
+                    disabled={autoSyncLoading}
+                    color="success"
+                  />
+                }
+                label={
+                  <Typography variant="body2" fontWeight={600} color="#0f172a">
+                    {autoSyncConfig?.enabled ? 'Bật tự động' : 'Tắt tự động'}
+                  </Typography>
+                }
+              />
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={triggeringSync ? <CircularProgress size={14} /> : <SyncIcon />}
+                onClick={handleTriggerAutoSyncNow}
+                disabled={triggeringSync}
+                sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.8125rem', borderRadius: '8px' }}
+              >
+                {triggeringSync ? 'Đang chạy...' : 'Chạy thử ngay'}
+              </Button>
+            </Stack>
+          </Box>
+
+          <Divider sx={{ my: 1.5, borderColor: '#f1f5f9' }} />
+
+          <Grid container spacing={2} alignItems="center">
+            <Grid size={{ xs: 12, sm: 4 }}>
+              <FormControl size="small" fullWidth>
+                <InputLabel id="frequency-label">Tần suất đồng bộ</InputLabel>
+                <Select
+                  labelId="frequency-label"
+                  label="Tần suất đồng bộ"
+                  value={autoSyncConfig?.frequency || 'DAILY_NIGHT'}
+                  onChange={(e) => handleSaveAutoSync({ frequency: e.target.value })}
+                  disabled={autoSyncLoading}
+                >
+                  <MenuItem value="DAILY_NIGHT">Mỗi đêm lúc 23:00 (Khuyến nghị)</MenuItem>
+                  <MenuItem value="EVERY_6_HOURS">Mỗi 6 tiếng một lần</MenuItem>
+                  <MenuItem value="EVERY_12_HOURS">Mỗi 12 tiếng một lần</MenuItem>
+                  <MenuItem value="HOURLY">Mỗi giờ một lần</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+
+            <Grid size={{ xs: 12, sm: 8 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap', p: 1.25, bgcolor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '0.8rem' }}>
+                <Box>
+                  <Typography variant="caption" color="#64748b" display="block">LẦN CHẠY KẾ TIẾP</Typography>
+                  <Typography variant="body2" fontWeight={600} color="#0f172a">
+                    {autoSyncConfig?.enabled && autoSyncConfig?.nextRunAt ? new Date(autoSyncConfig.nextRunAt).toLocaleString('vi-VN') : 'Chưa lên lịch (Đang tắt)'}
+                  </Typography>
+                </Box>
+                <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+                <Box>
+                  <Typography variant="caption" color="#64748b" display="block">LẦN CHẠY GẦN NHẤT</Typography>
+                  <Typography variant="body2" fontWeight={600} color={autoSyncConfig?.lastRunStatus === 'SUCCESS' ? '#059669' : autoSyncConfig?.lastRunStatus === 'FAILED' ? '#dc2626' : '#64748b'}>
+                    {autoSyncConfig?.lastRunAt ? `${new Date(autoSyncConfig.lastRunAt).toLocaleString('vi-VN')} (${autoSyncConfig.lastRunStatus === 'SUCCESS' ? 'Thành công' : 'Thất bại'})` : 'Chưa có'}
+                  </Typography>
+                </Box>
+                {autoSyncConfig?.lastRunSummary && (
+                  <>
+                    <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+                    <Box sx={{ flex: 1, minWidth: 180 }}>
+                      <Typography variant="caption" color="#64748b" display="block">GHI CHÚ KẾT QUẢ</Typography>
+                      <Typography variant="caption" color="#334155" sx={{ display: 'block', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                        {autoSyncConfig.lastRunSummary}
+                      </Typography>
+                    </Box>
+                  </>
+                )}
+              </Box>
+            </Grid>
+          </Grid>
         </CardContent>
       </Card>
 
@@ -673,10 +895,10 @@ export default function GoogleConnectionPage() {
                 </Typography>
               </Box>
               <Typography variant="body2" color="#64748b" sx={{ mb: 2, fontSize: '0.8125rem' }}>
-                Sử dụng Service Account ủy quyền toàn miền (Domain-Wide Delegation) để đồng bộ tự động 100% lớp học của toàn bộ giáo viên và học sinh trên tên miền trường.
+                Sử dụng Service Account ủy quyền toàn miền (Domain-Wide Delegation) để đồng bộ tự động 100% lớp học của toàn bộ giáo viên và học sinh trên tên miền trường vĩnh viễn không bao giờ hết hạn token.
               </Typography>
 
-              <Box sx={{ p: 2, bgcolor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', mb: 2.5 }}>
+              <Box sx={{ p: 2, bgcolor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', mb: 2 }}>
                 <Typography variant="caption" fontWeight={600} color="#64748b" display="block" gutterBottom sx={{ letterSpacing: '0.05em', textTransform: 'uppercase' }}>
                   Trạng thái Service Account DWD:
                 </Typography>
@@ -691,13 +913,112 @@ export default function GoogleConnectionPage() {
                     fontSize: '0.75rem'
                   }}
                 />
-                <Typography variant="caption" display="block" sx={{ mt: 1, color: '#64748b' }}>
-                  Tên miền Workspace: <strong style={{ color: '#0f172a' }}>{status?.modeB?.domain || 'thcsgiangvo.edu.vn'}</strong>
-                </Typography>
+
+                {dwdConfig?.clientId && (
+                  <Box sx={{ mt: 1.5, p: 1, bgcolor: '#ffffff', borderRadius: '6px', border: '1px dashed #cbd5e1' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Typography variant="caption" fontWeight={700} color="#475569">
+                        OAuth 2 Client ID (Dùng để cấp quyền tại admin.google.com):
+                      </Typography>
+                      <Button
+                        size="small"
+                        onClick={handleCopyDwdClientId}
+                        startIcon={<ContentCopyIcon sx={{ fontSize: 13 }} />}
+                        sx={{ textTransform: 'none', fontSize: '0.7rem', py: 0 }}
+                      >
+                        {copiedDwdClientId ? 'Đã copy' : 'Copy Client ID'}
+                      </Button>
+                    </Box>
+                    <Typography variant="caption" sx={{ fontFamily: 'monospace', color: '#0f172a', fontWeight: 600, display: 'block', wordBreak: 'break-all' }}>
+                      {dwdConfig.clientId}
+                    </Typography>
+                  </Box>
+                )}
               </Box>
 
+              {/* Cấu hình Admin Subject Email & Domain */}
+              <Box sx={{ p: 2, bgcolor: '#f1f5f9', borderRadius: '8px', border: '1px solid #e2e8f0', mb: 2 }}>
+                <Typography variant="caption" fontWeight={700} color="#334155" display="block" gutterBottom sx={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Cấu hình Tài khoản Ủy quyền (Subject Email):
+                </Typography>
+                <Stack spacing={1.5} sx={{ mt: 1 }}>
+                  <TextField
+                    size="small"
+                    label="Tài khoản Quản trị Domain / Giáo viên (Admin Subject Email)"
+                    placeholder="admin@badinhedu.vn hoặc c2giangvo@fermat.vn"
+                    value={dwdAdminSubject}
+                    onChange={(e) => setDwdAdminSubject(e.target.value)}
+                    fullWidth
+                    helperText="Tài khoản trong tên miền Workspace sẽ được Service Account mạo danh để đọc dữ liệu Classroom"
+                  />
+                  <TextField
+                    size="small"
+                    label="Tên miền Google Workspace"
+                    placeholder="thcsgiangvo.edu.vn"
+                    value={dwdDomain}
+                    onChange={(e) => setDwdDomain(e.target.value)}
+                    fullWidth
+                  />
+                  <Stack direction="row" spacing={1}>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={handleSaveDwdConfig}
+                      disabled={savingDwdConfig}
+                      sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '6px' }}
+                    >
+                      {savingDwdConfig ? 'Đang lưu...' : 'Lưu tài khoản ủy quyền'}
+                    </Button>
+                    <Button
+                      size="small"
+                      variant="contained"
+                      color="secondary"
+                      onClick={handleTestDwd}
+                      disabled={dwdTesting || !status?.modeB?.configured}
+                      startIcon={dwdTesting ? <CircularProgress size={14} color="inherit" /> : <CheckCircleOutlineIcon />}
+                      sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '6px' }}
+                    >
+                      {dwdTesting ? 'Đang kiểm tra DWD...' : 'Kiểm tra kết nối DWD (Test Impersonation)'}
+                    </Button>
+                  </Stack>
+                </Stack>
+              </Box>
+
+              {/* Kết quả Test DWD */}
+              {dwdTestResult && (
+                <Alert
+                  severity={dwdTestResult.success ? 'success' : 'error'}
+                  sx={{ mb: 2, borderRadius: '8px', fontSize: '0.8125rem' }}
+                  onClose={() => setDwdTestResult(null)}
+                >
+                  <Typography variant="body2" fontWeight={700}>
+                    {dwdTestResult.success ? 'Kết nối DWD thành công 100%!' : 'Kiểm tra kết nối DWD không thành công'}
+                  </Typography>
+                  <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
+                    {dwdTestResult.message}
+                  </Typography>
+                  {dwdTestResult.sampleCourses && dwdTestResult.sampleCourses.length > 0 && (
+                    <Box sx={{ mt: 1, pl: 1, borderLeft: '2px solid #10b981' }}>
+                      <Typography variant="caption" fontWeight={600} display="block">
+                        Khóa học mẫu tìm thấy:
+                      </Typography>
+                      {dwdTestResult.sampleCourses.map((c: any) => (
+                        <Typography key={c.id} variant="caption" display="block">
+                          • {c.name} ({c.section || 'Chưa phân lớp'})
+                        </Typography>
+                      ))}
+                    </Box>
+                  )}
+                  {dwdTestResult.guide && (
+                    <Typography variant="caption" display="block" sx={{ mt: 1, p: 1, bgcolor: '#fef2f2', borderRadius: '4px', color: '#991b1b' }}>
+                      👉 <strong>Hướng dẫn khắc phục:</strong> {dwdTestResult.guide}
+                    </Typography>
+                  )}
+                </Alert>
+              )}
+
               <Typography variant="caption" fontWeight={600} color="#64748b" gutterBottom display="block" sx={{ letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-                Cung cấp nội dung file JSON Service Account:
+                Cập nhật file JSON Service Account:
               </Typography>
               <TextField
                 size="small"
@@ -705,7 +1026,7 @@ export default function GoogleConnectionPage() {
                 value={saJson}
                 onChange={(e) => setSaJson(e.target.value)}
                 multiline
-                rows={4}
+                rows={3}
                 fullWidth
                 sx={{ mb: 2 }}
               />
@@ -721,7 +1042,7 @@ export default function GoogleConnectionPage() {
                   textTransform: 'none',
                   fontWeight: 600,
                   fontSize: '0.875rem',
-                  py: 1.1,
+                  py: 1,
                   borderRadius: '8px',
                   boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)'
                 }}

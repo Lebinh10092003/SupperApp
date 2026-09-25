@@ -135,3 +135,45 @@ alertsRouter.patch(
     res.json({ ok: true });
   })
 );
+
+// Gửi thông báo đôn đốc tới GVCN / Giáo viên bộ môn
+alertsRouter.post(
+  '/:id/notify-homeroom',
+  firebaseAuth,
+  requireCapability('RESOLVE_ALERTS'),
+  asyncRoute(async (req, res) => {
+    const alertId = String(req.params.id);
+    const alertItem = await db.select().from(alerts).where(eq(alerts.id, alertId)).then((r) => r[0] ?? null);
+    if (!alertItem) {
+      return res.status(404).json({ ok: false, error: { message: 'Không tìm thấy cảnh báo.' } });
+    }
+
+    const { message, recipientName, recipientEmail } = req.body || {};
+    const timestampStr = new Intl.DateTimeFormat('vi-VN', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      dateStyle: 'short',
+      timeStyle: 'medium'
+    }).format(new Date());
+
+    const notifyNote = `[Đôn đốc lúc ${timestampStr} bởi ${req.appUser!.email}]: Đã gửi lời nhắc tới GVCN (${recipientName || recipientEmail || 'GVCN Lớp'}). Nội dung: "${message || alertItem.action || alertItem.message}"`;
+
+    const updatedNotes = alertItem.principalNotes ? `${alertItem.principalNotes}\n${notifyNote}` : notifyNote;
+
+    await db
+      .update(alerts)
+      .set({
+        status: 'IN_PROGRESS',
+        principalNotes: updatedNotes,
+        assigneeEmail: recipientEmail || alertItem.assigneeEmail || null,
+        updatedBy: req.appUser!.email,
+        updatedAt: new Date()
+      })
+      .where(eq(alerts.id, alertId));
+
+    res.json({
+      ok: true,
+      message: 'Đã gửi thông báo đôn đốc thành công tới Giáo viên Chủ nhiệm!',
+      note: notifyNote
+    });
+  })
+);

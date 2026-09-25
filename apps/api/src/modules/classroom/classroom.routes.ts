@@ -83,9 +83,34 @@ async function resolveActiveGoogleAuth(req: any): Promise<{ activeToken?: string
     return { activeToken, email, isDwd: false };
   }
 
+  // Fallback: Mode B (Google Workspace Domain-Wide Delegation)
   const sa = resolveServiceAccount();
-  if (sa?.data?.private_key && env.WORKSPACE_ADMIN_SUBJECT) {
-    return { isDwd: true, email: env.WORKSPACE_ADMIN_SUBJECT };
+  if (sa?.data?.private_key) {
+    const dwdRow = await db
+      .select()
+      .from(systemConfig)
+      .where(eq(systemConfig.key, 'dwdConfig'))
+      .then((r) => r[0] ?? null);
+    const dwdCfg = (dwdRow?.value as any) ?? {};
+    const subject = dwdCfg.adminSubject || env.WORKSPACE_ADMIN_SUBJECT || 'admin@badinhedu.vn';
+
+    if (subject) {
+      try {
+        const { dwdToken } = await import('../../integrations/dwd.js');
+        const token = await dwdToken(subject, [
+          'https://www.googleapis.com/auth/classroom.courses.readonly',
+          'https://www.googleapis.com/auth/classroom.rosters.readonly',
+          'https://www.googleapis.com/auth/classroom.coursework.students.readonly',
+          'https://www.googleapis.com/auth/classroom.announcements.readonly',
+          'https://www.googleapis.com/auth/classroom.topics.readonly',
+          'https://www.googleapis.com/auth/classroom.courseworkmaterials.readonly',
+          'https://www.googleapis.com/auth/classroom.profile.emails'
+        ]);
+        return { activeToken: token, email: subject, isDwd: true };
+      } catch (e: any) {
+        console.warn('DWD token auto resolution error:', e.message);
+      }
+    }
   }
 
   return {};
@@ -97,15 +122,19 @@ classroomRouter.get(
   firebaseAuth,
   requireCapability('VIEW_DASHBOARD'),
   asyncRoute(async (_q, r) => {
+    const sa = resolveServiceAccount();
+    const hasDwd = Boolean(sa?.data?.private_key);
+
     const [[courseCountRow], syncStatus, conn] = await Promise.all([
       db.select({ n: count() }).from(courses),
       getSystemConfig<{ lastSyncAt?: string }>('syncStatus'),
       getConnection('current')
     ]);
     const courseCount = courseCountRow?.n ?? 0;
-    const isConnected = Boolean(conn?.accessToken);
+    const isConnected = Boolean(conn?.accessToken) || hasDwd;
     r.json({
       connected: isConnected,
+      isDwd: hasDwd,
       courseCount,
       lastSync: syncStatus?.lastSyncAt ?? null,
       isSynced: courseCount > 0
@@ -391,4 +420,45 @@ classroomRouter.delete(
     });
   })
 );
+
+// Lấy cấu hình lịch tự động đồng bộ (Auto Sync Scheduler)
+classroomRouter.get(
+  '/auto-sync',
+  firebaseAuth,
+  requireCapability('VIEW_DASHBOARD'),
+  asyncRoute(async (_req, res) => {
+    const { getAutoSyncConfig } = await import('./auto-sync-scheduler.service.js');
+    const config = await getAutoSyncConfig();
+    res.json({ ok: true, config });
+  })
+);
+
+// Cập nhật cấu hình lịch tự động đồng bộ
+classroomRouter.post(
+  '/auto-sync',
+  firebaseAuth,
+  requireCapability('MANAGE_CONNECTIONS'),
+  asyncRoute(async (req, res) => {
+    const { saveAutoSyncConfig } = await import('./auto-sync-scheduler.service.js');
+    const body = req.body || {};
+    const updated = await saveAutoSyncConfig(body);
+    res.json({ ok: true, config: updated, message: 'Đã lưu cấu hình lịch tự động đồng bộ thành công!' });
+  })
+);
+
+// Kích hoạt chạy ngay một phiên đồng bộ theo lịch
+classroomRouter.post(
+  '/auto-sync/trigger',
+  firebaseAuth,
+  requireCapability('MANAGE_CONNECTIONS'),
+  asyncRoute(async (_req, res) => {
+    const { runScheduledSync } = await import('./auto-sync-scheduler.service.js');
+    const result = await runScheduledSync('MANUAL_TRIGGER');
+    if (!result.ok) {
+      return res.status(400).json({ ok: false, error: { message: result.error } });
+    }
+    res.json({ message: 'Đã thực thi phiên đồng bộ tự động thành công!', ...result });
+  })
+);
+
 

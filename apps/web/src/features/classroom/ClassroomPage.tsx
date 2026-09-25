@@ -26,7 +26,12 @@ import {
   Checkbox,
   FormControlLabel,
   IconButton,
-  Tooltip
+  Tooltip,
+  MenuItem,
+  Select,
+  FormControl,
+  InputLabel,
+  Switch
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import SearchIcon from '@mui/icons-material/SearchRounded';
@@ -39,8 +44,14 @@ import PlaylistAddCheckIcon from '@mui/icons-material/PlaylistAddCheckRounded';
 import OpenInNewIcon from '@mui/icons-material/OpenInNewRounded';
 import RefreshIcon from '@mui/icons-material/RefreshRounded';
 import WarningAmberIcon from '@mui/icons-material/WarningAmberRounded';
+import TableChartIcon from '@mui/icons-material/TableChartRounded';
+import DescriptionIcon from '@mui/icons-material/DescriptionRounded';
+import ScheduleIcon from '@mui/icons-material/ScheduleRounded';
+import CampaignIcon from '@mui/icons-material/CampaignRounded';
+import ContentCopyIcon from '@mui/icons-material/ContentCopyRounded';
+import CheckRoundedIcon from '@mui/icons-material/CheckRounded';
 import { PageHeader } from '../../components/PageHeader';
-import { api } from '../../services/api';
+import { api, download } from '../../services/api';
 
 export default function ClassroomPage() {
   const navigate = useNavigate();
@@ -77,6 +88,142 @@ export default function ClassroomPage() {
   const [previewSearch, setPreviewSearch] = useState('');
   const [previewAutoIgnoreUnselected, setPreviewAutoIgnoreUnselected] = useState(false);
   const [executingSync, setExecutingSync] = useState(false);
+
+  // Báo cáo & Lọc Năm học / Học kỳ
+  const [academicYear, setAcademicYear] = useState('ALL');
+  const [semester, setSemester] = useState('ALL');
+  const [exportingExcel, setExportingExcel] = useState(false);
+  const [exportingWord, setExportingWord] = useState(false);
+
+  // Lịch tự động đồng bộ (Auto-Sync Dialog)
+  const [openScheduleDialog, setOpenScheduleDialog] = useState(false);
+  const [scheduleConfig, setScheduleConfig] = useState<any>(null);
+  const [scheduleLoading, setScheduleLoading] = useState(false);
+  const [scheduleSaving, setScheduleSaving] = useState(false);
+  const [triggeringSchedule, setTriggeringSchedule] = useState(false);
+
+  // Đôn đốc GVCN / Bộ môn
+  const [nudgeTarget, setNudgeTarget] = useState<any>(null);
+  const [nudgeMessage, setNudgeMessage] = useState('');
+  const [nudgeCopied, setNudgeCopied] = useState(false);
+  const [nudgeSending, setNudgeSending] = useState(false);
+
+  const handleDownloadExcel = async () => {
+    setExportingExcel(true);
+    try {
+      await download('/api/reports/classroom.xlsx', 'Bao-Cao-Khoa-Hoc-Google-Classroom.xlsx');
+      setToast({ text: 'Đã xuất sổ khóa học Excel (.xlsx) thành công!', severity: 'success' });
+    } catch (err: any) {
+      setToast({ text: `Lỗi xuất Excel: ${err.message}`, severity: 'error' });
+    } finally {
+      setExportingExcel(false);
+    }
+  };
+
+  const handleDownloadWord = async () => {
+    setExportingWord(true);
+    try {
+      await download('/api/reports/nd30-summary.docx', 'Bao-Cao-Lop-Hoc-So-Chuan-ND30.docx');
+      setToast({ text: 'Đã xuất báo cáo Word chuẩn Nghị định 30/2020/NĐ-CP thành công!', severity: 'success' });
+    } catch (err: any) {
+      setToast({ text: `Lỗi xuất Word: ${err.message}`, severity: 'error' });
+    } finally {
+      setExportingWord(false);
+    }
+  };
+
+  const handleOpenSchedule = async () => {
+    setOpenScheduleDialog(true);
+    setScheduleLoading(true);
+    try {
+      const res = await api<any>('/api/classroom/auto-sync');
+      if (res?.ok && res.config) {
+        setScheduleConfig(res.config);
+      }
+    } catch (err: any) {
+      setToast({ text: `Không thể nạp lịch đồng bộ: ${err.message}`, severity: 'error' });
+    } finally {
+      setScheduleLoading(false);
+    }
+  };
+
+  const handleSaveSchedule = async () => {
+    if (!scheduleConfig) return;
+    setScheduleSaving(true);
+    try {
+      const res = await api.post<any>('/api/classroom/auto-sync', scheduleConfig);
+      if (res?.ok && res.config) {
+        setScheduleConfig(res.config);
+      }
+      setToast({ text: 'Đã lưu lịch tự động đồng bộ Google Classroom!', severity: 'success' });
+      setOpenScheduleDialog(false);
+    } catch (err: any) {
+      setToast({ text: `Lỗi lưu lịch: ${err.message}`, severity: 'error' });
+    } finally {
+      setScheduleSaving(false);
+    }
+  };
+
+  const handleTriggerScheduleNow = async () => {
+    setTriggeringSchedule(true);
+    try {
+      const res = await api.post<any>('/api/classroom/auto-sync/trigger');
+      setToast({ text: res.message || 'Đã kích hoạt đồng bộ nền thành công!', severity: 'success' });
+      load();
+      const updated = await api<any>('/api/classroom/auto-sync');
+      if (updated?.config) setScheduleConfig(updated.config);
+    } catch (err: any) {
+      setToast({ text: `Lỗi kích hoạt: ${err.message}`, severity: 'error' });
+    } finally {
+      setTriggeringSchedule(false);
+    }
+  };
+
+  const handleOpenNudge = (course: any) => {
+    setNudgeTarget(course);
+    const rawSubRate = course.completionRate ?? course.content?.completionRate ?? course.content?.submissionRate;
+    const subRate = rawSubRate != null && rawSubRate !== '' && !isNaN(Number(rawSubRate)) ? Number(rawSubRate) : 0;
+    const className = course.className || course.classId || 'Chưa định danh';
+    const msg = `[THCS GIẢNG VÕ - ĐÔN ĐỐC NỘP BÀI TẬP GOOGLE CLASSROOM]
+Kính gửi Thầy/Cô phụ trách khóa học ${course.name} và GVCN ${className ? `Lớp ${className}` : ''},
+
+Khóa học: ${course.name}
+Tiến độ nộp bài hiện tại: ${subRate}% (Ngưỡng yêu cầu: ≥ 70%)
+Sĩ số học sinh: ${course.rosterStudents ?? course.roster?.students ?? '—'} HS
+
+Đề nghị Thầy/Cô bộ môn phối hợp cùng GVCN rà soát danh sách học sinh chưa nộp bài hoặc nộp bài muộn, thông báo tới phụ huynh và đôn đốc các em hoàn thiện bài tập trên Google Classroom trước thời hạn quy định.
+
+Trân trọng cảm ơn Thầy/Cô!`;
+    setNudgeMessage(msg);
+    setNudgeCopied(false);
+  };
+
+  const handleCopyNudge = () => {
+    if (!nudgeMessage) return;
+    navigator.clipboard.writeText(nudgeMessage);
+    setNudgeCopied(true);
+    setTimeout(() => setNudgeCopied(false), 2000);
+  };
+
+  const handleSendNudge = async () => {
+    if (!nudgeTarget) return;
+    setNudgeSending(true);
+    try {
+      await api.post(`/api/alerts/alert_low_sub_${nudgeTarget.id}/notify-homeroom`, {
+        customMessage: nudgeMessage
+      }).catch(async () => {
+        if (nudgeTarget.classId) {
+          await api.post('/api/classes/nudge', { classId: nudgeTarget.classId });
+        }
+      });
+      setToast({ text: `Đã phát thông báo đôn đốc thành công cho ${nudgeTarget.name}!`, severity: 'success' });
+      setNudgeTarget(null);
+    } catch (err: any) {
+      setToast({ text: `Lỗi gửi đôn đốc: ${err.message}`, severity: 'error' });
+    } finally {
+      setNudgeSending(false);
+    }
+  };
 
   const load = () => {
     setLoading(true);
@@ -253,13 +400,28 @@ export default function ClassroomPage() {
 
   const filtered = useMemo(() => {
     const query = q.toLowerCase();
-    return items.filter((x) =>
-      !query ||
-      String(x.name || '').toLowerCase().includes(query) ||
-      String(x.className || '').toLowerCase().includes(query) ||
-      String(x.section || '').toLowerCase().includes(query)
-    );
-  }, [items, q]);
+    return items.filter((x) => {
+      const matchQ =
+        !query ||
+        String(x.name || '').toLowerCase().includes(query) ||
+        String(x.className || '').toLowerCase().includes(query) ||
+        String(x.section || '').toLowerCase().includes(query);
+      if (!matchQ) return false;
+
+      if (academicYear !== 'ALL') {
+        const text = `${x.academicYear || ''} ${x.section || ''} ${x.name || ''}`;
+        if (!text.includes(academicYear)) return false;
+      }
+
+      if (semester !== 'ALL') {
+        const sem = `${x.term || ''} ${x.section || ''} ${x.name || ''}`.toLowerCase();
+        if (semester === 'HK1' && !sem.includes('hk1') && !sem.includes('kỳ 1') && !sem.includes('ky 1') && !sem.includes('học kỳ 1')) return false;
+        if (semester === 'HK2' && !sem.includes('hk2') && !sem.includes('kỳ 2') && !sem.includes('ky 2') && !sem.includes('học kỳ 2')) return false;
+      }
+
+      return true;
+    });
+  }, [items, q, academicYear, semester]);
 
   // Bộ lọc cho danh sách duyệt preview
   const filteredPreviewItems = useMemo(() => {
@@ -317,6 +479,35 @@ export default function ClassroomPage() {
         icon={<SchoolIcon />}
         action={
           <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap">
+            <Button
+              variant="outlined"
+              color="inherit"
+              startIcon={exportingExcel ? <CircularProgress size={16} /> : <TableChartIcon sx={{ color: '#059669' }} />}
+              onClick={handleDownloadExcel}
+              disabled={exportingExcel}
+              sx={{ fontWeight: 600, borderRadius: 2 }}
+            >
+              {exportingExcel ? 'Đang xuất...' : 'Xuất Excel'}
+            </Button>
+            <Button
+              variant="outlined"
+              color="inherit"
+              startIcon={exportingWord ? <CircularProgress size={16} /> : <DescriptionIcon sx={{ color: '#dc2626' }} />}
+              onClick={handleDownloadWord}
+              disabled={exportingWord}
+              sx={{ fontWeight: 600, borderRadius: 2 }}
+            >
+              {exportingWord ? 'Đang xuất...' : 'Báo cáo Word NĐ30'}
+            </Button>
+            <Button
+              variant="outlined"
+              color="inherit"
+              startIcon={<ScheduleIcon sx={{ color: '#4f46e5' }} />}
+              onClick={handleOpenSchedule}
+              sx={{ fontWeight: 600, borderRadius: 2 }}
+            >
+              Lịch Tự Động
+            </Button>
             <Button
               variant="contained"
               color="primary"
@@ -450,20 +641,48 @@ export default function ClassroomPage() {
       {/* Unified DataTable Block */}
       <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden', bgcolor: '#ffffff' }}>
         <Box sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, borderBottom: '1px solid #e2e8f0', flexWrap: 'wrap' }}>
-          <TextField
-            size="small"
-            placeholder="Tìm theo tên khóa học, mã lớp, học kỳ..."
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            sx={{ width: { xs: '100%', sm: 340 } }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon fontSize="small" sx={{ color: '#94a3b8' }} />
-                </InputAdornment>
-              )
-            }}
-          />
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems="center" sx={{ flex: 1, minWidth: { xs: '100%', md: 600 } }}>
+            <TextField
+              size="small"
+              placeholder="Tìm theo tên khóa học, mã lớp, học kỳ..."
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              sx={{ flex: 1, minWidth: 260 }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" sx={{ color: '#94a3b8' }} />
+                  </InputAdornment>
+                )
+              }}
+            />
+            <FormControl size="small" sx={{ minWidth: 160 }}>
+              <InputLabel id="year-filter-label">Năm học</InputLabel>
+              <Select
+                labelId="year-filter-label"
+                value={academicYear}
+                label="Năm học"
+                onChange={(e) => setAcademicYear(e.target.value)}
+              >
+                <MenuItem value="ALL">Tất cả năm học</MenuItem>
+                <MenuItem value="2025–2026">Năm học 2025–2026</MenuItem>
+                <MenuItem value="2026–2027">Năm học 2026–2027</MenuItem>
+              </Select>
+            </FormControl>
+            <FormControl size="small" sx={{ minWidth: 140 }}>
+              <InputLabel id="sem-filter-label">Học kỳ</InputLabel>
+              <Select
+                labelId="sem-filter-label"
+                value={semester}
+                label="Học kỳ"
+                onChange={(e) => setSemester(e.target.value)}
+              >
+                <MenuItem value="ALL">Tất cả học kỳ</MenuItem>
+                <MenuItem value="HK1">Học kỳ 1</MenuItem>
+                <MenuItem value="HK2">Học kỳ 2</MenuItem>
+              </Select>
+            </FormControl>
+          </Stack>
           <Stack direction="row" spacing={1.5} alignItems="center">
             <Chip
               label={`Hiển thị ${filtered.length} / ${items.length} khóa học`}
@@ -656,22 +875,49 @@ export default function ClassroomPage() {
                       </TableCell>
                       <TableCell>
                         {subRate !== null ? (
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Box sx={{ flex: 1 }}>
-                              <LinearProgress
-                                variant="determinate"
-                                value={Math.min(subRate, 100)}
-                                sx={{
-                                  height: 6,
-                                  borderRadius: 3,
-                                  bgcolor: '#f1f5f9',
-                                  '& .MuiLinearProgress-bar': { bgcolor: subRate >= 90 ? '#10b981' : '#2563eb' }
-                                }}
-                              />
+                          <Box>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Box sx={{ flex: 1 }}>
+                                <LinearProgress
+                                  variant="determinate"
+                                  value={Math.min(subRate, 100)}
+                                  sx={{
+                                    height: 6,
+                                    borderRadius: 3,
+                                    bgcolor: '#f1f5f9',
+                                    '& .MuiLinearProgress-bar': { bgcolor: subRate >= 90 ? '#10b981' : subRate < 70 ? '#ef4444' : '#2563eb' }
+                                  }}
+                                />
+                              </Box>
+                              <Typography variant="caption" fontWeight={700} sx={{ minWidth: 35, color: subRate < 70 ? '#dc2626' : '#0f172a' }}>
+                                {subRate}%
+                              </Typography>
                             </Box>
-                            <Typography variant="caption" fontWeight={600} sx={{ minWidth: 35, color: '#0f172a' }}>
-                              {subRate}%
-                            </Typography>
+                            {subRate < 70 && (
+                              <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mt: 0.5 }}>
+                                <Chip
+                                  label="Cần đôn đốc (<70%)"
+                                  size="small"
+                                  sx={{
+                                    height: 20,
+                                    fontSize: '0.6875rem',
+                                    fontWeight: 700,
+                                    bgcolor: '#fef2f2',
+                                    color: '#dc2626',
+                                    border: '1px solid #fecaca'
+                                  }}
+                                />
+                                <Tooltip title="Soạn và gửi thông báo đôn đốc nộp bài">
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => handleOpenNudge(x)}
+                                    sx={{ color: '#ea580c', p: 0.2, '&:hover': { bgcolor: '#fff7ed' } }}
+                                  >
+                                    <CampaignIcon sx={{ fontSize: 16 }} />
+                                  </IconButton>
+                                </Tooltip>
+                              </Stack>
+                            )}
                           </Box>
                         ) : (
                           <Typography variant="caption" color="text.secondary">
@@ -681,6 +927,18 @@ export default function ClassroomPage() {
                       </TableCell>
                       <TableCell align="right">
                         <Stack direction="row" spacing={1} justifyContent="flex-end" alignItems="center">
+                          {subRate !== null && subRate < 70 && (
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              color="warning"
+                              startIcon={<CampaignIcon sx={{ fontSize: 14 }} />}
+                              onClick={() => handleOpenNudge(x)}
+                              sx={{ fontSize: '0.75rem', py: 0.4, px: 1, borderRadius: 1.5, fontWeight: 700, textTransform: 'none' }}
+                            >
+                              Đôn đốc
+                            </Button>
+                          )}
                           <Button
                             size="small"
                             variant="outlined"
@@ -1158,6 +1416,216 @@ export default function ClassroomPage() {
           >
             Lưu Ánh Xạ
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* DIALOG: LỊCH TỰ ĐỘNG ĐỒNG BỘ (AUTO-SYNC SCHEDULER) */}
+      <Dialog
+        open={openScheduleDialog}
+        onClose={() => setOpenScheduleDialog(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: '16px' } }}
+      >
+        <DialogTitle sx={{ fontWeight: 700, fontSize: '1.125rem', color: '#0f172a', display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <ScheduleIcon sx={{ color: '#4f46e5' }} />
+          Lịch Tự Động Đồng Bộ Google Classroom (Auto-Sync)
+        </DialogTitle>
+        <DialogContent dividers sx={{ borderColor: '#e2e8f0' }}>
+          {scheduleLoading ? (
+            <Box sx={{ p: 4, display: 'flex', justifyContent: 'center' }}>
+              <CircularProgress size={32} />
+            </Box>
+          ) : scheduleConfig ? (
+            <Stack spacing={2.5} sx={{ pt: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 2, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0' }}>
+                <Box>
+                  <Typography variant="subtitle2" fontWeight={700} sx={{ color: '#0f172a' }}>
+                    Kích hoạt Đồng bộ Tự động Ngầm
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: '#64748b' }}>
+                    Tự động quét danh sách lớp, bài tập và điểm số mà không cần thao tác thủ công.
+                  </Typography>
+                </Box>
+                <Switch
+                  checked={Boolean(scheduleConfig.enabled)}
+                  onChange={(e) => setScheduleConfig({ ...scheduleConfig, enabled: e.target.checked })}
+                  color="primary"
+                />
+              </Box>
+
+              <FormControl fullWidth size="small">
+                <InputLabel id="sched-freq-label">Tần suất đồng bộ tự động</InputLabel>
+                <Select
+                  labelId="sched-freq-label"
+                  value={scheduleConfig.frequency || 'DAILY'}
+                  label="Tần suất đồng bộ tự động"
+                  onChange={(e) => setScheduleConfig({ ...scheduleConfig, frequency: e.target.value })}
+                >
+                  <MenuItem value="DAILY">Hàng ngày lúc 23:00 đêm (Khuyên dùng - ít tải server)</MenuItem>
+                  <MenuItem value="EVERY_12_HOURS">Mỗi 12 tiếng một lần</MenuItem>
+                  <MenuItem value="EVERY_6_HOURS">Mỗi 6 tiếng một lần</MenuItem>
+                  <MenuItem value="HOURLY">Mỗi 1 tiếng một lần</MenuItem>
+                </Select>
+              </FormControl>
+
+              <Card variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: '#fbfcfd' }}>
+                <Typography variant="caption" fontWeight={700} sx={{ color: '#475569', textTransform: 'uppercase', display: 'block', mb: 1 }}>
+                  Thông tin phiên đồng bộ ngầm
+                </Typography>
+                <Grid container spacing={1.5}>
+                  <Grid size={{ xs: 6 }}>
+                    <Typography variant="caption" color="text.secondary">Lần chạy gần nhất:</Typography>
+                    <Typography variant="body2" fontWeight={600} sx={{ color: '#0f172a' }}>
+                      {scheduleConfig.lastRunAt ? new Date(scheduleConfig.lastRunAt).toLocaleString('vi-VN') : 'Chưa có'}
+                    </Typography>
+                  </Grid>
+                  <Grid size={{ xs: 6 }}>
+                    <Typography variant="caption" color="text.secondary">Lần chạy kế tiếp:</Typography>
+                    <Typography variant="body2" fontWeight={600} sx={{ color: '#2563eb' }}>
+                      {scheduleConfig.nextRunAt ? new Date(scheduleConfig.nextRunAt).toLocaleString('vi-VN') : '—'}
+                    </Typography>
+                  </Grid>
+                  {scheduleConfig.lastRunStatus && (
+                    <Grid size={{ xs: 12 }}>
+                      <Chip
+                        label={`Trạng thái: ${scheduleConfig.lastRunStatus === 'SUCCESS' ? 'Thành công' : scheduleConfig.lastRunStatus}`}
+                        size="small"
+                        sx={{
+                          bgcolor: scheduleConfig.lastRunStatus === 'SUCCESS' ? '#ecfdf5' : '#fef2f2',
+                          color: scheduleConfig.lastRunStatus === 'SUCCESS' ? '#059669' : '#dc2626',
+                          fontWeight: 700
+                        }}
+                      />
+                    </Grid>
+                  )}
+                  {scheduleConfig.lastRunSummary && (
+                    <Grid size={{ xs: 12 }}>
+                      <Alert severity="info" sx={{ py: 0.5, fontSize: '0.8125rem' }}>
+                        {scheduleConfig.lastRunSummary}
+                      </Alert>
+                    </Grid>
+                  )}
+                </Grid>
+              </Card>
+
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color="inherit"
+                  startIcon={triggeringSchedule ? <CircularProgress size={16} /> : <SyncIcon />}
+                  onClick={handleTriggerScheduleNow}
+                  disabled={triggeringSchedule}
+                  sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 1.5 }}
+                >
+                  {triggeringSchedule ? 'Đang chạy đồng bộ...' : 'Chạy thử ngay bây giờ'}
+                </Button>
+                <Button
+                  size="small"
+                  onClick={() => {
+                    setOpenScheduleDialog(false);
+                    navigate('/connections');
+                  }}
+                  sx={{ textTransform: 'none', color: '#64748b' }}
+                >
+                  Cấu hình nâng cao (DWD/OAuth) →
+                </Button>
+              </Box>
+            </Stack>
+          ) : null}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={() => setOpenScheduleDialog(false)} sx={{ textTransform: 'none', color: '#64748b' }}>
+            Đóng
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleSaveSchedule}
+            disabled={scheduleSaving}
+            sx={{
+              bgcolor: '#4f46e5',
+              fontWeight: 600,
+              textTransform: 'none',
+              borderRadius: '8px',
+              '&:hover': { bgcolor: '#4338ca' }
+            }}
+          >
+            {scheduleSaving ? <CircularProgress size={16} color="inherit" /> : 'Lưu Cài Đặt Lịch'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* DIALOG: ĐÔN ĐỐC HOÀN THÀNH BÀI TẬP (HOMEROOM / SUBJECT NUDGE) */}
+      <Dialog
+        open={Boolean(nudgeTarget)}
+        onClose={() => setNudgeTarget(null)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: '16px' } }}
+      >
+        <DialogTitle sx={{ fontWeight: 700, fontSize: '1.125rem', color: '#0f172a', display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <CampaignIcon sx={{ color: '#ea580c' }} />
+          Đôn Đốc Nộp Bài Tập Google Classroom
+        </DialogTitle>
+        <DialogContent dividers sx={{ borderColor: '#e2e8f0' }}>
+          {nudgeTarget && (
+            <Stack spacing={2} sx={{ pt: 1 }}>
+              <Box sx={{ p: 2, bgcolor: '#fff7ed', borderRadius: 2, border: '1px solid #fed7aa' }}>
+                <Typography variant="body2" sx={{ color: '#9a3412', fontWeight: 700 }}>
+                  Khóa học: {nudgeTarget.name}
+                </Typography>
+                <Typography variant="caption" sx={{ color: '#c2410c', display: 'block', mt: 0.5 }}>
+                  Lớp hành chính: <strong>{nudgeTarget.className || nudgeTarget.classId || 'Chưa mapping'}</strong> • Sĩ số: {nudgeTarget.rosterStudents ?? nudgeTarget.roster?.students ?? '—'} HS
+                </Typography>
+                <Typography variant="caption" sx={{ color: '#c2410c', display: 'block', mt: 0.5, fontWeight: 700 }}>
+                  Tỷ lệ nộp bài hiện tại: {nudgeTarget.completionRate ?? nudgeTarget.content?.completionRate ?? 0}% (thấp hơn ngưỡng thi đua 70%)
+                </Typography>
+              </Box>
+
+              <Typography variant="caption" fontWeight={700} sx={{ color: '#475569' }}>
+                Nội dung thông báo đôn đốc (Gửi tới GVCN / Nhóm phụ huynh):
+              </Typography>
+              <TextField
+                multiline
+                rows={7}
+                fullWidth
+                size="small"
+                value={nudgeMessage}
+                onChange={(e) => setNudgeMessage(e.target.value)}
+                sx={{ bgcolor: '#ffffff' }}
+              />
+              <Typography variant="caption" color="text.secondary">
+                Thầy/Cô có thể chỉnh sửa nội dung trên trước khi sao chép gửi nhóm Zalo hoặc phát lệnh qua hệ thống.
+              </Typography>
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2, justifyContent: 'space-between' }}>
+          <Button
+            variant="outlined"
+            color="inherit"
+            startIcon={nudgeCopied ? <CheckRoundedIcon sx={{ color: '#059669' }} /> : <ContentCopyIcon />}
+            onClick={handleCopyNudge}
+            sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 1.5 }}
+          >
+            {nudgeCopied ? 'Đã sao chép vào bộ nhớ tạm!' : 'Sao chép tin nhắn'}
+          </Button>
+          <Stack direction="row" spacing={1}>
+            <Button onClick={() => setNudgeTarget(null)} sx={{ textTransform: 'none', color: '#64748b' }}>
+              Đóng
+            </Button>
+            <Button
+              variant="contained"
+              color="warning"
+              startIcon={nudgeSending ? <CircularProgress size={16} color="inherit" /> : <CampaignIcon />}
+              onClick={handleSendNudge}
+              disabled={nudgeSending}
+              sx={{ fontWeight: 700, textTransform: 'none', borderRadius: 1.5 }}
+            >
+              {nudgeSending ? 'Đang gửi...' : 'Phát lệnh đôn đốc'}
+            </Button>
+          </Stack>
         </DialogActions>
       </Dialog>
     </>

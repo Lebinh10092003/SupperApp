@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import {
   Button,
   Card,
@@ -18,13 +18,42 @@ import DownloadIcon from '@mui/icons-material/DownloadRounded';
 import FactCheckIcon from '@mui/icons-material/FactCheckRounded';
 import AutoStoriesIcon from '@mui/icons-material/AutoStoriesRounded';
 import VideocamIcon from '@mui/icons-material/VideocamRounded';
+import DescriptionIcon from '@mui/icons-material/DescriptionRounded';
+import TableChartIcon from '@mui/icons-material/TableChartRounded';
 import { PageHeader } from '../../components/PageHeader';
 import { download } from '../../services/api';
 
 const reportTemplates = [
   {
+    id: 'rep-nd30',
+    title: 'Báo cáo Tổng hợp Chuẩn Nghị định 30/2020/NĐ-CP (Word .docx)',
+    desc: 'Báo cáo hành chính toàn diện: Quốc hiệu, Tiêu ngữ, số liệu các khối lớp 6–9, tình hình nộp bài tập số và chữ ký Hiệu trưởng chuẩn thể thức pháp chế.',
+    path: '/api/reports/nd30-summary.docx',
+    filename: 'Bao-Cao-Lop-Hoc-So-Chuan-ND30-THCS-Giang-Vo.docx',
+    icon: <DescriptionIcon sx={{ color: '#dc2626' }} />,
+    tag: 'Chuẩn NĐ 30 (Word)'
+  },
+  {
+    id: 'rep-classes-xlsx',
+    title: 'Sổ Lớp học Hành chính & Sĩ số (Excel .xlsx)',
+    desc: 'Bảng tính Excel (.xlsx) đa cột chuẩn format: Sĩ số thực tế, chỉ tiêu, số khóa học số, tổng bài tập, tỷ lệ nộp bài, điểm TB và GVCN phụ trách.',
+    path: '/api/reports/classes.xlsx',
+    filename: 'Bao-Cao-Lop-Hoc-Si-So-THCS-Giang-Vo.xlsx',
+    icon: <TableChartIcon sx={{ color: '#059669' }} />,
+    tag: 'Excel (.xlsx)'
+  },
+  {
+    id: 'rep-classroom-xlsx',
+    title: 'Báo cáo Chi tiết Khóa học Google Classroom (Excel .xlsx)',
+    desc: 'Bảng tính Excel (.xlsx) chi tiết từng khóa học: Mã Google, bộ môn, giáo viên phụ trách, tổng bài nộp, tỷ lệ hoàn thành đúng hạn và trạng thái.',
+    path: '/api/reports/classroom.xlsx',
+    filename: 'Bao-Cao-Khoa-Hoc-Classroom-THCS-Giang-Vo.xlsx',
+    icon: <TableChartIcon sx={{ color: '#059669' }} />,
+    tag: 'Excel (.xlsx)'
+  },
+  {
     id: 'rep-summary',
-    title: 'Báo cáo Tổng quan Chuyên cần & Điểm danh',
+    title: 'Báo cáo Tổng quan Chuyên cần & Điểm danh (CSV)',
     desc: 'Tổng hợp số tiết học, số lượt có mặt, đi muộn, vắng mặt và tỷ lệ chuyên cần theo từng lớp trong 30 ngày.',
     path: '/api/reports/summary.csv?days=30',
     filename: 'bao-cao-chuyen-can-thcs-giang-vo.csv',
@@ -33,7 +62,7 @@ const reportTemplates = [
   },
   {
     id: 'rep-classroom',
-    title: 'Báo cáo Hoạt động Google Classroom',
+    title: 'Báo cáo Hoạt động Google Classroom (CSV)',
     desc: 'Thống kê tình hình nộp bài tập, số bài đã giao, tỷ lệ hoàn thành đúng hạn của học sinh theo từng bộ môn.',
     path: '/api/reports/classroom.csv',
     filename: 'bao-cao-google-classroom.csv',
@@ -42,7 +71,7 @@ const reportTemplates = [
   },
   {
     id: 'rep-meet',
-    title: 'Báo cáo Chi tiết Phòng học Google Meet',
+    title: 'Báo cáo Chi tiết Phòng học Google Meet (CSV)',
     desc: 'Ghi nhận thời gian bắt đầu, kết thúc, số lượng học sinh tham gia và thời lượng trung bình của các phiên Meet.',
     path: '/api/reports/meet.csv',
     filename: 'bao-cao-phien-hoc-google-meet.csv',

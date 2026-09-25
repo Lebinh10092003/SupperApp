@@ -629,3 +629,121 @@ classesRouter.post(
     });
   })
 );
+
+// Thực hiện chuyển giao năm học mới (Yearly Rollover)
+classesRouter.post(
+  '/rollover',
+  firebaseAuth,
+  requireCapability('MANAGE_CATALOG'),
+  asyncRoute(async (req, res) => {
+    const { fromYear = '2025–2026', toYear = '2026–2027' } = req.body || {};
+
+    const allClasses = await db.select().from(classes);
+    let promoted = 0;
+    let archived = 0;
+    let created = 0;
+
+    // 1. Tốt nghiệp Khối 9: chuyển active = false
+    const grade9Classes = allClasses.filter((c) => c.grade === 9 && c.active);
+    for (const c of grade9Classes) {
+      await db
+        .update(classes)
+        .set({
+          active: false,
+          className: `${c.className} (Đã tốt nghiệp)`,
+          updatedAt: new Date()
+        })
+        .where(eq(classes.classId, c.classId));
+      archived++;
+    }
+
+    // 2. Thăng khối: 8 -> 9, 7 -> 8, 6 -> 7 (sắp xếp giảm dần để tránh xung đột)
+    const lowerClasses = allClasses
+      .filter((c) => c.grade && c.grade >= 6 && c.grade <= 8 && c.active)
+      .sort((a, b) => (b.grade || 0) - (a.grade || 0));
+
+    for (const c of lowerClasses) {
+      const nextGrade = (c.grade || 6) + 1;
+      const nextClassName = c.className.replace(String(c.grade), String(nextGrade));
+      await db
+        .update(classes)
+        .set({
+          grade: nextGrade,
+          className: nextClassName,
+          updatedAt: new Date()
+        })
+        .where(eq(classes.classId, c.classId));
+      promoted++;
+    }
+
+    // 3. Khởi tạo khung lớp Khối 6 mới tiếp nhận học sinh đầu cấp
+    const defaultNewGrade6 = ['6A1', '6A2', '6A3', '6A4', '6A5', '6A6', '6A7', '6A8'];
+    for (const cid of defaultNewGrade6) {
+      const exists = await db.select().from(classes).where(eq(classes.classId, cid)).then((r) => r[0] ?? null);
+      if (!exists) {
+        await db.insert(classes).values({
+          classId: cid,
+          className: `Lớp ${cid}`,
+          grade: 6,
+          active: true,
+          homeroomTeacher: 'Chưa phân công',
+          studentCount: 0,
+          expectedStudents: 45,
+          source: 'MANUAL'
+        });
+        created++;
+      }
+    }
+
+    // 4. Cập nhật năm học hệ thống
+    const row = await db
+      .select()
+      .from(systemConfig)
+      .where(eq(systemConfig.key, 'academic_years_config'))
+      .then((r) => r[0] ?? null);
+
+    const prevConfig = (row?.value as any) || {
+      currentYear: fromYear,
+      currentSemester: 'HK1',
+      availableYears: ['2024–2025', '2025–2026', '2026–2027'],
+      semesters: ['HK1', 'HK2', 'FULL_YEAR']
+    };
+
+    const newYears = Array.from(new Set([...(prevConfig.availableYears || []), toYear]));
+    const updatedConfig = {
+      ...prevConfig,
+      currentYear: toYear,
+      currentSemester: 'HK1',
+      availableYears: newYears,
+      lastRollover: {
+        fromYear,
+        toYear,
+        promoted,
+        archived,
+        created,
+        performedBy: req.appUser!.email,
+        performedAt: new Date().toISOString()
+      },
+      updatedAt: new Date().toISOString()
+    };
+
+    await db
+      .insert(systemConfig)
+      .values({ key: 'academic_years_config', value: updatedConfig })
+      .onConflictDoUpdate({
+        target: systemConfig.key,
+        set: { value: updatedConfig, updatedAt: new Date() }
+      });
+
+    await rebuildDashboard().catch(() => null);
+
+    res.json({
+      ok: true,
+      message: `Chuyển giao năm học mới (${fromYear} ➜ ${toYear}) thành công! Đã thăng hạng ${promoted} lớp, lưu trữ tốt nghiệp ${archived} lớp Khối 9, và khởi tạo ${created} lớp Khối 6 mới.`,
+      promoted,
+      archived,
+      created,
+      newAcademicYear: toYear
+    });
+  })
+);

@@ -788,6 +788,138 @@ connectionsRouter.post(
   })
 );
 
+// Lấy thông tin cấu hình Mode B DWD
+connectionsRouter.get(
+  '/dwd/config',
+  firebaseAuth,
+  requireCapability('MANAGE_CONNECTIONS'),
+  asyncRoute(async (_req, res) => {
+    const sa = resolveServiceAccount();
+    const dwdCfg = (await getSystemConfig<any>('dwdConfig')) || {};
+    res.json({
+      ok: true,
+      hasServiceAccount: Boolean(sa?.data?.private_key),
+      clientEmail: sa?.data?.client_email || env.DWD_SERVICE_ACCOUNT_EMAIL || null,
+      clientId: sa?.data?.client_id || null,
+      projectId: sa?.data?.project_id || env.PROJECT_ID,
+      adminSubject: dwdCfg.adminSubject || env.WORKSPACE_ADMIN_SUBJECT || '',
+      domain: dwdCfg.domain || env.WORKSPACE_DOMAIN || 'thcsgiangvo.edu.vn',
+      scopes: CLASSROOM_SCOPES
+    });
+  })
+);
+
+// Cập nhật cấu hình Mode B DWD (Admin Subject email, Domain)
+connectionsRouter.post(
+  '/dwd/config',
+  firebaseAuth,
+  requireCapability('MANAGE_CONNECTIONS'),
+  asyncRoute(async (req, res) => {
+    const { adminSubject, domain } = req.body;
+    const current = (await getSystemConfig<any>('dwdConfig')) || {};
+    const updated = {
+      ...current,
+      adminSubject: adminSubject ? String(adminSubject).trim() : current.adminSubject || '',
+      domain: domain ? String(domain).trim() : current.domain || 'thcsgiangvo.edu.vn',
+      updatedAt: new Date().toISOString()
+    };
+    await setSystemConfig('dwdConfig', updated);
+    res.json({ ok: true, message: 'Đã lưu cấu hình Google Workspace DWD thành công!', config: updated });
+  })
+);
+
+// Kiểm tra kết nối Domain-Wide Delegation (DWD Test)
+connectionsRouter.post(
+  '/dwd/test',
+  firebaseAuth,
+  requireCapability('MANAGE_CONNECTIONS'),
+  asyncRoute(async (req, res) => {
+    const sa = resolveServiceAccount();
+    if (!sa?.data?.private_key) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 'NO_SERVICE_ACCOUNT',
+          message: 'Chưa tìm thấy file Service Account JSON (chứa private_key). Vui lòng dán file JSON ở mục Chế độ B bên dưới.'
+        }
+      });
+    }
+
+    const dwdCfg = (await getSystemConfig<any>('dwdConfig')) || {};
+    const subject =
+      req.body.adminSubject?.trim() ||
+      dwdCfg.adminSubject ||
+      env.WORKSPACE_ADMIN_SUBJECT ||
+      'admin@badinhedu.vn';
+
+    try {
+      const { dwdToken } = await import('../../integrations/dwd.js');
+      const token = await dwdToken(subject, CLASSROOM_SCOPES);
+
+      // Gọi thử API Google Classroom để xác nhận quyền truy cập thực tế
+      const classroomRes = await fetch('https://classroom.googleapis.com/v1/courses?pageSize=5', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (!classroomRes.ok) {
+        const errText = await classroomRes.text();
+        return res.status(400).json({
+          ok: false,
+          error: {
+            code: 'DWD_API_REJECTED',
+            message: `Google API trả về lỗi (${classroomRes.status}): ${errText}`,
+            guide:
+              'Vui lòng kiểm tra xem tài khoản ủy quyền (Subject Email) đã được kích hoạt Google Classroom và Service Account đã được cấp Scopes trong Google Admin Console chưa.'
+          }
+        });
+      }
+
+      const classroomData = (await classroomRes.json()) as any;
+      const sampleCourses = (classroomData.courses || []).map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        section: c.section
+      }));
+
+      // Lưu lại adminSubject đã test thành công
+      await setSystemConfig('dwdConfig', {
+        ...dwdCfg,
+        adminSubject: subject,
+        lastTestedAt: new Date().toISOString(),
+        status: 'SUCCESS'
+      });
+
+      res.json({
+        ok: true,
+        status: 'SUCCESS',
+        adminSubject: subject,
+        clientEmail: sa.data.client_email,
+        clientId: sa.data.client_id,
+        coursesFound: classroomData.courses?.length || 0,
+        sampleCourses,
+        message: `Kết nối Domain-Wide Delegation (DWD) hoàn toàn thành công! Tìm thấy ${classroomData.courses?.length || 0} khóa học mẫu. Kết nối này sẽ tự động gia hạn vĩnh viễn không bao giờ hết hạn.`
+      });
+    } catch (err: any) {
+      const msg = err.message || String(err);
+      let guide = 'Vui lòng kiểm tra lại cấu hình Domain-Wide Delegation.';
+      if (msg.includes('unauthorized_client') || msg.includes('Client is unauthorized')) {
+        guide = `Service Account chưa được cấp quyền Domain-Wide Delegation trên Google Admin Console. Hãy truy cập https://admin.google.com -> Security -> Access and data control -> API controls -> Manage Domain Wide Delegation -> Add new -> Nhập Client ID: "${sa.data.client_id || 'Client ID trong file JSON'}" và thêm danh sách Scopes.`;
+      }
+
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 'DWD_TOKEN_FAILED',
+          message: `Lỗi kết nối DWD: ${msg}`,
+          guide,
+          clientId: sa.data.client_id,
+          serviceAccountEmail: sa.data.client_email
+        }
+      });
+    }
+  })
+);
+
 // Ngắt kết nối tài khoản Google
 connectionsRouter.post(
   '/disconnect',

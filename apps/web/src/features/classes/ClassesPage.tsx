@@ -49,8 +49,11 @@ import ChatIcon from '@mui/icons-material/ChatRounded';
 import ContentCopyIcon from '@mui/icons-material/ContentCopyRounded';
 import SyncIcon from '@mui/icons-material/SyncRounded';
 import CheckIcon from '@mui/icons-material/CheckRounded';
+import TableChartIcon from '@mui/icons-material/TableChartRounded';
+import DescriptionIcon from '@mui/icons-material/DescriptionRounded';
+import AutorenewIcon from '@mui/icons-material/AutorenewRounded';
 import { PageHeader } from '../../components/PageHeader';
-import { api } from '../../services/api';
+import { api, download } from '../../services/api';
 
 export interface ClassItem {
   id: string;
@@ -131,6 +134,64 @@ export default function ClassesPage() {
   // Sync Metrics State
   const [syncingMetrics, setSyncingMetrics] = useState(false);
 
+  // Báo cáo & Lọc Năm học
+  const [exportingExcel, setExportingExcel] = useState(false);
+  const [exportingWord, setExportingWord] = useState(false);
+  const [academicYearFilter, setAcademicYearFilter] = useState('all');
+
+  // Chuyển giao năm học mới (Rollover)
+  const [openRolloverDialog, setOpenRolloverDialog] = useState(false);
+  const [rolloverFromYear, setRolloverFromYear] = useState('2025–2026');
+  const [rolloverToYear, setRolloverToYear] = useState('2026–2027');
+  const [rolloverAutoPromote, setRolloverAutoPromote] = useState(true);
+  const [rolloverArchiveGraduates, setRolloverArchiveGraduates] = useState(true);
+  const [rolloverCreateGrade6, setRolloverCreateGrade6] = useState(true);
+  const [rolloverSubmitting, setRolloverSubmitting] = useState(false);
+
+  const handleDownloadExcel = async () => {
+    setExportingExcel(true);
+    try {
+      await download('/api/reports/classes.xlsx', 'So-Lop-Hoc-Si-So-THCS-Giang-Vo.xlsx');
+      setToast({ message: 'Đã xuất sổ lớp học & sĩ số Excel (.xlsx) thành công!', severity: 'success' });
+    } catch (err: any) {
+      setToast({ message: `Lỗi xuất Excel: ${err.message}`, severity: 'error' });
+    } finally {
+      setExportingExcel(false);
+    }
+  };
+
+  const handleDownloadWord = async () => {
+    setExportingWord(true);
+    try {
+      await download('/api/reports/nd30-summary.docx', 'Bao-Cao-Tong-Hop-ND30-THCS-Giang-Vo.docx');
+      setToast({ message: 'Đã xuất báo cáo Word chuẩn Nghị định 30/2020/NĐ-CP thành công!', severity: 'success' });
+    } catch (err: any) {
+      setToast({ message: `Lỗi xuất Word: ${err.message}`, severity: 'error' });
+    } finally {
+      setExportingWord(false);
+    }
+  };
+
+  const handleRolloverSubmit = async () => {
+    setRolloverSubmitting(true);
+    try {
+      const res = await api.post<{ ok: boolean; message: string; promoted: number; archived: number; created: number }>('/api/classes/rollover', {
+        fromYear: rolloverFromYear,
+        toYear: rolloverToYear
+      });
+      setToast({
+        message: res.message || `Đã chuyển giao năm học mới (${rolloverFromYear} ➜ ${rolloverToYear}) thành công!`,
+        severity: 'success'
+      });
+      setOpenRolloverDialog(false);
+      loadClasses();
+    } catch (err: any) {
+      setToast({ message: `Lỗi chuyển giao năm học: ${err.message}`, severity: 'error' });
+    } finally {
+      setRolloverSubmitting(false);
+    }
+  };
+
   // Handle Nudge Submit
   const handleNudgeSubmit = async () => {
     setNudgeSubmitting(true);
@@ -207,16 +268,23 @@ export default function ClassesPage() {
 
   const filteredItems = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return items;
-    return items.filter(
-      (c) =>
+    return items.filter((c) => {
+      const matchQ =
+        !q ||
         c.className.toLowerCase().includes(q) ||
         c.classId.toLowerCase().includes(q) ||
         (c.homeroomTeacher && c.homeroomTeacher.toLowerCase().includes(q)) ||
         (c.room && c.room.toLowerCase().includes(q)) ||
-        (c.teacherEmail && c.teacherEmail.toLowerCase().includes(q))
-    );
-  }, [items, search]);
+        (c.teacherEmail && c.teacherEmail.toLowerCase().includes(q));
+      if (!matchQ) return false;
+
+      if (academicYearFilter !== 'all') {
+        const text = `${(c as any).academicYear || ''} ${c.className}`.toLowerCase();
+        if (!text.includes(academicYearFilter.toLowerCase())) return false;
+      }
+      return true;
+    });
+  }, [items, search, academicYearFilter]);
 
   const pagedItems = useMemo(() => {
     const start = (page - 1) * rowsPerPage;
@@ -225,10 +293,10 @@ export default function ClassesPage() {
 
   const totalPages = Math.ceil(filteredItems.length / rowsPerPage) || 1;
 
-  // Reset page on search or grade change
+  // Reset page on search, grade change, or year change
   useEffect(() => {
     setPage(1);
-  }, [search, selectedGrade]);
+  }, [search, selectedGrade, academicYearFilter]);
 
   // Open Create Dialog
   const handleOpenCreate = () => {
@@ -372,6 +440,35 @@ export default function ClassesPage() {
           <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap">
             <Button
               variant="outlined"
+              color="inherit"
+              startIcon={exportingExcel ? <CircularProgress size={16} /> : <TableChartIcon sx={{ color: '#059669' }} />}
+              onClick={handleDownloadExcel}
+              disabled={exportingExcel}
+              sx={{ fontWeight: 600, textTransform: 'none', borderRadius: 2 }}
+            >
+              {exportingExcel ? 'Đang xuất...' : 'Xuất Excel'}
+            </Button>
+            <Button
+              variant="outlined"
+              color="inherit"
+              startIcon={exportingWord ? <CircularProgress size={16} /> : <DescriptionIcon sx={{ color: '#dc2626' }} />}
+              onClick={handleDownloadWord}
+              disabled={exportingWord}
+              sx={{ fontWeight: 600, textTransform: 'none', borderRadius: 2 }}
+            >
+              {exportingWord ? 'Đang xuất...' : 'Báo cáo Word NĐ30'}
+            </Button>
+            <Button
+              variant="outlined"
+              color="primary"
+              startIcon={<AutorenewIcon sx={{ color: '#2563eb' }} />}
+              onClick={() => setOpenRolloverDialog(true)}
+              sx={{ fontWeight: 600, textTransform: 'none', borderRadius: 2 }}
+            >
+              Chuyển giao năm học
+            </Button>
+            <Button
+              variant="outlined"
               color="warning"
               startIcon={<CampaignIcon />}
               onClick={() => {
@@ -512,6 +609,17 @@ export default function ClassesPage() {
             }}
             sx={{ flex: 1, minWidth: 240 }}
           />
+
+          <Select
+            size="small"
+            value={academicYearFilter}
+            onChange={(e) => setAcademicYearFilter(e.target.value)}
+            sx={{ minWidth: 160 }}
+          >
+            <MenuItem value="all">Tất cả năm học</MenuItem>
+            <MenuItem value="2025–2026">Năm học 2025–2026</MenuItem>
+            <MenuItem value="2026–2027">Năm học 2026–2027</MenuItem>
+          </Select>
 
           <Select
             size="small"
@@ -1158,6 +1266,127 @@ export default function ClassesPage() {
             }}
           >
             {copied ? 'Đã sao chép!' : 'Sao chép tin nhắn'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* DIALOG: CHUYỂN GIAO NIÊN KHÓA & NĂM HỌC MỚI (YEARLY ROLLOVER) */}
+      <Dialog
+        open={openRolloverDialog}
+        onClose={() => !rolloverSubmitting && setOpenRolloverDialog(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: '16px' } }}
+      >
+        <DialogTitle sx={{ fontWeight: 700, fontSize: '1.125rem', color: '#0f172a', display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <AutorenewIcon sx={{ color: '#2563eb' }} />
+          Chuyển Giao Niên Khóa & Năm Học Mới (Rollover)
+        </DialogTitle>
+        <DialogContent dividers sx={{ borderColor: '#e2e8f0' }}>
+          <Stack spacing={2.5} sx={{ pt: 1 }}>
+            <Box sx={{ p: 2, bgcolor: '#eff6ff', borderRadius: 2, border: '1px solid #bfdbfe' }}>
+              <Typography variant="subtitle2" fontWeight={700} sx={{ color: '#1e40af', mb: 0.5 }}>
+                Chu trình chuyển giao năm học THCS:
+              </Typography>
+              <Typography variant="body2" sx={{ color: '#1e3a8a', fontSize: '0.8125rem', lineHeight: 1.6 }}>
+                • <strong>Thăng hạng khối lớp:</strong> Khối 6 ➜ 7, Khối 7 ➜ 8, Khối 8 ➜ 9.<br />
+                • <strong>Tốt nghiệp ra trường:</strong> Toàn bộ lớp Khối 9 chuyển sang trạng thái <em>Lưu trữ (Archive)</em> để tra cứu học bạ lịch sử.<br />
+                • <strong>Đầu cấp mới:</strong> Tự động khởi tạo khung 8 lớp Khối 6 mới (6A1 – 6A8) tiếp nhận học sinh tuyển sinh mới.
+              </Typography>
+            </Box>
+
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  label="Niên khóa hiện tại"
+                  value={rolloverFromYear}
+                  disabled
+                  fullWidth
+                  size="small"
+                  helperText="Năm học kết thúc"
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  label="Niên khóa mới chuyển tới"
+                  value={rolloverToYear}
+                  onChange={(e) => setRolloverToYear(e.target.value)}
+                  fullWidth
+                  size="small"
+                  helperText="Năm học mới bắt đầu"
+                />
+              </Grid>
+            </Grid>
+
+            <Box sx={{ border: '1px solid #e2e8f0', p: 1.5, borderRadius: 2, bgcolor: '#f8fafc' }}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={rolloverAutoPromote}
+                    onChange={(e) => setRolloverAutoPromote(e.target.checked)}
+                    size="small"
+                    color="primary"
+                  />
+                }
+                label={
+                  <Typography variant="body2" fontWeight={600} sx={{ color: '#334155' }}>
+                    Tự động thăng khối (Khối 6 ➜ 7, 7 ➜ 8, 8 ➜ 9)
+                  </Typography>
+                }
+              />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={rolloverArchiveGraduates}
+                    onChange={(e) => setRolloverArchiveGraduates(e.target.checked)}
+                    size="small"
+                    color="primary"
+                  />
+                }
+                label={
+                  <Typography variant="body2" fontWeight={600} sx={{ color: '#334155' }}>
+                    Lưu trữ các lớp Khối 9 đã hoàn thành chương trình tốt nghiệp
+                  </Typography>
+                }
+              />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={rolloverCreateGrade6}
+                    onChange={(e) => setRolloverCreateGrade6(e.target.checked)}
+                    size="small"
+                    color="primary"
+                  />
+                }
+                label={
+                  <Typography variant="body2" fontWeight={600} sx={{ color: '#334155' }}>
+                    Khởi tạo khung 8 lớp Khối 6 mới tiếp nhận học sinh đầu cấp
+                  </Typography>
+                }
+              />
+            </Box>
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={() => setOpenRolloverDialog(false)} disabled={rolloverSubmitting} sx={{ textTransform: 'none', color: '#64748b' }}>
+            Hủy
+          </Button>
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={rolloverSubmitting ? <CircularProgress size={16} color="inherit" /> : <AutorenewIcon />}
+            onClick={handleRolloverSubmit}
+            disabled={rolloverSubmitting}
+            sx={{
+              fontWeight: 700,
+              textTransform: 'none',
+              borderRadius: '8px',
+              px: 2.5,
+              bgcolor: '#2563eb',
+              '&:hover': { bgcolor: '#1d4ed8' }
+            }}
+          >
+            {rolloverSubmitting ? 'Đang chuyển giao...' : 'Xác nhận chuyển giao'}
           </Button>
         </DialogActions>
       </Dialog>
