@@ -294,6 +294,19 @@ const navGroups: NavGroup[] = [
         icon: <StudentsIcon fontSize="small" />
       },
       {
+        // Sin yêu cầu 2026-09-25: "mở hiển lớp học 360 cho tk quản trị viên
+        // cấp cao nhất" — CHỈ mở cho FermatTech (adminOnly), không mở rộng
+        // cho trường: trang này CHỈ tái dùng đúng API danh sách học sinh
+        // (`/api/people/students`, xem Student360Page.tsx), CHƯA có phép
+        // tính hồ sơ 360° thật nào (lịch sử sự cố/điểm danh/học lực tổng
+        // hợp) — gắn nhãn BETA để không hiểu nhầm ngay cả với admin.
+        path: '/students/360',
+        label: 'Hồ sơ 360° (xem trước)',
+        icon: <InsightsRoundedIcon fontSize="small" />,
+        badge: 'BETA',
+        adminOnly: true
+      },
+      {
         path: '/teachers',
         label: 'Đội ngũ Giáo viên',
         icon: <TeachersIcon fontSize="small" />,
