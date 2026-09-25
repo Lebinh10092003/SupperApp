@@ -20,7 +20,19 @@ import {
   TableCell,
   TableBody,
   TableContainer,
-  LinearProgress
+  LinearProgress,
+  TextField,
+  InputAdornment,
+  Tabs,
+  Tab,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  IconButton,
+  Avatar,
+  Divider,
+  Tooltip as MuiTooltip
 } from '@mui/material';
 import {
   LineChart,
@@ -48,6 +60,14 @@ import CloudSyncIcon from '@mui/icons-material/CloudSyncRounded';
 import RefreshIcon from '@mui/icons-material/RefreshRounded';
 import BadgeIcon from '@mui/icons-material/BadgeRounded';
 import OpenInNewIcon from '@mui/icons-material/OpenInNewRounded';
+import CampaignIcon from '@mui/icons-material/CampaignRounded';
+import SearchIcon from '@mui/icons-material/SearchRounded';
+import CloseIcon from '@mui/icons-material/CloseRounded';
+import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded';
+import FactCheckRoundedIcon from '@mui/icons-material/FactCheckRounded';
+import CalendarTodayRoundedIcon from '@mui/icons-material/CalendarTodayRounded';
+import AttachFileRoundedIcon from '@mui/icons-material/AttachFileRounded';
+import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
 
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
@@ -244,6 +264,74 @@ export default function DashboardPage() {
 
   const [pulseData, setPulseData] = useState<any | null>(null);
 
+  // Tab điều hành chính trên Dashboard: 0: Analytics, 1: Classes, 2: Assignments, 3: Announcements
+  const [dashboardTab, setDashboardTab] = useState(0);
+
+  // State Ngân hàng Bài tập
+  const [assignments, setAssignments] = useState<any[]>([]);
+  const [loadingAssignments, setLoadingAssignments] = useState(false);
+  const [assignmentSearch, setAssignmentSearch] = useState('');
+  const [assignmentClassFilter, setAssignmentClassFilter] = useState('ALL');
+  const [selectedAssignment, setSelectedAssignment] = useState<any | null>(null);
+  const [openAssignmentDialog, setOpenAssignmentDialog] = useState(false);
+
+  // State Bảng tin & Thông báo
+  const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [loadingAnnouncements, setLoadingAnnouncements] = useState(false);
+  const [announcementSearch, setAnnouncementSearch] = useState('');
+  const [announcementClassFilter, setAnnouncementClassFilter] = useState('ALL');
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState<any | null>(null);
+  const [openAnnouncementDialog, setOpenAnnouncementDialog] = useState(false);
+
+  // State Chi tiết Lớp học
+  const [classSearch, setClassSearch] = useState('');
+  const [classGradeFilter, setClassGradeFilter] = useState('all');
+  const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
+  const [classDetail, setClassDetail] = useState<any | null>(null);
+  const [loadingClassDetail, setLoadingClassDetail] = useState(false);
+  const [openClassDetailDialog, setOpenClassDetailDialog] = useState(false);
+  const [classDetailTab, setClassDetailTab] = useState(0);
+
+  const fetchAssignments = async () => {
+    setLoadingAssignments(true);
+    try {
+      const res = await api.get<{ total: number; items: any[] }>('/api/dashboard/assignments?limit=100');
+      setAssignments(res.items || []);
+    } catch {
+      setAssignments([]);
+    } finally {
+      setLoadingAssignments(false);
+    }
+  };
+
+  const fetchAnnouncements = async () => {
+    setLoadingAnnouncements(true);
+    try {
+      const res = await api.get<{ total: number; items: any[] }>('/api/dashboard/announcements?limit=100');
+      setAnnouncements(res.items || []);
+    } catch {
+      setAnnouncements([]);
+    } finally {
+      setLoadingAnnouncements(false);
+    }
+  };
+
+  const handleOpenClassDetail = async (clsId: string) => {
+    setSelectedClassId(clsId);
+    setOpenClassDetailDialog(true);
+    setClassDetail(null);
+    setLoadingClassDetail(true);
+    setClassDetailTab(0);
+    try {
+      const res = await api.get<any>(`/api/classes/${encodeURIComponent(clsId)}`);
+      setClassDetail(res);
+    } catch (err: any) {
+      console.error('Failed to load class detail', err);
+    } finally {
+      setLoadingClassDetail(false);
+    }
+  };
+
   const fetchAcademicPulse = async () => {
     try {
       const res = await api.get<any>('/api/dashboard/academic-pulse');
@@ -256,7 +344,79 @@ export default function DashboardPage() {
   useEffect(() => {
     fetchOverview();
     fetchAcademicPulse();
+    fetchAssignments();
+    fetchAnnouncements();
   }, [period, grade]);
+
+  useEffect(() => {
+    if (dashboardTab === 2 && assignments.length === 0) {
+      fetchAssignments();
+    } else if (dashboardTab === 3 && announcements.length === 0) {
+      fetchAnnouncements();
+    }
+  }, [dashboardTab]);
+
+  // Bộ lọc danh sách lớp
+  const filteredClasses = useMemo(() => {
+    return classes.filter((cls) => {
+      const q = classSearch.trim().toLowerCase();
+      const matchQ =
+        !q ||
+        (cls.className && cls.className.toLowerCase().includes(q)) ||
+        (cls.homeroomTeacher && cls.homeroomTeacher.toLowerCase().includes(q)) ||
+        (cls.room && cls.room.toLowerCase().includes(q));
+
+      const matchGrade =
+        classGradeFilter === 'all' ||
+        String(cls.grade) === classGradeFilter;
+
+      return matchQ && matchGrade;
+    });
+  }, [classes, classSearch, classGradeFilter]);
+
+  // Bộ lọc danh sách bài tập
+  const filteredAssignments = useMemo(() => {
+    return assignments.filter((a) => {
+      const q = assignmentSearch.trim().toLowerCase();
+      const matchQ =
+        !q ||
+        (a.title && a.title.toLowerCase().includes(q)) ||
+        (a.subjectName && a.subjectName.toLowerCase().includes(q)) ||
+        (a.className && a.className.toLowerCase().includes(q));
+
+      const matchClass =
+        assignmentClassFilter === 'ALL' ||
+        a.classId === assignmentClassFilter ||
+        a.className === assignmentClassFilter;
+
+      return matchQ && matchClass;
+    });
+  }, [assignments, assignmentSearch, assignmentClassFilter]);
+
+  // Bộ lọc danh sách thông báo
+  const filteredAnnouncements = useMemo(() => {
+    return announcements.filter((ann) => {
+      const q = announcementSearch.trim().toLowerCase();
+      const matchQ =
+        !q ||
+        (ann.text && ann.text.toLowerCase().includes(q)) ||
+        (ann.subjectName && ann.subjectName.toLowerCase().includes(q)) ||
+        (ann.className && ann.className.toLowerCase().includes(q));
+
+      const matchClass =
+        announcementClassFilter === 'ALL' ||
+        ann.classId === announcementClassFilter ||
+        ann.className === announcementClassFilter;
+
+      return matchQ && matchClass;
+    });
+  }, [announcements, announcementSearch, announcementClassFilter]);
+
+  // Danh sách các lớp cho dropdown
+  const classOptions = useMemo(() => {
+    const list = classes.map((c) => ({ id: c.classId || c.className, name: c.className || c.classId }));
+    return list.filter((v, idx, arr) => arr.findIndex((x) => x.id === v.id) === idx);
+  }, [classes]);
 
   const handleQuickSync = async () => {
     setSyncing(true);
@@ -707,8 +867,48 @@ export default function DashboardPage() {
         </Grid>
       </Grid>
 
-      {/* Biểu đồ Xu hướng Hoàn thành theo thời gian */}
-      <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', bgcolor: '#ffffff', boxShadow: '0 1px 3px 0 rgba(15, 23, 42, 0.04)', p: 3, mb: 3 }}>
+      {/* THANH TAB ĐIỀU HÀNH TRUNG TÂM DASHBOARD */}
+      <Box sx={{ borderBottom: '2px solid #e2e8f0', mb: 3 }}>
+        <Tabs
+          value={dashboardTab}
+          onChange={(_, val) => setDashboardTab(val)}
+          sx={{
+            '& .MuiTab-root': {
+              textTransform: 'none',
+              fontWeight: 700,
+              fontSize: '0.92rem',
+              py: 1.5,
+              minHeight: 48
+            }
+          }}
+        >
+          <Tab
+            icon={<GridViewIcon sx={{ fontSize: 18 }} />}
+            iconPosition="start"
+            label="📊 Phân Tích & Chỉ Báo Học Tập"
+          />
+          <Tab
+            icon={<SchoolIcon sx={{ fontSize: 18 }} />}
+            iconPosition="start"
+            label={`🏫 Chi Tiết Lớp Học (${classes.length})`}
+          />
+          <Tab
+            icon={<AssignmentIcon sx={{ fontSize: 18 }} />}
+            iconPosition="start"
+            label={`📝 Ngân Hàng Bài Tập (${assignments.length})`}
+          />
+          <Tab
+            icon={<CampaignIcon sx={{ fontSize: 18 }} />}
+            iconPosition="start"
+            label={`📢 Bảng Tin & Thông Báo (${announcements.length})`}
+          />
+        </Tabs>
+      </Box>
+
+      {dashboardTab === 0 && (
+        <>
+          {/* Biểu đồ Xu hướng Hoàn thành theo thời gian */}
+          <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', bgcolor: '#ffffff', boxShadow: '0 1px 3px 0 rgba(15, 23, 42, 0.04)', p: 3, mb: 3 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2.5, flexWrap: 'wrap', gap: 1 }}>
           <Box>
             <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#0f172a', letterSpacing: '-0.02em', lineHeight: 1.2 }}>
@@ -1026,5 +1226,1097 @@ export default function DashboardPage() {
         </Grid>
       )}
     </>
-  );
+  )}
+
+  {/* TAB 1: CHI TIẾT TỪNG LỚP HỌC (SCHOOL CLASSES COCKPIT) */}
+  {dashboardTab === 1 && (
+    <Box sx={{ mb: 4 }}>
+      {/* Thanh công cụ tìm kiếm và lọc lớp */}
+      <Card sx={{ p: 2, mb: 2.5, borderRadius: 2.5, border: '1px solid #e2e8f0', bgcolor: '#ffffff' }}>
+        <Grid container spacing={2} alignItems="center">
+          <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+            <TextField
+              size="small"
+              fullWidth
+              placeholder="Tìm theo tên lớp, GVCN, phòng..."
+              value={classSearch}
+              onChange={(e) => setClassSearch(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon sx={{ color: '#94a3b8', fontSize: 20 }} />
+                  </InputAdornment>
+                )
+              }}
+            />
+          </Grid>
+          <Grid size={{ xs: 6, sm: 3, md: 2.5 }}>
+            <FormControl size="small" fullWidth>
+              <InputLabel>Khối</InputLabel>
+              <Select
+                value={classGradeFilter}
+                label="Khối"
+                onChange={(e) => setClassGradeFilter(e.target.value)}
+              >
+                <MenuItem value="all">Tất cả các khối</MenuItem>
+                <MenuItem value="6">Khối 6</MenuItem>
+                <MenuItem value="7">Khối 7</MenuItem>
+                <MenuItem value="8">Khối 8</MenuItem>
+                <MenuItem value="9">Khối 9</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid size={{ xs: 6, sm: 3, md: 5.5 }}>
+            <Box sx={{ display: 'flex', justifyContent: { xs: 'flex-start', md: 'flex-end' }, alignItems: 'center', gap: 1 }}>
+              <Typography variant="body2" sx={{ color: '#64748b' }}>
+                Hiển thị <strong>{filteredClasses.length}</strong> / {classes.length} lớp học
+              </Typography>
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<SchoolIcon />}
+                onClick={() => navigate('/classes')}
+                sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 1.5 }}
+              >
+                Quản Lý Lớp Học
+              </Button>
+            </Box>
+          </Grid>
+        </Grid>
+      </Card>
+
+      {/* Bảng danh sách lớp học */}
+      <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', bgcolor: '#ffffff', overflow: 'hidden' }}>
+        <TableContainer>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ fontWeight: 800, bgcolor: '#f8fafc', width: 45 }}>#</TableCell>
+                <TableCell sx={{ fontWeight: 800, bgcolor: '#f8fafc' }}>Lớp học</TableCell>
+                <TableCell sx={{ fontWeight: 800, bgcolor: '#f8fafc' }}>Khối</TableCell>
+                <TableCell sx={{ fontWeight: 800, bgcolor: '#f8fafc' }}>Giáo viên chủ nhiệm</TableCell>
+                <TableCell sx={{ fontWeight: 800, bgcolor: '#f8fafc' }}>Phòng</TableCell>
+                <TableCell align="center" sx={{ fontWeight: 800, bgcolor: '#f8fafc' }}>Sĩ số SSOT</TableCell>
+                <TableCell sx={{ fontWeight: 800, bgcolor: '#f8fafc', minWidth: 150 }}>Tiến độ nộp bài</TableCell>
+                <TableCell align="center" sx={{ fontWeight: 800, bgcolor: '#f8fafc' }}>Đúng hạn</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 800, bgcolor: '#f8fafc' }}>Thao tác</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {filteredClasses.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={9} align="center" sx={{ py: 6, color: '#64748b' }}>
+                    Không tìm thấy lớp học nào phù hợp với điều kiện tìm kiếm.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredClasses.map((cls, idx) => (
+                  <TableRow key={cls.classId || idx} hover>
+                    <TableCell sx={{ color: '#64748b', fontSize: '0.8rem' }}>{idx + 1}</TableCell>
+                    <TableCell>
+                      <Typography
+                        variant="subtitle2"
+                        sx={{
+                          fontWeight: 800,
+                          color: '#2563eb',
+                          cursor: 'pointer',
+                          '&:hover': { textDecoration: 'underline' }
+                        }}
+                        onClick={() => handleOpenClassDetail(cls.classId)}
+                      >
+                        {cls.className}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Chip label={`Khối ${cls.grade || '—'}`} size="small" sx={{ fontWeight: 700, fontSize: '0.72rem' }} />
+                    </TableCell>
+                    <TableCell sx={{ color: '#334155', fontWeight: 600, fontSize: '0.85rem' }}>
+                      {cls.homeroomTeacher || 'Chưa phân công'}
+                    </TableCell>
+                    <TableCell sx={{ color: '#64748b', fontSize: '0.82rem' }}>
+                      {cls.room || '—'}
+                    </TableCell>
+                    <TableCell align="center">
+                      <Chip label={`${cls.studentCount || 0} HS`} size="small" color="primary" variant="outlined" sx={{ fontWeight: 700 }} />
+                    </TableCell>
+                    <TableCell>
+                      <Stack spacing={0.5}>
+                        <Stack direction="row" justifyContent="space-between">
+                          <Typography variant="caption" sx={{ fontWeight: 700, color: (cls.completionRate || 0) < 70 ? '#dc2626' : '#16a34a' }}>
+                            {cls.completionRate || 0}%
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: '#64748b' }}>
+                            {cls.courseCount || 0} môn
+                          </Typography>
+                        </Stack>
+                        <LinearProgress
+                          variant="determinate"
+                          value={Math.min(100, cls.completionRate || 0)}
+                          color={(cls.completionRate || 0) >= 80 ? 'success' : (cls.completionRate || 0) >= 60 ? 'warning' : 'error'}
+                          sx={{ height: 6, borderRadius: 3 }}
+                        />
+                      </Stack>
+                    </TableCell>
+                    <TableCell align="center">
+                      <Typography variant="body2" sx={{ fontWeight: 700, color: (cls.onTimeRate || 0) >= 75 ? '#0284c7' : '#d97706' }}>
+                        {cls.onTimeRate || 0}%
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="right">
+                      <Stack direction="row" spacing={1} justifyContent="flex-end">
+                        <Button
+                          size="small"
+                          variant="contained"
+                          startIcon={<VisibilityRoundedIcon sx={{ fontSize: 14 }} />}
+                          onClick={() => handleOpenClassDetail(cls.classId)}
+                          sx={{ textTransform: 'none', fontWeight: 700, fontSize: '0.75rem', borderRadius: 1.5, bgcolor: '#2563eb', px: 1.5 }}
+                        >
+                          Chi tiết
+                        </Button>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          color="warning"
+                          onClick={handleNudgeSubmissions}
+                          sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.75rem', borderRadius: 1.5, px: 1 }}
+                        >
+                          Đôn đốc
+                        </Button>
+                      </Stack>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Card>
+    </Box>
+  )}
+
+  {/* TAB 2: NGÂN HÀNG BÀI TẬP (COURSEWORK FEED) */}
+  {dashboardTab === 2 && (
+    <Box sx={{ mb: 4 }}>
+      {/* Thanh lọc bài tập */}
+      <Card sx={{ p: 2, mb: 2.5, borderRadius: 2.5, border: '1px solid #e2e8f0', bgcolor: '#ffffff' }}>
+        <Grid container spacing={2} alignItems="center">
+          <Grid size={{ xs: 12, sm: 6, md: 5 }}>
+            <TextField
+              size="small"
+              fullWidth
+              placeholder="Tìm theo tiêu đề bài tập, tên môn..."
+              value={assignmentSearch}
+              onChange={(e) => setAssignmentSearch(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon sx={{ color: '#94a3b8', fontSize: 20 }} />
+                  </InputAdornment>
+                )
+              }}
+            />
+          </Grid>
+          <Grid size={{ xs: 6, sm: 3, md: 3 }}>
+            <FormControl size="small" fullWidth>
+              <InputLabel>Lọc theo Lớp</InputLabel>
+              <Select
+                value={assignmentClassFilter}
+                label="Lọc theo Lớp"
+                onChange={(e) => setAssignmentClassFilter(e.target.value)}
+              >
+                <MenuItem value="ALL">Tất cả các lớp</MenuItem>
+                {classOptions.map((c) => (
+                  <MenuItem key={c.id} value={c.id}>
+                    {c.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid size={{ xs: 6, sm: 3, md: 4 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 1 }}>
+              <Typography variant="body2" sx={{ color: '#64748b' }}>
+                Có <strong>{filteredAssignments.length}</strong> bài tập
+              </Typography>
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<RefreshIcon />}
+                onClick={fetchAssignments}
+                disabled={loadingAssignments}
+                sx={{ textTransform: 'none', borderRadius: 1.5 }}
+              >
+                Làm mới
+              </Button>
+            </Box>
+          </Grid>
+        </Grid>
+      </Card>
+
+      {/* Bảng danh sách bài tập */}
+      <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', bgcolor: '#ffffff', overflow: 'hidden' }}>
+        {loadingAssignments ? (
+          <Box sx={{ py: 8, textAlign: 'center' }}>
+            <CircularProgress size={32} />
+            <Typography variant="body2" sx={{ color: '#64748b', mt: 1 }}>
+              Đang nạp ngân hàng bài tập Google Classroom...
+            </Typography>
+          </Box>
+        ) : filteredAssignments.length === 0 ? (
+          <Box sx={{ py: 8, textAlign: 'center' }}>
+            <AssignmentIcon sx={{ fontSize: 44, color: '#cbd5e1', mb: 1 }} />
+            <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#64748b' }}>
+              Chưa có bài tập nào phù hợp
+            </Typography>
+            <Typography variant="caption" sx={{ color: '#94a3b8' }}>
+              Các bài tập được tự động đồng bộ từ Google Classroom
+            </Typography>
+          </Box>
+        ) : (
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 800, bgcolor: '#f8fafc', width: 45 }}>#</TableCell>
+                  <TableCell sx={{ fontWeight: 800, bgcolor: '#f8fafc', minWidth: 240 }}>Tiêu đề bài tập</TableCell>
+                  <TableCell sx={{ fontWeight: 800, bgcolor: '#f8fafc' }}>Môn học</TableCell>
+                  <TableCell sx={{ fontWeight: 800, bgcolor: '#f8fafc' }}>Lớp</TableCell>
+                  <TableCell sx={{ fontWeight: 800, bgcolor: '#f8fafc' }}>Hạn nộp</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 800, bgcolor: '#f8fafc' }}>Thang điểm</TableCell>
+                  <TableCell sx={{ fontWeight: 800, bgcolor: '#f8fafc', minWidth: 140 }}>Tiến độ nộp</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 800, bgcolor: '#f8fafc' }}>Thao tác</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {filteredAssignments.map((a, idx) => (
+                  <TableRow key={a.id || idx} hover>
+                    <TableCell sx={{ color: '#64748b', fontSize: '0.8rem' }}>{idx + 1}</TableCell>
+                    <TableCell>
+                      <Typography
+                        variant="subtitle2"
+                        sx={{
+                          fontWeight: 700,
+                          color: '#0f172a',
+                          cursor: 'pointer',
+                          '&:hover': { color: '#2563eb', textDecoration: 'underline' }
+                        }}
+                        onClick={() => {
+                          setSelectedAssignment(a);
+                          setOpenAssignmentDialog(true);
+                        }}
+                      >
+                        {a.title}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Chip label={a.subjectName} size="small" color="primary" variant="outlined" sx={{ fontWeight: 700, fontSize: '0.72rem' }} />
+                    </TableCell>
+                    <TableCell>
+                      <Chip label={a.className} size="small" sx={{ fontWeight: 700, bgcolor: '#f1f5f9', fontSize: '0.72rem' }} />
+                    </TableCell>
+                    <TableCell sx={{ color: '#475569', fontSize: '0.82rem' }}>
+                      <Stack direction="row" spacing={0.5} alignItems="center">
+                        <CalendarTodayRoundedIcon sx={{ fontSize: 13, color: '#94a3b8' }} />
+                        <span>{a.dueDate || 'Không hạn chót'}</span>
+                      </Stack>
+                    </TableCell>
+                    <TableCell align="center">
+                      <Chip label={`${a.maxPoints}đ`} size="small" sx={{ fontWeight: 700, bgcolor: '#f0fdf4', color: '#166534' }} />
+                    </TableCell>
+                    <TableCell>
+                      <Stack spacing={0.5}>
+                        <Typography variant="caption" sx={{ fontWeight: 700, color: a.completionRate >= 70 ? '#16a34a' : '#d97706' }}>
+                          {a.turnedInCount}/{a.totalStudents} HS ({a.completionRate}%)
+                        </Typography>
+                        <LinearProgress
+                          variant="determinate"
+                          value={Math.min(100, a.completionRate)}
+                          color={a.completionRate >= 70 ? 'success' : 'warning'}
+                          sx={{ height: 5, borderRadius: 2.5 }}
+                        />
+                      </Stack>
+                    </TableCell>
+                    <TableCell align="right">
+                      <Stack direction="row" spacing={0.75} justifyContent="flex-end">
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() => {
+                            setSelectedAssignment(a);
+                            setOpenAssignmentDialog(true);
+                          }}
+                          sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.72rem', borderRadius: 1.5, py: 0.25 }}
+                        >
+                          Chi tiết
+                        </Button>
+                        {a.alternateLink && (
+                          <MuiTooltip title="Mở trên Google Classroom">
+                            <IconButton
+                              size="small"
+                              component="a"
+                              href={a.alternateLink}
+                              target="_blank"
+                              rel="noreferrer"
+                              sx={{ color: '#2563eb', bgcolor: '#eff6ff' }}
+                            >
+                              <OpenInNewIcon sx={{ fontSize: 14 }} />
+                            </IconButton>
+                          </MuiTooltip>
+                        )}
+                      </Stack>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
+      </Card>
+    </Box>
+  )}
+
+  {/* TAB 3: BẢNG TIN & THÔNG BÁO LỚP HỌC (ANNOUNCEMENTS FEED) */}
+  {dashboardTab === 3 && (
+    <Box sx={{ mb: 4 }}>
+      {/* Thanh lọc thông báo */}
+      <Card sx={{ p: 2, mb: 2.5, borderRadius: 2.5, border: '1px solid #e2e8f0', bgcolor: '#ffffff' }}>
+        <Grid container spacing={2} alignItems="center">
+          <Grid size={{ xs: 12, sm: 6, md: 5 }}>
+            <TextField
+              size="small"
+              fullWidth
+              placeholder="Tìm kiếm nội dung thông báo..."
+              value={announcementSearch}
+              onChange={(e) => setAnnouncementSearch(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon sx={{ color: '#94a3b8', fontSize: 20 }} />
+                  </InputAdornment>
+                )
+              }}
+            />
+          </Grid>
+          <Grid size={{ xs: 6, sm: 3, md: 3 }}>
+            <FormControl size="small" fullWidth>
+              <InputLabel>Lọc theo Lớp</InputLabel>
+              <Select
+                value={announcementClassFilter}
+                label="Lọc theo Lớp"
+                onChange={(e) => setAnnouncementClassFilter(e.target.value)}
+              >
+                <MenuItem value="ALL">Tất cả các lớp</MenuItem>
+                {classOptions.map((c) => (
+                  <MenuItem key={c.id} value={c.id}>
+                    {c.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid size={{ xs: 6, sm: 3, md: 4 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 1 }}>
+              <Typography variant="body2" sx={{ color: '#64748b' }}>
+                Có <strong>{filteredAnnouncements.length}</strong> thông báo
+              </Typography>
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<RefreshIcon />}
+                onClick={fetchAnnouncements}
+                disabled={loadingAnnouncements}
+                sx={{ textTransform: 'none', borderRadius: 1.5 }}
+              >
+                Làm mới
+              </Button>
+            </Box>
+          </Grid>
+        </Grid>
+      </Card>
+
+      {/* Danh sách thông báo */}
+      {loadingAnnouncements ? (
+        <Box sx={{ py: 8, textAlign: 'center' }}>
+          <CircularProgress size={32} />
+          <Typography variant="body2" sx={{ color: '#64748b', mt: 1 }}>
+            Đang tải thông báo từ Google Classroom...
+          </Typography>
+        </Box>
+      ) : filteredAnnouncements.length === 0 ? (
+        <Card sx={{ p: 6, textAlign: 'center', borderRadius: 3, border: '1px solid #e2e8f0', bgcolor: '#ffffff' }}>
+          <CampaignIcon sx={{ fontSize: 44, color: '#cbd5e1', mb: 1 }} />
+          <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#64748b' }}>
+            Chưa có thông báo nào từ các lớp
+          </Typography>
+          <Typography variant="caption" sx={{ color: '#94a3b8' }}>
+            Khi giáo viên đăng thông báo hoặc dặn dò trên Google Classroom, nội dung sẽ lập tức hiển thị tại đây.
+          </Typography>
+        </Card>
+      ) : (
+        <Grid container spacing={2}>
+          {filteredAnnouncements.map((ann, idx) => (
+            <Grid size={{ xs: 12, md: 6 }} key={ann.id || idx}>
+              <Card
+                sx={{
+                  p: 2.5,
+                  borderRadius: 3,
+                  border: '1px solid #e2e8f0',
+                  bgcolor: '#ffffff',
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                  transition: 'all 0.15s ease-in-out',
+                  '&:hover': {
+                    borderColor: '#bfdbfe',
+                    boxShadow: '0 4px 12px rgba(37, 99, 235, 0.08)'
+                  }
+                }}
+              >
+                <Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Chip label={ann.className} size="small" color="primary" sx={{ fontWeight: 700, fontSize: '0.72rem' }} />
+                      <Chip label={ann.subjectName} size="small" variant="outlined" sx={{ fontWeight: 600, fontSize: '0.72rem' }} />
+                    </Stack>
+                    <Typography variant="caption" sx={{ color: '#94a3b8' }}>
+                      {ann.creationTime ? new Date(ann.creationTime).toLocaleDateString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                    </Typography>
+                  </Box>
+
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: '#1e293b',
+                      fontWeight: 500,
+                      lineHeight: 1.6,
+                      display: '-webkit-box',
+                      WebkitLineClamp: 3,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
+                    }}
+                  >
+                    {ann.text}
+                  </Typography>
+
+                  {ann.materials?.length > 0 && (
+                    <Box sx={{ mt: 1.5, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <AttachFileRoundedIcon sx={{ fontSize: 15, color: '#64748b' }} />
+                      <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600 }}>
+                        {ann.materials.length} tệp / liên kết đính kèm
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
+
+                <Box sx={{ pt: 2, borderTop: '1px solid #f1f5f9', mt: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Button
+                    size="small"
+                    variant="text"
+                    onClick={() => {
+                      setSelectedAnnouncement(ann);
+                      setOpenAnnouncementDialog(true);
+                    }}
+                    sx={{ textTransform: 'none', fontWeight: 700, color: '#2563eb', p: 0 }}
+                  >
+                    Xem toàn văn
+                  </Button>
+                  {ann.alternateLink && (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      href={ann.alternateLink}
+                      target="_blank"
+                      rel="noreferrer"
+                      endIcon={<OpenInNewIcon sx={{ fontSize: 13 }} />}
+                      sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.72rem', borderRadius: 1.5, py: 0.25 }}
+                    >
+                      Classroom
+                    </Button>
+                  )}
+                </Box>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+      )}
+    </Box>
+  )}
+
+  {/* DIALOG 1: CHI TIẾT LỚP HỌC TOÀN DIỆN NGAY TRÊN DASHBOARD */}
+  <Dialog
+    open={openClassDetailDialog}
+    onClose={() => setOpenClassDetailDialog(false)}
+    maxWidth="md"
+    fullWidth
+  >
+    <DialogTitle sx={{ px: 3, pt: 2.5, pb: 1.5, borderBottom: '1px solid #e2e8f0', bgcolor: '#f8fafc' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Box>
+          <Typography variant="h6" sx={{ fontWeight: 800, color: '#0f172a' }}>
+            Lớp {classDetail?.class?.className || selectedClassId} — Chi Tiết Điều Hành Lớp Học
+          </Typography>
+          <Typography variant="caption" sx={{ color: '#64748b' }}>
+            GVCN: <strong>{classDetail?.class?.homeroomTeacher || 'Chưa phân công'}</strong> • Sĩ số SSOT: <strong>{classDetail?.students?.length || 0} học sinh</strong> • Phòng: <strong>{classDetail?.class?.room || '—'}</strong>
+          </Typography>
+        </Box>
+        <IconButton size="small" onClick={() => setOpenClassDetailDialog(false)}>
+          <CloseIcon fontSize="small" />
+        </IconButton>
+      </Box>
+    </DialogTitle>
+
+    <DialogContent dividers sx={{ p: 0 }}>
+      {loadingClassDetail ? (
+        <Box sx={{ py: 10, textAlign: 'center' }}>
+          <CircularProgress size={32} />
+          <Typography variant="body2" sx={{ color: '#64748b', mt: 1.5 }}>
+            Đang nạp dữ liệu chi tiết lớp học từ Google Classroom...
+          </Typography>
+        </Box>
+      ) : !classDetail ? (
+        <Box sx={{ py: 6, textAlign: 'center' }}>
+          <Typography variant="body2" sx={{ color: '#64748b' }}>
+            Không thể tải thông tin chi tiết của lớp này.
+          </Typography>
+        </Box>
+      ) : (
+        <Box>
+          <Tabs
+            value={classDetailTab}
+            onChange={(_, val) => setClassDetailTab(val)}
+            sx={{ px: 2.5, bgcolor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}
+          >
+            <Tab label={`Học sinh (${classDetail.students?.length || 0})`} sx={{ textTransform: 'none', fontWeight: 700 }} />
+            <Tab label={`Khóa học Classroom (${classDetail.courses?.length || 0})`} sx={{ textTransform: 'none', fontWeight: 700 }} />
+            <Tab label={`Thống kê Bộ môn (${classDetail.subjectsSummary?.length || 0})`} sx={{ textTransform: 'none', fontWeight: 700 }} />
+            <Tab
+              label={`Đối soát Liên môn (${classDetail.crossSubjectDiscrepancies?.length ? `⚠️ ${classDetail.crossSubjectDiscrepancies.length} lệch` : '✓ Chuẩn'})`}
+              sx={{ textTransform: 'none', fontWeight: 700, color: classDetail.crossSubjectDiscrepancies?.length ? '#dc2626' : undefined }}
+            />
+            <Tab label="Lịch Tải Bài Tập Tuần" sx={{ textTransform: 'none', fontWeight: 700 }} />
+          </Tabs>
+
+          <Box sx={{ p: 2.5, maxHeight: 440, overflowY: 'auto' }}>
+            {/* TAB 0: Danh sách học sinh */}
+            {classDetailTab === 0 && (
+              <TableContainer>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>#</TableCell>
+                      <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>Học sinh</TableCell>
+                      <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>Email Google</TableCell>
+                      <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>Số môn</TableCell>
+                      <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>Tiến độ nộp bài</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>Điểm TB</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>Hồ sơ 360°</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {(classDetail.students || []).map((st: any, sIdx: number) => (
+                      <TableRow key={st.userId || sIdx} hover>
+                        <TableCell sx={{ color: '#64748b' }}>{sIdx + 1}</TableCell>
+                        <TableCell>
+                          <Stack direction="row" spacing={1} alignItems="center">
+                            <Avatar
+                              src={st.photoUrl || undefined}
+                              sx={{ width: 26, height: 26, fontSize: '0.75rem', bgcolor: '#e0e7ff', color: '#3730a3' }}
+                            >
+                              {(st.name || 'H')[0].toUpperCase()}
+                            </Avatar>
+                            <Typography variant="body2" sx={{ fontWeight: 600, color: '#0f172a' }}>
+                              {st.name}
+                            </Typography>
+                          </Stack>
+                        </TableCell>
+                        <TableCell sx={{ color: '#64748b', fontSize: '0.8rem' }}>{st.email || '—'}</TableCell>
+                        <TableCell sx={{ color: '#475569' }}>{st.courseCount} môn</TableCell>
+                        <TableCell sx={{ minWidth: 140 }}>
+                          <Stack spacing={0.5}>
+                            <Stack direction="row" justifyContent="space-between">
+                              <Typography variant="caption" sx={{ color: '#64748b' }}>
+                                {st.turnedInCount}/{st.totalAssignments} bài
+                              </Typography>
+                              <Typography variant="caption" sx={{ fontWeight: 700, color: st.completionRate >= 70 ? '#16a34a' : '#d97706' }}>
+                                {st.completionRate}%
+                              </Typography>
+                            </Stack>
+                            <LinearProgress
+                              variant="determinate"
+                              value={st.completionRate}
+                              color={st.completionRate >= 70 ? 'success' : 'warning'}
+                              sx={{ height: 5, borderRadius: 2.5 }}
+                            />
+                          </Stack>
+                        </TableCell>
+                        <TableCell align="center">
+                          {st.averageScore != null ? (
+                            <Chip
+                              label={st.averageScore.toFixed(1)}
+                              size="small"
+                              sx={{
+                                fontWeight: 700,
+                                bgcolor: st.averageScore >= 8 ? '#f0fdf4' : '#eff6ff',
+                                color: st.averageScore >= 8 ? '#15803d' : '#1d4ed8'
+                              }}
+                            />
+                          ) : (
+                            <Typography variant="caption" sx={{ color: '#94a3b8' }}>—</Typography>
+                          )}
+                        </TableCell>
+                        <TableCell align="right">
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            endIcon={<OpenInNewIcon sx={{ fontSize: 12 }} />}
+                            onClick={() => {
+                              setOpenClassDetailDialog(false);
+                              navigate(`/students/360?studentId=${encodeURIComponent(st.userId)}`);
+                            }}
+                            sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.72rem', borderRadius: 1.5, py: 0.25 }}
+                          >
+                            360°
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+
+            {/* TAB 1: Khóa học Classroom */}
+            {classDetailTab === 1 && (
+              <Stack spacing={1.5}>
+                {(classDetail.courses || []).map((c: any) => (
+                  <Card key={c.id} variant="outlined" sx={{ p: 2, borderRadius: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Box>
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#0f172a' }}>
+                          {c.name}
+                        </Typography>
+                        {c.subjectName && (
+                          <Chip label={c.subjectName} size="small" color="primary" variant="outlined" sx={{ fontSize: '0.7rem' }} />
+                        )}
+                      </Stack>
+                      <Typography variant="caption" sx={{ color: '#64748b', display: 'block', mt: 0.5 }}>
+                        Mã khóa học: {c.id} • Bài tập: <strong>{c.contentCoursework || 0}</strong> • Lượt nộp: <strong>{c.submissionsTotal || 0}</strong>
+                      </Typography>
+                    </Box>
+                    {c.alternateLink && (
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        endIcon={<OpenInNewIcon sx={{ fontSize: 13 }} />}
+                        href={c.alternateLink}
+                        target="_blank"
+                        rel="noreferrer"
+                        sx={{ textTransform: 'none', borderRadius: 1.5 }}
+                      >
+                        Mở lớp
+                      </Button>
+                    )}
+                  </Card>
+                ))}
+              </Stack>
+            )}
+
+            {/* TAB 2: Thống kê Bộ môn */}
+            {classDetailTab === 2 && (
+              <Grid container spacing={2}>
+                {(classDetail.subjectsSummary || []).map((sub: any, idx: number) => (
+                  <Grid size={{ xs: 12, sm: 6 }} key={idx}>
+                    <Card variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#0f172a', mb: 1 }}>
+                        {sub.name}
+                      </Typography>
+                      <Stack spacing={0.75}>
+                        <Stack direction="row" justifyContent="space-between">
+                          <Typography variant="caption" sx={{ color: '#64748b' }}>Tỷ lệ nộp bài:</Typography>
+                          <Typography variant="caption" sx={{ fontWeight: 700, color: '#16a34a' }}>{sub.completionRate}%</Typography>
+                        </Stack>
+                        <Stack direction="row" justifyContent="space-between">
+                          <Typography variant="caption" sx={{ color: '#64748b' }}>Đúng hạn:</Typography>
+                          <Typography variant="caption" sx={{ fontWeight: 700, color: '#0284c7' }}>{sub.onTimeRate}%</Typography>
+                        </Stack>
+                        <Stack direction="row" justifyContent="space-between">
+                          <Typography variant="caption" sx={{ color: '#64748b' }}>Điểm trung bình:</Typography>
+                          <Typography variant="caption" sx={{ fontWeight: 700, color: '#7c3aed' }}>{sub.averageScore != null ? `${sub.averageScore}đ` : '—'}</Typography>
+                        </Stack>
+                      </Stack>
+                    </Card>
+                  </Grid>
+                ))}
+              </Grid>
+            )}
+
+            {/* TAB 3: Đối soát Liên môn */}
+            {classDetailTab === 3 && (
+              <Box>
+                {(!classDetail.crossSubjectDiscrepancies || classDetail.crossSubjectDiscrepancies.length === 0) ? (
+                  <Box sx={{ p: 4, border: '1px solid #bbf7d0', borderRadius: 2.5, bgcolor: '#f0fdf4', textAlign: 'center' }}>
+                    <CheckCircleRoundedIcon sx={{ fontSize: 44, color: '#16a34a', mb: 1 }} />
+                    <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#166534' }}>
+                      Dữ Liệu Khớp 100% — Không Có Độ Vênh Sĩ Số
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: '#15803d', mt: 0.5 }}>
+                      Tất cả {classDetail.students?.length || 0} học sinh trong lớp đều tham gia đầy đủ tất cả {classDetail.courses?.length || 0} khóa học Google Classroom.
+                    </Typography>
+                  </Box>
+                ) : (
+                  <Stack spacing={2}>
+                    <Alert severity="warning" sx={{ borderRadius: 2 }}>
+                      Phát hiện <strong>{classDetail.crossSubjectDiscrepancies.length} học sinh</strong> chưa được thêm đầy đủ vào tất cả các khóa học bộ môn của lớp.
+                    </Alert>
+                    <TableContainer>
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow>
+                            <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>Học sinh</TableCell>
+                            <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>Email Google</TableCell>
+                            <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>Số môn đã vào</TableCell>
+                            <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>Môn học còn thiếu</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {classDetail.crossSubjectDiscrepancies.map((d: any, idx: number) => (
+                            <TableRow key={d.userId || idx} hover>
+                              <TableCell sx={{ fontWeight: 600 }}>{d.name}</TableCell>
+                              <TableCell sx={{ color: '#64748b' }}>{d.email || '—'}</TableCell>
+                              <TableCell>
+                                <Chip label={`${d.enrolledCount}/${d.totalCourses} môn`} size="small" color="warning" sx={{ fontWeight: 700 }} />
+                              </TableCell>
+                              <TableCell>
+                                <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+                                  {(d.missingCourseNames || []).map((m: string, mIdx: number) => (
+                                    <Chip key={mIdx} label={m} size="small" color="error" variant="outlined" sx={{ fontWeight: 600, fontSize: '0.72rem' }} />
+                                  ))}
+                                </Stack>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </Stack>
+                )}
+              </Box>
+            )}
+
+            {/* TAB 4: Lịch Tải Bài Tập Tuần */}
+            {classDetailTab === 4 && (
+              <Box>
+                <Grid container spacing={1.5}>
+                  {(classDetail.weeklyWorkload || []).map((w: any, idx: number) => (
+                    <Grid size={{ xs: 6, sm: 3, md: 1.7 }} key={idx}>
+                      <Card
+                        variant="outlined"
+                        sx={{
+                          p: 2,
+                          borderRadius: 2,
+                          textAlign: 'center',
+                          borderColor: w.isHeavy ? '#fca5a5' : '#e2e8f0',
+                          bgcolor: w.isHeavy ? '#fef2f2' : '#ffffff'
+                        }}
+                      >
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#334155' }}>
+                          {w.day}
+                        </Typography>
+                        <Typography variant="h5" sx={{ fontWeight: 800, my: 0.5, color: w.isHeavy ? '#dc2626' : '#2563eb' }}>
+                          {w.count} bài
+                        </Typography>
+                        <Chip
+                          label={w.isHeavy ? 'Quá tải (> 3 bài)' : w.count > 0 ? 'Bình thường' : 'Không có'}
+                          size="small"
+                          color={w.isHeavy ? 'error' : w.count > 0 ? 'primary' : 'default'}
+                          sx={{ fontSize: '0.68rem', fontWeight: 600, height: 20 }}
+                        />
+                      </Card>
+                    </Grid>
+                  ))}
+                </Grid>
+              </Box>
+            )}
+          </Box>
+        </Box>
+      )}
+    </DialogContent>
+
+    <DialogActions sx={{ px: 3, py: 2 }}>
+      <Button onClick={() => setOpenClassDetailDialog(false)} sx={{ textTransform: 'none', color: '#64748b' }}>
+        Đóng
+      </Button>
+      <Button
+        variant="contained"
+        color="primary"
+        onClick={() => {
+          setOpenClassDetailDialog(false);
+          navigate('/classes');
+        }}
+        sx={{ fontWeight: 700, textTransform: 'none', borderRadius: 2, bgcolor: '#2563eb' }}
+      >
+        Quản Lý Toàn Bộ Lớp
+      </Button>
+    </DialogActions>
+  </Dialog>
+
+  {/* DIALOG 2: CHI TIẾT BÀI TẬP (COURSEWORK) */}
+  <Dialog
+    open={openAssignmentDialog}
+    onClose={() => setOpenAssignmentDialog(false)}
+    maxWidth="sm"
+    fullWidth
+  >
+    <DialogTitle sx={{ px: 3, pt: 2.5, pb: 1.5, borderBottom: '1px solid #e2e8f0', bgcolor: '#f8fafc' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Box>
+          <Typography variant="h6" sx={{ fontWeight: 800, color: '#0f172a' }}>
+            Chi Tiết Bài Tập
+          </Typography>
+          <Typography variant="caption" sx={{ color: '#64748b' }}>
+            Đồng bộ trực tiếp từ Google Classroom SSOT
+          </Typography>
+        </Box>
+        <IconButton size="small" onClick={() => setOpenAssignmentDialog(false)}>
+          <CloseIcon fontSize="small" />
+        </IconButton>
+      </Box>
+    </DialogTitle>
+
+    <DialogContent dividers sx={{ p: 3 }}>
+      {selectedAssignment && (
+        <Stack spacing={2.5}>
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 800, color: '#0f172a', mb: 1 }}>
+              {selectedAssignment.title}
+            </Typography>
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+              <Chip label={`Lớp ${selectedAssignment.className}`} size="small" color="primary" sx={{ fontWeight: 700 }} />
+              <Chip label={selectedAssignment.subjectName} size="small" variant="outlined" sx={{ fontWeight: 600 }} />
+              <Chip label={selectedAssignment.state || 'PUBLISHED'} size="small" color="success" variant="outlined" sx={{ fontWeight: 600 }} />
+            </Stack>
+          </Box>
+
+          <Grid container spacing={2}>
+            <Grid size={{ xs: 6 }}>
+              <Card variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
+                <Typography variant="caption" sx={{ color: '#64748b' }}>Hạn nộp bài</Typography>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#0f172a', mt: 0.25 }}>
+                  {selectedAssignment.dueDate || 'Không giới hạn hạn chót'}
+                </Typography>
+              </Card>
+            </Grid>
+            <Grid size={{ xs: 6 }}>
+              <Card variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
+                <Typography variant="caption" sx={{ color: '#64748b' }}>Điểm tối đa</Typography>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#16a34a', mt: 0.25 }}>
+                  {selectedAssignment.maxPoints} điểm
+                </Typography>
+              </Card>
+            </Grid>
+          </Grid>
+
+          <Card variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: '#f8fafc' }}>
+            <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>
+              Tiến độ nộp bài của học sinh
+            </Typography>
+            <Stack direction="row" justifyContent="space-between" alignItems="baseline" sx={{ my: 0.5 }}>
+              <Typography variant="h5" sx={{ fontWeight: 800, color: '#2563eb' }}>
+                {selectedAssignment.turnedInCount} / {selectedAssignment.totalStudents} HS
+              </Typography>
+              <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#16a34a' }}>
+                {selectedAssignment.completionRate}%
+              </Typography>
+            </Stack>
+            <LinearProgress
+              variant="determinate"
+              value={Math.min(100, selectedAssignment.completionRate)}
+              color="primary"
+              sx={{ height: 6, borderRadius: 3 }}
+            />
+          </Card>
+
+          {selectedAssignment.description && (
+            <Box>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#0f172a', mb: 0.5 }}>
+                Mô tả & Hướng dẫn làm bài
+              </Typography>
+              <Card variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: '#ffffff' }}>
+                <Typography variant="body2" sx={{ color: '#334155', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
+                  {selectedAssignment.description}
+                </Typography>
+              </Card>
+            </Box>
+          )}
+
+          {selectedAssignment.materials?.length > 0 && (
+            <Box>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#0f172a', mb: 0.5 }}>
+                Tài liệu & Tệp đính kèm ({selectedAssignment.materials.length})
+              </Typography>
+              <Stack spacing={1}>
+                {selectedAssignment.materials.map((m: any, idx: number) => {
+                  const item = m.driveFile || m.youtubeVideo || m.link || m.form;
+                  const title = item?.title || item?.name || 'Tài liệu liên kết';
+                  const url = item?.alternateLink || item?.url;
+                  return (
+                    <Card key={idx} variant="outlined" sx={{ p: 1.5, borderRadius: 1.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <AttachFileRoundedIcon sx={{ fontSize: 16, color: '#2563eb' }} />
+                        <Typography variant="body2" sx={{ fontWeight: 600, color: '#1e293b' }}>
+                          {title}
+                        </Typography>
+                      </Stack>
+                      {url && (
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          href={url}
+                          target="_blank"
+                          rel="noreferrer"
+                          endIcon={<OpenInNewIcon sx={{ fontSize: 12 }} />}
+                          sx={{ textTransform: 'none', borderRadius: 1.5, py: 0.25, fontSize: '0.72rem' }}
+                        >
+                          Xem
+                        </Button>
+                      )}
+                    </Card>
+                  );
+                })}
+              </Stack>
+            </Box>
+          )}
+        </Stack>
+      )}
+    </DialogContent>
+
+    <DialogActions sx={{ px: 3, py: 2 }}>
+      <Button onClick={() => setOpenAssignmentDialog(false)} sx={{ textTransform: 'none', color: '#64748b' }}>
+        Đóng
+      </Button>
+      {selectedAssignment?.alternateLink && (
+        <Button
+          variant="contained"
+          color="primary"
+          component="a"
+          href={selectedAssignment.alternateLink}
+          target="_blank"
+          rel="noreferrer"
+          startIcon={<OpenInNewIcon />}
+          sx={{ fontWeight: 700, textTransform: 'none', borderRadius: 2, bgcolor: '#2563eb' }}
+        >
+          Mở Bài Tập Trên Classroom
+        </Button>
+      )}
+    </DialogActions>
+  </Dialog>
+
+  {/* DIALOG 3: CHI TIẾT THÔNG BÁO LỚP HỌC */}
+  <Dialog
+    open={openAnnouncementDialog}
+    onClose={() => setOpenAnnouncementDialog(false)}
+    maxWidth="sm"
+    fullWidth
+  >
+    <DialogTitle sx={{ px: 3, pt: 2.5, pb: 1.5, borderBottom: '1px solid #e2e8f0', bgcolor: '#f8fafc' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Box>
+          <Typography variant="h6" sx={{ fontWeight: 800, color: '#0f172a' }}>
+            Chi Tiết Thông Báo Lớp Học
+          </Typography>
+          <Typography variant="caption" sx={{ color: '#64748b' }}>
+            Đăng trên Google Classroom
+          </Typography>
+        </Box>
+        <IconButton size="small" onClick={() => setOpenAnnouncementDialog(false)}>
+          <CloseIcon fontSize="small" />
+        </IconButton>
+      </Box>
+    </DialogTitle>
+
+    <DialogContent dividers sx={{ p: 3 }}>
+      {selectedAnnouncement && (
+        <Stack spacing={2.5}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+            <Stack direction="row" spacing={1}>
+              <Chip label={`Lớp ${selectedAnnouncement.className}`} size="small" color="primary" sx={{ fontWeight: 700 }} />
+              <Chip label={selectedAnnouncement.subjectName} size="small" variant="outlined" sx={{ fontWeight: 600 }} />
+            </Stack>
+            <Typography variant="caption" sx={{ color: '#64748b' }}>
+              {selectedAnnouncement.creationTime ? new Date(selectedAnnouncement.creationTime).toLocaleString('vi-VN') : ''}
+            </Typography>
+          </Box>
+
+          <Card variant="outlined" sx={{ p: 2.5, borderRadius: 2, bgcolor: '#f8fafc' }}>
+            <Typography variant="body1" sx={{ color: '#0f172a', whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>
+              {selectedAnnouncement.text}
+            </Typography>
+          </Card>
+
+          {selectedAnnouncement.materials?.length > 0 && (
+            <Box>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#0f172a', mb: 1 }}>
+                Tài liệu đính kèm ({selectedAnnouncement.materials.length})
+              </Typography>
+              <Stack spacing={1}>
+                {selectedAnnouncement.materials.map((m: any, idx: number) => {
+                  const item = m.driveFile || m.youtubeVideo || m.link || m.form;
+                  const title = item?.title || item?.name || 'Tài liệu liên kết';
+                  const url = item?.alternateLink || item?.url;
+                  return (
+                    <Card key={idx} variant="outlined" sx={{ p: 1.5, borderRadius: 1.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <AttachFileRoundedIcon sx={{ fontSize: 16, color: '#2563eb' }} />
+                        <Typography variant="body2" sx={{ fontWeight: 600, color: '#1e293b' }}>
+                          {title}
+                        </Typography>
+                      </Stack>
+                      {url && (
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          href={url}
+                          target="_blank"
+                          rel="noreferrer"
+                          endIcon={<OpenInNewIcon sx={{ fontSize: 12 }} />}
+                          sx={{ textTransform: 'none', borderRadius: 1.5, py: 0.25, fontSize: '0.72rem' }}
+                        >
+                          Xem
+                        </Button>
+                      )}
+                    </Card>
+                  );
+                })}
+              </Stack>
+            </Box>
+          )}
+        </Stack>
+      )}
+    </DialogContent>
+
+    <DialogActions sx={{ px: 3, py: 2 }}>
+      <Button onClick={() => setOpenAnnouncementDialog(false)} sx={{ textTransform: 'none', color: '#64748b' }}>
+        Đóng
+      </Button>
+      {selectedAnnouncement?.alternateLink && (
+        <Button
+          variant="contained"
+          color="primary"
+          component="a"
+          href={selectedAnnouncement.alternateLink}
+          target="_blank"
+          rel="noreferrer"
+          startIcon={<OpenInNewIcon />}
+          sx={{ fontWeight: 700, textTransform: 'none', borderRadius: 2, bgcolor: '#2563eb' }}
+        >
+          Mở Trên Classroom
+        </Button>
+      )}
+    </DialogActions>
+  </Dialog>
+</>
+);
 }

@@ -2,7 +2,7 @@ import { and, count, desc, eq } from 'drizzle-orm';
 import { db } from '../../core/db/client.js';
 import { people } from '../people/people.schema.js';
 import { classes } from '../classes/classes.schema.js';
-import { courses } from '../classroom/classroom.schema.js';
+import { courses, courseCoursework, courseAnnouncements } from '../classroom/classroom.schema.js';
 import { meetSessions } from '../meet/meet.schema.js';
 import { alerts } from '../alerts/alerts.schema.js';
 import { isTeacher, isStudent } from '../people/people.shared.js';
@@ -303,4 +303,106 @@ export async function getAcademicPulse() {
     },
     topAtRiskClasses: sortedClasses
   };
+}
+
+/** Lấy danh sách toàn bộ bài tập (coursework) cho buồng lái Dashboard */
+export async function getDashboardAssignments(opts: { classId?: string; limit?: number }) {
+  const limit = opts.limit || 50;
+
+  const allCourses = await db.select().from(courses);
+  const courseMap = new Map<string, typeof courses.$inferSelect>();
+  for (const c of allCourses) {
+    courseMap.set(c.id, c);
+  }
+
+  const cwRows = await db.select().from(courseCoursework);
+
+  const results: any[] = [];
+  for (const row of cwRows) {
+    const course = courseMap.get(row.courseId);
+    if (!course) continue;
+    if (opts.classId && course.classId !== opts.classId) continue;
+
+    const data: any = row.data || {};
+
+    let formattedDueDate: string | null = null;
+    if (data.dueDate) {
+      const year = data.dueDate.year || 2026;
+      const month = String(data.dueDate.month || 1).padStart(2, '0');
+      const day = String(data.dueDate.day || 1).padStart(2, '0');
+      let timeStr = '';
+      if (data.dueTime) {
+        const hours = String(data.dueTime.hours || 23).padStart(2, '0');
+        const minutes = String(data.dueTime.minutes || 59).padStart(2, '0');
+        timeStr = ` ${hours}:${minutes}`;
+      }
+      formattedDueDate = `${day}/${month}/${year}${timeStr}`;
+    }
+
+    results.push({
+      id: row.id,
+      courseWorkId: row.courseWorkId,
+      courseId: row.courseId,
+      courseName: course.name,
+      classId: course.classId || 'Chưa gán',
+      className: course.className || course.classId || 'Chưa gán',
+      grade: course.grade,
+      subjectName: course.subjectName || course.name,
+      title: data.title || 'Bài tập không tên',
+      description: data.description || '',
+      maxPoints: data.maxPoints || 10,
+      state: data.state || 'PUBLISHED',
+      alternateLink: data.alternateLink || course.alternateLink,
+      dueDate: formattedDueDate,
+      rawDueDate: data.dueDate,
+      creationTime: data.creationTime || row.updatedAt,
+      turnedInCount: course.submissionsTurnedIn || 0,
+      totalStudents: course.rosterStudents || 0,
+      completionRate: course.completionRate ? Number(course.completionRate) : 0,
+      materials: data.materials || []
+    });
+  }
+
+  results.sort((a, b) => new Date(b.creationTime || 0).getTime() - new Date(a.creationTime || 0).getTime());
+  return results.slice(0, limit);
+}
+
+/** Lấy danh sách toàn bộ thông báo (announcements) cho buồng lái Dashboard */
+export async function getDashboardAnnouncements(opts: { classId?: string; limit?: number }) {
+  const limit = opts.limit || 50;
+
+  const allCourses = await db.select().from(courses);
+  const courseMap = new Map<string, typeof courses.$inferSelect>();
+  for (const c of allCourses) {
+    courseMap.set(c.id, c);
+  }
+
+  const annRows = await db.select().from(courseAnnouncements);
+
+  const results: any[] = [];
+  for (const row of annRows) {
+    const course = courseMap.get(row.courseId);
+    if (!course) continue;
+    if (opts.classId && course.classId !== opts.classId) continue;
+
+    const data: any = row.data || {};
+    results.push({
+      id: row.id,
+      courseId: row.courseId,
+      courseName: course.name,
+      classId: course.classId || 'Chưa gán',
+      className: course.className || course.classId || 'Chưa gán',
+      grade: course.grade,
+      subjectName: course.subjectName || course.name,
+      text: data.text || 'Thông báo không có nội dung văn bản',
+      alternateLink: data.alternateLink || course.alternateLink,
+      creationTime: data.creationTime || row.updatedAt,
+      updateTime: data.updateTime,
+      creatorUserId: data.creatorUserId,
+      materials: data.materials || []
+    });
+  }
+
+  results.sort((a, b) => new Date(b.creationTime || 0).getTime() - new Date(a.creationTime || 0).getTime());
+  return results.slice(0, limit);
 }

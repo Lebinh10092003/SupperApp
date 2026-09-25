@@ -4,7 +4,7 @@ import { firebaseAuth, requireCapability } from '../../auth/middleware.js';
 import { asyncRoute } from '../../core/http.js';
 import { db } from '../../core/db/client.js';
 import { dashboardSnapshot } from './dashboard.schema.js';
-import { rebuildDashboard, trend, getAcademicPulse } from './dashboard.service.js';
+import { rebuildDashboard, trend, getAcademicPulse, getDashboardAssignments, getDashboardAnnouncements } from './dashboard.service.js';
 
 export const dashboardRouter = Router();
 
@@ -24,6 +24,30 @@ dashboardRouter.get(
   firebaseAuth,
   requireCapability('VIEW_DASHBOARD'),
   asyncRoute(async (_q, r) => r.json(await getAcademicPulse()))
+);
+
+dashboardRouter.get(
+  '/assignments',
+  firebaseAuth,
+  requireCapability('VIEW_DASHBOARD'),
+  asyncRoute(async (req, res) => {
+    const classId = req.query.classId ? String(req.query.classId) : undefined;
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit || 50)));
+    const items = await getDashboardAssignments({ classId, limit });
+    res.json({ total: items.length, items });
+  })
+);
+
+dashboardRouter.get(
+  '/announcements',
+  firebaseAuth,
+  requireCapability('VIEW_DASHBOARD'),
+  asyncRoute(async (req, res) => {
+    const classId = req.query.classId ? String(req.query.classId) : undefined;
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit || 50)));
+    const items = await getDashboardAnnouncements({ classId, limit });
+    res.json({ total: items.length, items });
+  })
 );
 
 dashboardRouter.get(
