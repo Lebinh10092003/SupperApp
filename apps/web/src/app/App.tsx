@@ -12,6 +12,9 @@ import LoginPage from "../features/login/LoginPage";
 // để KHÔNG lẫn vào bundle chính — chỉ tải khi ai đó chủ động vào đúng URL
 // /mobile-preview/an-toan, không ảnh hưởng bất kỳ trang nào khác.
 const MobileMyIncidentsPage = lazy(() => import("../mobile/MobileMyIncidentsPage"));
+const MobileMyTasksPage = lazy(() => import("../mobile/MobileMyTasksPage"));
+const MobileClassroomPage = lazy(() => import("../mobile/MobileClassroomPage"));
+const MobileProfilePage = lazy(() => import("../mobile/MobileProfilePage"));
 import DashboardPage from "../features/dashboard/DashboardPage";
 import TodayPage from "../features/today/TodayPage";
 import ClassesPage from "../features/classes/ClassesPage";
@@ -127,6 +130,31 @@ export function App() {
             <MobileMyIncidentsPage />
           </Suspense>,
           ROLES_SAFETY_STAFF
+        )}
+      />
+      <Route
+        path="/mobile-preview/lich"
+        element={pMobile(
+          <Suspense fallback={null}>
+            <MobileMyTasksPage />
+          </Suspense>,
+          ROLES_WORK_SCHEDULE_STAFF
+        )}
+      />
+      <Route
+        path="/mobile-preview/lop-hoc-so"
+        element={pMobile(
+          <Suspense fallback={null}>
+            <MobileClassroomPage />
+          </Suspense>
+        )}
+      />
+      <Route
+        path="/mobile-preview/ca-nhan"
+        element={pMobile(
+          <Suspense fallback={null}>
+            <MobileProfilePage />
+          </Suspense>
         )}
       />
       <Route path="/safety/report" element={<PublicReportPage />} />
