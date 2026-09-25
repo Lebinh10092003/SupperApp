@@ -100,3 +100,43 @@ giá trị mặc định) trước khi kết luận "có/không áp dụng kiể
 trị khởi tạo (default) không phải giá trị cuối cùng trả về client. Không
 kết luận về hành vi bảo mật của 1 hàm chỉ từ 40-50 dòng đầu khi hàm dài
 hơn thế.
+
+## 2026-09-26 — Deploy thẳng lên production 2 bản vá thanh tab mobile chưa tự kiểm chứng, 1 bản làm crash trắng toàn app
+
+**Lỗi:** Sin báo "bấm thanh điều hướng cái nào cũng đẩy về mục sự cố" (bug
+thật: `onClick` trên `IonTabButton` không chạy khi đứng ngoài `<IonTabs>`).
+Tôi sửa bằng cách bọc mỗi nút trong `<div style="display:contents"
+onClick>` — build pass, deploy thẳng lên VPS mà KHÔNG tự bấm thử trên
+trình duyệt trước. Bản vá này làm thanh tab BIẾN MẤT hoàn toàn (phá slot
+Shadow DOM của `ion-tab-bar`, slot chỉ nhận con trực tiếp). Sửa lần 2 bằng
+`ref` trên `<IonTabBar>` để tự `querySelectorAll` — lại build pass, LẠI
+deploy thẳng lên production không tự kiểm chứng — lần này `ref.current` là
+React class instance (không phải DOM node) nên `querySelectorAll` ném
+`TypeError`, crash trắng TOÀN BỘ app trên mọi trang mobile (không chỉ thanh
+tab) vì lỗi xảy ra trong `useEffect` của component mount ở mọi route mobile.
+
+**Nguyên nhân gốc:** Coi "build không lỗi TypeScript" là đủ điều kiện để
+deploy lên production — trong khi bug gốc là runtime/DOM-behavior (Ionic
+web component chỉ hoạt động đúng bên trong context riêng của nó), loại lỗi
+`tsc`/`vite build` không thể bắt được. Không có bước tự bấm thử trước khi
+đẩy lên VPS thật, dù đã có sẵn công cụ trình duyệt (`claude-in-chrome`) để
+làm việc đó.
+
+**Hậu quả:** Sin phải chịu 1 khoảng thời gian app mobile bị trắng màn hình
+hoàn toàn trên production. Tự phát hiện qua console error (không phải Sin
+báo) và rollback khẩn cấp về bản trước đó trong vài phút, sau đó mới tìm
+đúng nguyên nhân gốc (Ionic tab component không dùng được ngoài IonTabs) và
+sửa dứt điểm bằng cách bỏ hẳn `IonTabBar`/`IonTabButton`, tự dựng thanh tab
+bằng `<button>` HTML thường — verify lại bằng cách tự bấm cả 4 tab qua
+`claude-in-chrome` trên chính production URL, xác nhận điều hướng đúng
+trước khi báo đã xong.
+
+**Phòng tránh lần sau:** Với MỌI thay đổi liên quan hành vi runtime/UI
+tương tác (click, điều hướng, component bên thứ ba như Ionic/MUI dùng theo
+cách không chuẩn), "build không lỗi" KHÔNG đủ để deploy lên production —
+BẮT BUỘC tự kiểm chứng bằng trình duyệt thật (`claude-in-chrome`: click
+thật + đọc console error) trước khi rsync dist lên VPS, không chỉ sau khi
+Sin báo lỗi. Ưu tiên nếu có thể: kiểm chứng trên 1 bản preview/local trước
+khi chạm production, đặc biệt khi đang thử nghiệm cách né 1 hành vi lạ của
+thư viện bên thứ ba (dấu hiệu cần thận trọng hơn, không phải sửa 1 dòng
+quen thuộc).
