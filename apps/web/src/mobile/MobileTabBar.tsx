@@ -1,23 +1,37 @@
 /**
- * MobileTabBar.tsx — thanh điều hướng dưới cùng kiểu app di động thật
- * (Ionic), pilot 2026-09-25 sau khi Sin duyệt hướng "sửa UI mobile theo
- * Ionic React" (xem demo artifact trước đó). CỐ Ý KHÔNG dùng
+ * MobileTabBar.tsx — thanh điều hướng dưới cùng kiểu app di động thật,
+ * pilot 2026-09-25 sau khi Sin duyệt hướng "sửa UI mobile theo Ionic
+ * React" (xem demo artifact trước đó). CỐ Ý KHÔNG dùng
  * `@ionic/react-router` (package đó yêu cầu react-router-dom <6, dự án
  * đang ở v7) — tự điều hướng bằng `useNavigate`/`useLocation` của
- * react-router-dom v7 sẵn có, chỉ mượn phần HIỂN THỊ (IonTabBar/
- * IonTabButton) của Ionic.
+ * react-router-dom v7 sẵn có.
  *
- * BUG THẬT đã tìm ra 2026-09-26 (Sin báo "bấm cái nào cũng đẩy về An
- * toàn"): `IonTabButton` của @ionic/react (dist/index.js, class
- * IonTabButton.render) CỐ Ý BỎ prop `onClick` khỏi DOM thật — nó chỉ gọi
- * lại `onClick` khi nhận sự kiện nội bộ `ionTabButtonClick`, sự kiện này
- * chỉ đáng tin cậy khi có `<IonTabs>` bao ngoài (context ta cố tình không
- * dùng). Đứng độc lập như ở đây, `onClick` prop KHÔNG BAO GIỜ chạy — đã
- * xác nhận bằng cách tự bấm thử (script `.click()`/dispatchEvent trên
- * DevTools): URL không đổi. Fix: gắn thẳng listener `click` NATIVE lên
- * phần tử DOM qua `ref`, bỏ qua hẳn cơ chế onClick bị chặn của Ionic.
+ * BUG THẬT đã tìm ra + tự kiểm chứng bằng DevTools 2026-09-26 (Sin báo
+ * "bấm cái nào cũng đẩy về An toàn", sau đó 1 bản vá tạm còn làm CRASH
+ * TRẮNG MÀN HÌNH — đã rollback ngay và ghi lại ở đây để không lặp lại):
+ *
+ * `<IonTabBar>`/`<IonTabButton>` của @ionic/react được thiết kế để CHỈ
+ * hoạt động đúng bên trong `<IonTabs>` (dùng prop `tab`/`href`, tự quản
+ * lý route qua `IonTabsContext`). Đứng độc lập như ở đây:
+ *  1) `onClick` trên `IonTabButton` bị chính component tự bóc khỏi DOM,
+ *     chỉ gọi lại qua sự kiện nội bộ `ionTabButtonClick` — sự kiện đó cần
+ *     `IonTabs` mới phát sinh đáng tin cậy → onClick không bao giờ chạy.
+ *  2) Bọc `IonTabButton` bằng 1 thẻ `<div>` để né (1) làm hỏng LUÔN việc
+ *     phân phối slot Shadow DOM của `ion-tab-bar` (`<slot>` chỉ nhận CON
+ *     TRỰC TIẾP) → thanh tab biến mất hoàn toàn.
+ *  3) Lấy `ref` trên `<IonTabBar>` để tự `querySelectorAll` KHÔNG trả về
+ *     DOM node thật — nó forward tới `IonTabBarUnwrapped`, một
+ *     `React.PureComponent` (class), nên `ref.current` là INSTANCE REACT,
+ *     không có `.querySelectorAll` → `TypeError`, crash trắng toàn app
+ *     (đã tự gây ra, tự phát hiện qua console error, rollback ngay).
+ *
+ * FIX DỨT ĐIỂM: bỏ hẳn `IonTabBar`/`IonTabButton`, tự dựng thanh tab bằng
+ * phần tử HTML thường (`<button>`) — chỉ mượn `<IonIcon>` (thuần hiển
+ * thị, không dính onClick) để giữ đúng bộ icon Ionic. `<button>` là
+ * DOM/React chuẩn, onClick chắc chắn chạy, không có custom
+ * element/shadow-DOM/class-ref nào để hỏng.
  */
-import { IonTabBar, IonTabButton, IonIcon, IonLabel, IonBadge } from '@ionic/react';
+import { IonIcon, IonBadge } from '@ionic/react';
 import { shieldOutline, calendarOutline, schoolOutline, personCircleOutline } from 'ionicons/icons';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -40,41 +54,59 @@ const TABS: TabDef[] = [
   { path: '/account', matchPaths: ['/account'], icon: personCircleOutline, label: 'Cá nhân' }
 ];
 
-function TabButton({ tab, isActive, activeCount, onNavigate }: { tab: TabDef; isActive: boolean; activeCount?: number; onNavigate: (path: string) => void }) {
-  // Bọc ngoài bằng <div onClick> THẬT (không phải prop onClick của
-  // IonTabButton — bị Ionic cố tình bỏ qua khi đứng ngoài <IonTabs>, xem
-  // ghi chú đầu file). Click từ bên trong ion-tab-button vẫn nổi bọt lên
-  // tới div này bình thường (đã tự kiểm chứng bằng DevTools). `display:
-  // contents` để div không ảnh hưởng layout flex của IonTabBar.
-  return (
-    <div style={{ display: 'contents' }} onClick={() => onNavigate(tab.path)}>
-      <IonTabButton selected={isActive}>
-        <IonIcon icon={tab.icon} />
-        <IonLabel>{tab.label}</IonLabel>
-        {tab.label === 'An toàn' && !!activeCount && <IonBadge color="danger">{activeCount}</IonBadge>}
-      </IonTabButton>
-    </div>
-  );
-}
-
 export function MobileTabBar({ activeCount }: { activeCount?: number }) {
   const navigate = useNavigate();
   const location = useLocation();
 
   return (
-    <IonTabBar
+    <div
       style={{
-        borderTop: '1px solid var(--mobile-line, #e5e7eb)',
+        display: 'flex',
+        borderTop: '1px solid #e5e7eb',
         paddingBottom: 'env(safe-area-inset-bottom, 0px)',
         position: 'fixed',
-        left: '0',
-        right: '0',
-        bottom: '0'
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: '#fff',
+        zIndex: 10
       }}
     >
-      {TABS.map((t) => (
-        <TabButton key={t.path} tab={t} isActive={t.matchPaths.includes(location.pathname)} activeCount={activeCount} onNavigate={navigate} />
-      ))}
-    </IonTabBar>
+      {TABS.map((t) => {
+        const isActive = t.matchPaths.includes(location.pathname);
+        const color = isActive ? '#2563eb' : '#64748b';
+        return (
+          <button
+            key={t.path}
+            type="button"
+            onClick={() => navigate(t.path)}
+            style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 2,
+              padding: '6px 0',
+              border: 'none',
+              background: 'transparent',
+              color,
+              position: 'relative',
+              WebkitTapHighlightColor: 'transparent'
+            }}
+          >
+            <span style={{ position: 'relative' }}>
+              <IonIcon icon={t.icon} style={{ fontSize: 22 }} />
+              {t.label === 'An toàn' && !!activeCount && (
+                <IonBadge color="danger" style={{ position: 'absolute', top: -6, right: -10, fontSize: 10 }}>
+                  {activeCount}
+                </IonBadge>
+              )}
+            </span>
+            <span style={{ fontSize: 11, fontWeight: isActive ? 700 : 500 }}>{t.label}</span>
+          </button>
+        );
+      })}
+    </div>
   );
 }
