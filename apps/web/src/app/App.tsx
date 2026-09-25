@@ -152,7 +152,15 @@ export function App() {
           (bookmark, email, chuông thông báo lịch sử trước ngày gộp). */}
       <Route path="/safety/reports/pending" element={<Navigate to="/safety/cases" replace />} />
       <Route path="/safety/incidents" element={<Navigate to="/safety/cases" replace />} />
-      <Route path="/safety/incidents/:id" element={p(<IncidentDetailPage />, ROLES_SAFETY_STAFF)} />
+      {/* Trang chi tiết 1 sự vụ — điểm đến khi bấm vào 1 thẻ ở tab "An
+          toàn" bản mobile, nên PHẢI tự đổi sang toàn màn hình (bỏ khung
+          AppShell desktop) trên điện thoại như 4 tab kia — dùng lại NGUYÊN
+          `IncidentDetailPage`, component này đã tự có nút "Quay lại danh
+          sách" riêng, không phụ thuộc AppShell. */}
+      <Route
+        path="/safety/incidents/:id"
+        element={pResponsive(<IncidentDetailPage />, <IncidentDetailPage />, ROLES_SAFETY_STAFF)}
+      />
       <Route path="/safety/cockpit" element={p(<EmergencyCockpitPage />, ROLES_SAFETY_STAFF)} />
       <Route path="/safety/audit-logs" element={p(<AuditLogPage />, ROLES_SAFETY_STAFF)} />
       <Route path="/safety/analytics" element={p(<AnalyticsPage />, ROLES_SAFETY_STAFF)} />
