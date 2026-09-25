@@ -2,11 +2,9 @@
  * MobileMyIncidentsPage.tsx — pilot màn hình "Sự vụ của tôi" theo phong
  * cách Ionic, DÙNG DỮ LIỆU THẬT qua đúng hook `useIncidents` đã có sẵn
  * (KHÔNG tạo API/hook riêng — tái dùng nguyên logic đang chạy ở
- * MyIncidentsSection.tsx, chỉ đổi lớp hiển thị). Đây là bản PILOT chỉ
- * truy cập được qua URL trực tiếp `/mobile-preview/an-toan` — CHƯA gắn
- * vào menu điều hướng chính, CHƯA build/deploy lên VPS (xem nhánh git
- * `feature/ionic-mobile-pilot`, không merge vào main tới khi Sin duyệt
- * thêm sau buổi bàn giao).
+ * MyIncidentsSection.tsx, chỉ đổi lớp hiển thị). Tự động hiện thay cho
+ * bản desktop khi mở "/" hoặc "/safety" trên màn hình hẹp — xem
+ * `pResponsive`/`Responsive` ở App.tsx (không còn URL riêng).
  */
 import { useMemo, useState } from 'react';
 import {

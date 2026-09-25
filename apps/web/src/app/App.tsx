@@ -5,12 +5,13 @@ import { RoleRoute } from "../auth/RoleRoute";
 import { AppShell } from "../layout/AppShell";
 import { useAuth } from "../auth/AuthProvider";
 import { isFermatTechAdminEmail } from "../config/adminAccess";
+import { useIsMobileViewport } from "../hooks/useIsMobileViewport";
 import LoginPage from "../features/login/LoginPage";
 // Pilot UI di động (Ionic React) — Sin duyệt hướng 2026-09-25, xem nhánh
 // git feature/ionic-mobile-pilot. CỐ Ý lazy-load (KHÔNG import tĩnh như
 // các trang khác): @ionic/react kéo theo bộ CSS reset riêng, tách chunk
-// để KHÔNG lẫn vào bundle chính — chỉ tải khi ai đó chủ động vào đúng URL
-// /mobile-preview/an-toan, không ảnh hưởng bất kỳ trang nào khác.
+// để KHÔNG lẫn vào bundle chính — chỉ tải khi `Responsive` (dưới) thật sự
+// chọn nhánh mobile, không ảnh hưởng bundle của bản desktop.
 const MobileMyIncidentsPage = lazy(() => import("../mobile/MobileMyIncidentsPage"));
 const MobileMyTasksPage = lazy(() => import("../mobile/MobileMyTasksPage"));
 const MobileClassroomPage = lazy(() => import("../mobile/MobileClassroomPage"));
@@ -73,14 +74,25 @@ const p = (x: ReactNode, allowedRoles?: string[]) => (
   </ProtectedRoute>
 );
 
-// Sin phản hồi 2026-09-25: pilot UI mobile lồng trong `p()` bị kẹt trong
-// khung AppShell desktop (sidebar/top bar), nội dung trống — trang mobile
-// phải chiếm TRỌN màn hình như app thật, không qua AppShell. Vẫn giữ
-// ProtectedRoute/RoleRoute (đăng nhập + phân quyền advisory như mọi route
-// khác), chỉ bỏ lớp khung desktop.
-const pMobile = (x: ReactNode, allowedRoles?: string[]) => (
+// Sin phản hồi 2026-09-25 (lần 2): "/mobile-preview/..." bắt người dùng
+// nhớ/đi một link RIÊNG mới thấy bản mobile — không đúng ý, phải TỰ ĐỘNG
+// đổi giao diện ngay trên CÙNG một URL khi mở bằng điện thoại (màn hình
+// hẹp), không đổi URL, không cần biết link nào khác. `Responsive` chọn
+// nhánh theo bề rộng màn hình qua `useIsMobileViewport()` — người dùng xoay
+// máy/resize cửa sổ được đổi giao diện ngay, không cần tải lại trang.
+function Responsive({ desktop, mobile }: { desktop: ReactNode; mobile: ReactNode }) {
+  const isMobile = useIsMobileViewport();
+  return <>{isMobile ? mobile : desktop}</>;
+}
+
+const pResponsive = (desktopElement: ReactNode, mobileElement: ReactNode, allowedRoles?: string[]) => (
   <ProtectedRoute>
-    <RoleRoute allowedRoles={allowedRoles}>{x}</RoleRoute>
+    <RoleRoute allowedRoles={allowedRoles}>
+      <Responsive
+        desktop={<AppShell>{desktopElement}</AppShell>}
+        mobile={<Suspense fallback={null}>{mobileElement}</Suspense>}
+      />
+    </RoleRoute>
   </ProtectedRoute>
 );
 
@@ -106,7 +118,13 @@ export function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/" element={p(<HomeRoute />)} />
+      <Route
+        path="/"
+        element={pResponsive(
+          <HomeRoute />,
+          <MobileMyIncidentsPage />
+        )}
+      />
       <Route path="/executive" element={p(<ExecutiveAnalyticsPage />, ROLES_LEADERSHIP)} />
       <Route path="/students/360" element={p(<Student360Page />)} />
       <Route path="/classes/compare" element={p(<ClassComparePage />, ROLES_DEPARTMENT_PLUS)} />
@@ -121,45 +139,14 @@ export function App() {
           luôn nằm ở authz.ts 9 bước (server) + GET /api/safety/me (ẩn/hiện
           nút hành động, không phải lớp chặn) — xem plan Phase 1 §0. 2 route
           công khai (report/lookup) KHÔNG qua p(), giống /login. */}
-      {/* Pilot UI di động — CHƯA gắn vào menu điều hướng chính, chỉ vào
-          được qua URL trực tiếp. Suspense fallback rỗng vì chunk rất nhỏ. */}
-      <Route
-        path="/mobile-preview/an-toan"
-        element={pMobile(
-          <Suspense fallback={null}>
-            <MobileMyIncidentsPage />
-          </Suspense>,
-          ROLES_SAFETY_STAFF
-        )}
-      />
-      <Route
-        path="/mobile-preview/lich"
-        element={pMobile(
-          <Suspense fallback={null}>
-            <MobileMyTasksPage />
-          </Suspense>,
-          ROLES_WORK_SCHEDULE_STAFF
-        )}
-      />
-      <Route
-        path="/mobile-preview/lop-hoc-so"
-        element={pMobile(
-          <Suspense fallback={null}>
-            <MobileClassroomPage />
-          </Suspense>
-        )}
-      />
-      <Route
-        path="/mobile-preview/ca-nhan"
-        element={pMobile(
-          <Suspense fallback={null}>
-            <MobileProfilePage />
-          </Suspense>
-        )}
-      />
       <Route path="/safety/report" element={<PublicReportPage />} />
       <Route path="/safety/lookup" element={<PublicLookupPage />} />
-      <Route path="/safety" element={p(<SafetyDashboardPage />, ROLES_SAFETY_STAFF)} />
+      {/* "/safety" mở trên điện thoại tự đổi sang bản Ionic (tab An toàn) —
+          xem ghi chú `pResponsive` ở trên, không còn "/mobile-preview/...". */}
+      <Route
+        path="/safety"
+        element={pResponsive(<SafetyDashboardPage />, <MobileMyIncidentsPage />, ROLES_SAFETY_STAFF)}
+      />
       <Route path="/safety/cases" element={p(<CasesListPage />, ROLES_SAFETY_STAFF)} />
       {/* 2 route cũ giữ lại làm redirect — tránh vỡ link cũ đã lưu/đã gửi
           (bookmark, email, chuông thông báo lịch sử trước ngày gộp). */}
@@ -173,13 +160,33 @@ export function App() {
           (work-schedule.authz.ts), khớp thiết kế của Mr Tiến (nguyên văn
           trong TICH_HOP_MODULE_LICH_CONG_TAC.md). Gate advisory only. */}
       <Route path="/work-schedule/overview" element={p(<OverviewPage />, ROLES_WORK_SCHEDULE_STAFF)} />
-      <Route path="/work-schedule" element={p(<EventsListPage />, ROLES_WORK_SCHEDULE_STAFF)} />
-      <Route path="/work-schedule/tasks" element={p(<TasksListPage />, ROLES_WORK_SCHEDULE_STAFF)} />
+      <Route
+        path="/work-schedule"
+        element={pResponsive(<EventsListPage />, <MobileMyTasksPage />, ROLES_WORK_SCHEDULE_STAFF)}
+      />
+      <Route
+        path="/work-schedule/tasks"
+        element={pResponsive(<TasksListPage />, <MobileMyTasksPage />, ROLES_WORK_SCHEDULE_STAFF)}
+      />
       <Route path="/work-schedule/approvals" element={p(<ApprovalCenterPage />, ROLES_WORK_SCHEDULE_STAFF)} />
       <Route path="/work-schedule/reminders" element={p(<RemindersPage />, ROLES_WORK_SCHEDULE_STAFF)} />
       <Route path="/today" element={p(<TodayPage />)} />
       <Route path="/classes" element={p(<ClassesPage />)} />
-      <Route path="/classroom" element={p(<ClassroomPage />)} />
+      <Route path="/classroom" element={pResponsive(<ClassroomPage />, <MobileClassroomPage />)} />
+      {/* Tab "Cá nhân" của app di động — trang mới, chưa có bản desktop
+          tương đương nên không cần rẽ nhánh Responsive. */}
+      <Route
+        path="/account"
+        element={
+          <ProtectedRoute>
+            <RoleRoute>
+              <Suspense fallback={null}>
+                <MobileProfilePage />
+              </Suspense>
+            </RoleRoute>
+          </ProtectedRoute>
+        }
+      />
       <Route path="/classroom/sync-runs" element={p(<SyncRunsPage />)} />
       <Route path="/meet" element={p(<MeetPage />)} />
       <Route path="/students" element={p(<StudentsPage />)} />

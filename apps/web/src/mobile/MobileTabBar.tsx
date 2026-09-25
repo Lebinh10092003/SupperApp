@@ -13,16 +13,21 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 interface TabDef {
   path: string;
+  matchPaths: string[];
   icon: string;
   label: string;
-  badge?: number;
 }
 
+// Trỏ thẳng vào ĐÚNG URL desktop đã dùng (/safety, /work-schedule/tasks,
+// /classroom) — không còn "/mobile-preview/..." riêng (Sin phản hồi
+// 2026-09-25 lần 2: không muốn bị dẫn sang link khác, giao diện phải tự
+// đổi ngay trên URL người dùng đang mở qua `pResponsive` ở App.tsx).
+// "/account" là trang mới (hồ sơ cá nhân), chưa có ở bản desktop.
 const TABS: TabDef[] = [
-  { path: '/mobile-preview/an-toan', icon: shieldOutline, label: 'An toàn' },
-  { path: '/mobile-preview/lich', icon: calendarOutline, label: 'Lịch' },
-  { path: '/mobile-preview/lop-hoc-so', icon: schoolOutline, label: 'Lớp học số' },
-  { path: '/mobile-preview/ca-nhan', icon: personCircleOutline, label: 'Cá nhân' }
+  { path: '/safety', matchPaths: ['/', '/safety'], icon: shieldOutline, label: 'An toàn' },
+  { path: '/work-schedule/tasks', matchPaths: ['/work-schedule', '/work-schedule/tasks'], icon: calendarOutline, label: 'Lịch' },
+  { path: '/classroom', matchPaths: ['/classroom'], icon: schoolOutline, label: 'Lớp học số' },
+  { path: '/account', matchPaths: ['/account'], icon: personCircleOutline, label: 'Cá nhân' }
 ];
 
 export function MobileTabBar({ activeCount }: { activeCount?: number }) {
@@ -41,12 +46,12 @@ export function MobileTabBar({ activeCount }: { activeCount?: number }) {
       }}
     >
       {TABS.map((t) => {
-        const isActive = location.pathname === t.path;
+        const isActive = t.matchPaths.includes(location.pathname);
         return (
           <IonTabButton key={t.path} selected={isActive} onClick={() => navigate(t.path)}>
             <IonIcon icon={t.icon} />
             <IonLabel>{t.label}</IonLabel>
-            {t.path === '/mobile-preview/an-toan' && !!activeCount && <IonBadge color="danger">{activeCount}</IonBadge>}
+            {t.label === 'An toàn' && !!activeCount && <IonBadge color="danger">{activeCount}</IonBadge>}
           </IonTabButton>
         );
       })}

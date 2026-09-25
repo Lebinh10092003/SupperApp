@@ -7,6 +7,7 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmberRounded';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
 import { MyIncidentsSection } from './components/MyIncidentsSection';
+import { ReportQrCodeButton } from './components/ReportQrCodeButton';
 
 interface IncidentStats {
   scope: string;
@@ -90,9 +91,12 @@ export default function SafetyDashboardPage() {
       </Grid>
 
       <Box sx={{ mb: 3 }}>
-        <Button variant="outlined" onClick={() => window.open('/safety/report', '_blank')}>
-          Xem trang báo cáo công khai
-        </Button>
+        <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
+          <Button variant="outlined" onClick={() => window.open('/safety/report', '_blank')}>
+            Xem trang báo cáo công khai
+          </Button>
+          <ReportQrCodeButton />
+        </Stack>
       </Box>
 
       <MyIncidentsSection />
