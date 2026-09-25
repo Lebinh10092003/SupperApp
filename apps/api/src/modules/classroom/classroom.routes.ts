@@ -6,7 +6,17 @@ import { asyncRoute } from '../../core/http.js';
 import { db } from '../../core/db/client.js';
 import { resolveServiceAccount } from '../../core/firebase.js';
 import { env } from '../../config/env.js';
-import { syncAllCourses, deleteSyncRun, rebuildClassesFromCourses } from './classroom.service.js';
+import {
+  syncAllCourses,
+  deleteSyncRun,
+  rebuildClassesFromCourses,
+  previewCourses,
+  deleteCourse,
+  deleteCoursesBatch,
+  getIgnoredCourseIds,
+  addIgnoredCourseIds,
+  removeIgnoredCourseId
+} from './classroom.service.js';
 import { rebuildDashboard } from '../dashboard/dashboard.service.js';
 import { courses, syncRuns, classMappings } from './classroom.schema.js';
 import { classes } from '../classes/classes.schema.js';
@@ -22,6 +32,63 @@ async function getConnection(id: string) {
 async function getSystemConfig<T = any>(key: string): Promise<T | null> {
   const row = await db.select().from(systemConfig).where(eq(systemConfig.key, key)).then((r) => r[0] ?? null);
   return (row?.value as T) ?? null;
+}
+
+/** Helper giải quyết token xác thực Google đang hoạt động (Mode A OAuth hoặc Mode B DWD) */
+async function resolveActiveGoogleAuth(req: any): Promise<{ activeToken?: string; email?: string; isDwd?: boolean }> {
+  const [userConn, currentConn] = await Promise.all([
+    getConnection(req.appUser!.uid),
+    getConnection('current')
+  ]);
+  const conn = userConn?.accessToken ? userConn : currentConn?.accessToken ? currentConn : null;
+
+  if (conn && conn.accessToken) {
+    let activeToken = conn.accessToken;
+    const isExpired = conn.expiresAt && Date.now() > conn.expiresAt.getTime() - 60000;
+    if (isExpired && conn.refreshToken) {
+      try {
+        const cfg = await getSystemConfig<{ clientId?: string; clientSecret?: string }>('oauthConfig');
+        const clientId = cfg?.clientId || env.GOOGLE_OAUTH_CLIENT_ID;
+        const clientSecret = cfg?.clientSecret || env.GOOGLE_OAUTH_CLIENT_SECRET;
+        if (clientId && clientSecret && !clientId.includes('your-client-id')) {
+          const refreshRes = await fetch('https://oauth2.googleapis.com/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+              client_id: clientId,
+              client_secret: clientSecret,
+              refresh_token: conn.refreshToken,
+              grant_type: 'refresh_token'
+            })
+          });
+          if (refreshRes.ok) {
+            const refreshData = (await refreshRes.json()) as any;
+            activeToken = refreshData.access_token;
+            const newExpiresAt = new Date(Date.now() + (refreshData.expires_in || 3600) * 1000);
+            await Promise.all(
+              [req.appUser!.uid, 'current'].map((id) =>
+                db
+                  .update(googleConnections)
+                  .set({ accessToken: activeToken, expiresAt: newExpiresAt, tokenExpiresAt: newExpiresAt, updatedAt: new Date() })
+                  .where(eq(googleConnections.id, id))
+              )
+            );
+          }
+        }
+      } catch (e: any) {
+        console.warn('Auto token refresh notice:', e.message);
+      }
+    }
+    const email = conn.email || req.appUser!.email || 'admin@badinhedu.vn';
+    return { activeToken, email, isDwd: false };
+  }
+
+  const sa = resolveServiceAccount();
+  if (sa?.data?.private_key && env.WORKSPACE_ADMIN_SUBJECT) {
+    return { isDwd: true, email: env.WORKSPACE_ADMIN_SUBJECT };
+  }
+
+  return {};
 }
 
 // Kiểm tra trạng thái kết nối và số lượng khóa học Google Classroom
@@ -46,7 +113,7 @@ classroomRouter.get(
   })
 );
 
-// Lấy danh sách khóa học Google Classroom đã đồng bộ vào Database (100% SSOT không cắt xén)
+// Lấy danh sách khóa học Google Classroom đã đồng bộ vào Database
 classroomRouter.get(
   '/',
   firebaseAuth,
@@ -57,91 +124,162 @@ classroomRouter.get(
   })
 );
 
-// Đồng bộ dữ liệu thật từ Google Classroom (chạy qua OAuth User hoặc Service Account DWD)
+// Quét và xem trước danh sách khóa học Google Classroom để duyệt trước khi đồng bộ (Selective Sync Preview)
+classroomRouter.post(
+  '/preview',
+  firebaseAuth,
+  requireCapability('RUN_SYNC'),
+  asyncRoute(async (req, res) => {
+    const auth = await resolveActiveGoogleAuth(req);
+    if (!auth.activeToken && !auth.isDwd) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 'NOT_CONNECTED',
+          message:
+            'Chưa thiết lập kết nối với Google Classroom. Vui lòng kết nối tài khoản Google trước khi quét danh sách.'
+        }
+      });
+    }
+
+    try {
+      const preview = await previewCourses(auth.isDwd && auth.email ? [auth.email] : [], auth.activeToken);
+      res.json({
+        ok: true,
+        email: auth.email,
+        mode: auth.isDwd ? 'MODE_B_DWD' : 'MODE_A_OAUTH',
+        ...preview
+      });
+    } catch (err: any) {
+      res.status(500).json({
+        ok: false,
+        error: { message: `Quét danh sách khóa học Google Classroom thất bại: ${err.message}` }
+      });
+    }
+  })
+);
+
+// Đồng bộ dữ liệu thật từ Google Classroom (hỗ trợ duyệt chọn selective sync và danh sách loại trừ)
 classroomRouter.post(
   '/sync',
   firebaseAuth,
   requireCapability('RUN_SYNC'),
   asyncRoute(async (req, res) => {
-    // 1. Kiểm tra Mode A (Tài khoản Google OAuth đã liên kết)
-    const [userConn, currentConn] = await Promise.all([
-      getConnection(req.appUser!.uid),
-      getConnection('current')
-    ]);
-    const conn = userConn?.accessToken ? userConn : currentConn?.accessToken ? currentConn : null;
-
-    if (conn && conn.accessToken) {
-      let activeToken = conn.accessToken;
-      const isExpired = conn.expiresAt && Date.now() > conn.expiresAt.getTime() - 60000;
-      if (isExpired && conn.refreshToken) {
-        try {
-          const cfg = await getSystemConfig<{ clientId?: string; clientSecret?: string }>('oauthConfig');
-          const clientId = cfg?.clientId || env.GOOGLE_OAUTH_CLIENT_ID;
-          const clientSecret = cfg?.clientSecret || env.GOOGLE_OAUTH_CLIENT_SECRET;
-          if (clientId && clientSecret && !clientId.includes('your-client-id')) {
-            const refreshRes = await fetch('https://oauth2.googleapis.com/token', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-              body: new URLSearchParams({
-                client_id: clientId,
-                client_secret: clientSecret,
-                refresh_token: conn.refreshToken,
-                grant_type: 'refresh_token'
-              })
-            });
-            if (refreshRes.ok) {
-              const refreshData = (await refreshRes.json()) as any;
-              activeToken = refreshData.access_token;
-              const newExpiresAt = new Date(Date.now() + (refreshData.expires_in || 3600) * 1000);
-              await Promise.all(
-                [req.appUser!.uid, 'current'].map((id) =>
-                  db
-                    .update(googleConnections)
-                    .set({ accessToken: activeToken, expiresAt: newExpiresAt, tokenExpiresAt: newExpiresAt, updatedAt: new Date() })
-                    .where(eq(googleConnections.id, id))
-                )
-              );
-            }
-          }
-        } catch (e: any) {
-          console.warn('Auto token refresh notice:', e.message);
+    const auth = await resolveActiveGoogleAuth(req);
+    if (!auth.activeToken && !auth.isDwd) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 'NOT_CONNECTED',
+          message:
+            'Chưa thiết lập kết nối với Google Classroom. Vui lòng vào mục "Quản Lý Kết Nối Google Classroom" để bấm "Kết nối tài khoản Google" (hoặc cấu hình file service-account.json cho trường).'
         }
-      }
-
-      const email = conn.email || req.appUser!.email || 'admin@badinhedu.vn';
-
-      const syncResult = await syncAllCourses([], activeToken, email);
-      await rebuildDashboard().catch(() => null);
-      return res.json({
-        ok: true,
-        mode: 'MODE_A_OAUTH',
-        message: `Đã đồng bộ thành công ${syncResult.success} khóa học từ Google Classroom tài khoản: ${email}`,
-        ...syncResult
       });
     }
 
-    // 2. Kiểm tra Mode B (DWD Service Account cho toàn trường có file private key)
-    const sa = resolveServiceAccount();
-    if (sa?.data?.private_key && env.WORKSPACE_ADMIN_SUBJECT) {
-      const syncResult = await syncAllCourses([env.WORKSPACE_ADMIN_SUBJECT], undefined, 'DWD_SERVICE_ACCOUNT');
-      await rebuildDashboard().catch(() => null);
-      return res.json({
-        ok: true,
-        mode: 'MODE_B_DWD',
-        message: `Đã đồng bộ thành công ${syncResult.success} khóa học toàn trường qua Google Workspace DWD (${env.WORKSPACE_ADMIN_SUBJECT})`,
-        ...syncResult
-      });
-    }
+    const bodySchema = z
+      .object({
+        selectedCourseIds: z.array(z.string()).optional(),
+        ignoredCourseIds: z.array(z.string()).optional()
+      })
+      .optional();
+    const parsedBody = bodySchema.parse(req.body);
 
-    // 3. Chưa có kết nối Google Classroom
-    return res.status(400).json({
-      ok: false,
-      error: {
-        code: 'NOT_CONNECTED',
-        message:
-          'Chưa thiết lập kết nối với Google Classroom. Vui lòng vào mục "Quản Lý Kết Nối Google Classroom" để bấm "Kết nối tài khoản Google" (hoặc cấu hình file service-account.json cho trường).'
+    const email = auth.email || 'admin@badinhedu.vn';
+    const performedBy = auth.isDwd ? 'DWD_SERVICE_ACCOUNT' : email;
+
+    const syncResult = await syncAllCourses(
+      auth.isDwd && auth.email ? [auth.email] : [],
+      auth.activeToken,
+      performedBy,
+      {
+        selectedCourseIds: parsedBody?.selectedCourseIds,
+        ignoredCourseIds: parsedBody?.ignoredCourseIds
       }
+    );
+
+    await rebuildDashboard().catch(() => null);
+
+    return res.json({
+      ok: true,
+      mode: auth.isDwd ? 'MODE_B_DWD' : 'MODE_A_OAUTH',
+      message: `Đã đồng bộ thành công ${syncResult.success} khóa học từ Google Classroom!`,
+      ...syncResult
     });
+  })
+);
+
+// Xóa 1 khóa học bị sai, nhầm, rác khỏi hệ thống (kèm đưa vào danh sách loại trừ)
+classroomRouter.delete(
+  '/courses/:id',
+  firebaseAuth,
+  requireCapability('RUN_SYNC'),
+  asyncRoute(async (req, res) => {
+    const courseId = String(req.params.id);
+    const addToIgnore = req.query.addToIgnore !== 'false';
+    const result = await deleteCourse(courseId, addToIgnore);
+    res.json({
+      message: `Đã xóa khóa học "${result.courseName}" khỏi hệ thống thành công.${
+        addToIgnore ? ' Khóa học đã được đưa vào danh sách loại trừ để không tự động nạp lại.' : ''
+      }`,
+      ...result
+    });
+  })
+);
+
+// Xóa hàng loạt khóa học bị sai hoặc không mong muốn
+classroomRouter.post(
+  '/courses/batch-delete',
+  firebaseAuth,
+  requireCapability('RUN_SYNC'),
+  asyncRoute(async (req, res) => {
+    const body = z
+      .object({
+        courseIds: z.array(z.string().min(1)).min(1, 'Danh sách xóa không được rỗng'),
+        addToIgnore: z.boolean().optional().default(true)
+      })
+      .parse(req.body);
+
+    const result = await deleteCoursesBatch(body.courseIds, body.addToIgnore);
+    res.json({
+      message: `Đã xóa ${result.count} khóa học khỏi hệ thống thành công.`,
+      ...result
+    });
+  })
+);
+
+// Lấy danh sách ID các khóa học đang bị loại trừ
+classroomRouter.get(
+  '/ignored-courses',
+  firebaseAuth,
+  requireCapability('VIEW_DASHBOARD'),
+  asyncRoute(async (_req, res) => {
+    const items = await getIgnoredCourseIds();
+    res.json({ total: items.length, items });
+  })
+);
+
+// Thêm khóa học vào danh sách loại trừ
+classroomRouter.post(
+  '/ignored-courses',
+  firebaseAuth,
+  requireCapability('RUN_SYNC'),
+  asyncRoute(async (req, res) => {
+    const body = z.object({ courseIds: z.array(z.string().min(1)).min(1) }).parse(req.body);
+    const items = await addIgnoredCourseIds(body.courseIds);
+    res.json({ ok: true, message: `Đã thêm ${body.courseIds.length} khóa học vào danh sách loại trừ.`, total: items.length });
+  })
+);
+
+// Gỡ khóa học khỏi danh sách loại trừ (cho phép đồng bộ lại)
+classroomRouter.delete(
+  '/ignored-courses/:id',
+  firebaseAuth,
+  requireCapability('RUN_SYNC'),
+  asyncRoute(async (req, res) => {
+    const courseId = String(req.params.id);
+    const items = await removeIgnoredCourseId(courseId);
+    res.json({ ok: true, message: `Đã gỡ khóa học khỏi danh sách loại trừ.`, total: items.length });
   })
 );
 

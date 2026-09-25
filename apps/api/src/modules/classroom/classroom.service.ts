@@ -1,4 +1,4 @@
-import { sql, eq, count } from 'drizzle-orm';
+import { sql, eq, count, inArray } from 'drizzle-orm';
 import { env } from '../../config/env.js';
 import { db } from '../../core/db/client.js';
 import { googleJson } from '../../integrations/dwd.js';
@@ -7,6 +7,7 @@ import { evaluateAlertRules } from '../alerts/alert-engine.service.js';
 import { people } from '../people/people.schema.js';
 import { classes } from '../classes/classes.schema.js';
 import { schedules } from '../schedules/schedules.schema.js';
+import { systemConfig } from '../system/system.schema.js';
 import {
   courses,
   courseMembers,
@@ -481,7 +482,159 @@ export async function syncCourse(course: Course, subject = env.WORKSPACE_ADMIN_S
   };
 }
 
-export async function syncAllCourses(teachers: string[] = [], customToken?: string, performedBy = 'SYSTEM') {
+const IGNORED_COURSES_KEY = 'classroom_ignored_courses';
+
+/** Lấy danh sách ID các khóa học Google Classroom bị người dùng bỏ qua / loại trừ */
+export async function getIgnoredCourseIds(): Promise<string[]> {
+  const row = await db.select().from(systemConfig).where(eq(systemConfig.key, IGNORED_COURSES_KEY)).then((r) => r[0] ?? null);
+  if (!row || !Array.isArray(row.value)) return [];
+  return (row.value as string[]).filter(Boolean);
+}
+
+/** Thêm các ID khóa học vào danh sách loại trừ (không đồng bộ) */
+export async function addIgnoredCourseIds(ids: string[]): Promise<string[]> {
+  if (!ids.length) return getIgnoredCourseIds();
+  const current = await getIgnoredCourseIds();
+  const set = new Set([...current, ...ids]);
+  const updated = Array.from(set);
+  await db
+    .insert(systemConfig)
+    .values({
+      key: IGNORED_COURSES_KEY,
+      value: updated,
+      updatedAt: new Date()
+    })
+    .onConflictDoUpdate({
+      target: systemConfig.key,
+      set: { value: updated, updatedAt: new Date() }
+    });
+  return updated;
+}
+
+/** Gỡ 1 ID khóa học khỏi danh sách loại trừ (cho phép đồng bộ lại) */
+export async function removeIgnoredCourseId(id: string): Promise<string[]> {
+  const current = await getIgnoredCourseIds();
+  const updated = current.filter((x) => x !== id);
+  await db
+    .insert(systemConfig)
+    .values({
+      key: IGNORED_COURSES_KEY,
+      value: updated,
+      updatedAt: new Date()
+    })
+    .onConflictDoUpdate({
+      target: systemConfig.key,
+      set: { value: updated, updatedAt: new Date() }
+    });
+  return updated;
+}
+
+/**
+ * Quét danh sách khóa học Google Classroom trước khi đồng bộ để người dùng duyệt chọn (Selective Sync Preview)
+ */
+export async function previewCourses(teachers: string[] = [], customToken?: string) {
+  const map = new Map<string, Course>();
+  let lastError: Error | null = null;
+
+  if (customToken) {
+    try {
+      const found = await discoverCourses('', customToken);
+      for (const c of found) map.set(c.id, c);
+    } catch (err: any) {
+      lastError = err;
+    }
+  } else if (teachers.length) {
+    for (const t of teachers) {
+      try {
+        const found = await discoverCourses(t);
+        for (const c of found) map.set(c.id, c);
+      } catch (err: any) {
+        lastError = lastError || err;
+      }
+    }
+  } else if (env.WORKSPACE_ADMIN_SUBJECT) {
+    try {
+      const found = await discoverCourses(env.WORKSPACE_ADMIN_SUBJECT);
+      for (const c of found) map.set(c.id, c);
+    } catch (err: any) {
+      lastError = lastError || err;
+    }
+  }
+
+  if (map.size === 0 && lastError) {
+    throw lastError;
+  }
+
+  const existingCourses = await db
+    .select({
+      id: courses.id,
+      name: courses.name,
+      classId: courses.classId,
+      className: courses.className,
+      grade: courses.grade,
+      subjectName: courses.subjectName
+    })
+    .from(courses);
+  const existingMap = new Map(existingCourses.map((c) => [c.id, c]));
+
+  const ignoredIds = await getIgnoredCourseIds();
+  const ignoredSet = new Set(ignoredIds);
+
+  const previewItems = Array.from(map.values()).map((c) => {
+    const existing = existingMap.get(c.id);
+    const autoClass = autoDetectClass(c.name);
+    const autoSub = autoDetectSubject(c.name);
+    const isIgnored = ignoredSet.has(c.id);
+    const isAlreadySynced = Boolean(existing);
+
+    return {
+      id: c.id,
+      name: c.name,
+      section: c.section || '',
+      room: c.room || '',
+      courseState: c.courseState || 'ACTIVE',
+      alternateLink: c.alternateLink || '',
+      classId: existing?.classId || autoClass?.classId || '',
+      className: existing?.className || autoClass?.className || '',
+      grade: existing?.grade || autoClass?.grade || null,
+      subjectName: existing?.subjectName || autoSub?.subjectName || '',
+      isAlreadySynced,
+      isIgnored,
+      creationTime: c.creationTime || null,
+      updateTime: c.updateTime || null
+    };
+  });
+
+  // Khóa học mới lên đầu, đã đồng bộ ở giữa, bị loại trừ xuống cuối
+  previewItems.sort((a, b) => {
+    if (a.isIgnored !== b.isIgnored) return a.isIgnored ? 1 : -1;
+    if (a.isAlreadySynced !== b.isAlreadySynced) return a.isAlreadySynced ? 1 : -1;
+    return a.name.localeCompare(b.name, 'vi');
+  });
+
+  return {
+    total: previewItems.length,
+    items: previewItems,
+    syncedCount: previewItems.filter((x) => x.isAlreadySynced && !x.isIgnored).length,
+    newCount: previewItems.filter((x) => !x.isAlreadySynced && !x.isIgnored).length,
+    ignoredCount: previewItems.filter((x) => x.isIgnored).length
+  };
+}
+
+export async function syncAllCourses(
+  teachers: string[] = [],
+  customToken?: string,
+  performedBy = 'SYSTEM',
+  options?: {
+    selectedCourseIds?: string[];
+    ignoredCourseIds?: string[];
+  }
+) {
+  // Nếu có danh sách ID cần loại trừ, lưu vào cấu hình
+  if (options?.ignoredCourseIds?.length) {
+    await addIgnoredCourseIds(options.ignoredCourseIds);
+  }
+
   const runId = `sync_${Date.now()}`;
 
   await db.insert(syncRuns).values({
@@ -524,8 +677,25 @@ export async function syncAllCourses(teachers: string[] = [], customToken?: stri
     }
   }
 
-  let successCount = 0;
+  // Lọc theo danh sách loại trừ (Ignore List) và danh sách được duyệt (Selected Course IDs)
+  const ignoredIds = await getIgnoredCourseIds();
+  const ignoredSet = new Set(ignoredIds);
+
+  const coursesToSync: Course[] = [];
   for (const c of map.values()) {
+    // 1. Khóa học nằm trong danh sách loại trừ -> bỏ qua
+    if (ignoredSet.has(c.id)) continue;
+
+    // 2. Nếu người dùng chọn lọc cụ thể -> chỉ đồng bộ các khóa học được chọn
+    if (options?.selectedCourseIds && options.selectedCourseIds.length > 0) {
+      if (!options.selectedCourseIds.includes(c.id)) continue;
+    }
+
+    coursesToSync.push(c);
+  }
+
+  let successCount = 0;
+  for (const c of coursesToSync) {
     try {
       await syncCourse(c, env.WORKSPACE_ADMIN_SUBJECT, customToken, runId);
       successCount++;
@@ -539,7 +709,7 @@ export async function syncAllCourses(teachers: string[] = [], customToken?: stri
     .set({
       finishedAt: new Date(),
       status: errorLogs.length === 0 ? 'COMPLETED' : successCount > 0 ? 'PARTIAL' : 'FAILED',
-      coursesTotal: map.size,
+      coursesTotal: coursesToSync.length,
       coursesSuccess: successCount,
       coursesError: errorLogs.length,
       errors: errorLogs.slice(0, 50)
@@ -552,10 +722,78 @@ export async function syncAllCourses(teachers: string[] = [], customToken?: stri
 
   return {
     runId,
-    courses: map.size,
+    courses: coursesToSync.length,
     success: successCount,
     errors: errorLogs
   };
+}
+
+/**
+ * Xóa 1 khóa học bị sai hoặc nhầm (kèm toàn bộ bài nộp, điểm số, bài tập con)
+ * và đưa vào danh sách loại trừ để không tự động nạp lại khi đồng bộ.
+ */
+export async function deleteCourse(courseId: string, addToIgnore = true): Promise<{ ok: boolean; courseId: string; courseName: string }> {
+  const existing = await db.select().from(courses).where(eq(courses.id, courseId)).then((r) => r[0]);
+  if (!existing) {
+    throw new Error(`Không tìm thấy khóa học có mã "${courseId}".`);
+  }
+
+  await db.transaction(async (tx) => {
+    await tx.delete(courseSubmissions).where(eq(courseSubmissions.courseId, courseId));
+    await tx.delete(courseCoursework).where(eq(courseCoursework.courseId, courseId));
+    await tx.delete(courseMaterials).where(eq(courseMaterials.courseId, courseId));
+    await tx.delete(courseAnnouncements).where(eq(courseAnnouncements.courseId, courseId));
+    await tx.delete(courseTopics).where(eq(courseTopics.courseId, courseId));
+    await tx.delete(courseMembers).where(eq(courseMembers.courseId, courseId));
+    await tx.delete(classMappings).where(eq(classMappings.courseId, courseId));
+    await tx.delete(subjectMappings).where(eq(subjectMappings.courseId, courseId));
+    await tx.delete(courses).where(eq(courses.id, courseId));
+  });
+
+  if (addToIgnore) {
+    await addIgnoredCourseIds([courseId]);
+  }
+
+  await rebuildClassesFromCourses().catch(() => 0);
+  const { rebuildDashboard } = await import('../dashboard/dashboard.service.js');
+  await rebuildDashboard().catch(() => null);
+
+  return { ok: true, courseId, courseName: existing.name };
+}
+
+/**
+ * Xóa nhiều khóa học cùng lúc trong một transaction
+ */
+export async function deleteCoursesBatch(courseIds: string[], addToIgnore = true): Promise<{ ok: boolean; count: number }> {
+  if (!courseIds.length) return { ok: true, count: 0 };
+  const targetCourses = await db.select().from(courses).where(inArray(courses.id, courseIds));
+  const validIds = targetCourses.map((c) => c.id);
+
+  if (validIds.length > 0) {
+    await db.transaction(async (tx) => {
+      for (const id of validIds) {
+        await tx.delete(courseSubmissions).where(eq(courseSubmissions.courseId, id));
+        await tx.delete(courseCoursework).where(eq(courseCoursework.courseId, id));
+        await tx.delete(courseMaterials).where(eq(courseMaterials.courseId, id));
+        await tx.delete(courseAnnouncements).where(eq(courseAnnouncements.courseId, id));
+        await tx.delete(courseTopics).where(eq(courseTopics.courseId, id));
+        await tx.delete(courseMembers).where(eq(courseMembers.courseId, id));
+        await tx.delete(classMappings).where(eq(classMappings.courseId, id));
+        await tx.delete(subjectMappings).where(eq(subjectMappings.courseId, id));
+        await tx.delete(courses).where(eq(courses.id, id));
+      }
+    });
+
+    if (addToIgnore) {
+      await addIgnoredCourseIds(validIds);
+    }
+
+    await rebuildClassesFromCourses().catch(() => 0);
+    const { rebuildDashboard } = await import('../dashboard/dashboard.service.js');
+    await rebuildDashboard().catch(() => null);
+  }
+
+  return { ok: true, count: validIds.length };
 }
 
 /**
