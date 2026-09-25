@@ -837,7 +837,24 @@ connectionsRouter.post(
 
     if (!refreshRes.ok) {
       const errText = await refreshRes.text();
-      return res.status(400).json({ ok: false, error: { code: 'REFRESH_FAILED', message: `Lỗi làm mới token từ Google: ${errText}` } });
+      let friendlyMessage = `Lỗi làm mới token từ Google: ${errText}`;
+
+      if (errText.includes('invalid_grant')) {
+        friendlyMessage =
+          'Google Refresh Token đã hết hạn (do chính sách 7 ngày của Google Cloud ở chế độ Testing) hoặc đã bị thu hồi. Vui lòng cấp lại Token mới từ Google OAuth Playground (https://developers.google.com/oauthplayground) hoặc dán Access Token mới vào bên dưới.';
+
+        // Tự động dọn dẹp token đã chết để giao diện không báo ảo "ĐÃ KẾT NỐI VĨNH VIỄN"
+        await Promise.all(
+          [req.appUser!.uid, 'current'].map((id) =>
+            db
+              .update(googleConnections)
+              .set({ accessToken: null, refreshToken: null, updatedAt: new Date() })
+              .where(eq(googleConnections.id, id))
+          )
+        ).catch(() => null);
+      }
+
+      return res.status(400).json({ ok: false, error: { code: 'REFRESH_FAILED', message: friendlyMessage } });
     }
 
     const refreshData = (await refreshRes.json()) as any;

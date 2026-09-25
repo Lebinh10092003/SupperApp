@@ -11,4 +11,5 @@ coverage/
 *credentials*.json
 evidence-storage/
 *.tsbuildinfo
-
+data/
+apps/api/data/

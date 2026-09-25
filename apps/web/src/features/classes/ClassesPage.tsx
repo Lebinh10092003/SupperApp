@@ -28,6 +28,8 @@ import {
   Alert,
   CircularProgress,
   FormControl,
+  FormControlLabel,
+  Checkbox,
   InputLabel,
   Grid
 } from '@mui/material';
@@ -319,10 +321,13 @@ export default function ClassesPage() {
     }
   };
 
+  const [unlinkLinkedCourses, setUnlinkLinkedCourses] = useState(true);
+
   // Open Delete Dialog
   const handleOpenDelete = (cls: ClassItem) => {
     setSelectedClass(cls);
     setFormError('');
+    setUnlinkLinkedCourses(true);
     setOpenDeleteDialog(true);
   };
 
@@ -333,7 +338,7 @@ export default function ClassesPage() {
     setFormError('');
 
     try {
-      await api.delete(`/api/classes/${encodeURIComponent(selectedClass.classId)}`);
+      await api.delete(`/api/classes/${encodeURIComponent(selectedClass.classId)}?unlinkCourses=${unlinkLinkedCourses}`);
       setToast({ message: `Đã xoá lớp "${selectedClass.className}" thành công!`, severity: 'success' });
       setOpenDeleteDialog(false);
       loadClasses();
@@ -1003,16 +1008,39 @@ export default function ClassesPage() {
       <Dialog open={openDeleteDialog} onClose={() => !formSubmitting && setOpenDeleteDialog(false)} maxWidth="xs" fullWidth>
         <DialogTitle sx={{ fontWeight: 700, color: '#dc2626' }}>Xác nhận xoá lớp học</DialogTitle>
         <DialogContent dividers>
-          {formError ? (
+          {formError && (
             <Alert severity="error" sx={{ mb: 2 }}>
               {formError}
             </Alert>
-          ) : (
+          )}
+          <Stack spacing={2}>
             <Typography variant="body2" sx={{ color: '#334155' }}>
               Bạn có chắc chắn muốn xoá lớp <strong>{selectedClass?.className}</strong> ({selectedClass?.classId}) không?
-              Hành động này sẽ không thể hoàn tác nếu không còn dữ liệu liên kết.
             </Typography>
-          )}
+
+            {selectedClass && (selectedClass.courseCount || 0) > 0 && (
+              <Box sx={{ p: 1.5, bgcolor: '#fef2f2', border: '1px solid #fecaca', borderRadius: 2 }}>
+                <Typography variant="caption" sx={{ color: '#991b1b', fontWeight: 600, display: 'block', mb: 1 }}>
+                  Lớp này hiện đang có {selectedClass.courseCount} khóa học Google Classroom liên kết.
+                </Typography>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={unlinkLinkedCourses}
+                      onChange={(e) => setUnlinkLinkedCourses(e.target.checked)}
+                      size="small"
+                      color="error"
+                    />
+                  }
+                  label={
+                    <Typography variant="body2" sx={{ color: '#1e293b', fontSize: '0.8125rem', fontWeight: 600 }}>
+                      Tự động gỡ liên kết {selectedClass.courseCount} khóa học Classroom thuộc lớp này và xóa lớp
+                    </Typography>
+                  }
+                />
+              </Box>
+            )}
+          </Stack>
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
           <Button onClick={() => setOpenDeleteDialog(false)} disabled={formSubmitting} sx={{ textTransform: 'none' }}>

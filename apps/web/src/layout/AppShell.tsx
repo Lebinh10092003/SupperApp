@@ -65,6 +65,7 @@ import ListAltIcon from '@mui/icons-material/ListAltRounded';
 import WarningAmberIcon from '@mui/icons-material/WarningAmberRounded';
 import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
 import InsightsRoundedIcon from '@mui/icons-material/InsightsRounded';
+import CompareArrowsRoundedIcon from '@mui/icons-material/CompareArrowsRounded';
 
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
@@ -94,14 +95,14 @@ interface NavGroup {
 
 /** Email tài khoản FermatTech (quản trị cấp cao nhất, bootstrap super admin) — nguồn duy nhất được thấy các mục adminOnly. */
 
-/** Thứ tự hiển thị nhóm trên sidebar — Cảnh báo an toàn + Lịch công tác lên đầu (Mr Tiến phản hồi 2026-09-21), các nhóm adminOnly xuống cuối. */
+/** Thứ tự hiển thị nhóm trên sidebar — Cảnh báo an toàn + Lịch công tác lên đầu, sau đó đến Điều hành Lớp học số. */
 const GROUP_DISPLAY_ORDER = [
   'CẢNH BÁO AN TOÀN VÀ XỬ LÝ SỰ CỐ',
   'LỊCH CÔNG TÁC',
+  'ĐIỀU HÀNH LỚP HỌC SỐ',
   'QUẢN TRỊ HỆ THỐNG',
   'TỔNG QUAN',
-  'PHÂN TÍCH & BÁO CÁO',
-  'LỚP HỌC & HỌC SINH'
+  'PHÂN TÍCH & BÁO CÁO'
 ];
 
 // Sắp xếp lại 10/09/2026 theo yêu cầu Sin: nhóm nào dùng HÀNG NGÀY lên
@@ -258,33 +259,59 @@ const navGroups: NavGroup[] = [
       }
     ]
   },
-  // Nhóm liên quan Google Classroom — Sin yêu cầu 2026-09-21 chuyển xuống
-  // CUỐI sidebar, ưu tiên module An toàn + Lịch công tác lên trên. Mở lại
-  // cho tài khoản thường 2026-09-25 (Sin: "mai bàn giao luôn... đảm bảo
-  // module lớp học số phải sử dụng được") — dữ liệu thật đã xác minh hoạt
-  // động (29 khóa học, đồng bộ gần nhất thành công). Các trang CẤU HÌNH hệ
-  // thống (Kết nối/Chuẩn hóa/Nhật ký/Chất lượng dữ liệu, nhóm QUẢN TRỊ HỆ
-  // THỐNG) vẫn giữ adminOnly — đó là thao tác nhạy cảm (ngắt/nối lại đồng
-  // bộ toàn trường), khác với các trang XEM/DÙNG dữ liệu ở đây.
+  // Nhóm Điều hành Lớp học số — Mr Bình tổ chức lại theo chuẩn Sư phạm &
+  // Nghiệp vụ trường học (PR #31, 2026-09-25), đã sẵn KHÔNG còn adminOnly —
+  // trùng đúng ý Sin cùng ngày ("mai bàn giao, đảm bảo module này dùng
+  // được"), các trang cấu hình nhạy cảm (Kết nối/Chuẩn hóa Classroom) vẫn
+  // nằm riêng ở nhóm QUẢN TRỊ HỆ THỐNG.
   {
-    groupTitle: 'LỚP HỌC & HỌC SINH',
+    groupTitle: 'ĐIỀU HÀNH LỚP HỌC SỐ',
     items: [
-      { path: '/classroom', label: 'Google Classroom', icon: <ClassroomIcon fontSize="small" /> },
-      { path: '/classroom/sync-runs', label: 'Phiên đồng bộ', icon: <HistoryIcon fontSize="small" /> },
-      { path: '/classes', label: 'Lớp học & Sĩ số', icon: <SchoolIcon fontSize="small" /> },
-      { path: '/students', label: 'Danh sách Học sinh', icon: <StudentsIcon fontSize="small" /> },
+      {
+        path: '/classes',
+        label: 'Lớp học Hành chính & Sĩ số',
+        icon: <SchoolIcon fontSize="small" />
+      },
+      {
+        path: '/classroom',
+        label: 'Khóa học Bộ môn',
+        icon: <ClassroomIcon fontSize="small" />,
+        badge: 'Classroom'
+      },
+      {
+        path: '/classes/compare',
+        label: 'Đối sánh Lớp học 1-vs-1',
+        icon: <CompareArrowsRoundedIcon fontSize="small" />,
+        badge: 'MỚI',
+        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'DEPARTMENT_HEAD']
+      },
+      {
+        path: '/students',
+        label: 'Học sinh & Hồ sơ 360°',
+        icon: <StudentsIcon fontSize="small" />
+      },
       {
         path: '/teachers',
-        label: 'Danh sách Giáo viên',
+        label: 'Đội ngũ Giáo viên',
         icon: <TeachersIcon fontSize="small" />,
         roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'DEPARTMENT_HEAD']
       },
-      { path: '/schedules', label: 'Thời khóa biểu', icon: <ScheduleIcon fontSize="small" /> },
       {
         path: '/attendance',
         label: 'Điểm danh & Chuyên cần',
         icon: <AttendanceIcon fontSize="small" />,
         roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'DEPARTMENT_HEAD', 'TEACHER', 'HOMEROOM']
+      },
+      {
+        path: '/schedules',
+        label: 'Thời khóa biểu',
+        icon: <ScheduleIcon fontSize="small" />
+      },
+      {
+        path: '/classroom/sync-runs',
+        label: 'Lịch sử Đồng bộ Classroom',
+        icon: <HistoryIcon fontSize="small" />,
+        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL']
       }
     ]
   }

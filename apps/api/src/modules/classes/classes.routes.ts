@@ -6,7 +6,7 @@ import { asyncRoute } from '../../core/http.js';
 import { db } from '../../core/db/client.js';
 import { classes } from './classes.schema.js';
 import { schedules } from '../schedules/schedules.schema.js';
-import { courses, courseSubmissions, courseCoursework, courseMembers } from '../classroom/classroom.schema.js';
+import { courses, courseSubmissions, courseCoursework, courseMembers, classMappings } from '../classroom/classroom.schema.js';
 import { alerts } from '../alerts/alerts.schema.js';
 import { systemConfig } from '../system/system.schema.js';
 import { rebuildClassesFromCourses } from '../classroom/classroom.service.js';
@@ -194,37 +194,39 @@ classesRouter.delete(
       });
     }
 
-    // 1. Kiểm tra ràng buộc thời khoá biểu schedules
+    // 1. Tự động dọn dẹp ràng buộc thời khoá biểu nếu có
     const [schedCount] = await db
       .select({ n: count() })
       .from(schedules)
       .where(eq(schedules.classId, classId));
     if (schedCount && schedCount.n > 0) {
-      return res.status(400).json({
-        error: {
-          message: `Không thể xoá lớp "${existing.className}" vì đang có ${schedCount.n} tiết thời khoá biểu liên kết. Vui lòng chuyển hoặc xoá lịch trước.`
-        }
-      });
+      await db.delete(schedules).where(eq(schedules.classId, classId));
     }
 
-    // 2. Kiểm tra ràng buộc khoá học courses
+    // 2. Tự động gỡ liên kết các khóa học Google Classroom đang trỏ vào lớp này
     const [courseCount] = await db
       .select({ n: count() })
       .from(courses)
       .where(eq(courses.classId, classId));
     if (courseCount && courseCount.n > 0) {
-      return res.status(400).json({
-        error: {
-          message: `Không thể xoá lớp "${existing.className}" vì đang có ${courseCount.n} khoá học Google Classroom liên kết. Vui lòng chuyển ánh xạ hoặc xoá phiên đồng bộ trước.`
-        }
-      });
+      await db
+        .update(courses)
+        .set({ classId: null, className: null, grade: null, updatedAt: new Date() })
+        .where(eq(courses.classId, classId));
+      await db
+        .delete(classMappings)
+        .where(eq(classMappings.classId, classId));
     }
 
+    // 3. Tiến hành xoá lớp khỏi hệ thống và rebuild dashboard
     await db.delete(classes).where(eq(classes.classId, classId));
+    await rebuildDashboard().catch(() => null);
 
     res.json({
       ok: true,
-      message: `Đã xoá lớp học "${existing.className}" (${classId}) thành công.`
+      message: `Đã xoá lớp học "${existing.className}" (${classId}) thành công.${
+        courseCount && courseCount.n > 0 ? ` (Đã tự động gỡ liên kết ${courseCount.n} khóa học Google Classroom)` : ''
+      }`
     });
   })
 );
