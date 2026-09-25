@@ -1,11 +1,17 @@
 import { Routes, Route, Navigate } from "react-router-dom";
-import type { ReactNode } from "react";
+import { lazy, Suspense, type ReactNode } from "react";
 import { ProtectedRoute } from "../auth/ProtectedRoute";
 import { RoleRoute } from "../auth/RoleRoute";
 import { AppShell } from "../layout/AppShell";
 import { useAuth } from "../auth/AuthProvider";
 import { isFermatTechAdminEmail } from "../config/adminAccess";
 import LoginPage from "../features/login/LoginPage";
+// Pilot UI di động (Ionic React) — Sin duyệt hướng 2026-09-25, xem nhánh
+// git feature/ionic-mobile-pilot. CỐ Ý lazy-load (KHÔNG import tĩnh như
+// các trang khác): @ionic/react kéo theo bộ CSS reset riêng, tách chunk
+// để KHÔNG lẫn vào bundle chính — chỉ tải khi ai đó chủ động vào đúng URL
+// /mobile-preview/an-toan, không ảnh hưởng bất kỳ trang nào khác.
+const MobileMyIncidentsPage = lazy(() => import("../mobile/MobileMyIncidentsPage"));
 import DashboardPage from "../features/dashboard/DashboardPage";
 import TodayPage from "../features/today/TodayPage";
 import ClassesPage from "../features/classes/ClassesPage";
@@ -101,6 +107,17 @@ export function App() {
           luôn nằm ở authz.ts 9 bước (server) + GET /api/safety/me (ẩn/hiện
           nút hành động, không phải lớp chặn) — xem plan Phase 1 §0. 2 route
           công khai (report/lookup) KHÔNG qua p(), giống /login. */}
+      {/* Pilot UI di động — CHƯA gắn vào menu điều hướng chính, chỉ vào
+          được qua URL trực tiếp. Suspense fallback rỗng vì chunk rất nhỏ. */}
+      <Route
+        path="/mobile-preview/an-toan"
+        element={p(
+          <Suspense fallback={null}>
+            <MobileMyIncidentsPage />
+          </Suspense>,
+          ROLES_SAFETY_STAFF
+        )}
+      />
       <Route path="/safety/report" element={<PublicReportPage />} />
       <Route path="/safety/lookup" element={<PublicLookupPage />} />
       <Route path="/safety" element={p(<SafetyDashboardPage />, ROLES_SAFETY_STAFF)} />
