@@ -953,13 +953,13 @@ export function AppShell({ children }: { children: ReactNode }) {
               <MenuIcon fontSize="small" />
             </IconButton>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Typography variant="body2" fontWeight={600} sx={{ color: '#2563eb' }}>
+              <Typography variant="body2" fontWeight={600} sx={{ color: '#2563eb', display: { xs: 'none', sm: 'inline' } }}>
                 Giảng Võ SuperApp
               </Typography>
-              <Typography variant="body2" sx={{ color: '#cbd5e1' }}>
+              <Typography variant="body2" sx={{ color: '#cbd5e1', display: { xs: 'none', sm: 'inline' } }}>
                 /
               </Typography>
-              <Typography variant="body2" fontWeight={700} sx={{ color: '#0f172a' }}>
+              <Typography variant="body2" fontWeight={700} sx={{ color: '#0f172a' }} noWrap>
                 {currentPageTitle}
               </Typography>
             </Box>

@@ -32,7 +32,9 @@ import {
   IconButton,
   Avatar,
   Divider,
-  Tooltip as MuiTooltip
+  Tooltip as MuiTooltip,
+  useTheme,
+  useMediaQuery
 } from '@mui/material';
 import {
   LineChart,
@@ -89,7 +91,7 @@ const CardK = ({ title, value, delta, deltaPositive = true, subtitle, icon, acce
     onClick={onClick}
     sx={{
       height: '100%',
-      borderRadius: 3,
+      borderRadius: { xs: 2.5, sm: 3 },
       border: '1px solid #e2e8f0',
       bgcolor: '#ffffff',
       boxShadow: '0 1px 3px 0 rgba(15, 23, 42, 0.04)',
@@ -106,22 +108,23 @@ const CardK = ({ title, value, delta, deltaPositive = true, subtitle, icon, acce
           }
     }}
   >
-    <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-        <Typography variant="caption" sx={{ fontWeight: 700, color: '#64748b', fontSize: '0.72rem', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+    <CardContent sx={{ p: { xs: 1.5, sm: 2.25 }, '&:last-child': { pb: { xs: 1.5, sm: 2.25 } } }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: { xs: 0.75, sm: 1.25 } }}>
+        <Typography variant="caption" sx={{ fontWeight: 700, color: '#64748b', fontSize: { xs: '0.66rem', sm: '0.72rem' }, letterSpacing: '0.04em', textTransform: 'uppercase', lineHeight: 1.2 }}>
           {title}
         </Typography>
         <Box
           sx={{
-            width: 34,
-            height: 34,
+            width: { xs: 28, sm: 34 },
+            height: { xs: 28, sm: 34 },
             borderRadius: 2,
             bgcolor: iconBg,
             color: accentColor,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+            boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
+            flexShrink: 0
           }}
         >
           {icon}
@@ -129,22 +132,22 @@ const CardK = ({ title, value, delta, deltaPositive = true, subtitle, icon, acce
       </Box>
 
       <Box sx={{ my: 0.5 }}>
-        <Typography variant="h4" fontWeight={800} sx={{ color: '#0f172a', letterSpacing: '-0.03em', fontSize: '1.85rem', lineHeight: 1.2 }}>
+        <Typography variant="h4" fontWeight={800} sx={{ color: '#0f172a', letterSpacing: '-0.03em', fontSize: { xs: '1.35rem', sm: '1.85rem' }, lineHeight: 1.2 }}>
           {value ?? '0'}
         </Typography>
       </Box>
 
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 1, flexWrap: 'wrap' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: { xs: 0.5, sm: 1 }, flexWrap: 'wrap' }}>
         {delta && (
           <Typography
             variant="caption"
             fontWeight={700}
-            sx={{ color: deltaPositive ? '#10b981' : '#ef4444', fontSize: '0.75rem' }}
+            sx={{ color: deltaPositive ? '#10b981' : '#ef4444', fontSize: { xs: '0.68rem', sm: '0.75rem' } }}
           >
             {delta}
           </Typography>
         )}
-        <Typography variant="caption" sx={{ color: '#94a3b8', fontSize: '0.75rem' }}>
+        <Typography variant="caption" sx={{ color: '#94a3b8', fontSize: { xs: '0.66rem', sm: '0.75rem' } }} noWrap>
           • {subtitle || 'Classroom'}
         </Typography>
       </Box>
@@ -154,6 +157,9 @@ const CardK = ({ title, value, delta, deltaPositive = true, subtitle, icon, acce
 
 export default function DashboardPage() {
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isTablet = useMediaQuery(theme.breakpoints.down('md'));
   const [period, setPeriod] = useState('this_month');
   const [grade, setGrade] = useState('all');
   const [overview, setOverview] = useState<any>(null);
@@ -441,74 +447,113 @@ export default function DashboardPage() {
       <PageHeader
         title="Bảng điều hành toàn trường"
         action={
-          <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
-            <Button
-              variant="contained"
-              color="primary"
-              size="small"
-              startIcon={syncing ? <CircularProgress size={16} color="inherit" /> : <CloudSyncIcon />}
-              onClick={handleQuickSync}
-              disabled={syncing}
-              sx={{ fontWeight: 700, px: 2, bgcolor: '#2563eb' }}
-            >
-              {syncing ? 'Đang đồng bộ Classroom...' : 'Đồng Bộ Classroom'}
-            </Button>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center', width: { xs: '100%', lg: 'auto' } }}>
+            <Stack direction="row" spacing={1} sx={{ width: { xs: '100%', sm: 'auto' }, flex: { xs: 1, sm: 'none' } }}>
+              <FormControl size="small" sx={{ flex: 1, minWidth: { xs: 0, sm: 130 }, bgcolor: '#fff' }}>
+                <InputLabel>Thời gian</InputLabel>
+                <Select value={period} label="Thời gian" onChange={(e) => setPeriod(e.target.value)}>
+                  <MenuItem value="today">Hôm nay</MenuItem>
+                  <MenuItem value="7d">7 ngày qua</MenuItem>
+                  <MenuItem value="this_week">Tuần này</MenuItem>
+                  <MenuItem value="this_month">Tháng này</MenuItem>
+                  <MenuItem value="semester">Học kỳ 1</MenuItem>
+                  <MenuItem value="school_year">Cả năm học</MenuItem>
+                </Select>
+              </FormControl>
 
-            <Button
-              variant="contained"
-              color="success"
-              size="small"
-              startIcon={actionLoading === 'teachers' ? <CircularProgress size={16} color="inherit" /> : <SchoolIcon />}
-              onClick={handleAutoAssignTeachers}
-              disabled={actionLoading !== null}
-              sx={{ fontWeight: 700, px: 1.75, bgcolor: '#059669', '&:hover': { bgcolor: '#047857' } }}
-            >
-              {actionLoading === 'teachers' ? 'Đang gán...' : 'Phân Công GVCN'}
-            </Button>
+              <FormControl size="small" sx={{ flex: 1, minWidth: { xs: 0, sm: 110 }, bgcolor: '#fff' }}>
+                <InputLabel>Khối lớp</InputLabel>
+                <Select value={grade} label="Khối lớp" onChange={(e) => setGrade(e.target.value)}>
+                  <MenuItem value="all">Toàn trường</MenuItem>
+                  {availableGrades.map((g) => (
+                    <MenuItem key={g} value={g}>Khối {g}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Stack>
 
-            <Button
-              variant="contained"
-              color="warning"
-              size="small"
-              startIcon={actionLoading === 'nudge' ? <CircularProgress size={16} color="inherit" /> : <NotificationsActiveIcon />}
-              onClick={handleNudgeSubmissions}
-              disabled={actionLoading !== null}
-              sx={{ fontWeight: 700, px: 1.75, bgcolor: '#d97706', '&:hover': { bgcolor: '#b45309' } }}
-            >
-              {actionLoading === 'nudge' ? 'Đang gửi...' : 'Đôn Đốc Nộp Bài'}
-            </Button>
+            <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', width: { xs: '100%', sm: 'auto' } }}>
+              <Button
+                variant="contained"
+                color="primary"
+                size="small"
+                startIcon={syncing ? <CircularProgress size={14} color="inherit" /> : <CloudSyncIcon sx={{ fontSize: 16 }} />}
+                onClick={handleQuickSync}
+                disabled={syncing}
+                sx={{
+                  flex: { xs: 1, sm: 'none' },
+                  fontWeight: 700,
+                  fontSize: '0.78rem',
+                  py: 0.75,
+                  minHeight: 38,
+                  borderRadius: 2,
+                  bgcolor: '#2563eb',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                {syncing ? 'Đang đồng bộ...' : (isMobile ? 'Đồng bộ' : 'Đồng Bộ Classroom')}
+              </Button>
 
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<RefreshIcon />}
-              onClick={fetchOverview}
-              sx={{ bgcolor: '#fff', borderColor: '#cbd5e1', color: '#475569', fontWeight: 600 }}
-            >
-              Làm mới
-            </Button>
+              <Button
+                variant="contained"
+                color="success"
+                size="small"
+                startIcon={actionLoading === 'teachers' ? <CircularProgress size={14} color="inherit" /> : <SchoolIcon sx={{ fontSize: 16 }} />}
+                onClick={handleAutoAssignTeachers}
+                disabled={actionLoading !== null}
+                sx={{
+                  fontWeight: 700,
+                  fontSize: '0.78rem',
+                  py: 0.75,
+                  minHeight: 38,
+                  borderRadius: 2,
+                  bgcolor: '#059669',
+                  whiteSpace: 'nowrap',
+                  '&:hover': { bgcolor: '#047857' }
+                }}
+              >
+                {actionLoading === 'teachers' ? 'Đang gán...' : 'Gán GVCN'}
+              </Button>
 
-            <FormControl size="small" sx={{ minWidth: 140, bgcolor: '#fff' }}>
-              <InputLabel>Thời gian</InputLabel>
-              <Select value={period} label="Thời gian" onChange={(e) => setPeriod(e.target.value)}>
-                <MenuItem value="today">Hôm nay</MenuItem>
-                <MenuItem value="7d">7 ngày qua</MenuItem>
-                <MenuItem value="this_week">Tuần này</MenuItem>
-                <MenuItem value="this_month">Tháng này</MenuItem>
-                <MenuItem value="semester">Học kỳ 1</MenuItem>
-                <MenuItem value="school_year">Cả năm học</MenuItem>
-              </Select>
-            </FormControl>
+              <Button
+                variant="contained"
+                color="warning"
+                size="small"
+                startIcon={actionLoading === 'nudge' ? <CircularProgress size={14} color="inherit" /> : <NotificationsActiveIcon sx={{ fontSize: 16 }} />}
+                onClick={handleNudgeSubmissions}
+                disabled={actionLoading !== null}
+                sx={{
+                  fontWeight: 700,
+                  fontSize: '0.78rem',
+                  py: 0.75,
+                  minHeight: 38,
+                  borderRadius: 2,
+                  bgcolor: '#d97706',
+                  whiteSpace: 'nowrap',
+                  '&:hover': { bgcolor: '#b45309' }
+                }}
+              >
+                {actionLoading === 'nudge' ? 'Đang gửi...' : 'Đôn Đốc'}
+              </Button>
 
-            <FormControl size="small" sx={{ minWidth: 120, bgcolor: '#fff' }}>
-              <InputLabel>Khối lớp</InputLabel>
-              <Select value={grade} label="Khối lớp" onChange={(e) => setGrade(e.target.value)}>
-                <MenuItem value="all">Toàn trường</MenuItem>
-                {availableGrades.map((g) => (
-                  <MenuItem key={g} value={g}>Khối {g}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<RefreshIcon sx={{ fontSize: 16 }} />}
+                onClick={fetchOverview}
+                sx={{
+                  bgcolor: '#fff',
+                  borderColor: '#cbd5e1',
+                  color: '#475569',
+                  fontWeight: 600,
+                  fontSize: '0.78rem',
+                  minHeight: 38,
+                  borderRadius: 2
+                }}
+              >
+                {isMobile ? '' : 'Làm mới'}
+              </Button>
+            </Box>
           </Box>
         }
       />
@@ -567,7 +612,19 @@ export default function DashboardPage() {
       )}
 
       {/* Lối tắt Điều Hành Nhanh */}
-      <Box sx={{ display: 'flex', gap: 1.25, mb: 3, overflowX: 'auto', pb: 0.5 }}>
+      <Box
+        sx={{
+          display: 'flex',
+          gap: 1,
+          mb: 3,
+          overflowX: 'auto',
+          pb: 0.75,
+          pt: 0.25,
+          WebkitOverflowScrolling: 'touch',
+          scrollbarWidth: 'none',
+          '&::-webkit-scrollbar': { display: 'none' }
+        }}
+      >
         <Button
           variant="contained"
           size="small"
@@ -758,108 +815,108 @@ export default function DashboardPage() {
       )}
 
       {/* Lưới Thẻ KPI Điều Hành 8 Chỉ Số Thực */}
-      <Grid container spacing={2.5} sx={{ mb: 3 }}>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+      <Grid container spacing={{ xs: 1.5, sm: 2, md: 2.5 }} sx={{ mb: 3 }}>
+        <Grid size={{ xs: 6, sm: 6, md: 3 }}>
           <CardK
             title="Khóa học Classroom"
             value={k?.totalCourses?.value ?? k?.activeClassrooms?.value ?? 0}
             delta={k?.activeClassrooms?.delta}
             subtitle={isSynced ? 'Lớp số hoạt động' : 'Chờ đồng bộ'}
-            icon={<AutoStoriesIcon sx={{ fontSize: 20 }} />}
+            icon={<AutoStoriesIcon sx={{ fontSize: { xs: 17, sm: 20 } }} />}
             accentColor="#2563eb"
             iconBg="#eff6ff"
             onClick={() => navigate('/classroom')}
           />
         </Grid>
 
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <Grid size={{ xs: 6, sm: 6, md: 3 }}>
           <CardK
             title="Giáo viên giảng dạy"
             value={k?.totalTeachers?.value ?? 0}
-            delta={k?.totalTeachers?.delta || `${k?.totalTeachers?.value ?? 0} Giáo viên`}
+            delta={k?.totalTeachers?.delta || `${k?.totalTeachers?.value ?? 0} GV`}
             subtitle="Từ Classroom & Danh bạ"
-            icon={<BadgeIcon sx={{ fontSize: 20 }} />}
+            icon={<BadgeIcon sx={{ fontSize: { xs: 17, sm: 20 } }} />}
             accentColor="#4f46e5"
             iconBg="#eef2ff"
             onClick={() => navigate('/teachers')}
           />
         </Grid>
 
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <Grid size={{ xs: 6, sm: 6, md: 3 }}>
           <CardK
             title="Học sinh toàn trường"
             value={k?.totalStudents?.value ?? 0}
-            delta={k?.totalStudents?.delta || `${k?.totalStudents?.value ?? 0} Học sinh`}
+            delta={k?.totalStudents?.delta || `${k?.totalStudents?.value ?? 0} HS`}
             subtitle="Từ Google Classroom"
-            icon={<PeopleAltIcon sx={{ fontSize: 20 }} />}
+            icon={<PeopleAltIcon sx={{ fontSize: { xs: 17, sm: 20 } }} />}
             accentColor="#0284c7"
             iconBg="#f0f9ff"
             onClick={() => navigate('/students')}
           />
         </Grid>
 
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <Grid size={{ xs: 6, sm: 6, md: 3 }}>
           <CardK
             title="Lớp hành chính"
             value={k?.totalClasses?.value ?? 0}
             delta={k?.totalClasses?.delta || `${k?.totalClasses?.value ?? 0} Lớp`}
             subtitle="Khối 6, 7, 8, 9"
-            icon={<SchoolIcon sx={{ fontSize: 20 }} />}
+            icon={<SchoolIcon sx={{ fontSize: { xs: 17, sm: 20 } }} />}
             accentColor="#0891b2"
             iconBg="#ecfeff"
             onClick={() => navigate('/classes')}
           />
         </Grid>
 
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <Grid size={{ xs: 6, sm: 6, md: 3 }}>
           <CardK
-            title="Tỷ lệ hoàn thành bài"
+            title="Tỷ lệ nộp bài"
             value={k?.completionRate?.value != null ? `${k.completionRate.value}%` : '0%'}
             delta={k?.completionRate?.delta}
             deltaPositive={Number(k?.completionRate?.value || 0) >= 80}
             subtitle={isSynced ? 'Tiến độ nộp bài' : 'Chưa có bài'}
-            icon={<CheckCircleIcon sx={{ fontSize: 20 }} />}
+            icon={<CheckCircleIcon sx={{ fontSize: { xs: 17, sm: 20 } }} />}
             accentColor="#10b981"
             iconBg="#ecfdf5"
             onClick={() => navigate('/executive')}
           />
         </Grid>
 
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <Grid size={{ xs: 6, sm: 6, md: 3 }}>
           <CardK
-            title="Tỷ lệ nộp đúng hạn"
+            title="Tỷ lệ đúng hạn"
             value={k?.onTimeRate?.value != null ? `${k.onTimeRate.value}%` : '0%'}
             delta={k?.onTimeRate?.delta}
             deltaPositive={Number(k?.onTimeRate?.value || 0) >= 80}
             subtitle={isSynced ? 'Đúng hạn chót' : 'Chưa có số liệu'}
-            icon={<AssignmentIcon sx={{ fontSize: 20 }} />}
+            icon={<AssignmentIcon sx={{ fontSize: { xs: 17, sm: 20 } }} />}
             accentColor="#059669"
             iconBg="#f0fdf4"
           />
         </Grid>
 
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <Grid size={{ xs: 6, sm: 6, md: 3 }}>
           <CardK
-            title="Bài chưa chấm / tồn đọng"
+            title="Bài chưa chấm"
             value={k?.ungradedAssignments?.value ?? 0}
             delta={k?.ungradedAssignments?.delta}
             deltaPositive={Number(k?.ungradedAssignments?.value || 0) === 0}
-            subtitle="Chờ giáo viên chấm"
-            icon={<WarningAmberIcon sx={{ fontSize: 20 }} />}
+            subtitle="Chờ giáo viên"
+            icon={<WarningAmberIcon sx={{ fontSize: { xs: 17, sm: 20 } }} />}
             accentColor="#f59e0b"
             iconBg="#fffbeb"
             onClick={() => navigate('/classroom')}
           />
         </Grid>
 
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <Grid size={{ xs: 6, sm: 6, md: 3 }}>
           <CardK
             title="Cảnh báo cần xử lý"
             value={k?.openAlerts?.value ?? 0}
-            delta={k?.openAlerts?.delta}
+            delta={Number(k?.openAlerts?.value || 0) > 0 ? `${k?.openAlerts?.value} mục` : 'Bình thường'}
             deltaPositive={Number(k?.openAlerts?.value || 0) === 0}
             subtitle="Quét tự động"
-            icon={<NotificationsActiveIcon sx={{ fontSize: 20 }} />}
+            icon={<NotificationsActiveIcon sx={{ fontSize: { xs: 17, sm: 20 } }} />}
             accentColor="#ef4444"
             iconBg="#fef2f2"
             onClick={() => navigate('/alerts')}
@@ -872,35 +929,39 @@ export default function DashboardPage() {
         <Tabs
           value={dashboardTab}
           onChange={(_, val) => setDashboardTab(val)}
+          variant="scrollable"
+          scrollButtons="auto"
+          allowScrollButtonsMobile
           sx={{
             '& .MuiTab-root': {
               textTransform: 'none',
               fontWeight: 700,
-              fontSize: '0.92rem',
-              py: 1.5,
-              minHeight: 48
+              fontSize: { xs: '0.82rem', sm: '0.92rem' },
+              py: { xs: 1.25, sm: 1.5 },
+              minHeight: 48,
+              minWidth: { xs: 'auto', sm: 120 }
             }
           }}
         >
           <Tab
             icon={<GridViewIcon sx={{ fontSize: 18 }} />}
             iconPosition="start"
-            label="📊 Phân Tích & Chỉ Báo Học Tập"
+            label={isMobile ? "Chỉ báo AHI" : "📊 Phân Tích & Chỉ Báo Học Tập"}
           />
           <Tab
             icon={<SchoolIcon sx={{ fontSize: 18 }} />}
             iconPosition="start"
-            label={`🏫 Chi Tiết Lớp Học (${classes.length})`}
+            label={isMobile ? `Lớp (${classes.length})` : `🏫 Chi Tiết Lớp Học (${classes.length})`}
           />
           <Tab
             icon={<AssignmentIcon sx={{ fontSize: 18 }} />}
             iconPosition="start"
-            label={`📝 Ngân Hàng Bài Tập (${assignments.length})`}
+            label={isMobile ? `Bài tập (${assignments.length})` : `📝 Ngân Hàng Bài Tập (${assignments.length})`}
           />
           <Tab
             icon={<CampaignIcon sx={{ fontSize: 18 }} />}
             iconPosition="start"
-            label={`📢 Bảng Tin & Thông Báo (${announcements.length})`}
+            label={isMobile ? `Bảng tin (${announcements.length})` : `📢 Bảng Tin & Thông Báo (${announcements.length})`}
           />
         </Tabs>
       </Box>
@@ -933,9 +994,9 @@ export default function DashboardPage() {
         </Box>
 
         {trendData.length > 0 ? (
-          <Box sx={{ width: '100%', height: 290 }}>
-            <ResponsiveContainer>
-              <LineChart data={trendData}>
+          <Box sx={{ width: '100%', height: { xs: 240, sm: 290 } }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={trendData} margin={{ top: 5, right: 10, left: isMobile ? -20 : -10, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                 <XAxis dataKey="date" stroke="#94a3b8" fontSize={12} tickLine={false} />
                 <YAxis yAxisId="left" domain={[0, 100]} stroke="#94a3b8" fontSize={12} tickLine={false} />
@@ -1285,112 +1346,218 @@ export default function DashboardPage() {
         </Grid>
       </Card>
 
-      {/* Bảng danh sách lớp học */}
-      <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', bgcolor: '#ffffff', overflow: 'hidden' }}>
-        <TableContainer>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell sx={{ fontWeight: 800, bgcolor: '#f8fafc', width: 45 }}>#</TableCell>
-                <TableCell sx={{ fontWeight: 800, bgcolor: '#f8fafc' }}>Lớp học</TableCell>
-                <TableCell sx={{ fontWeight: 800, bgcolor: '#f8fafc' }}>Khối</TableCell>
-                <TableCell sx={{ fontWeight: 800, bgcolor: '#f8fafc' }}>Giáo viên chủ nhiệm</TableCell>
-                <TableCell sx={{ fontWeight: 800, bgcolor: '#f8fafc' }}>Phòng</TableCell>
-                <TableCell align="center" sx={{ fontWeight: 800, bgcolor: '#f8fafc' }}>Sĩ số SSOT</TableCell>
-                <TableCell sx={{ fontWeight: 800, bgcolor: '#f8fafc', minWidth: 150 }}>Tiến độ nộp bài</TableCell>
-                <TableCell align="center" sx={{ fontWeight: 800, bgcolor: '#f8fafc' }}>Đúng hạn</TableCell>
-                <TableCell align="right" sx={{ fontWeight: 800, bgcolor: '#f8fafc' }}>Thao tác</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {filteredClasses.length === 0 ? (
+      {/* Bảng/Thẻ danh sách lớp học */}
+      {isMobile ? (
+        <Stack spacing={1.5}>
+          {filteredClasses.length === 0 ? (
+            <Card sx={{ p: 4, textAlign: 'center', borderRadius: 3, border: '1px dashed #cbd5e1', bgcolor: '#f8fafc' }}>
+              <Typography variant="body2" color="#64748b">
+                Không tìm thấy lớp học nào phù hợp với điều kiện tìm kiếm.
+              </Typography>
+            </Card>
+          ) : (
+            filteredClasses.map((cls, idx) => (
+              <Card
+                key={cls.classId || idx}
+                variant="outlined"
+                sx={{
+                  p: 2,
+                  borderRadius: 2.5,
+                  border: '1px solid #e2e8f0',
+                  bgcolor: '#ffffff',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+                }}
+              >
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                  <Box>
+                    <Typography
+                      variant="subtitle1"
+                      sx={{
+                        fontWeight: 800,
+                        color: '#2563eb',
+                        lineHeight: 1.2,
+                        cursor: 'pointer'
+                      }}
+                      onClick={() => handleOpenClassDetail(cls.classId)}
+                    >
+                      Lớp {cls.className}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: '#64748b', display: 'block', mt: 0.25 }}>
+                      GVCN: <strong>{cls.homeroomTeacher || 'Chưa phân công'}</strong> • {cls.room || 'Phòng —'}
+                    </Typography>
+                  </Box>
+                  <Stack direction="row" spacing={0.75} alignItems="center">
+                    <Chip label={`Khối ${cls.grade || '—'}`} size="small" sx={{ fontWeight: 700, fontSize: '0.7rem', height: 22 }} />
+                    <Chip label={`${cls.studentCount || 0} HS`} size="small" color="primary" variant="outlined" sx={{ fontWeight: 700, fontSize: '0.7rem', height: 22 }} />
+                  </Stack>
+                </Box>
+
+                <Box sx={{ bgcolor: '#f8fafc', p: 1.25, borderRadius: 2, mb: 1.5 }}>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
+                    <Typography variant="caption" sx={{ color: '#475569', fontWeight: 600 }}>
+                      Nộp bài: <strong>{cls.completionRate || 0}%</strong> ({cls.courseCount || 0} môn)
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: (cls.onTimeRate || 0) >= 75 ? '#0284c7' : '#d97706', fontWeight: 700 }}>
+                      {cls.onTimeRate || 0}% đúng hạn
+                    </Typography>
+                  </Stack>
+                  <LinearProgress
+                    variant="determinate"
+                    value={Math.min(100, cls.completionRate || 0)}
+                    color={(cls.completionRate || 0) >= 80 ? 'success' : (cls.completionRate || 0) >= 60 ? 'warning' : 'error'}
+                    sx={{ height: 6, borderRadius: 3 }}
+                  />
+                </Box>
+
+                <Stack direction="row" spacing={1}>
+                  <Button
+                    fullWidth
+                    variant="contained"
+                    size="small"
+                    startIcon={<VisibilityRoundedIcon sx={{ fontSize: 16 }} />}
+                    onClick={() => handleOpenClassDetail(cls.classId)}
+                    sx={{
+                      textTransform: 'none',
+                      fontWeight: 700,
+                      fontSize: '0.8rem',
+                      borderRadius: 2,
+                      py: 0.85,
+                      minHeight: 40,
+                      bgcolor: '#2563eb',
+                      boxShadow: 'none'
+                    }}
+                  >
+                    Xem Chi Tiết Lớp
+                  </Button>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    color="warning"
+                    onClick={handleNudgeSubmissions}
+                    sx={{
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      fontSize: '0.78rem',
+                      borderRadius: 2,
+                      minHeight: 40,
+                      px: 1.5,
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    Đôn đốc
+                  </Button>
+                </Stack>
+              </Card>
+            ))
+          )}
+        </Stack>
+      ) : (
+        <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', bgcolor: '#ffffff', overflow: 'hidden' }}>
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
                 <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ py: 6, color: '#64748b' }}>
-                    Không tìm thấy lớp học nào phù hợp với điều kiện tìm kiếm.
-                  </TableCell>
+                  <TableCell sx={{ fontWeight: 800, bgcolor: '#f8fafc', width: 45 }}>#</TableCell>
+                  <TableCell sx={{ fontWeight: 800, bgcolor: '#f8fafc' }}>Lớp học</TableCell>
+                  <TableCell sx={{ fontWeight: 800, bgcolor: '#f8fafc' }}>Khối</TableCell>
+                  <TableCell sx={{ fontWeight: 800, bgcolor: '#f8fafc' }}>Giáo viên chủ nhiệm</TableCell>
+                  <TableCell sx={{ fontWeight: 800, bgcolor: '#f8fafc' }}>Phòng</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 800, bgcolor: '#f8fafc' }}>Sĩ số SSOT</TableCell>
+                  <TableCell sx={{ fontWeight: 800, bgcolor: '#f8fafc', minWidth: 150 }}>Tiến độ nộp bài</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 800, bgcolor: '#f8fafc' }}>Đúng hạn</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 800, bgcolor: '#f8fafc' }}>Thao tác</TableCell>
                 </TableRow>
-              ) : (
-                filteredClasses.map((cls, idx) => (
-                  <TableRow key={cls.classId || idx} hover>
-                    <TableCell sx={{ color: '#64748b', fontSize: '0.8rem' }}>{idx + 1}</TableCell>
-                    <TableCell>
-                      <Typography
-                        variant="subtitle2"
-                        sx={{
-                          fontWeight: 800,
-                          color: '#2563eb',
-                          cursor: 'pointer',
-                          '&:hover': { textDecoration: 'underline' }
-                        }}
-                        onClick={() => handleOpenClassDetail(cls.classId)}
-                      >
-                        {cls.className}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Chip label={`Khối ${cls.grade || '—'}`} size="small" sx={{ fontWeight: 700, fontSize: '0.72rem' }} />
-                    </TableCell>
-                    <TableCell sx={{ color: '#334155', fontWeight: 600, fontSize: '0.85rem' }}>
-                      {cls.homeroomTeacher || 'Chưa phân công'}
-                    </TableCell>
-                    <TableCell sx={{ color: '#64748b', fontSize: '0.82rem' }}>
-                      {cls.room || '—'}
-                    </TableCell>
-                    <TableCell align="center">
-                      <Chip label={`${cls.studentCount || 0} HS`} size="small" color="primary" variant="outlined" sx={{ fontWeight: 700 }} />
-                    </TableCell>
-                    <TableCell>
-                      <Stack spacing={0.5}>
-                        <Stack direction="row" justifyContent="space-between">
-                          <Typography variant="caption" sx={{ fontWeight: 700, color: (cls.completionRate || 0) < 70 ? '#dc2626' : '#16a34a' }}>
-                            {cls.completionRate || 0}%
-                          </Typography>
-                          <Typography variant="caption" sx={{ color: '#64748b' }}>
-                            {cls.courseCount || 0} môn
-                          </Typography>
-                        </Stack>
-                        <LinearProgress
-                          variant="determinate"
-                          value={Math.min(100, cls.completionRate || 0)}
-                          color={(cls.completionRate || 0) >= 80 ? 'success' : (cls.completionRate || 0) >= 60 ? 'warning' : 'error'}
-                          sx={{ height: 6, borderRadius: 3 }}
-                        />
-                      </Stack>
-                    </TableCell>
-                    <TableCell align="center">
-                      <Typography variant="body2" sx={{ fontWeight: 700, color: (cls.onTimeRate || 0) >= 75 ? '#0284c7' : '#d97706' }}>
-                        {cls.onTimeRate || 0}%
-                      </Typography>
-                    </TableCell>
-                    <TableCell align="right">
-                      <Stack direction="row" spacing={1} justifyContent="flex-end">
-                        <Button
-                          size="small"
-                          variant="contained"
-                          startIcon={<VisibilityRoundedIcon sx={{ fontSize: 14 }} />}
-                          onClick={() => handleOpenClassDetail(cls.classId)}
-                          sx={{ textTransform: 'none', fontWeight: 700, fontSize: '0.75rem', borderRadius: 1.5, bgcolor: '#2563eb', px: 1.5 }}
-                        >
-                          Chi tiết
-                        </Button>
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          color="warning"
-                          onClick={handleNudgeSubmissions}
-                          sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.75rem', borderRadius: 1.5, px: 1 }}
-                        >
-                          Đôn đốc
-                        </Button>
-                      </Stack>
+              </TableHead>
+              <TableBody>
+                {filteredClasses.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={9} align="center" sx={{ py: 6, color: '#64748b' }}>
+                      Không tìm thấy lớp học nào phù hợp với điều kiện tìm kiếm.
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </Card>
+                ) : (
+                  filteredClasses.map((cls, idx) => (
+                    <TableRow key={cls.classId || idx} hover>
+                      <TableCell sx={{ color: '#64748b', fontSize: '0.8rem' }}>{idx + 1}</TableCell>
+                      <TableCell>
+                        <Typography
+                          variant="subtitle2"
+                          sx={{
+                            fontWeight: 800,
+                            color: '#2563eb',
+                            cursor: 'pointer',
+                            '&:hover': { textDecoration: 'underline' }
+                          }}
+                          onClick={() => handleOpenClassDetail(cls.classId)}
+                        >
+                          {cls.className}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Chip label={`Khối ${cls.grade || '—'}`} size="small" sx={{ fontWeight: 700, fontSize: '0.72rem' }} />
+                      </TableCell>
+                      <TableCell sx={{ color: '#334155', fontWeight: 600, fontSize: '0.85rem' }}>
+                        {cls.homeroomTeacher || 'Chưa phân công'}
+                      </TableCell>
+                      <TableCell sx={{ color: '#64748b', fontSize: '0.82rem' }}>
+                        {cls.room || '—'}
+                      </TableCell>
+                      <TableCell align="center">
+                        <Chip label={`${cls.studentCount || 0} HS`} size="small" color="primary" variant="outlined" sx={{ fontWeight: 700 }} />
+                      </TableCell>
+                      <TableCell>
+                        <Stack spacing={0.5}>
+                          <Stack direction="row" justifyContent="space-between">
+                            <Typography variant="caption" sx={{ fontWeight: 700, color: (cls.completionRate || 0) < 70 ? '#dc2626' : '#16a34a' }}>
+                              {cls.completionRate || 0}%
+                            </Typography>
+                            <Typography variant="caption" sx={{ color: '#64748b' }}>
+                              {cls.courseCount || 0} môn
+                            </Typography>
+                          </Stack>
+                          <LinearProgress
+                            variant="determinate"
+                            value={Math.min(100, cls.completionRate || 0)}
+                            color={(cls.completionRate || 0) >= 80 ? 'success' : (cls.completionRate || 0) >= 60 ? 'warning' : 'error'}
+                            sx={{ height: 6, borderRadius: 3 }}
+                          />
+                        </Stack>
+                      </TableCell>
+                      <TableCell align="center">
+                        <Typography variant="body2" sx={{ fontWeight: 700, color: (cls.onTimeRate || 0) >= 75 ? '#0284c7' : '#d97706' }}>
+                          {cls.onTimeRate || 0}%
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Stack direction="row" spacing={1} justifyContent="flex-end">
+                          <Button
+                            size="small"
+                            variant="contained"
+                            startIcon={<VisibilityRoundedIcon sx={{ fontSize: 14 }} />}
+                            onClick={() => handleOpenClassDetail(cls.classId)}
+                            sx={{ textTransform: 'none', fontWeight: 700, fontSize: '0.75rem', borderRadius: 1.5, bgcolor: '#2563eb', px: 1.5 }}
+                          >
+                            Chi tiết
+                          </Button>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            color="warning"
+                            onClick={handleNudgeSubmissions}
+                            sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.75rem', borderRadius: 1.5, px: 1 }}
+                          >
+                            Đôn đốc
+                          </Button>
+                        </Stack>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Card>
+      )}
     </Box>
   )}
 
@@ -1453,26 +1620,125 @@ export default function DashboardPage() {
         </Grid>
       </Card>
 
-      {/* Bảng danh sách bài tập */}
-      <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', bgcolor: '#ffffff', overflow: 'hidden' }}>
-        {loadingAssignments ? (
-          <Box sx={{ py: 8, textAlign: 'center' }}>
-            <CircularProgress size={32} />
-            <Typography variant="body2" sx={{ color: '#64748b', mt: 1 }}>
-              Đang nạp ngân hàng bài tập Google Classroom...
-            </Typography>
-          </Box>
-        ) : filteredAssignments.length === 0 ? (
-          <Box sx={{ py: 8, textAlign: 'center' }}>
-            <AssignmentIcon sx={{ fontSize: 44, color: '#cbd5e1', mb: 1 }} />
-            <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#64748b' }}>
-              Chưa có bài tập nào phù hợp
-            </Typography>
-            <Typography variant="caption" sx={{ color: '#94a3b8' }}>
-              Các bài tập được tự động đồng bộ từ Google Classroom
-            </Typography>
-          </Box>
-        ) : (
+      {/* Bảng/Thẻ danh sách bài tập */}
+      {loadingAssignments ? (
+        <Box sx={{ py: 8, textAlign: 'center' }}>
+          <CircularProgress size={32} />
+          <Typography variant="body2" sx={{ color: '#64748b', mt: 1 }}>
+            Đang nạp ngân hàng bài tập Google Classroom...
+          </Typography>
+        </Box>
+      ) : filteredAssignments.length === 0 ? (
+        <Card sx={{ p: 4, textAlign: 'center', borderRadius: 3, border: '1px dashed #cbd5e1', bgcolor: '#f8fafc' }}>
+          <AssignmentIcon sx={{ fontSize: 44, color: '#cbd5e1', mb: 1 }} />
+          <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#64748b' }}>
+            Chưa có bài tập nào phù hợp
+          </Typography>
+          <Typography variant="caption" sx={{ color: '#94a3b8' }}>
+            Các bài tập được tự động đồng bộ từ Google Classroom
+          </Typography>
+        </Card>
+      ) : isMobile ? (
+        <Stack spacing={1.5}>
+          {filteredAssignments.map((a, idx) => (
+            <Card
+              key={a.id || idx}
+              variant="outlined"
+              sx={{
+                p: 2,
+                borderRadius: 2.5,
+                border: '1px solid #e2e8f0',
+                bgcolor: '#ffffff',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+              }}
+            >
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                <Stack direction="row" spacing={0.75} alignItems="center">
+                  <Chip label={a.subjectName} size="small" color="primary" variant="outlined" sx={{ fontWeight: 700, fontSize: '0.7rem', height: 22 }} />
+                  <Chip label={a.className} size="small" sx={{ fontWeight: 700, bgcolor: '#f1f5f9', fontSize: '0.7rem', height: 22 }} />
+                </Stack>
+                <Chip label={`${a.maxPoints}đ`} size="small" sx={{ fontWeight: 700, bgcolor: '#f0fdf4', color: '#166534', height: 22, fontSize: '0.7rem' }} />
+              </Box>
+
+              <Typography
+                variant="subtitle2"
+                sx={{
+                  fontWeight: 800,
+                  color: '#0f172a',
+                  lineHeight: 1.35,
+                  mb: 1,
+                  cursor: 'pointer',
+                  '&:hover': { color: '#2563eb' }
+                }}
+                onClick={() => {
+                  setSelectedAssignment(a);
+                  setOpenAssignmentDialog(true);
+                }}
+              >
+                {a.title}
+              </Typography>
+
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.25, color: '#64748b', fontSize: '0.78rem' }}>
+                <CalendarTodayRoundedIcon sx={{ fontSize: 13, color: '#94a3b8' }} />
+                <span>Hạn nộp: <strong>{a.dueDate || 'Không hạn chót'}</strong></span>
+              </Stack>
+
+              <Box sx={{ bgcolor: '#f8fafc', p: 1.25, borderRadius: 2, mb: 1.5 }}>
+                <Typography variant="caption" sx={{ fontWeight: 700, color: a.completionRate >= 70 ? '#16a34a' : '#d97706', display: 'block', mb: 0.5 }}>
+                  Tiến độ nộp: {a.turnedInCount}/{a.totalStudents} HS ({a.completionRate}%)
+                </Typography>
+                <LinearProgress
+                  variant="determinate"
+                  value={Math.min(100, a.completionRate)}
+                  color={a.completionRate >= 70 ? 'success' : 'warning'}
+                  sx={{ height: 6, borderRadius: 3 }}
+                />
+              </Box>
+
+              <Stack direction="row" spacing={1}>
+                <Button
+                  fullWidth
+                  size="small"
+                  variant="outlined"
+                  onClick={() => {
+                    setSelectedAssignment(a);
+                    setOpenAssignmentDialog(true);
+                  }}
+                  sx={{ textTransform: 'none', fontWeight: 700, fontSize: '0.8rem', borderRadius: 2, minHeight: 40 }}
+                >
+                  Chi tiết đề bài
+                </Button>
+                {a.alternateLink && (
+                  <Button
+                    size="small"
+                    variant="contained"
+                    component="a"
+                    href={a.alternateLink}
+                    target="_blank"
+                    rel="noreferrer"
+                    startIcon={<OpenInNewIcon sx={{ fontSize: 14 }} />}
+                    sx={{
+                      minWidth: 44,
+                      minHeight: 40,
+                      borderRadius: 2,
+                      bgcolor: '#2563eb',
+                      color: '#fff',
+                      px: 1.5,
+                      textTransform: 'none',
+                      fontWeight: 700,
+                      fontSize: '0.78rem',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    Classroom
+                  </Button>
+                )}
+              </Stack>
+            </Card>
+          ))}
+        </Stack>
+      ) : (
+        <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', bgcolor: '#ffffff', overflow: 'hidden' }}>
           <TableContainer>
             <Table size="small">
               <TableHead>
@@ -1570,8 +1836,8 @@ export default function DashboardPage() {
               </TableBody>
             </Table>
           </TableContainer>
-        )}
-      </Card>
+        </Card>
+      )}
     </Box>
   )}
 
@@ -1751,18 +2017,19 @@ export default function DashboardPage() {
     onClose={() => setOpenClassDetailDialog(false)}
     maxWidth="md"
     fullWidth
+    fullScreen={isMobile}
   >
-    <DialogTitle sx={{ px: 3, pt: 2.5, pb: 1.5, borderBottom: '1px solid #e2e8f0', bgcolor: '#f8fafc' }}>
+    <DialogTitle sx={{ px: { xs: 2, sm: 3 }, pt: { xs: 2, sm: 2.5 }, pb: 1.5, borderBottom: '1px solid #e2e8f0', bgcolor: '#f8fafc' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Box>
-          <Typography variant="h6" sx={{ fontWeight: 800, color: '#0f172a' }}>
+          <Typography variant="h6" sx={{ fontWeight: 800, color: '#0f172a', fontSize: { xs: '1rem', sm: '1.25rem' } }}>
             Lớp {classDetail?.class?.className || selectedClassId} — Chi Tiết Điều Hành Lớp Học
           </Typography>
-          <Typography variant="caption" sx={{ color: '#64748b' }}>
+          <Typography variant="caption" sx={{ color: '#64748b', display: 'block' }}>
             GVCN: <strong>{classDetail?.class?.homeroomTeacher || 'Chưa phân công'}</strong> • Sĩ số SSOT: <strong>{classDetail?.students?.length || 0} học sinh</strong> • Phòng: <strong>{classDetail?.class?.room || '—'}</strong>
           </Typography>
         </Box>
-        <IconButton size="small" onClick={() => setOpenClassDetailDialog(false)}>
+        <IconButton size="small" onClick={() => setOpenClassDetailDialog(false)} aria-label="Đóng" sx={{ bgcolor: '#ffffff', border: '1px solid #e2e8f0' }}>
           <CloseIcon fontSize="small" />
         </IconButton>
       </Box>
@@ -1787,105 +2054,164 @@ export default function DashboardPage() {
           <Tabs
             value={classDetailTab}
             onChange={(_, val) => setClassDetailTab(val)}
-            sx={{ px: 2.5, bgcolor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}
+            variant="scrollable"
+            scrollButtons="auto"
+            allowScrollButtonsMobile
+            sx={{ px: { xs: 1, sm: 2.5 }, bgcolor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}
           >
-            <Tab label={`Học sinh (${classDetail.students?.length || 0})`} sx={{ textTransform: 'none', fontWeight: 700 }} />
-            <Tab label={`Khóa học Classroom (${classDetail.courses?.length || 0})`} sx={{ textTransform: 'none', fontWeight: 700 }} />
-            <Tab label={`Thống kê Bộ môn (${classDetail.subjectsSummary?.length || 0})`} sx={{ textTransform: 'none', fontWeight: 700 }} />
+            <Tab label={`Học sinh (${classDetail.students?.length || 0})`} sx={{ textTransform: 'none', fontWeight: 700, fontSize: { xs: '0.78rem', sm: '0.85rem' } }} />
+            <Tab label={`Khóa học (${classDetail.courses?.length || 0})`} sx={{ textTransform: 'none', fontWeight: 700, fontSize: { xs: '0.78rem', sm: '0.85rem' } }} />
+            <Tab label="Thống kê Bộ môn" sx={{ textTransform: 'none', fontWeight: 700, fontSize: { xs: '0.78rem', sm: '0.85rem' } }} />
             <Tab
-              label={`Đối soát Liên môn (${classDetail.crossSubjectDiscrepancies?.length ? `⚠️ ${classDetail.crossSubjectDiscrepancies.length} lệch` : '✓ Chuẩn'})`}
-              sx={{ textTransform: 'none', fontWeight: 700, color: classDetail.crossSubjectDiscrepancies?.length ? '#dc2626' : undefined }}
+              label={`Đối soát Liên môn (${classDetail.crossSubjectDiscrepancies?.length ? `⚠️ ${classDetail.crossSubjectDiscrepancies.length}` : '✓'})`}
+              sx={{ textTransform: 'none', fontWeight: 700, fontSize: { xs: '0.78rem', sm: '0.85rem' }, color: classDetail.crossSubjectDiscrepancies?.length ? '#dc2626' : undefined }}
             />
-            <Tab label="Lịch Tải Bài Tập Tuần" sx={{ textTransform: 'none', fontWeight: 700 }} />
+            <Tab label="Lịch Tải Tuần" sx={{ textTransform: 'none', fontWeight: 700, fontSize: { xs: '0.78rem', sm: '0.85rem' } }} />
           </Tabs>
 
-          <Box sx={{ p: 2.5, maxHeight: 440, overflowY: 'auto' }}>
+          <Box sx={{ p: { xs: 1.5, sm: 2.5 }, maxHeight: isMobile ? 'calc(100vh - 140px)' : 480, overflowY: 'auto' }}>
             {/* TAB 0: Danh sách học sinh */}
             {classDetailTab === 0 && (
-              <TableContainer>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>#</TableCell>
-                      <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>Học sinh</TableCell>
-                      <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>Email Google</TableCell>
-                      <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>Số môn</TableCell>
-                      <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>Tiến độ nộp bài</TableCell>
-                      <TableCell align="center" sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>Điểm TB</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>Hồ sơ 360°</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {(classDetail.students || []).map((st: any, sIdx: number) => (
-                      <TableRow key={st.userId || sIdx} hover>
-                        <TableCell sx={{ color: '#64748b' }}>{sIdx + 1}</TableCell>
-                        <TableCell>
-                          <Stack direction="row" spacing={1} alignItems="center">
-                            <Avatar
-                              src={st.photoUrl || undefined}
-                              sx={{ width: 26, height: 26, fontSize: '0.75rem', bgcolor: '#e0e7ff', color: '#3730a3' }}
-                            >
-                              {(st.name || 'H')[0].toUpperCase()}
-                            </Avatar>
-                            <Typography variant="body2" sx={{ fontWeight: 600, color: '#0f172a' }}>
+              isMobile ? (
+                <Stack spacing={1.25}>
+                  {(classDetail.students || []).map((st: any, sIdx: number) => (
+                    <Card key={st.userId || sIdx} variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <Avatar
+                            src={st.photoUrl || undefined}
+                            sx={{ width: 28, height: 28, fontSize: '0.75rem', bgcolor: '#e0e7ff', color: '#3730a3' }}
+                          >
+                            {(st.name || 'H')[0].toUpperCase()}
+                          </Avatar>
+                          <Box>
+                            <Typography variant="body2" sx={{ fontWeight: 700, color: '#0f172a' }}>
                               {st.name}
                             </Typography>
-                          </Stack>
-                        </TableCell>
-                        <TableCell sx={{ color: '#64748b', fontSize: '0.8rem' }}>{st.email || '—'}</TableCell>
-                        <TableCell sx={{ color: '#475569' }}>{st.courseCount} môn</TableCell>
-                        <TableCell sx={{ minWidth: 140 }}>
-                          <Stack spacing={0.5}>
-                            <Stack direction="row" justifyContent="space-between">
-                              <Typography variant="caption" sx={{ color: '#64748b' }}>
-                                {st.turnedInCount}/{st.totalAssignments} bài
-                              </Typography>
-                              <Typography variant="caption" sx={{ fontWeight: 700, color: st.completionRate >= 70 ? '#16a34a' : '#d97706' }}>
-                                {st.completionRate}%
+                            <Typography variant="caption" sx={{ color: '#64748b' }}>
+                              {st.email || '—'}
+                            </Typography>
+                          </Box>
+                        </Stack>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() => {
+                            setOpenClassDetailDialog(false);
+                            navigate(`/students/360?studentId=${encodeURIComponent(st.userId)}`);
+                          }}
+                          sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.72rem', borderRadius: 1.5, minHeight: 32 }}
+                        >
+                          Hồ sơ 360°
+                        </Button>
+                      </Box>
+                      <Stack direction="row" justifyContent="space-between" alignItems="center">
+                        <Typography variant="caption" sx={{ color: '#64748b' }}>
+                          Nộp bài: <strong>{st.turnedInCount}/{st.totalAssignments}</strong> ({st.completionRate}%)
+                        </Typography>
+                        {st.averageScore != null && (
+                          <Chip
+                            label={`${st.averageScore.toFixed(1)}đ`}
+                            size="small"
+                            sx={{
+                              fontWeight: 700,
+                              fontSize: '0.7rem',
+                              height: 20,
+                              bgcolor: st.averageScore >= 8 ? '#f0fdf4' : '#eff6ff',
+                              color: st.averageScore >= 8 ? '#15803d' : '#1d4ed8'
+                            }}
+                          />
+                        )}
+                      </Stack>
+                    </Card>
+                  ))}
+                </Stack>
+              ) : (
+                <TableContainer>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>#</TableCell>
+                        <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>Học sinh</TableCell>
+                        <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>Email Google</TableCell>
+                        <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>Số môn</TableCell>
+                        <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>Tiến độ nộp bài</TableCell>
+                        <TableCell align="center" sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>Điểm TB</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>Hồ sơ 360°</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {(classDetail.students || []).map((st: any, sIdx: number) => (
+                        <TableRow key={st.userId || sIdx} hover>
+                          <TableCell sx={{ color: '#64748b' }}>{sIdx + 1}</TableCell>
+                          <TableCell>
+                            <Stack direction="row" spacing={1} alignItems="center">
+                              <Avatar
+                                src={st.photoUrl || undefined}
+                                sx={{ width: 26, height: 26, fontSize: '0.75rem', bgcolor: '#e0e7ff', color: '#3730a3' }}
+                              >
+                                {(st.name || 'H')[0].toUpperCase()}
+                              </Avatar>
+                              <Typography variant="body2" sx={{ fontWeight: 600, color: '#0f172a' }}>
+                                {st.name}
                               </Typography>
                             </Stack>
-                            <LinearProgress
-                              variant="determinate"
-                              value={st.completionRate}
-                              color={st.completionRate >= 70 ? 'success' : 'warning'}
-                              sx={{ height: 5, borderRadius: 2.5 }}
-                            />
-                          </Stack>
-                        </TableCell>
-                        <TableCell align="center">
-                          {st.averageScore != null ? (
-                            <Chip
-                              label={st.averageScore.toFixed(1)}
+                          </TableCell>
+                          <TableCell sx={{ color: '#64748b', fontSize: '0.8rem' }}>{st.email || '—'}</TableCell>
+                          <TableCell sx={{ color: '#475569' }}>{st.courseCount} môn</TableCell>
+                          <TableCell sx={{ minWidth: 140 }}>
+                            <Stack spacing={0.5}>
+                              <Stack direction="row" justifyContent="space-between">
+                                <Typography variant="caption" sx={{ color: '#64748b' }}>
+                                  {st.turnedInCount}/{st.totalAssignments} bài
+                                </Typography>
+                                <Typography variant="caption" sx={{ fontWeight: 700, color: st.completionRate >= 70 ? '#16a34a' : '#d97706' }}>
+                                  {st.completionRate}%
+                                </Typography>
+                              </Stack>
+                              <LinearProgress
+                                variant="determinate"
+                                value={st.completionRate}
+                                color={st.completionRate >= 70 ? 'success' : 'warning'}
+                                sx={{ height: 5, borderRadius: 2.5 }}
+                              />
+                            </Stack>
+                          </TableCell>
+                          <TableCell align="center">
+                            {st.averageScore != null ? (
+                              <Chip
+                                label={st.averageScore.toFixed(1)}
+                                size="small"
+                                sx={{
+                                  fontWeight: 700,
+                                  bgcolor: st.averageScore >= 8 ? '#f0fdf4' : '#eff6ff',
+                                  color: st.averageScore >= 8 ? '#15803d' : '#1d4ed8'
+                                }}
+                              />
+                            ) : (
+                              <Typography variant="caption" sx={{ color: '#94a3b8' }}>—</Typography>
+                            )}
+                          </TableCell>
+                          <TableCell align="right">
+                            <Button
                               size="small"
-                              sx={{
-                                fontWeight: 700,
-                                bgcolor: st.averageScore >= 8 ? '#f0fdf4' : '#eff6ff',
-                                color: st.averageScore >= 8 ? '#15803d' : '#1d4ed8'
+                              variant="outlined"
+                              endIcon={<OpenInNewIcon sx={{ fontSize: 12 }} />}
+                              onClick={() => {
+                                setOpenClassDetailDialog(false);
+                                navigate(`/students/360?studentId=${encodeURIComponent(st.userId)}`);
                               }}
-                            />
-                          ) : (
-                            <Typography variant="caption" sx={{ color: '#94a3b8' }}>—</Typography>
-                          )}
-                        </TableCell>
-                        <TableCell align="right">
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            endIcon={<OpenInNewIcon sx={{ fontSize: 12 }} />}
-                            onClick={() => {
-                              setOpenClassDetailDialog(false);
-                              navigate(`/students/360?studentId=${encodeURIComponent(st.userId)}`);
-                            }}
-                            sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.72rem', borderRadius: 1.5, py: 0.25 }}
-                          >
-                            360°
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
+                              sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.72rem', borderRadius: 1.5, py: 0.25 }}
+                            >
+                              360°
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )
             )}
 
             {/* TAB 1: Khóa học Classroom */}
@@ -2069,28 +2395,29 @@ export default function DashboardPage() {
     onClose={() => setOpenAssignmentDialog(false)}
     maxWidth="sm"
     fullWidth
+    fullScreen={isMobile}
   >
-    <DialogTitle sx={{ px: 3, pt: 2.5, pb: 1.5, borderBottom: '1px solid #e2e8f0', bgcolor: '#f8fafc' }}>
+    <DialogTitle sx={{ px: { xs: 2, sm: 3 }, pt: 2.5, pb: 1.5, borderBottom: '1px solid #e2e8f0', bgcolor: '#f8fafc' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Box>
-          <Typography variant="h6" sx={{ fontWeight: 800, color: '#0f172a' }}>
+          <Typography variant="h6" sx={{ fontWeight: 800, color: '#0f172a', fontSize: { xs: '1rem', sm: '1.25rem' } }}>
             Chi Tiết Bài Tập
           </Typography>
           <Typography variant="caption" sx={{ color: '#64748b' }}>
             Đồng bộ trực tiếp từ Google Classroom SSOT
           </Typography>
         </Box>
-        <IconButton size="small" onClick={() => setOpenAssignmentDialog(false)}>
+        <IconButton size="small" onClick={() => setOpenAssignmentDialog(false)} aria-label="Đóng" sx={{ bgcolor: '#ffffff', border: '1px solid #e2e8f0' }}>
           <CloseIcon fontSize="small" />
         </IconButton>
       </Box>
     </DialogTitle>
 
-    <DialogContent dividers sx={{ p: 3 }}>
+    <DialogContent dividers sx={{ p: { xs: 2, sm: 3 } }}>
       {selectedAssignment && (
         <Stack spacing={2.5}>
           <Box>
-            <Typography variant="h6" sx={{ fontWeight: 800, color: '#0f172a', mb: 1 }}>
+            <Typography variant="h6" sx={{ fontWeight: 800, color: '#0f172a', mb: 1, fontSize: { xs: '1.05rem', sm: '1.25rem' } }}>
               {selectedAssignment.title}
             </Typography>
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
@@ -2105,7 +2432,7 @@ export default function DashboardPage() {
               <Card variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
                 <Typography variant="caption" sx={{ color: '#64748b' }}>Hạn nộp bài</Typography>
                 <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#0f172a', mt: 0.25 }}>
-                  {selectedAssignment.dueDate || 'Không giới hạn hạn chót'}
+                  {selectedAssignment.dueDate || 'Không giới hạn'}
                 </Typography>
               </Card>
             </Grid>
@@ -2193,12 +2520,13 @@ export default function DashboardPage() {
       )}
     </DialogContent>
 
-    <DialogActions sx={{ px: 3, py: 2 }}>
-      <Button onClick={() => setOpenAssignmentDialog(false)} sx={{ textTransform: 'none', color: '#64748b' }}>
+    <DialogActions sx={{ px: { xs: 2, sm: 3 }, py: 2, flexDirection: { xs: 'column-reverse', sm: 'row' }, gap: 1 }}>
+      <Button fullWidth={isMobile} onClick={() => setOpenAssignmentDialog(false)} sx={{ textTransform: 'none', color: '#64748b', minHeight: 40 }}>
         Đóng
       </Button>
       {selectedAssignment?.alternateLink && (
         <Button
+          fullWidth={isMobile}
           variant="contained"
           color="primary"
           component="a"
@@ -2206,7 +2534,7 @@ export default function DashboardPage() {
           target="_blank"
           rel="noreferrer"
           startIcon={<OpenInNewIcon />}
-          sx={{ fontWeight: 700, textTransform: 'none', borderRadius: 2, bgcolor: '#2563eb' }}
+          sx={{ fontWeight: 700, textTransform: 'none', borderRadius: 2, bgcolor: '#2563eb', minHeight: 40 }}
         >
           Mở Bài Tập Trên Classroom
         </Button>
@@ -2220,24 +2548,25 @@ export default function DashboardPage() {
     onClose={() => setOpenAnnouncementDialog(false)}
     maxWidth="sm"
     fullWidth
+    fullScreen={isMobile}
   >
-    <DialogTitle sx={{ px: 3, pt: 2.5, pb: 1.5, borderBottom: '1px solid #e2e8f0', bgcolor: '#f8fafc' }}>
+    <DialogTitle sx={{ px: { xs: 2, sm: 3 }, pt: 2.5, pb: 1.5, borderBottom: '1px solid #e2e8f0', bgcolor: '#f8fafc' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Box>
-          <Typography variant="h6" sx={{ fontWeight: 800, color: '#0f172a' }}>
+          <Typography variant="h6" sx={{ fontWeight: 800, color: '#0f172a', fontSize: { xs: '1rem', sm: '1.25rem' } }}>
             Chi Tiết Thông Báo Lớp Học
           </Typography>
           <Typography variant="caption" sx={{ color: '#64748b' }}>
             Đăng trên Google Classroom
           </Typography>
         </Box>
-        <IconButton size="small" onClick={() => setOpenAnnouncementDialog(false)}>
+        <IconButton size="small" onClick={() => setOpenAnnouncementDialog(false)} aria-label="Đóng" sx={{ bgcolor: '#ffffff', border: '1px solid #e2e8f0' }}>
           <CloseIcon fontSize="small" />
         </IconButton>
       </Box>
     </DialogTitle>
 
-    <DialogContent dividers sx={{ p: 3 }}>
+    <DialogContent dividers sx={{ p: { xs: 2, sm: 3 } }}>
       {selectedAnnouncement && (
         <Stack spacing={2.5}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
@@ -2297,12 +2626,13 @@ export default function DashboardPage() {
       )}
     </DialogContent>
 
-    <DialogActions sx={{ px: 3, py: 2 }}>
-      <Button onClick={() => setOpenAnnouncementDialog(false)} sx={{ textTransform: 'none', color: '#64748b' }}>
+    <DialogActions sx={{ px: { xs: 2, sm: 3 }, py: 2, flexDirection: { xs: 'column-reverse', sm: 'row' }, gap: 1 }}>
+      <Button fullWidth={isMobile} onClick={() => setOpenAnnouncementDialog(false)} sx={{ textTransform: 'none', color: '#64748b', minHeight: 40 }}>
         Đóng
       </Button>
       {selectedAnnouncement?.alternateLink && (
         <Button
+          fullWidth={isMobile}
           variant="contained"
           color="primary"
           component="a"
@@ -2310,7 +2640,7 @@ export default function DashboardPage() {
           target="_blank"
           rel="noreferrer"
           startIcon={<OpenInNewIcon />}
-          sx={{ fontWeight: 700, textTransform: 'none', borderRadius: 2, bgcolor: '#2563eb' }}
+          sx={{ fontWeight: 700, textTransform: 'none', borderRadius: 2, bgcolor: '#2563eb', minHeight: 40 }}
         >
           Mở Trên Classroom
         </Button>
