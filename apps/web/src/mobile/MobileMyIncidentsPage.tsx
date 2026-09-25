@@ -10,6 +10,7 @@
  */
 import { useMemo, useState } from 'react';
 import {
+  IonPage,
   IonContent,
   IonSearchbar,
   IonSegment,
@@ -80,7 +81,7 @@ export default function MobileMyIncidentsPage() {
   const openCount = items.filter((it) => !TERMINAL_STATES.has(it.state)).length;
 
   return (
-    <>
+    <IonPage>
       <IonContent style={{ '--background': '#f4f5f7' } as any}>
         <div style={{ padding: '16px 16px 4px' }}>
           <p style={{ fontSize: 13, color: '#2563eb', fontWeight: 600, margin: '0 0 2px' }}>Cảnh báo an toàn</p>
@@ -149,6 +150,6 @@ export default function MobileMyIncidentsPage() {
         </IonFab>
       </IonContent>
       <MobileTabBar activeCount={openCount} />
-    </>
+    </IonPage>
   );
 }

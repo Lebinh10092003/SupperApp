@@ -70,6 +70,17 @@ const p = (x: ReactNode, allowedRoles?: string[]) => (
   </ProtectedRoute>
 );
 
+// Sin phản hồi 2026-09-25: pilot UI mobile lồng trong `p()` bị kẹt trong
+// khung AppShell desktop (sidebar/top bar), nội dung trống — trang mobile
+// phải chiếm TRỌN màn hình như app thật, không qua AppShell. Vẫn giữ
+// ProtectedRoute/RoleRoute (đăng nhập + phân quyền advisory như mọi route
+// khác), chỉ bỏ lớp khung desktop.
+const pMobile = (x: ReactNode, allowedRoles?: string[]) => (
+  <ProtectedRoute>
+    <RoleRoute allowedRoles={allowedRoles}>{x}</RoleRoute>
+  </ProtectedRoute>
+);
+
 const ROLES_SUPER = ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN'];
 // Khớp đúng danh sách vai trò có capability MANAGE_USERS ở backend
 // (roles.ts) — trước đây /admin chỉ cho ROLES_SUPER vào, khiến Hiệu
@@ -111,7 +122,7 @@ export function App() {
           được qua URL trực tiếp. Suspense fallback rỗng vì chunk rất nhỏ. */}
       <Route
         path="/mobile-preview/an-toan"
-        element={p(
+        element={pMobile(
           <Suspense fallback={null}>
             <MobileMyIncidentsPage />
           </Suspense>,
