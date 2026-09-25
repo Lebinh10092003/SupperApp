@@ -2,10 +2,20 @@
  * MobileTabBar.tsx — thanh điều hướng dưới cùng kiểu app di động thật
  * (Ionic), pilot 2026-09-25 sau khi Sin duyệt hướng "sửa UI mobile theo
  * Ionic React" (xem demo artifact trước đó). CỐ Ý KHÔNG dùng
- * `@ionic/react-router` (package đó yêu cầu react-router-dom <7, dự án
+ * `@ionic/react-router` (package đó yêu cầu react-router-dom <6, dự án
  * đang ở v7) — tự điều hướng bằng `useNavigate`/`useLocation` của
  * react-router-dom v7 sẵn có, chỉ mượn phần HIỂN THỊ (IonTabBar/
  * IonTabButton) của Ionic.
+ *
+ * BUG THẬT đã tìm ra 2026-09-26 (Sin báo "bấm cái nào cũng đẩy về An
+ * toàn"): `IonTabButton` của @ionic/react (dist/index.js, class
+ * IonTabButton.render) CỐ Ý BỎ prop `onClick` khỏi DOM thật — nó chỉ gọi
+ * lại `onClick` khi nhận sự kiện nội bộ `ionTabButtonClick`, sự kiện này
+ * chỉ đáng tin cậy khi có `<IonTabs>` bao ngoài (context ta cố tình không
+ * dùng). Đứng độc lập như ở đây, `onClick` prop KHÔNG BAO GIỜ chạy — đã
+ * xác nhận bằng cách tự bấm thử (script `.click()`/dispatchEvent trên
+ * DevTools): URL không đổi. Fix: gắn thẳng listener `click` NATIVE lên
+ * phần tử DOM qua `ref`, bỏ qua hẳn cơ chế onClick bị chặn của Ionic.
  */
 import { IonTabBar, IonTabButton, IonIcon, IonLabel, IonBadge } from '@ionic/react';
 import { shieldOutline, calendarOutline, schoolOutline, personCircleOutline } from 'ionicons/icons';
@@ -30,6 +40,23 @@ const TABS: TabDef[] = [
   { path: '/account', matchPaths: ['/account'], icon: personCircleOutline, label: 'Cá nhân' }
 ];
 
+function TabButton({ tab, isActive, activeCount, onNavigate }: { tab: TabDef; isActive: boolean; activeCount?: number; onNavigate: (path: string) => void }) {
+  // Bọc ngoài bằng <div onClick> THẬT (không phải prop onClick của
+  // IonTabButton — bị Ionic cố tình bỏ qua khi đứng ngoài <IonTabs>, xem
+  // ghi chú đầu file). Click từ bên trong ion-tab-button vẫn nổi bọt lên
+  // tới div này bình thường (đã tự kiểm chứng bằng DevTools). `display:
+  // contents` để div không ảnh hưởng layout flex của IonTabBar.
+  return (
+    <div style={{ display: 'contents' }} onClick={() => onNavigate(tab.path)}>
+      <IonTabButton selected={isActive}>
+        <IonIcon icon={tab.icon} />
+        <IonLabel>{tab.label}</IonLabel>
+        {tab.label === 'An toàn' && !!activeCount && <IonBadge color="danger">{activeCount}</IonBadge>}
+      </IonTabButton>
+    </div>
+  );
+}
+
 export function MobileTabBar({ activeCount }: { activeCount?: number }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -45,16 +72,9 @@ export function MobileTabBar({ activeCount }: { activeCount?: number }) {
         bottom: '0'
       }}
     >
-      {TABS.map((t) => {
-        const isActive = t.matchPaths.includes(location.pathname);
-        return (
-          <IonTabButton key={t.path} selected={isActive} onClick={() => navigate(t.path)}>
-            <IonIcon icon={t.icon} />
-            <IonLabel>{t.label}</IonLabel>
-            {t.label === 'An toàn' && !!activeCount && <IonBadge color="danger">{activeCount}</IonBadge>}
-          </IonTabButton>
-        );
-      })}
+      {TABS.map((t) => (
+        <TabButton key={t.path} tab={t} isActive={t.matchPaths.includes(location.pathname)} activeCount={activeCount} onNavigate={navigate} />
+      ))}
     </IonTabBar>
   );
 }
