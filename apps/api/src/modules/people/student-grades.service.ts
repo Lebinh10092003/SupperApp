@@ -1,4 +1,7 @@
-import { col } from '../../core/firebase.js';
+import { eq, or, inArray, and } from 'drizzle-orm';
+import { db } from '../../core/db/client.js';
+import { people } from './people.schema.js';
+import { courses, courseMembers, courseCoursework, courseSubmissions } from '../classroom/classroom.schema.js';
 import { autoDetectClass, cleanCourseName } from '../catalog/catalog.service.js';
 
 export interface SubjectTopicGrade {
@@ -27,9 +30,10 @@ export interface StudentTranscript {
   studentId: string;
   displayName: string;
   email: string;
+  photoUrl?: string;
   classId: string;
   className: string;
-  grade: number;
+  grade: number | null;
   academicYear: string;
   semester: string;
   summary: {
@@ -41,6 +45,12 @@ export interface StudentTranscript {
     completionRate: number;
   };
   subjects: SubjectTopicGrade[];
+  enrolledCourses?: Array<{
+    id: string;
+    name: string;
+    subjectName?: string;
+    completionRate?: number;
+  }>;
 }
 
 export const STANDARD_TOPICS = [
@@ -57,167 +67,145 @@ export const STANDARD_TOPICS = [
 ];
 
 export async function getStudentTranscript(studentId: string): Promise<StudentTranscript | null> {
-  const personDoc = await col('people').doc(studentId).get();
-  if (!personDoc.exists) return null;
-  const person = personDoc.data();
+  // 1. Tìm thông tin học sinh trong bảng people hoặc course_members
+  let person = await db
+    .select()
+    .from(people)
+    .where(or(eq(people.personId, studentId), eq(people.email, studentId)))
+    .then((r) => r[0] ?? null);
 
-  // Xác định danh sách khóa học Google Classroom
-  let courseIds: string[] = [];
-  if (Array.isArray(person.courses)) {
-    courseIds = person.courses;
-  } else if (person.courses?.elements && Array.isArray(person.courses.elements)) {
-    courseIds = person.courses.elements;
-  } else if (typeof person.courses === 'string') {
-    courseIds = [person.courses];
+  let email = person?.email || '';
+  let displayName = person?.displayName || (email ? email.split('@')[0] : 'Học sinh');
+  let photoUrl = person?.photoUrl || '';
+  let classId = person?.classId || '';
+  let className = person?.className || '';
+
+  // 2. Tìm các khóa học học sinh tham gia từ course_members
+  const memberRows = await db
+    .select({
+      courseId: courseMembers.courseId,
+      name: courseMembers.name,
+      email: courseMembers.email,
+      photoUrl: courseMembers.photoUrl
+    })
+    .from(courseMembers)
+    .where(or(eq(courseMembers.userId, studentId), eq(courseMembers.email, studentId), ...(email ? [eq(courseMembers.email, email)] : [])));
+
+  if (!person && memberRows.length === 0) {
+    return null;
   }
 
-  // Lấy thông tin lớp học thực tế từ khóa học
-  let className = person.className;
-  let classId = person.classId;
-  let grade = person.grade || null;
-  let primaryCourse: any = null;
+  const firstMember = memberRows[0];
+  if (firstMember) {
+    if (!email && firstMember.email) email = firstMember.email;
+    if ((!displayName || displayName === 'Học sinh') && firstMember.name) displayName = firstMember.name;
+    if (!photoUrl && firstMember.photoUrl) photoUrl = firstMember.photoUrl;
+  }
+
+  const courseIds = Array.from(new Set(memberRows.map((m) => m.courseId)));
+
+  // Lấy chi tiết các khóa học này
+  let enrolledCourses: any[] = [];
+  if (courseIds.length > 0) {
+    enrolledCourses = await db
+      .select()
+      .from(courses)
+      .where(inArray(courses.id, courseIds));
+  }
+
+  // Tự động nhận diện lớp nếu chưa có
+  if (!className && enrolledCourses.length > 0) {
+    const firstWithClass = enrolledCourses.find((c) => c.className || c.classId);
+    if (firstWithClass) {
+      className = firstWithClass.className || `Lớp ${firstWithClass.classId}`;
+      classId = firstWithClass.classId || '';
+    } else {
+      const auto = autoDetectClass(enrolledCourses[0].name);
+      if (auto) {
+        className = auto.className;
+        classId = auto.classId;
+      }
+    }
+  }
+
+  // 3. Lấy toàn bộ coursework và submissions của học sinh
+  let allCoursework: any[] = [];
+  let userSubmissions: any[] = [];
 
   if (courseIds.length > 0) {
-    const courseDoc = await col('courses').doc(courseIds[0]).get();
-    if (courseDoc.exists) {
-      primaryCourse = courseDoc.data();
-      const detected = autoDetectClass(primaryCourse.name || '');
-      className = className || primaryCourse.className || detected?.className || `Lớp ${primaryCourse.id}`;
-      classId = classId || primaryCourse.classId || detected?.classId || primaryCourse.id;
-      grade = primaryCourse.grade || detected?.grade || grade;
-    }
+    const [cwRows, subRows] = await Promise.all([
+      db.select().from(courseCoursework).where(inArray(courseCoursework.courseId, courseIds)),
+      db.select().from(courseSubmissions).where(inArray(courseSubmissions.courseId, courseIds))
+    ]);
+    allCoursework = cwRows;
+    userSubmissions = subRows.filter((r) => {
+      const d = r.data as any;
+      return d?.userId === studentId || (email && d?.userId === email);
+    });
   }
 
-  if (!className || className === 'Học sinh' || className === '—') {
-    className = 'Chưa phân lớp';
-    classId = '';
-  }
-
-  // 1. Quét các Topics thực tế từ subcollection courses/{id}/topics nếu có
-  let topicsList: Array<{ topicId: string; name: string; teacher?: string; code?: string }> = [];
-  if (primaryCourse) {
-    try {
-      const snap = await col('courses').doc(primaryCourse.id).collection('topics').get();
-      if (!snap.empty && snap.size > 0) {
-        topicsList = snap.docs.map((d: any) => ({
-          topicId: d.id,
-          name: d.data().name || 'Môn học',
-          code: d.data().topicId || d.id
-        }));
-      }
-    } catch {}
-  }
-
-  // Nếu chưa có topic nào trong CSDL, dùng bộ 10 môn chuẩn theo chương trình
-  if (topicsList.length === 0) {
-    topicsList = STANDARD_TOPICS.map(t => ({
-      topicId: t.topicId,
-      name: t.name,
-      teacher: t.teacher,
-      code: t.code
-    }));
-  }
-
-  // 2. Lấy toàn bộ coursework và submissions của lớp học
-  let courseworkDocs: any[] = [];
-  let submissionsDocs: any[] = [];
-  if (primaryCourse) {
-    try {
-      const [cwSnap, subSnap] = await Promise.all([
-        col('courses').doc(primaryCourse.id).collection('coursework').get(),
-        col('courses').doc(primaryCourse.id).collection('submissions').get()
-      ]);
-      courseworkDocs = cwSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
-      submissionsDocs = subSnap.docs
-        .map((d: any) => ({ id: d.id, ...d.data() }))
-        .filter((s: any) => s.userId === studentId || s.userId === person.personId);
-    } catch {}
-  }
-
-  // 3. Tính điểm từng môn học theo Topic (Dữ liệu thực 100% từ Google Classroom)
+  // 4. Nhóm bài tập và bài nộp theo từng khóa học
   let totalScoreSum = 0;
   let totalScoreCount = 0;
-  let totalAssignmentsCount = 0;
+  let totalAssignmentsCount = allCoursework.length;
   let totalSubmittedCount = 0;
 
-  const subjects: SubjectTopicGrade[] = topicsList.map((topic) => {
-    // Lọc bài tập thuộc về Topic này
-    const topicWork = courseworkDocs.filter((w: any) => w.topicId === topic.topicId || w.topicId === topic.code);
-
-    let assignments: any[] = [];
-    let avgScore: number | null = null;
+  const subjects: SubjectTopicGrade[] = enrolledCourses.map((c) => {
+    const courseCw = allCoursework.filter((w) => w.courseId === c.id);
     let submitted = 0;
-    let totalAssignments = topicWork.length;
+    let scoreSum = 0;
+    let graded = 0;
 
-    if (totalAssignments > 0) {
-      let scoreSum = 0;
-      let graded = 0;
+    const assignments = courseCw.map((cw) => {
+      const d = cw.data as any;
+      const sub = userSubmissions.find((s) => s.courseWorkId === cw.courseWorkId || s.courseWorkId === cw.id);
+      const isTurnedIn = sub ? Boolean(sub.isTurnedIn) : false;
+      if (isTurnedIn) submitted++;
 
-      for (const cw of topicWork) {
-        const sub = submissionsDocs.find((s: any) => s.courseWorkId === cw.id);
-        const isTurnedIn = sub ? ['TURNED_IN', 'RETURNED'].includes(sub.state) : false;
-        if (isTurnedIn) submitted++;
-
-        const assignedGrade = sub?.assignedGrade != null ? Number(sub.assignedGrade) : null;
-        if (assignedGrade != null) {
-          graded++;
-          scoreSum += (assignedGrade / Number(cw.maxPoints || 10)) * 10;
-        }
-
-        assignments.push({
-          id: cw.id,
-          title: cleanCourseName(cw.title) || `Bài tập ${topic.name}`,
-          dueDate: cw.dueDate ? `${cw.dueDate.year}-${cw.dueDate.month}-${cw.dueDate.day}` : null,
-          maxPoints: Number(cw.maxPoints || 10),
-          assignedGrade,
-          state: (sub?.state || 'NEW') as any,
-          isLate: Boolean(sub?.late)
-        });
+      const assignedGrade = sub?.assignedGrade != null ? Number(sub.assignedGrade) : null;
+      if (assignedGrade != null) {
+        graded++;
+        scoreSum += (assignedGrade / Number(d?.maxPoints || 10)) * 10;
       }
 
-      if (graded > 0) {
-        avgScore = Math.round((scoreSum / graded) * 10) / 10;
-      } else {
-        avgScore = null;
-      }
-    } else {
-      // Chưa có bài tập được tạo trong Topic môn học này trên Google Classroom
-      totalAssignments = 0;
-      submitted = 0;
-      avgScore = null;
-      assignments = [];
-    }
+      return {
+        id: cw.courseWorkId || cw.id,
+        title: cleanCourseName(d?.title) || 'Bài tập môn học',
+        dueDate: d?.dueDate ? `${d.dueDate.year}-${d.dueDate.month}-${d.dueDate.day}` : null,
+        maxPoints: Number(d?.maxPoints || 10),
+        assignedGrade,
+        state: isTurnedIn ? ('TURNED_IN' as const) : ('NEW' as const),
+        isLate: Boolean(sub?.isLate)
+      };
+    });
 
+    const avgScore = graded > 0 ? Math.round((scoreSum / graded) * 10) / 10 : null;
     if (avgScore != null) {
       totalScoreSum += avgScore;
       totalScoreCount++;
     }
-    totalAssignmentsCount += totalAssignments;
     totalSubmittedCount += submitted;
 
-    const completionRate = totalAssignments > 0 ? Math.round((submitted / totalAssignments) * 1000) / 10 : 0;
-
-    let evaluation = 'Chưa có bài tập trên Google Classroom';
+    const compRate = courseCw.length > 0 ? Math.round((submitted / courseCw.length) * 100) : 0;
+    let evaluation = 'Chưa có bài nộp';
     if (avgScore != null) {
-      if (avgScore >= 9.0) evaluation = 'Xuất sắc: Nắm sâu kiến thức, tư duy phản biện tốt và nộp bài đều đặn';
-      else if (avgScore >= 8.0) evaluation = 'Giỏi: Tiếp thu bài nhanh, làm bài tập đầy đủ';
-      else if (avgScore >= 6.5) evaluation = 'Khá: Cần chú ý hoàn thành bài tập đúng hạn để cải thiện điểm số';
-      else evaluation = 'Cần cố gắng thêm';
-    } else if (totalAssignments > 0) {
-      evaluation = 'Đang chờ giáo viên chấm bài trên Google Classroom';
+      if (avgScore >= 9.0) evaluation = 'Xuất sắc: Nắm sâu kiến thức, nộp bài đầy đủ';
+      else if (avgScore >= 8.0) evaluation = 'Giỏi: Tiếp thu bài tốt, hoàn thành đúng hạn';
+      else if (avgScore >= 6.5) evaluation = 'Khá: Cần chú ý làm bài tập về nhà';
+      else evaluation = 'Cần đôn đốc thêm';
+    } else if (courseCw.length > 0) {
+      evaluation = 'Đang chờ giáo viên chấm bài';
     }
 
-    const std = STANDARD_TOPICS.find(s => s.name.toLowerCase() === topic.name.toLowerCase() || s.topicId === topic.topicId);
-
     return {
-      topicId: topic.topicId,
-      topicName: cleanCourseName(topic.name) || topic.name,
-      subjectCode: std?.code || topic.code || 'SUB',
-      teacherName: topic.teacher || std?.teacher || 'Giáo viên bộ môn',
-      totalAssignments,
+      topicId: c.id,
+      topicName: c.name,
+      subjectCode: c.subjectName || 'MON',
+      teacherName: c.section || 'Giáo viên bộ môn',
+      totalAssignments: courseCw.length,
       submittedCount: submitted,
-      missingCount: Math.max(0, totalAssignments - submitted),
-      completionRate,
+      missingCount: Math.max(0, courseCw.length - submitted),
+      completionRate: compRate,
       averageScore: avgScore,
       evaluation,
       assignments
@@ -225,11 +213,8 @@ export async function getStudentTranscript(studentId: string): Promise<StudentTr
   });
 
   const gpa = totalScoreCount > 0 ? Math.round((totalScoreSum / totalScoreCount) * 10) / 10 : null;
-  const overallCompletionRate = totalAssignmentsCount > 0
-    ? Math.round((totalSubmittedCount / totalAssignmentsCount) * 1000) / 10
-    : 0;
-
-  let rank = 'Chưa có điểm';
+  const overallComp = totalAssignmentsCount > 0 ? Math.round((totalSubmittedCount / totalAssignmentsCount) * 100) : 0;
+  let rank = 'Chưa xếp hạng';
   if (gpa != null) {
     if (gpa >= 9.0) rank = 'Học sinh Xuất sắc';
     else if (gpa >= 8.0) rank = 'Học sinh Giỏi';
@@ -239,21 +224,28 @@ export async function getStudentTranscript(studentId: string): Promise<StudentTr
 
   return {
     studentId,
-    displayName: person.displayName || person.name || 'Học sinh',
-    email: person.email || '',
+    displayName: String(displayName || (email ? email.split('@')[0] : 'Học sinh')),
+    email: String(email || ''),
+    photoUrl: photoUrl || undefined,
     classId: classId || '',
-    className: cleanCourseName(className) || (classId ? `Lớp ${classId}` : 'Chưa phân lớp'),
-    grade,
-    academicYear: '2026–2027',
+    className: className || 'Chưa phân lớp',
+    grade: classId ? Number(classId.match(/^[0-9]+/)?.[0]) || null : null,
+    academicYear: '2025–2026',
     semester: 'Học kỳ I',
     summary: {
-      totalSubjects: subjects.length,
+      totalSubjects: enrolledCourses.length,
       gpa,
       rank,
       totalAssignments: totalAssignmentsCount,
       submittedAssignments: totalSubmittedCount,
-      completionRate: overallCompletionRate
+      completionRate: overallComp
     },
-    subjects
+    subjects,
+    enrolledCourses: enrolledCourses.map((c) => ({
+      id: c.id,
+      name: c.name,
+      subjectName: c.subjectName,
+      completionRate: c.completionRate != null ? Number(c.completionRate) : undefined
+    }))
   };
 }

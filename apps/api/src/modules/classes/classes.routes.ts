@@ -1,12 +1,13 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { eq, count, sql, and, asc } from 'drizzle-orm';
+import { eq, count, sql, and, asc, or, inArray } from 'drizzle-orm';
 import { firebaseAuth, requireCapability } from '../../auth/middleware.js';
 import { asyncRoute } from '../../core/http.js';
 import { db } from '../../core/db/client.js';
 import { classes } from './classes.schema.js';
 import { schedules } from '../schedules/schedules.schema.js';
 import { courses, courseSubmissions, courseCoursework, courseMembers, classMappings } from '../classroom/classroom.schema.js';
+import { people } from '../people/people.schema.js';
 import { alerts } from '../alerts/alerts.schema.js';
 import { systemConfig } from '../system/system.schema.js';
 import { rebuildClassesFromCourses } from '../classroom/classroom.service.js';
@@ -475,31 +476,173 @@ classesRouter.post(
   })
 );
 
-// 9. Chuẩn hóa sĩ số học sinh định mức theo lớp học THCS Giảng Võ (40-44 HS/lớp)
+// 9. Chuẩn hóa & Đồng bộ dữ liệu Lớp học theo Google Classroom (Single Source of Truth)
+classesRouter.post(
+  '/align-ssot',
+  firebaseAuth,
+  requireCapability('VIEW_DASHBOARD'),
+  asyncRoute(async (_req, res) => {
+    // 1. Gọi rebuildClassesFromCourses: xóa lớp lệch mồ côi, chuẩn hóa sĩ số theo Classroom
+    const syncedCount = await rebuildClassesFromCourses();
+    await rebuildDashboard().catch(() => null);
+
+    const enriched = await getEnrichedClasses('all');
+    const totalStudents = enriched.reduce((acc, c) => acc + (c.studentCount || 0), 0);
+
+    res.json({
+      ok: true,
+      message: `Đã chuẩn hóa 100% dữ liệu theo Single Source of Truth (Google Classroom)! Hệ thống hiện có ${enriched.length} lớp học chuẩn với tổng cộng ${totalStudents} học sinh thực tế. Toàn bộ lớp học lệch hoặc mồ côi đã được dọn dẹp.`,
+      classCount: enriched.length,
+      totalStudents,
+      classes: enriched
+    });
+  })
+);
+
+// Chuẩn hóa sĩ số tương thích ngược
 classesRouter.post(
   '/standardize-roster',
   firebaseAuth,
   requireCapability('VIEW_DASHBOARD'),
   asyncRoute(async (_req, res) => {
-    const all = await db.select().from(classes);
-    let updatedCount = 0;
+    const syncedCount = await rebuildClassesFromCourses();
+    await rebuildDashboard().catch(() => null);
+    const enriched = await getEnrichedClasses('all');
+    res.json({
+      ok: true,
+      message: `Đã chuẩn hóa sĩ số thực tế cho ${enriched.length} lớp học dựa trên dữ liệu Google Classroom!`,
+      updatedCount: enriched.length
+    });
+  })
+);
 
-    for (const cls of all) {
-      const standardSize = 40 + (Math.abs(cls.classId?.charCodeAt(0) || 0) % 5);
-      await db
-        .update(classes)
-        .set({
-          expectedStudents: standardSize,
-          updatedAt: new Date()
-        })
-        .where(eq(classes.classId, cls.classId));
-      updatedCount++;
+// Chi tiết chỉ số đầy đủ của một lớp học (Class Metrics & Student Detail)
+classesRouter.get(
+  '/:id/detail',
+  firebaseAuth,
+  requireCapability('VIEW_DASHBOARD'),
+  asyncRoute(async (req, res) => {
+    const classId = String(req.params.id);
+    const existing = await db.select().from(classes).where(eq(classes.classId, classId)).then((r) => r[0]);
+    if (!existing) {
+      return res.status(404).json({ error: { message: `Không tìm thấy lớp học có mã "${classId}".` } });
     }
+
+    // 1. Lấy danh sách khóa học Google Classroom thuộc về lớp này
+    const linkedCourses = await db
+      .select()
+      .from(courses)
+      .where(or(eq(courses.classId, classId), inArray(courses.id, existing.courses || ['__empty__'])));
+
+    const courseIds = linkedCourses.map((c) => c.id);
+
+    // 2. Lấy danh sách thành viên học sinh trong các khóa học này
+    let studentMembers: Array<{ userId: string; name: string | null; email: string | null; photoUrl: string | null; courseId: string }> = [];
+    if (courseIds.length > 0) {
+      studentMembers = await db
+        .select({
+          userId: courseMembers.userId,
+          name: courseMembers.name,
+          email: courseMembers.email,
+          photoUrl: courseMembers.photoUrl,
+          courseId: courseMembers.courseId
+        })
+        .from(courseMembers)
+        .where(and(inArray(courseMembers.courseId, courseIds), eq(courseMembers.role, 'STUDENT')));
+    }
+
+    // Gộp học sinh theo email/userId duy nhất
+    const studentsMap = new Map<string, { userId: string; name: string; email: string; photoUrl: string; courseCount: number }>();
+    for (const m of studentMembers) {
+      const key = m.email || m.userId;
+      if (!studentsMap.has(key)) {
+        studentsMap.set(key, {
+          userId: m.userId,
+          name: m.name || m.email?.split('@')[0] || 'Học sinh',
+          email: m.email || '',
+          photoUrl: m.photoUrl || '',
+          courseCount: 0
+        });
+      }
+      studentsMap.get(key)!.courseCount++;
+    }
+
+    // 3. Thống kê bài nộp của học sinh trong các khóa học
+    let studentSubmissions: any[] = [];
+    if (courseIds.length > 0) {
+      studentSubmissions = await db
+        .select()
+        .from(courseSubmissions)
+        .where(inArray(courseSubmissions.courseId, courseIds));
+    }
+
+    const studentsList = Array.from(studentsMap.values()).map((st) => {
+      const subs = studentSubmissions.filter((s) => s.userId === st.userId || s.userId === st.email);
+      const total = subs.length;
+      const turnedIn = subs.filter((s) => s.isTurnedIn).length;
+      const late = subs.filter((s) => s.isLate && s.isTurnedIn).length;
+      const rate = total > 0 ? Math.round((turnedIn / total) * 100) : 0;
+      const gradedSubs = subs.filter((s) => s.isGraded && s.assignedGrade != null);
+      const avgScore = gradedSubs.length
+        ? Math.round((gradedSubs.reduce((acc, curr) => acc + Number(curr.assignedGrade), 0) / gradedSubs.length) * 10) / 10
+        : null;
+
+      return {
+        ...st,
+        totalAssignments: total,
+        turnedInCount: turnedIn,
+        lateCount: late,
+        completionRate: rate,
+        averageScore: avgScore
+      };
+    });
+
+    studentsList.sort((a, b) => b.completionRate - a.completionRate);
+
+    // 4. Lấy danh sách bài tập gần đây của lớp
+    let recentCoursework: any[] = [];
+    if (courseIds.length > 0) {
+      const cwRows = await db
+        .select()
+        .from(courseCoursework)
+        .where(inArray(courseCoursework.courseId, courseIds))
+        .limit(25);
+      recentCoursework = cwRows.map((cw) => {
+        const d = cw.data as any;
+        return {
+          id: cw.id,
+          courseId: cw.courseId,
+          title: d?.title || 'Bài tập',
+          maxPoints: d?.maxPoints || 10,
+          dueDate: d?.dueDate ? `${d.dueDate.year}-${d.dueDate.month}-${d.dueDate.day}` : null,
+          alternateLink: d?.alternateLink || ''
+        };
+      });
+    }
+
+    // 5. Thống kê theo bộ môn
+    const subjectsSummary = (existing.subjects || []).map((subj: any) => {
+      const sName = typeof subj === 'string' ? subj : subj.name;
+      const subjCourses = linkedCourses.filter((c) => c.subjectName === sName);
+      const coursework = subjCourses.reduce((acc, c) => acc + (c.contentCoursework || 0), 0);
+      const subTotal = subjCourses.reduce((acc, c) => acc + (c.submissionsTotal || 0), 0);
+      const turnedIn = subjCourses.reduce((acc, c) => acc + (c.submissionsTurnedIn || 0), 0);
+      const rate = subTotal > 0 ? Math.round((turnedIn / subTotal) * 100) : 0;
+      return {
+        name: sName,
+        courseCount: subjCourses.length,
+        totalCoursework: coursework,
+        completionRate: rate
+      };
+    });
 
     res.json({
       ok: true,
-      message: `Đã chuẩn hóa sĩ số định mức (40–44 HS/lớp) cho ${updatedCount} lớp học trong toàn trường!`,
-      updatedCount
+      class: existing,
+      courses: linkedCourses,
+      students: studentsList,
+      subjectsSummary,
+      recentCoursework
     });
   })
 );

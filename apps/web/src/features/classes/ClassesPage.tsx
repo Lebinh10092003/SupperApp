@@ -31,7 +31,11 @@ import {
   FormControlLabel,
   Checkbox,
   InputLabel,
-  Grid
+  Grid,
+  Tabs,
+  Tab,
+  LinearProgress,
+  Avatar
 } from '@mui/material';
 import SchoolIcon from '@mui/icons-material/SchoolRounded';
 import AddIcon from '@mui/icons-material/AddRounded';
@@ -52,6 +56,10 @@ import CheckIcon from '@mui/icons-material/CheckRounded';
 import TableChartIcon from '@mui/icons-material/TableChartRounded';
 import DescriptionIcon from '@mui/icons-material/DescriptionRounded';
 import AutorenewIcon from '@mui/icons-material/AutorenewRounded';
+import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded';
+import FactCheckRoundedIcon from '@mui/icons-material/FactCheckRounded';
+import OpenInNewRoundedIcon from '@mui/icons-material/OpenInNewRounded';
+import CloseIcon from '@mui/icons-material/CloseRounded';
 import { PageHeader } from '../../components/PageHeader';
 import { api, download } from '../../services/api';
 
@@ -189,6 +197,44 @@ export default function ClassesPage() {
       setToast({ message: `Lỗi chuyển giao năm học: ${err.message}`, severity: 'error' });
     } finally {
       setRolloverSubmitting(false);
+    }
+  };
+
+  // Chuẩn hóa SSOT Google Classroom
+  const [aligningSsot, setAligningSsot] = useState(false);
+
+  // Chi tiết chỉ số lớp học
+  const [openClassDetailDialog, setOpenClassDetailDialog] = useState(false);
+  const [classDetailTarget, setClassDetailTarget] = useState<ClassItem | null>(null);
+  const [classDetailLoading, setClassDetailLoading] = useState(false);
+  const [classDetailData, setClassDetailData] = useState<any | null>(null);
+  const [detailTab, setDetailTab] = useState(0);
+
+  const handleAlignSsot = async () => {
+    setAligningSsot(true);
+    try {
+      const res = await api.post<{ ok: boolean; message: string; classCount: number; totalStudents: number }>('/api/classes/align-ssot');
+      setToast({ message: res.message || 'Đã chuẩn hóa thành công 100% dữ liệu lớp học theo Google Classroom!', severity: 'success' });
+      loadClasses();
+    } catch (err: any) {
+      setToast({ message: `Lỗi chuẩn hóa SSOT: ${err.message}`, severity: 'error' });
+    } finally {
+      setAligningSsot(false);
+    }
+  };
+
+  const handleOpenClassDetail = async (cls: ClassItem) => {
+    setClassDetailTarget(cls);
+    setOpenClassDetailDialog(true);
+    setClassDetailLoading(true);
+    setDetailTab(0);
+    try {
+      const res = await api<any>(`/api/classes/${cls.classId}/detail`);
+      setClassDetailData(res);
+    } catch {
+      setClassDetailData(null);
+    } finally {
+      setClassDetailLoading(false);
     }
   };
 
@@ -488,6 +534,21 @@ export default function ClassesPage() {
             >
               {syncingMetrics ? 'Đang đối soát...' : 'Đối soát số liệu'}
             </Button>
+            <Button
+              variant="contained"
+              startIcon={aligningSsot ? <CircularProgress size={16} color="inherit" /> : <FactCheckRoundedIcon />}
+              onClick={handleAlignSsot}
+              disabled={aligningSsot}
+              sx={{
+                bgcolor: '#059669',
+                '&:hover': { bgcolor: '#047857' },
+                fontWeight: 600,
+                textTransform: 'none',
+                borderRadius: 2
+              }}
+            >
+              {aligningSsot ? 'Đang chuẩn hóa SSOT...' : 'Chuẩn hóa Sĩ số (SSOT)'}
+            </Button>
             <Tooltip title="Làm mới dữ liệu">
               <IconButton onClick={loadClasses} sx={{ bgcolor: '#fff', border: '1px solid #e2e8f0' }} size="small">
                 <RefreshIcon fontSize="small" />
@@ -707,7 +768,16 @@ export default function ClassesPage() {
                             <SchoolIcon fontSize="small" />
                           </Box>
                           <Box>
-                            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#0f172a' }}>
+                            <Typography
+                              variant="subtitle2"
+                              onClick={() => handleOpenClassDetail(cls)}
+                              sx={{
+                                fontWeight: 700,
+                                color: '#0f172a',
+                                cursor: 'pointer',
+                                '&:hover': { color: '#2563eb', textDecoration: 'underline' }
+                              }}
+                            >
                               {cls.className}
                             </Typography>
                             <Typography variant="caption" sx={{ color: '#64748b' }}>
@@ -830,6 +900,15 @@ export default function ClassesPage() {
                       {/* Thao tác */}
                       <TableCell align="right">
                         <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                          <Tooltip title="Xem chi tiết chỉ số & khóa học">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleOpenClassDetail(cls)}
+                              sx={{ color: '#059669', '&:hover': { color: '#047857', bgcolor: '#ecfdf5' } }}
+                            >
+                              <VisibilityRoundedIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
                           <Tooltip title="Mẫu tin nhắn gửi Phụ huynh (Zalo/SMS)">
                             <IconButton
                               size="small"
@@ -1387,6 +1466,404 @@ export default function ClassesPage() {
             }}
           >
             {rolloverSubmitting ? 'Đang chuyển giao...' : 'Xác nhận chuyển giao'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* DIALOG: Chi tiết Chỉ số & Học sinh Lớp học */}
+      <Dialog
+        open={openClassDetailDialog}
+        onClose={() => setOpenClassDetailDialog(false)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: { borderRadius: 3, maxHeight: '90vh' }
+        }}
+      >
+        <DialogTitle sx={{ p: 2.5, pb: 1.5, borderBottom: '1px solid #e2e8f0', bgcolor: '#f8fafc' }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+            <Stack direction="row" spacing={2} alignItems="center">
+              <Box
+                sx={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 2.5,
+                  bgcolor: '#eff6ff',
+                  color: '#2563eb',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <SchoolIcon sx={{ fontSize: 28 }} />
+              </Box>
+              <Box>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Typography variant="h6" sx={{ fontWeight: 800, color: '#0f172a' }}>
+                    {classDetailTarget?.className}
+                  </Typography>
+                  <Chip
+                    label={classDetailTarget?.grade ? `Khối ${classDetailTarget.grade}` : 'Chưa phân khối'}
+                    size="small"
+                    sx={{ bgcolor: '#e2e8f0', fontWeight: 600, fontSize: '0.75rem' }}
+                  />
+                  <Chip
+                    label={classDetailTarget?.source === 'CLASSROOM_SYNC' ? 'Google Classroom SSOT' : 'Thủ công'}
+                    size="small"
+                    color={classDetailTarget?.source === 'CLASSROOM_SYNC' ? 'success' : 'secondary'}
+                    variant="outlined"
+                    sx={{ fontWeight: 600, fontSize: '0.75rem' }}
+                  />
+                </Stack>
+                <Typography variant="body2" sx={{ color: '#64748b', mt: 0.25 }}>
+                  GVCN: <strong>{classDetailTarget?.homeroomTeacher || 'Chưa phân công'}</strong>
+                  {classDetailTarget?.teacherEmail && ` (${classDetailTarget.teacherEmail})`} • Phòng:{' '}
+                  {classDetailTarget?.room || 'Chưa xếp'} • Niên khóa: 2025–2026
+                </Typography>
+              </Box>
+            </Stack>
+            <IconButton onClick={() => setOpenClassDetailDialog(false)} size="small" sx={{ color: '#94a3b8' }}>
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          </Stack>
+
+          {/* 4 Thẻ KPI tóm tắt */}
+          <Grid container spacing={1.5} sx={{ mt: 2 }}>
+            <Grid size={{ xs: 6, sm: 3 }}>
+              <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#ffffff', border: '1px solid #e2e8f0' }}>
+                <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600, display: 'block' }}>
+                  SĨ SỐ THỰC TẾ
+                </Typography>
+                <Typography variant="h6" sx={{ fontWeight: 800, color: '#2563eb' }}>
+                  {classDetailData?.students?.length ?? classDetailTarget?.studentCount ?? 0} HS
+                </Typography>
+              </Box>
+            </Grid>
+            <Grid size={{ xs: 6, sm: 3 }}>
+              <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#ffffff', border: '1px solid #e2e8f0' }}>
+                <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600, display: 'block' }}>
+                  KHÓA HỌC LIÊN KẾT
+                </Typography>
+                <Typography variant="h6" sx={{ fontWeight: 800, color: '#7c3aed' }}>
+                  {classDetailData?.courses?.length ?? classDetailTarget?.courseCount ?? 0} môn
+                </Typography>
+              </Box>
+            </Grid>
+            <Grid size={{ xs: 6, sm: 3 }}>
+              <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#ffffff', border: '1px solid #e2e8f0' }}>
+                <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600, display: 'block' }}>
+                  TỶ LỆ NỘP BÀI
+                </Typography>
+                <Typography variant="h6" sx={{ fontWeight: 800, color: '#059669' }}>
+                  {classDetailTarget?.completionRate != null ? `${classDetailTarget.completionRate}%` : '—'}
+                </Typography>
+              </Box>
+            </Grid>
+            <Grid size={{ xs: 6, sm: 3 }}>
+              <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#ffffff', border: '1px solid #e2e8f0' }}>
+                <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600, display: 'block' }}>
+                  NỘP ĐÚNG HẠN
+                </Typography>
+                <Typography variant="h6" sx={{ fontWeight: 800, color: '#ea580c' }}>
+                  {classDetailTarget?.onTimeRate != null ? `${classDetailTarget.onTimeRate}%` : '—'}
+                </Typography>
+              </Box>
+            </Grid>
+          </Grid>
+        </DialogTitle>
+
+        <Box sx={{ borderBottom: '1px solid #e2e8f0', px: 2.5, bgcolor: '#f8fafc' }}>
+          <Tabs value={detailTab} onChange={(_, val) => setDetailTab(val)}>
+            <Tab
+              label={`Học sinh lớp (${classDetailData?.students?.length ?? classDetailTarget?.studentCount ?? 0})`}
+              sx={{ textTransform: 'none', fontWeight: 600 }}
+            />
+            <Tab
+              label={`Khóa học Classroom (${classDetailData?.courses?.length ?? classDetailTarget?.courseCount ?? 0})`}
+              sx={{ textTransform: 'none', fontWeight: 600 }}
+            />
+            <Tab
+              label={`Bộ môn (${classDetailData?.subjectsSummary?.length ?? 0})`}
+              sx={{ textTransform: 'none', fontWeight: 600 }}
+            />
+            <Tab
+              label={`Bài tập gần đây (${classDetailData?.recentCoursework?.length ?? 0})`}
+              sx={{ textTransform: 'none', fontWeight: 600 }}
+            />
+          </Tabs>
+        </Box>
+
+        <DialogContent sx={{ p: 2.5 }}>
+          {classDetailLoading ? (
+            <Box sx={{ py: 6, textAlign: 'center' }}>
+              <CircularProgress size={32} />
+              <Typography variant="body2" sx={{ color: '#64748b', mt: 1.5 }}>
+                Đang nạp chi tiết chỉ số và học sinh từ Google Classroom...
+              </Typography>
+            </Box>
+          ) : (
+            <>
+              {/* TAB 0: Danh sách Học sinh */}
+              {detailTab === 0 && (
+                <Box>
+                  {(!classDetailData?.students || classDetailData.students.length === 0) ? (
+                    <Box sx={{ py: 4, textAlign: 'center' }}>
+                      <Typography variant="body2" sx={{ color: '#64748b' }}>
+                        Chưa có học sinh nào được liên kết hoặc quét từ các khóa học Classroom của lớp này.
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <TableContainer sx={{ maxHeight: 380 }}>
+                      <Table size="small" stickyHeader>
+                        <TableHead>
+                          <TableRow>
+                            <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>#</TableCell>
+                            <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>Học sinh</TableCell>
+                            <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>Email Google</TableCell>
+                            <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>Số môn</TableCell>
+                            <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>Tiến độ nộp bài</TableCell>
+                            <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc' }} align="right">
+                              Điểm TB
+                            </TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {classDetailData.students.map((st: any, idx: number) => (
+                            <TableRow key={st.userId || idx} hover>
+                              <TableCell sx={{ color: '#64748b', width: 40 }}>{idx + 1}</TableCell>
+                              <TableCell>
+                                <Stack direction="row" spacing={1.5} alignItems="center">
+                                  <Avatar
+                                    src={st.photoUrl || undefined}
+                                    sx={{ width: 28, height: 28, fontSize: '0.8rem', bgcolor: '#e0e7ff', color: '#3730a3' }}
+                                  >
+                                    {(st.name || 'H')[0].toUpperCase()}
+                                  </Avatar>
+                                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#0f172a' }}>
+                                    {st.name}
+                                  </Typography>
+                                </Stack>
+                              </TableCell>
+                              <TableCell sx={{ color: '#64748b', fontSize: '0.8rem' }}>{st.email || '—'}</TableCell>
+                              <TableCell sx={{ color: '#475569' }}>{st.courseCount} môn</TableCell>
+                              <TableCell sx={{ minWidth: 160 }}>
+                                <Stack spacing={0.5}>
+                                  <Stack direction="row" justifyContent="space-between">
+                                    <Typography variant="caption" sx={{ color: '#64748b', fontSize: '0.75rem' }}>
+                                      {st.turnedInCount}/{st.totalAssignments} bài
+                                    </Typography>
+                                    <Typography
+                                      variant="caption"
+                                      sx={{
+                                        fontWeight: 700,
+                                        fontSize: '0.75rem',
+                                        color: st.completionRate >= 70 ? '#15803d' : st.completionRate >= 50 ? '#a16207' : '#b91c1c'
+                                      }}
+                                    >
+                                      {st.completionRate}%
+                                    </Typography>
+                                  </Stack>
+                                  <LinearProgress
+                                    variant="determinate"
+                                    value={st.completionRate}
+                                    color={st.completionRate >= 70 ? 'success' : st.completionRate >= 50 ? 'warning' : 'error'}
+                                    sx={{ height: 6, borderRadius: 3 }}
+                                  />
+                                </Stack>
+                              </TableCell>
+                              <TableCell align="right">
+                                {st.averageScore != null ? (
+                                  <Chip
+                                    label={st.averageScore.toFixed(1)}
+                                    size="small"
+                                    sx={{
+                                      fontWeight: 700,
+                                      bgcolor: st.averageScore >= 8 ? '#f0fdf4' : st.averageScore >= 6.5 ? '#eff6ff' : '#b91c1c',
+                                      color: st.averageScore >= 8 ? '#15803d' : st.averageScore >= 6.5 ? '#1d4ed8' : '#b91c1c'
+                                    }}
+                                  />
+                                ) : (
+                                  <Typography variant="caption" sx={{ color: '#94a3b8' }}>
+                                    —
+                                  </Typography>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  )}
+                </Box>
+              )}
+
+              {/* TAB 1: Danh sách Khóa học Google Classroom */}
+              {detailTab === 1 && (
+                <Box>
+                  {(!classDetailData?.courses || classDetailData.courses.length === 0) ? (
+                    <Box sx={{ py: 4, textAlign: 'center' }}>
+                      <Typography variant="body2" sx={{ color: '#64748b' }}>
+                        Lớp này chưa có khóa học Google Classroom nào được liên kết.
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <Stack spacing={1.5}>
+                      {classDetailData.courses.map((c: any) => (
+                        <Card
+                          key={c.id}
+                          variant="outlined"
+                          sx={{ p: 2, borderRadius: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                        >
+                          <Box>
+                            <Stack direction="row" spacing={1} alignItems="center">
+                              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#0f172a' }}>
+                                {c.name}
+                              </Typography>
+                              {c.section && <Chip label={c.section} size="small" sx={{ fontSize: '0.7rem' }} />}
+                              {c.subjectName && (
+                                <Chip
+                                  label={c.subjectName}
+                                  size="small"
+                                  color="primary"
+                                  variant="outlined"
+                                  sx={{ fontSize: '0.7rem' }}
+                                />
+                              )}
+                            </Stack>
+                            <Typography variant="caption" sx={{ color: '#64748b', display: 'block', mt: 0.5 }}>
+                              Mã khóa học: {c.id} • Phòng: {c.room || '—'} • Bài tập:{' '}
+                              <strong>{c.contentCoursework || 0}</strong> • Tổng lượt nộp:{' '}
+                              <strong>{c.submissionsTotal || 0}</strong>
+                            </Typography>
+                          </Box>
+                          <Stack direction="row" spacing={1} alignItems="center">
+                            {c.alternateLink && (
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                endIcon={<OpenInNewRoundedIcon fontSize="small" />}
+                                href={c.alternateLink}
+                                target="_blank"
+                                rel="noreferrer"
+                                sx={{ textTransform: 'none', borderRadius: 1.5 }}
+                              >
+                                Mở Classroom
+                              </Button>
+                            )}
+                          </Stack>
+                        </Card>
+                      ))}
+                    </Stack>
+                  )}
+                </Box>
+              )}
+
+              {/* TAB 2: Thống kê theo Bộ môn */}
+              {detailTab === 2 && (
+                <Box>
+                  {(!classDetailData?.subjectsSummary || classDetailData.subjectsSummary.length === 0) ? (
+                    <Box sx={{ py: 4, textAlign: 'center' }}>
+                      <Typography variant="body2" sx={{ color: '#64748b' }}>
+                        Chưa có dữ liệu thống kê môn học.
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <Grid container spacing={2}>
+                      {classDetailData.subjectsSummary.map((sub: any, idx: number) => (
+                        <Grid size={{ xs: 12, sm: 6 }} key={idx}>
+                          <Card variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#0f172a', mb: 1 }}>
+                              {sub.name}
+                            </Typography>
+                            <Stack spacing={1}>
+                              <Stack direction="row" justifyContent="space-between">
+                                <Typography variant="caption" sx={{ color: '#64748b' }}>
+                                  Số khóa học liên kết:
+                                </Typography>
+                                <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                                  {sub.courseCount} khóa
+                                </Typography>
+                              </Stack>
+                              <Stack direction="row" justifyContent="space-between">
+                                <Typography variant="caption" sx={{ color: '#64748b' }}>
+                                  Tổng số bài tập đã giao:
+                                </Typography>
+                                <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                                  {sub.totalCoursework} bài
+                                </Typography>
+                              </Stack>
+                              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                                <Typography variant="caption" sx={{ color: '#64748b' }}>
+                                  Tỷ lệ nộp bài bộ môn:
+                                </Typography>
+                                <Typography variant="body2" sx={{ fontWeight: 700, color: '#2563eb' }}>
+                                  {sub.completionRate}%
+                                </Typography>
+                              </Stack>
+                              <LinearProgress
+                                variant="determinate"
+                                value={sub.completionRate}
+                                sx={{ height: 6, borderRadius: 3 }}
+                              />
+                            </Stack>
+                          </Card>
+                        </Grid>
+                      ))}
+                    </Grid>
+                  )}
+                </Box>
+              )}
+
+              {/* TAB 3: Bài tập gần đây */}
+              {detailTab === 3 && (
+                <Box>
+                  {(!classDetailData?.recentCoursework || classDetailData.recentCoursework.length === 0) ? (
+                    <Box sx={{ py: 4, textAlign: 'center' }}>
+                      <Typography variant="body2" sx={{ color: '#64748b' }}>
+                        Chưa có dữ liệu bài tập gần đây từ Google Classroom.
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <Stack spacing={1.5}>
+                      {classDetailData.recentCoursework.map((cw: any) => (
+                        <Card
+                          key={cw.id}
+                          variant="outlined"
+                          sx={{ p: 1.75, borderRadius: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                        >
+                          <Box>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#0f172a' }}>
+                              {cw.title}
+                            </Typography>
+                            <Typography variant="caption" sx={{ color: '#64748b' }}>
+                              Thang điểm: {cw.maxPoints}đ {cw.dueDate ? `• Hạn nộp: ${cw.dueDate}` : '• Không có hạn'}
+                            </Typography>
+                          </Box>
+                          {cw.alternateLink && (
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              endIcon={<OpenInNewRoundedIcon fontSize="small" />}
+                              href={cw.alternateLink}
+                              target="_blank"
+                              rel="noreferrer"
+                              sx={{ textTransform: 'none', borderRadius: 1.5, fontSize: '0.75rem' }}
+                            >
+                              Xem đề bài
+                            </Button>
+                          )}
+                        </Card>
+                      ))}
+                    </Stack>
+                  )}
+                </Box>
+              )}
+            </>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 2.5, py: 1.5, borderTop: '1px solid #e2e8f0', bgcolor: '#f8fafc' }}>
+          <Button onClick={() => setOpenClassDetailDialog(false)} sx={{ textTransform: 'none', fontWeight: 600 }}>
+            Đóng
           </Button>
         </DialogActions>
       </Dialog>

@@ -1,4 +1,4 @@
-import { sql, eq, count, inArray } from 'drizzle-orm';
+import { sql, eq, count, inArray, and } from 'drizzle-orm';
 import { env } from '../../config/env.js';
 import { db } from '../../core/db/client.js';
 import { googleJson } from '../../integrations/dwd.js';
@@ -108,9 +108,7 @@ export async function discoverCourses(subject: string, customToken?: string): Pr
     } else if (subject) {
       u.searchParams.set('teacherId', subject);
     }
-    u.searchParams.append('courseStates', 'ACTIVE');
-    u.searchParams.append('courseStates', 'ARCHIVED');
-    u.searchParams.append('courseStates', 'PROVISIONED');
+    u.searchParams.set('courseStates', 'ACTIVE');
     const teacherCourses = await listAll<Course>(u.toString(), subject, 'courses', customToken);
     for (const c of teacherCourses) merged.set(c.id, c);
   } catch (err: any) {
@@ -123,7 +121,7 @@ export async function discoverCourses(subject: string, customToken?: string): Pr
     try {
       const u2 = new URL(`${base}/courses`);
       u2.searchParams.set('studentId', 'me');
-      u2.searchParams.append('courseStates', 'ACTIVE');
+      u2.searchParams.set('courseStates', 'ACTIVE');
       const studentCourses = await listAll<Course>(u2.toString(), subject, 'courses', customToken);
       for (const c of studentCourses) merged.set(c.id, c);
     } catch (err: any) {
@@ -135,7 +133,7 @@ export async function discoverCourses(subject: string, customToken?: string): Pr
   if (merged.size === 0) {
     try {
       const u3 = new URL(`${base}/courses`);
-      u3.searchParams.append('courseStates', 'ACTIVE');
+      u3.searchParams.set('courseStates', 'ACTIVE');
       const allCourses = await listAll<Course>(u3.toString(), subject, 'courses', customToken);
       for (const c of allCourses) merged.set(c.id, c);
     } catch (err: any) {
@@ -152,7 +150,8 @@ export async function discoverCourses(subject: string, customToken?: string): Pr
     }
   }
 
-  return Array.from(merged.values());
+  // Chỉ trả về các khóa học đang ACTIVE (bỏ qua triệt để ARCHIVED/DECLINED/SUSPENDED)
+  return Array.from(merged.values()).filter((c) => c.courseState === 'ACTIVE' || !c.courseState);
 }
 
 /** Ghép thêm 1 courseId vào cột jsonb `courses` của người này, không trùng lặp. */
@@ -841,6 +840,8 @@ export async function deleteSyncRun(runId: string): Promise<{ coursesDeleted: nu
 
 export async function rebuildClassesFromCourses(): Promise<number> {
   const allCourses = await db.select().from(courses);
+  // Chỉ tổng hợp các khóa học ACTIVE
+  const activeCourses = allCourses.filter((c) => c.courseState === 'ACTIVE' || !c.courseState);
   const existingClasses = await db.select().from(classes);
 
   type ClassAgg = {
@@ -861,7 +862,7 @@ export async function rebuildClassesFromCourses(): Promise<number> {
 
   const classesMap = new Map<string, ClassAgg>();
 
-  for (const c of allCourses) {
+  for (const c of activeCourses) {
     const classId = c.classId;
     if (!classId) continue;
 
@@ -901,96 +902,61 @@ export async function rebuildClassesFromCourses(): Promise<number> {
     }
   }
 
-  // 1. Kiểm tra các lớp hiện có trong bảng `classes`
-  for (const existing of existingClasses) {
-    if (existing.source === 'MANUAL') {
-      // Lớp tạo thủ công: Giữ nguyên metadata định danh, chỉ đồng bộ chỉ số khoá học nếu có course map vào
-      const normalizedKey = existing.classId.replace(/^(?:Lớp\s*|Lớp_)/i, '').trim();
-      const cls = classesMap.get(existing.classId) || classesMap.get(normalizedKey) || classesMap.get(existing.className.replace(/^Lớp\s*/i, '').trim());
-      if (cls) {
-        const completionRate = cls.submissionsTotal ? Math.round((cls.submissionsTurnedIn / cls.submissionsTotal) * 1000) / 10 : null;
-        const onTimeRate = cls.submissionsTurnedIn ? Math.round(((cls.submissionsTurnedIn - cls.submissionsLate) / cls.submissionsTurnedIn) * 1000) / 10 : null;
-        const avgScore = cls.scoredCount ? Math.round((cls.totalScores / cls.scoredCount) * 10) / 10 : null;
-        await db
-          .update(classes)
-          .set({
-            courseCount: cls.courseCount,
-            courses: cls.courses,
-            subjects: Array.from(cls.subjects),
-            studentCount: cls.studentCount > 0 ? cls.studentCount : existing.studentCount,
-            totalCoursework: cls.totalCoursework,
-            submissionsTotal: cls.submissionsTotal,
-            submissionsTurnedIn: cls.submissionsTurnedIn,
-            submissionsLate: cls.submissionsLate,
-            completionRate: completionRate != null ? String(completionRate) : null,
-            onTimeRate: onTimeRate != null ? String(onTimeRate) : null,
-            averageScore: avgScore != null ? String(avgScore) : null,
-            updatedAt: new Date()
-          })
-          .where(eq(classes.classId, existing.classId));
-      } else {
-        await db
-          .update(classes)
-          .set({
-            courseCount: 0,
-            courses: [],
-            subjects: [],
-            totalCoursework: 0,
-            submissionsTotal: 0,
-            submissionsTurnedIn: 0,
-            submissionsLate: 0,
-            completionRate: null,
-            onTimeRate: null,
-            averageScore: null,
-            updatedAt: new Date()
-          })
-          .where(eq(classes.classId, existing.classId));
-      }
-    } else {
-      // Lớp đồng bộ CLASSROOM_SYNC:
-      if (!classesMap.has(existing.classId)) {
-        // Không còn khoá học nào liên kết với lớp này (đã bị rollback hoặc xóa)
-        // Kiểm tra xem có tiết thời khoá biểu nào trỏ tới lớp này không
-        const [schedRow] = await db
-          .select({ n: count() })
-          .from(schedules)
-          .where(eq(schedules.classId, existing.classId));
-        if (schedRow && schedRow.n > 0) {
-          // Có lịch trỏ tới: GIỮ NGUYÊN bản ghi lớp (để không phá vỡ TKB), reset các chỉ số Classroom về 0/rỗng
-          await db
-            .update(classes)
-            .set({
-              courseCount: 0,
-              courses: [],
-              subjects: [],
-              studentCount: 0,
-              totalCoursework: 0,
-              submissionsTotal: 0,
-              submissionsTurnedIn: 0,
-              submissionsLate: 0,
-              completionRate: null,
-              onTimeRate: null,
-              averageScore: null,
-              updatedAt: new Date()
-            })
-            .where(eq(classes.classId, existing.classId));
-        } else {
-          // Thuần Classroom và không có lịch: XOÁ HẲN bản ghi lớp
-          await db.delete(classes).where(eq(classes.classId, existing.classId));
-        }
+  // Đếm số lượng học sinh thực tế (Distinct students) từ danh sách thành viên course_members
+  for (const [classId, cls] of classesMap.entries()) {
+    if (cls.courses.length > 0) {
+      const members = await db
+        .select({ userId: courseMembers.userId, email: courseMembers.email })
+        .from(courseMembers)
+        .where(and(inArray(courseMembers.courseId, cls.courses), eq(courseMembers.role, 'STUDENT')));
+      const distinctSet = new Set(members.map((m) => m.userId || m.email).filter(Boolean));
+      if (distinctSet.size > 0) {
+        cls.studentCount = distinctSet.size;
       }
     }
   }
 
-  // 2. Cập nhật hoặc thêm mới các lớp có khoá học từ Classroom
+  // 1. Kiểm tra các lớp hiện có trong bảng `classes`: Xoá dữ liệu chênh lệch/lớp mồ côi không có trên Classroom
+  for (const existing of existingClasses) {
+    const normalizedKey = existing.classId.replace(/^(?:Lớp\s*|Lớp_)/i, '').trim();
+    const cls = classesMap.get(existing.classId) || classesMap.get(normalizedKey) || classesMap.get(existing.className.replace(/^Lớp\s*/i, '').trim());
+
+    if (!cls) {
+      // Không có khoá học Google Classroom nào tương ứng -> Đây là lớp lệch/mồ côi được phép xoá
+      await db.delete(classes).where(eq(classes.classId, existing.classId));
+    } else {
+      // Có khoá học tương ứng -> Đồng bộ 100% chỉ số và sĩ số chuẩn từ Google Classroom
+      const completionRate = cls.submissionsTotal ? Math.round((cls.submissionsTurnedIn / cls.submissionsTotal) * 1000) / 10 : null;
+      const onTimeRate = cls.submissionsTurnedIn ? Math.round(((cls.submissionsTurnedIn - cls.submissionsLate) / cls.submissionsTurnedIn) * 1000) / 10 : null;
+      const avgScore = cls.scoredCount ? Math.round((cls.totalScores / cls.scoredCount) * 10) / 10 : null;
+
+      await db
+        .update(classes)
+        .set({
+          courseCount: cls.courseCount,
+          courses: cls.courses,
+          subjects: Array.from(cls.subjects),
+          studentCount: cls.studentCount,
+          expectedStudents: cls.studentCount, // Chuẩn hóa sĩ số định mức theo sĩ số thực tế
+          totalCoursework: cls.totalCoursework,
+          submissionsTotal: cls.submissionsTotal,
+          submissionsTurnedIn: cls.submissionsTurnedIn,
+          submissionsLate: cls.submissionsLate,
+          completionRate: completionRate != null ? String(completionRate) : null,
+          onTimeRate: onTimeRate != null ? String(onTimeRate) : null,
+          averageScore: avgScore != null ? String(avgScore) : null,
+          updatedAt: new Date()
+        })
+        .where(eq(classes.classId, existing.classId));
+    }
+  }
+
+  // 2. Thêm mới các lớp có khoá học từ Classroom nhưng chưa có trong bảng `classes`
   for (const [classId, cls] of classesMap.entries()) {
     const existing = existingClasses.find(
       (e) => e.classId === classId || e.classId.replace(/^(?:Lớp\s*|Lớp_)/i, '').trim() === classId || e.className.replace(/^Lớp\s*/i, '').trim() === classId
     );
-    if (existing && existing.source === 'MANUAL') {
-      // Đã xử lý ở bước 1
-      continue;
-    }
+    if (existing) continue; // Đã xử lý ở bước 1
 
     const completionRate = cls.submissionsTotal ? Math.round((cls.submissionsTurnedIn / cls.submissionsTotal) * 1000) / 10 : null;
     const onTimeRate = cls.submissionsTurnedIn ? Math.round(((cls.submissionsTurnedIn - cls.submissionsLate) / cls.submissionsTurnedIn) * 1000) / 10 : null;
@@ -1008,6 +974,7 @@ export async function rebuildClassesFromCourses(): Promise<number> {
         courses: cls.courses,
         subjects: Array.from(cls.subjects),
         studentCount: cls.studentCount,
+        expectedStudents: cls.studentCount,
         totalCoursework: cls.totalCoursework,
         submissionsTotal: cls.submissionsTotal,
         submissionsTurnedIn: cls.submissionsTurnedIn,
@@ -1026,6 +993,7 @@ export async function rebuildClassesFromCourses(): Promise<number> {
           courses: cls.courses,
           subjects: Array.from(cls.subjects),
           studentCount: cls.studentCount,
+          expectedStudents: cls.studentCount,
           totalCoursework: cls.totalCoursework,
           submissionsTotal: cls.submissionsTotal,
           submissionsTurnedIn: cls.submissionsTurnedIn,

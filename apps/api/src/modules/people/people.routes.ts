@@ -64,9 +64,9 @@ peopleRouter.get(
   })
 );
 
-// Lấy bảng điểm chi tiết theo Topic (Môn học) và bài tập của học sinh
+// Lấy hồ sơ học sinh & bảng điểm chi tiết
 peopleRouter.get(
-  '/students/:id/grades',
+  ['/students/:id', '/students/:id/grades'],
   firebaseAuth,
   requireCapability('VIEW_STUDENT_DATA'),
   asyncRoute(async (req, res) => {
