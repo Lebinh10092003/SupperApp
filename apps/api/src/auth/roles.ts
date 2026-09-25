@@ -86,6 +86,13 @@ const grants: Record<Role, Capability[]> = {
     'VIEW_STUDENT_DATA',
     'MANAGE_SCHEDULES',
     'RESOLVE_ALERTS',
+    // Sin chốt 2026-09-25: "thêm tk phó hiệu trưởng quản lý, thêm người
+    // cho phân hiệu của mình được. Nhưng chỉ quản lý được người trong
+    // phân hiệu của mình thôi" — capability này chỉ MỞ ĐƯỜNG vào route
+    // (middleware requireCapability), việc GIỚI HẠN theo đúng cơ sở phụ
+    // trách nằm ở logic trong admin.routes.ts (KHÔNG được suy diễn quyền
+    // toàn trường từ capability này).
+    'MANAGE_USERS',
     'RUN_SYNC',
     'VIEW_EXECUTIVE_BI',
     'VIEW_AUDIT_LOGS'

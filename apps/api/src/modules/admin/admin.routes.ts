@@ -183,6 +183,27 @@ const ASSIGNABLE_SAFETY_ROLES = [
 
 const CAMPUS_IDS = ['MAIN_CAMPUS', 'CAMPUS_1', 'CAMPUS_2'] as const;
 
+/**
+ * Phó Hiệu trưởng chỉ quản lý được người trong ĐÚNG phân hiệu mình phụ
+ * trách (Sin chốt 2026-09-25: "thêm người cho phân hiệu của mình được,
+ * nhưng chỉ quản lý được người trong phân hiệu của mình thôi") — trả về
+ * campusId cần khoá theo. Hiệu trưởng/Quản trị viên (mọi role khác đang
+ * có MANAGE_USERS) KHÔNG bị giới hạn -> trả về null.
+ */
+async function requireManageScope(uid: string, appRole: string): Promise<(typeof CAMPUS_IDS)[number] | null> {
+  if (appRole !== 'VICE_PRINCIPAL') return null;
+  const actor = await loadActorContext(db, uid);
+  const vpRole = actor.roles.find((r) => r.roleId === ROLE.VICE_PRINCIPAL && r.campusId);
+  if (!vpRole?.campusId || !(CAMPUS_IDS as readonly string[]).includes(vpRole.campusId)) {
+    throw new HttpError(
+      403,
+      'Tài khoản Phó Hiệu trưởng chưa được gán đúng cơ sở phụ trách trong hệ thống — liên hệ Quản trị viên trước khi quản lý người dùng.',
+      'PERMISSION_ERROR'
+    );
+  }
+  return vpRole.campusId as (typeof CAMPUS_IDS)[number];
+}
+
 /** Vai trò R.* (1 vai trò dùng chung toàn hệ thống) -> vai trò cấp app (access_allowlist/users), chỉ để nav/route-gate hiển thị đúng — KHÔNG ảnh hưởng authz 9 bước thật (luôn đọc từ assignments), giá trị này PHÁI SINH tự động, admin không tự chọn riêng. */
 function mapSafetyRoleToAppRole(roleId: string, isHomeroomTeacher: boolean): (typeof roles)[number] {
   if (roleId === ROLE.PRINCIPAL) return 'PRINCIPAL';
@@ -205,7 +226,8 @@ adminRouter.get(
   '/safety-users',
   firebaseAuth,
   requireCapability('MANAGE_USERS'),
-  asyncRoute(async (_q, r) => {
+  asyncRoute(async (q, r) => {
+    const manageScope = await requireManageScope(q.appUser!.uid, q.appUser!.role);
     // Nguồn DANH SÁCH GỐC đổi từ `accounts` (chỉ có người ĐÃ đăng nhập ít
     // nhất 1 lần) sang `access_allowlist` (toàn bộ người trường cấp quyền,
     // kể cả CHƯA từng đăng nhập) — để admin xem/gán vai trò trước cho cả
@@ -267,7 +289,12 @@ adminRouter.get(
       };
     });
 
-    r.json({ users: result });
+    // Phó Hiệu trưởng: chỉ thấy người ĐÃ gán đúng cơ sở mình phụ trách —
+    // người chưa gán vai trò gì (campusId null) không hiện, tránh lộ toàn
+    // bộ danh sách trường cho tài khoản cấp cơ sở.
+    const scopedResult = manageScope ? result.filter((u) => u.campusId === manageScope) : result;
+
+    r.json({ users: scopedResult });
   })
 );
 
@@ -276,6 +303,7 @@ adminRouter.post(
   firebaseAuth,
   requireCapability('MANAGE_USERS'),
   asyncRoute(async (q, r) => {
+    const manageScope = await requireManageScope(q.appUser!.uid, q.appUser!.role);
     const b = z
       .object({
         displayName: z.string().min(1),
@@ -307,6 +335,15 @@ adminRouter.post(
 
     if (b.roleId === ROLE.DEPT_HEAD && !b.domain?.trim()) {
       throw new HttpError(400, 'Vai trò Tổ trưởng bắt buộc nhập Lĩnh vực/Tổ', 'INVALID_INPUT');
+    }
+    if (manageScope) {
+      if (b.roleId === ROLE.PRINCIPAL) {
+        throw new HttpError(403, 'Phó Hiệu trưởng không được chỉ định vai trò Hiệu trưởng.', 'PERMISSION_ERROR');
+      }
+      if (b.campusId && b.campusId !== manageScope) {
+        throw new HttpError(403, 'Phó Hiệu trưởng chỉ thêm được người vào đúng cơ sở mình phụ trách.', 'PERMISSION_ERROR');
+      }
+      b.campusId = manageScope;
     }
 
     const email = b.email.toLowerCase();
@@ -370,6 +407,7 @@ adminRouter.patch(
   firebaseAuth,
   requireCapability('MANAGE_USERS'),
   asyncRoute(async (q, r) => {
+    const manageScope = await requireManageScope(q.appUser!.uid, q.appUser!.role);
     const uid = String(q.params.uid);
     const b = z
       .object({
@@ -388,6 +426,20 @@ adminRouter.patch(
 
     const [account] = await db.select().from(accounts).where(eq(accounts.uid, uid)).limit(1);
     if (!account) throw new HttpError(404, 'Không tìm thấy tài khoản', 'NOT_FOUND');
+
+    if (manageScope) {
+      if (b.roleId === ROLE.PRINCIPAL) {
+        throw new HttpError(403, 'Phó Hiệu trưởng không được chỉ định vai trò Hiệu trưởng.', 'PERMISSION_ERROR');
+      }
+      const [currentAssignment] = await db.select().from(assignments).where(eq(assignments.perId, account.perId));
+      if (currentAssignment && currentAssignment.campusId !== manageScope) {
+        throw new HttpError(403, 'Phó Hiệu trưởng chỉ quản lý được người trong đúng cơ sở mình phụ trách.', 'PERMISSION_ERROR');
+      }
+      if (b.campusId && b.campusId !== manageScope) {
+        throw new HttpError(403, 'Phó Hiệu trưởng chỉ gán được người vào đúng cơ sở mình phụ trách.', 'PERMISSION_ERROR');
+      }
+      b.campusId = manageScope;
+    }
 
     if (b.displayName) {
       await db.update(accounts).set({ displayName: b.displayName }).where(eq(accounts.uid, uid));
@@ -445,6 +497,7 @@ adminRouter.patch(
   firebaseAuth,
   requireCapability('MANAGE_USERS'),
   asyncRoute(async (q, r) => {
+    const manageScope = await requireManageScope(q.appUser!.uid, q.appUser!.role);
     const email = String(q.params.email).toLowerCase();
     const b = z
       .object({
@@ -460,6 +513,15 @@ adminRouter.patch(
     if (b.roleId === ROLE.DEPT_HEAD && !b.domain?.trim()) {
       throw new HttpError(400, 'Vai trò Tổ trưởng bắt buộc nhập Lĩnh vực/Tổ', 'INVALID_INPUT');
     }
+    if (manageScope) {
+      if (b.roleId === ROLE.PRINCIPAL) {
+        throw new HttpError(403, 'Phó Hiệu trưởng không được chỉ định vai trò Hiệu trưởng.', 'PERMISSION_ERROR');
+      }
+      if (b.campusId && b.campusId !== manageScope) {
+        throw new HttpError(403, 'Phó Hiệu trưởng chỉ gán được người vào đúng cơ sở mình phụ trách.', 'PERMISSION_ERROR');
+      }
+      b.campusId = manageScope;
+    }
 
     const [allowlistEntry] = await db.select().from(accessAllowlist).where(eq(accessAllowlist.id, safeId(email))).limit(1);
     if (!allowlistEntry) {
@@ -473,6 +535,12 @@ adminRouter.patch(
 
     const phone = b.phone?.trim() || null;
     let [dir] = await db.select().from(peopleDirectory).where(eq(peopleDirectory.email, email)).limit(1);
+    if (manageScope && dir) {
+      const [currentAssignment] = await db.select().from(assignments).where(eq(assignments.perId, dir.perId));
+      if (currentAssignment && currentAssignment.campusId !== manageScope) {
+        throw new HttpError(403, 'Phó Hiệu trưởng chỉ quản lý được người trong đúng cơ sở mình phụ trách.', 'PERMISSION_ERROR');
+      }
+    }
     if (!dir) {
       const perId = genPerId();
       await db.insert(peopleDirectory).values({ perId, email, phone, displayName: b.displayName || email });

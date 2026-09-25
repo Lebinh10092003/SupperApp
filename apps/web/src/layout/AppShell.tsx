@@ -249,7 +249,10 @@ const navGroups: NavGroup[] = [
         // Khớp ROLES_USER_MANAGEMENT ở App.tsx / capability MANAGE_USERS
         // thật ở backend (roles.ts) — trước chỉ cho SUPER_ADMIN/SYSTEM_ADMIN
         // thấy, khiến Hiệu trưởng có quyền thật nhưng không thấy mục này.
-        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL']
+        // Thêm VICE_PRINCIPAL 2026-09-25 (Sin chốt) — chỉ quản lý được
+        // người trong đúng phân hiệu mình phụ trách, giới hạn nằm ở backend
+        // (admin.routes.ts), không phải ở đây.
+        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL']
       },
       {
         path: '/system',
