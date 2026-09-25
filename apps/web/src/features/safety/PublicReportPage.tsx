@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { signInWithPopup, signOut, type User } from 'firebase/auth';
 import {
   Alert,
   Box,
@@ -18,9 +19,11 @@ import {
 import UploadFileIcon from '@mui/icons-material/UploadFileRounded';
 import ContentCopyIcon from '@mui/icons-material/ContentCopyRounded';
 import CheckIcon from '@mui/icons-material/CheckRounded';
+import GoogleIcon from '@mui/icons-material/Google';
 import { PublicLayout } from './PublicLayout';
 import { CAMPUS_IDS, CAMPUS_LABEL, REPORTER_ROLE_OPTIONS } from './constants';
 import { env } from '../../config/env';
+import { auth, googleProvider } from '../../config/firebase';
 
 interface CategoryOption {
   code: string;
@@ -55,8 +58,14 @@ export default function PublicReportPage() {
   const [reporterRole, setReporterRole] = useState('');
   const [stillDangerous, setStillDangerous] = useState(false);
   const [content, setContent] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
+  // Sin chốt 2026-09-25: "bỏ điền SĐT liên hệ, bắt đăng nhập nhanh bằng
+  // Google" — trường yêu cầu để tránh học sinh dùng tài khoản vớ vẩn spam.
+  // KHÔNG còn ô tự gõ email/SĐT — email lấy THẲNG từ tài khoản Google đã
+  // đăng nhập (đã được Google xác minh), backend verify lại idToken thật,
+  // không tin client tự gõ (xem safety.routes.ts POST /reports).
+  const [googleUser, setGoogleUser] = useState<User | null>(null);
+  const [signingIn, setSigningIn] = useState(false);
+  const [signInError, setSignInError] = useState('');
   const [occurredFrom, setOccurredFrom] = useState('');
   const [occurredTo, setOccurredTo] = useState('');
   const [showMore, setShowMore] = useState(false);
@@ -84,14 +93,35 @@ export default function PublicReportPage() {
     fetch(`${baseUrl}/api/safety/categories`).then((r) => r.json()).then(setCategories).catch(() => setCategories([]));
   }, []);
 
+  const handleGoogleSignIn = async () => {
+    setSignInError('');
+    setSigningIn(true);
+    try {
+      const cred = await signInWithPopup(auth, googleProvider);
+      setGoogleUser(cred.user);
+    } catch (e: any) {
+      if (e?.code !== 'auth/popup-closed-by-user' && e?.code !== 'auth/cancelled-popup-request') {
+        setSignInError('Đăng nhập Google không thành công, vui lòng thử lại.');
+      }
+    } finally {
+      setSigningIn(false);
+    }
+  };
+
+  const handleGoogleSignOut = async () => {
+    await signOut(auth).catch(() => {});
+    setGoogleUser(null);
+  };
+
   const handleSubmit = async () => {
     setError('');
     if (!campusId) return setError('Vui lòng chọn cơ sở.');
     if (!categoryCode) return setError('Vui lòng chọn nhóm sự cố.');
-    if (!email.trim() && !phone.trim()) return setError('Cần để lại ít nhất 1 email hoặc số điện thoại để nhà trường liên hệ lại khi cần xác nhận.');
+    if (!googleUser) return setError('Vui lòng đăng nhập nhanh bằng Google trước khi gửi tin báo.');
 
     setSubmitting(true);
     try {
+      const idToken = await googleUser.getIdToken();
       // Tải LẦN LƯỢT từng file — backend chỉ nhận 1 file/request
       // (`evidence.routes.ts`: busboy `limits.files: 1`, cố ý theo thiết kế
       // gốc "1 file/request — client tự gọi"), không phải giới hạn thật sự
@@ -119,8 +149,7 @@ export default function PublicReportPage() {
           reporterRole: reporterRole || undefined,
           stillDangerous,
           content: content.trim(),
-          email: email.trim() || undefined,
-          phone: phone.trim() || undefined,
+          idToken,
           occurredFrom: occurredFrom || undefined,
           occurredTo: occurredTo || undefined,
           evidenceIds
@@ -241,13 +270,33 @@ export default function PublicReportPage() {
               placeholder="Mô tả những gì đã xảy ra, thời gian, những ai liên quan..."
             />
 
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25}>
-              <TextField size="small" label="Email liên hệ" value={email} onChange={(e) => setEmail(e.target.value)} fullWidth />
-              <TextField size="small" label="Số điện thoại liên hệ" value={phone} onChange={(e) => setPhone(e.target.value)} fullWidth />
-            </Stack>
-            <Typography variant="caption" color="text.secondary">
-              Cần để lại ít nhất 1 trong 2 kênh trên để nhà trường liên hệ lại khi cần xác nhận.
-            </Typography>
+            {signInError && <Alert severity="warning">{signInError}</Alert>}
+            {!googleUser ? (
+              <Stack spacing={0.5}>
+                <Button
+                  variant="outlined"
+                  startIcon={signingIn ? <CircularProgress size={16} /> : <GoogleIcon />}
+                  onClick={handleGoogleSignIn}
+                  disabled={signingIn}
+                  sx={{ alignSelf: 'flex-start', textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
+                >
+                  {signingIn ? 'Đang đăng nhập...' : 'Đăng nhập nhanh bằng Google'}
+                </Button>
+                <Typography variant="caption" color="text.secondary">
+                  Cần đăng nhập bằng 1 tài khoản Google thật để nhà trường liên hệ lại khi cần xác nhận — không cần dùng email/tài khoản của trường.
+                </Typography>
+              </Stack>
+            ) : (
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ bgcolor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 2, px: 1.5, py: 1 }}>
+                <CheckIcon fontSize="small" sx={{ color: '#166534' }} />
+                <Typography variant="body2" sx={{ color: '#166534', flex: 1 }}>
+                  Đã đăng nhập: <strong>{googleUser.email}</strong>
+                </Typography>
+                <Button size="small" onClick={handleGoogleSignOut} sx={{ textTransform: 'none', color: '#64748b' }}>
+                  Đổi tài khoản
+                </Button>
+              </Stack>
+            )}
 
             <Button variant="text" size="small" onClick={() => setShowMore((v) => !v)} sx={{ alignSelf: 'flex-start', textTransform: 'none' }}>
               {showMore ? '− Thu gọn' : '+ Thêm chi tiết (lớp, thời gian, minh chứng)'}
@@ -335,7 +384,7 @@ export default function PublicReportPage() {
             <Button
               variant="contained"
               onClick={handleSubmit}
-              disabled={submitting}
+              disabled={submitting || !googleUser}
               sx={{
                 bgcolor: '#dc2626',
                 '&:hover': { bgcolor: '#b91c1c' },

@@ -29,6 +29,7 @@ import { Router } from 'express';
 import type { Request, Response, NextFunction } from 'express';
 import { eq } from 'drizzle-orm';
 import { firebaseAuth } from '../../auth/middleware.js';
+import { adminAuth } from '../../core/firebase.js';
 import { asyncRoute, HttpError } from '../../core/http.js';
 import { db } from '../../core/db/client.js';
 import { loadActorContext, type ActorContext } from '../identity/actor-context.js';
@@ -105,15 +106,32 @@ const notifyReporter = makeNotifyReporterHook();
 // Cổng công khai — KHÔNG đăng nhập (đúng bản gốc dùng onRequest).
 // ---------------------------------------------------------------------
 
-// Port từ `exports.submitReport`.
+// Port từ `exports.submitReport`. Sin chốt 2026-09-25: "bỏ điền SĐT liên
+// hệ ở form, bắt đăng nhập nhanh bằng Google" — trường yêu cầu để tránh
+// học sinh dùng tài khoản vớ vẩn spam tin báo. KHÔNG dùng `firebaseAuth`
+// middleware ở đây (route này vẫn PHẢI ở "cổng công khai" — accept MỌI
+// tài khoản Google thật, không giới hạn theo access_allowlist/Workspace
+// domain của trường như đăng nhập nội bộ) — tự verify idToken tại đây,
+// lấy đúng email đã được Google xác minh làm liên hệ (KHÔNG tin email
+// client tự gõ nữa — id token giả mạo được, email tự gõ thì không xác
+// minh được gì cả).
 safetyRouter.post(
   '/reports',
   withAppError(async (req, res) => {
     const idempotencyKey = req.header('X-Idempotency-Key') || undefined;
     const d = req.body || {};
+    if (!d.idToken || typeof d.idToken !== 'string') {
+      throw new HttpError(401, 'Cần đăng nhập nhanh bằng Google trước khi gửi tin báo.', 'AUTH_ERROR');
+    }
+    const decoded = await adminAuth.verifyIdToken(d.idToken).catch(() => {
+      throw new HttpError(401, 'Phiên đăng nhập Google không hợp lệ hoặc đã hết hạn — vui lòng đăng nhập lại.', 'AUTH_ERROR');
+    });
+    if (!decoded.email) {
+      throw new HttpError(401, 'Tài khoản Google này không có email xác minh — vui lòng dùng tài khoản khác.', 'AUTH_ERROR');
+    }
     const result = await submitReport(
       db,
-      { ...d, idempotencyKey },
+      { ...d, email: decoded.email, phone: undefined, idempotencyKey },
       { requestId: req.header('X-Request-Id') || undefined, dispatch, pushBell }
     );
     res.status(201).json(result);
