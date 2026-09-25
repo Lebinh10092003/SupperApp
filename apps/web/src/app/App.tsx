@@ -147,7 +147,10 @@ export function App() {
         path="/safety"
         element={pResponsive(<SafetyDashboardPage />, <MobileMyIncidentsPage />, ROLES_SAFETY_STAFF)}
       />
-      <Route path="/safety/cases" element={p(<CasesListPage />, ROLES_SAFETY_STAFF)} />
+      {/* CasesListPage tự chuyển bảng -> card khi màn hình hẹp (component
+          tự check useIsMobileViewport) — chỉ cần bỏ khung AppShell trên
+          điện thoại như các trang mobile khác, không cần 2 component. */}
+      <Route path="/safety/cases" element={pResponsive(<CasesListPage />, <CasesListPage />, ROLES_SAFETY_STAFF)} />
       {/* 2 route cũ giữ lại làm redirect — tránh vỡ link cũ đã lưu/đã gửi
           (bookmark, email, chuông thông báo lịch sử trước ngày gộp). */}
       <Route path="/safety/reports/pending" element={<Navigate to="/safety/cases" replace />} />

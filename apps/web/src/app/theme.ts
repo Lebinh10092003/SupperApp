@@ -217,6 +217,18 @@ export const theme = createTheme({
         }
       }
     },
+    // Mọi bảng dữ liệu rộng (Sự vụ, Cockpit, Audit log, Học sinh, Giáo
+    // viên...) trên điện thoại phải cuộn ngang xem hết cột — thêm cuộn mượt
+    // kiểu iOS ở ĐÂY (theme dùng chung) để áp dụng ngay cho MỌI bảng trong
+    // app cùng lúc, không phải sửa từng trang (Sin yêu cầu 2026-09-26: "sửa
+    // AppShell + các trang MUI cho responsive" thay vì làm riêng từng trang).
+    MuiTableContainer: {
+      styleOverrides: {
+        root: {
+          WebkitOverflowScrolling: 'touch'
+        }
+      }
+    },
     MuiAlert: {
       styleOverrides: {
         root: {

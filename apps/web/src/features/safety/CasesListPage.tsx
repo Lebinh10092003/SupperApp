@@ -17,7 +17,10 @@ import {
   Alert,
   Box,
   Button,
+  Card,
+  CardContent,
   Chip,
+  Collapse,
   Dialog,
   DialogActions,
   DialogContent,
@@ -42,12 +45,14 @@ import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutlineRounded';
 import ListAltIcon from '@mui/icons-material/ListAltRounded';
 import BookmarkAddIcon from '@mui/icons-material/BookmarkAddRounded';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlineRounded';
+import FilterListIcon from '@mui/icons-material/FilterListRounded';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
 import { useIncidents, type IncidentListItem } from './hooks/useIncidents';
 import { StatusChip } from './components/StatusChip';
 import { PriorityChip } from './components/PriorityChip';
 import { CAMPUS_IDS, CAMPUS_LABEL, STATE_OPTIONS } from './constants';
+import { useIsMobileViewport } from '../../hooks/useIsMobileViewport';
 
 const PRIORITY_OPTIONS = ['P0', 'P1', 'P2', 'P3'];
 type SortKey = 'incidentId' | 'campusId' | 'priority' | 'state' | 'updatedAt';
@@ -70,6 +75,8 @@ interface SavedFilterRow {
 
 export default function CasesListPage() {
   const navigate = useNavigate();
+  const isMobile = useIsMobileViewport();
+  const [filtersOpen, setFiltersOpen] = useState(false);
   // `?q=` đọc 1 LẦN lúc mount — dùng khi chuông thông báo điều hướng tới
   // đúng 1 sự vụ cụ thể (NotificationBell.tsx), không đồng bộ 2 chiều với URL sau đó.
   const [searchParams] = useSearchParams();
@@ -201,7 +208,7 @@ export default function CasesListPage() {
   };
 
   return (
-    <>
+    <Box sx={{ p: isMobile ? 2 : 0, pb: isMobile ? 4 : 0 }}>
       <PageHeader
         title="Sự vụ"
         icon={<ListAltIcon />}
@@ -239,158 +246,228 @@ export default function CasesListPage() {
         </Stack>
       )}
 
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2 }} flexWrap="wrap" useFlexGap alignItems="center">
+      <Stack direction="row" spacing={1.5} sx={{ mb: isMobile ? 1 : 2 }} alignItems="center">
         <TextField
           label="Tìm theo nội dung/mã sự vụ"
           value={searchText}
           onChange={(e) => setSearchText(e.target.value)}
-          sx={{ minWidth: 220 }}
+          sx={{ minWidth: isMobile ? 0 : 220, flex: isMobile ? 1 : undefined }}
+          fullWidth={isMobile}
         />
-        <TextField select label="Cơ sở" value={campusFilter} onChange={(e) => setCampusFilter(e.target.value)} sx={{ minWidth: 160 }}>
-          <MenuItem value="">Tất cả</MenuItem>
-          {CAMPUS_IDS.map((c) => (
-            <MenuItem key={c} value={c}>
-              {CAMPUS_LABEL[c]}
-            </MenuItem>
-          ))}
-        </TextField>
-        <TextField select label="Mức ưu tiên" value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)} sx={{ minWidth: 140 }}>
-          <MenuItem value="">Tất cả</MenuItem>
-          {PRIORITY_OPTIONS.map((p) => (
-            <MenuItem key={p} value={p}>
-              {p}
-            </MenuItem>
-          ))}
-        </TextField>
-        <TextField select label="Trạng thái" value={stateFilter} onChange={(e) => setStateFilter(e.target.value)} sx={{ minWidth: 160 }}>
-          <MenuItem value="">Tất cả</MenuItem>
-          {STATE_OPTIONS.map((s) => (
-            <MenuItem key={s} value={s}>
-              {s}
-            </MenuItem>
-          ))}
-        </TextField>
-        <TextField select label="Nhóm sự cố" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} sx={{ minWidth: 180 }}>
-          <MenuItem value="">Tất cả</MenuItem>
-          {categories.map((c) => (
-            <MenuItem key={c.code} value={c.code}>
-              {c.label}
-            </MenuItem>
-          ))}
-        </TextField>
-        <TextField select label="Người phụ trách" value={ownerFilter} onChange={(e) => setOwnerFilter(e.target.value as OwnerFilter)} sx={{ minWidth: 180 }}>
-          <MenuItem value="">Tất cả</MenuItem>
-          <MenuItem value="unclaimed">Chưa có người phụ trách</MenuItem>
-          <MenuItem value="claimed">Đã có người phụ trách</MenuItem>
-        </TextField>
-        <TextField
-          label="Từ ngày"
-          type="date"
-          value={fromDate}
-          onChange={(e) => setFromDate(e.target.value)}
-          slotProps={{ inputLabel: { shrink: true } }}
-          sx={{ minWidth: 150 }}
-        />
-        <TextField
-          label="Đến ngày"
-          type="date"
-          value={toDate}
-          onChange={(e) => setToDate(e.target.value)}
-          slotProps={{ inputLabel: { shrink: true } }}
-          sx={{ minWidth: 150 }}
-        />
-        <Tooltip title="Lưu bộ lọc hiện tại">
-          <IconButton onClick={() => setSaveDialogOpen(true)} sx={{ color: '#2563eb' }}>
-            <BookmarkAddIcon />
+        {/* Trên điện thoại, ẩn bớt các ô lọc còn lại sau nút "Bộ lọc" —
+            trước đây xếp dọc hết 7-8 ô khiến phải cuộn rất dài mới thấy
+            được danh sách (Sin báo "thiếu mobile view, bấm vô còn lag"). */}
+        {isMobile && (
+          <IconButton onClick={() => setFiltersOpen((v) => !v)} sx={{ border: '1px solid #cbd5e1', borderRadius: 2 }}>
+            <FilterListIcon color={filtersOpen ? 'primary' : 'action'} />
           </IconButton>
-        </Tooltip>
+        )}
       </Stack>
 
-      <TableContainer component={Paper} sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none' }}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>
-                <TableSortLabel active={sortKey === 'updatedAt'} direction={sortKey === 'updatedAt' ? sortDir : 'desc'} onClick={() => handleSort('updatedAt')}>
-                  Cập nhật
-                </TableSortLabel>
-              </TableCell>
-              <TableCell>
-                <TableSortLabel active={sortKey === 'incidentId'} direction={sortKey === 'incidentId' ? sortDir : 'asc'} onClick={() => handleSort('incidentId')}>
-                  Mã sự vụ
-                </TableSortLabel>
-              </TableCell>
-              <TableCell>
-                <TableSortLabel active={sortKey === 'campusId'} direction={sortKey === 'campusId' ? sortDir : 'asc'} onClick={() => handleSort('campusId')}>
-                  Cơ sở
-                </TableSortLabel>
-              </TableCell>
-              <TableCell>Nhóm sự cố</TableCell>
-              <TableCell>Nội dung</TableCell>
-              <TableCell>
-                <TableSortLabel active={sortKey === 'priority'} direction={sortKey === 'priority' ? sortDir : 'asc'} onClick={() => handleSort('priority')}>
-                  Mức ưu tiên
-                </TableSortLabel>
-              </TableCell>
-              <TableCell>
-                <TableSortLabel active={sortKey === 'state'} direction={sortKey === 'state' ? sortDir : 'asc'} onClick={() => handleSort('state')}>
-                  Trạng thái
-                </TableSortLabel>
-              </TableCell>
-              <TableCell>Người phụ trách</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {!loading && paged.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={8} align="center" sx={{ py: 4, color: 'text.secondary' }}>
-                  Không có sự vụ nào.
-                </TableCell>
-              </TableRow>
-            )}
+      <Collapse in={!isMobile || filtersOpen}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2 }} flexWrap="wrap" useFlexGap alignItems="center">
+          <TextField select label="Cơ sở" value={campusFilter} onChange={(e) => setCampusFilter(e.target.value)} sx={{ minWidth: 160 }} fullWidth={isMobile}>
+            <MenuItem value="">Tất cả</MenuItem>
+            {CAMPUS_IDS.map((c) => (
+              <MenuItem key={c} value={c}>
+                {CAMPUS_LABEL[c]}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField select label="Mức ưu tiên" value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)} sx={{ minWidth: 140 }} fullWidth={isMobile}>
+            <MenuItem value="">Tất cả</MenuItem>
+            {PRIORITY_OPTIONS.map((p) => (
+              <MenuItem key={p} value={p}>
+                {p}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField select label="Trạng thái" value={stateFilter} onChange={(e) => setStateFilter(e.target.value)} sx={{ minWidth: 160 }} fullWidth={isMobile}>
+            <MenuItem value="">Tất cả</MenuItem>
+            {STATE_OPTIONS.map((s) => (
+              <MenuItem key={s} value={s}>
+                {s}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField select label="Nhóm sự cố" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} sx={{ minWidth: 180 }} fullWidth={isMobile}>
+            <MenuItem value="">Tất cả</MenuItem>
+            {categories.map((c) => (
+              <MenuItem key={c.code} value={c.code}>
+                {c.label}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField select label="Người phụ trách" value={ownerFilter} onChange={(e) => setOwnerFilter(e.target.value as OwnerFilter)} sx={{ minWidth: 180 }} fullWidth={isMobile}>
+            <MenuItem value="">Tất cả</MenuItem>
+            <MenuItem value="unclaimed">Chưa có người phụ trách</MenuItem>
+            <MenuItem value="claimed">Đã có người phụ trách</MenuItem>
+          </TextField>
+          <TextField
+            label="Từ ngày"
+            type="date"
+            value={fromDate}
+            onChange={(e) => setFromDate(e.target.value)}
+            slotProps={{ inputLabel: { shrink: true } }}
+            sx={{ minWidth: 150 }}
+            fullWidth={isMobile}
+          />
+          <TextField
+            label="Đến ngày"
+            type="date"
+            value={toDate}
+            onChange={(e) => setToDate(e.target.value)}
+            slotProps={{ inputLabel: { shrink: true } }}
+            sx={{ minWidth: 150 }}
+            fullWidth={isMobile}
+          />
+          <Tooltip title="Lưu bộ lọc hiện tại">
+            <IconButton onClick={() => setSaveDialogOpen(true)} sx={{ color: '#2563eb' }}>
+              <BookmarkAddIcon />
+            </IconButton>
+          </Tooltip>
+        </Stack>
+      </Collapse>
+
+      {isMobile ? (
+        <Box>
+          {!loading && paged.length === 0 && (
+            <Typography align="center" sx={{ py: 4, color: 'text.secondary' }}>
+              Không có sự vụ nào.
+            </Typography>
+          )}
+          <Stack spacing={1.25}>
             {paged.map((it) => (
-              <TableRow key={it.incidentId} hover sx={{ cursor: 'pointer' }} onClick={() => navigate(`/safety/incidents/${it.incidentId}`)}>
-                <TableCell>{it.updatedAt ? new Date(it.updatedAt).toLocaleString('vi-VN') : '—'}</TableCell>
-                <TableCell>{it.incidentId}</TableCell>
-                <TableCell>{CAMPUS_LABEL[it.campusId] || it.campusId}</TableCell>
-                <TableCell sx={{ maxWidth: 180 }}>
-                  <Typography variant="body2" noWrap title={it.categoryLabel || it.categoryCode || ''}>
-                    {it.categoryLabel || it.categoryCode}
-                  </Typography>
-                </TableCell>
-                <TableCell sx={{ maxWidth: 260 }}>
-                  <Typography variant="body2" noWrap title={it.contentPreview || ''}>
+              <Card key={it.incidentId} onClick={() => navigate(`/safety/incidents/${it.incidentId}`)} sx={{ cursor: 'pointer' }}>
+                <CardContent sx={{ p: '12px !important' }}>
+                  <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: '#64748b' }}>
+                      {it.incidentId}
+                    </Typography>
+                    <PriorityChip priority={it.priority} compact />
+                  </Stack>
+                  <Typography variant="body2" sx={{ fontWeight: 700, mt: 0.5 }}>
                     {it.contentPreview || <em>(không có nội dung)</em>}
                   </Typography>
-                </TableCell>
-                <TableCell>
-                  <PriorityChip priority={it.priority} compact />
-                </TableCell>
-                <TableCell>
-                  <StatusChip state={it.state} />
-                </TableCell>
-                <TableCell>
-                  {it.commanderName || <Chip label="Chưa tiếp nhận" size="small" sx={{ bgcolor: '#fef3c7', color: '#92400e', fontWeight: 600 }} />}
-                </TableCell>
-              </TableRow>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
+                    {CAMPUS_LABEL[it.campusId] || it.campusId} · {it.categoryLabel || it.categoryCode}
+                  </Typography>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 1 }}>
+                    <StatusChip state={it.state} />
+                    <Typography variant="caption" color="text.secondary">
+                      {it.updatedAt ? new Date(it.updatedAt).toLocaleString('vi-VN') : '—'}
+                    </Typography>
+                  </Stack>
+                  {!it.commanderName && (
+                    <Chip label="Chưa tiếp nhận" size="small" sx={{ mt: 1, bgcolor: '#fef3c7', color: '#92400e', fontWeight: 600 }} />
+                  )}
+                </CardContent>
+              </Card>
             ))}
-          </TableBody>
-        </Table>
-        <TablePagination
-          component="div"
-          count={sorted.length}
-          page={page}
-          onPageChange={(_, p) => setPage(p)}
-          rowsPerPage={rowsPerPage}
-          onRowsPerPageChange={(e) => {
-            setRowsPerPage(Number(e.target.value));
-            setPage(0);
-          }}
-          rowsPerPageOptions={[10, 25, 50, 100]}
-          labelRowsPerPage="Số dòng/trang"
-          labelDisplayedRows={({ from, to, count }) => `${from}–${to} / ${count}`}
-        />
-      </TableContainer>
+          </Stack>
+          <TablePagination
+            component="div"
+            count={sorted.length}
+            page={page}
+            onPageChange={(_, p) => setPage(p)}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={(e) => {
+              setRowsPerPage(Number(e.target.value));
+              setPage(0);
+            }}
+            rowsPerPageOptions={[10, 25, 50]}
+            labelRowsPerPage="Số dòng/trang"
+            labelDisplayedRows={({ from, to, count }) => `${from}–${to} / ${count}`}
+            sx={{ '& .MuiToolbar-root': { flexWrap: 'wrap', px: 0 } }}
+          />
+        </Box>
+      ) : (
+        <TableContainer component={Paper} sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none' }}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>
+                  <TableSortLabel active={sortKey === 'updatedAt'} direction={sortKey === 'updatedAt' ? sortDir : 'desc'} onClick={() => handleSort('updatedAt')}>
+                    Cập nhật
+                  </TableSortLabel>
+                </TableCell>
+                <TableCell>
+                  <TableSortLabel active={sortKey === 'incidentId'} direction={sortKey === 'incidentId' ? sortDir : 'asc'} onClick={() => handleSort('incidentId')}>
+                    Mã sự vụ
+                  </TableSortLabel>
+                </TableCell>
+                <TableCell>
+                  <TableSortLabel active={sortKey === 'campusId'} direction={sortKey === 'campusId' ? sortDir : 'asc'} onClick={() => handleSort('campusId')}>
+                    Cơ sở
+                  </TableSortLabel>
+                </TableCell>
+                <TableCell>Nhóm sự cố</TableCell>
+                <TableCell>Nội dung</TableCell>
+                <TableCell>
+                  <TableSortLabel active={sortKey === 'priority'} direction={sortKey === 'priority' ? sortDir : 'asc'} onClick={() => handleSort('priority')}>
+                    Mức ưu tiên
+                  </TableSortLabel>
+                </TableCell>
+                <TableCell>
+                  <TableSortLabel active={sortKey === 'state'} direction={sortKey === 'state' ? sortDir : 'asc'} onClick={() => handleSort('state')}>
+                    Trạng thái
+                  </TableSortLabel>
+                </TableCell>
+                <TableCell>Người phụ trách</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {!loading && paged.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={8} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                    Không có sự vụ nào.
+                  </TableCell>
+                </TableRow>
+              )}
+              {paged.map((it) => (
+                <TableRow key={it.incidentId} hover sx={{ cursor: 'pointer' }} onClick={() => navigate(`/safety/incidents/${it.incidentId}`)}>
+                  <TableCell>{it.updatedAt ? new Date(it.updatedAt).toLocaleString('vi-VN') : '—'}</TableCell>
+                  <TableCell>{it.incidentId}</TableCell>
+                  <TableCell>{CAMPUS_LABEL[it.campusId] || it.campusId}</TableCell>
+                  <TableCell sx={{ maxWidth: 180 }}>
+                    <Typography variant="body2" noWrap title={it.categoryLabel || it.categoryCode || ''}>
+                      {it.categoryLabel || it.categoryCode}
+                    </Typography>
+                  </TableCell>
+                  <TableCell sx={{ maxWidth: 260 }}>
+                    <Typography variant="body2" noWrap title={it.contentPreview || ''}>
+                      {it.contentPreview || <em>(không có nội dung)</em>}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <PriorityChip priority={it.priority} compact />
+                  </TableCell>
+                  <TableCell>
+                    <StatusChip state={it.state} />
+                  </TableCell>
+                  <TableCell>
+                    {it.commanderName || <Chip label="Chưa tiếp nhận" size="small" sx={{ bgcolor: '#fef3c7', color: '#92400e', fontWeight: 600 }} />}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          <TablePagination
+            component="div"
+            count={sorted.length}
+            page={page}
+            onPageChange={(_, p) => setPage(p)}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={(e) => {
+              setRowsPerPage(Number(e.target.value));
+              setPage(0);
+            }}
+            rowsPerPageOptions={[10, 25, 50, 100]}
+            labelRowsPerPage="Số dòng/trang"
+            labelDisplayedRows={({ from, to, count }) => `${from}–${to} / ${count}`}
+          />
+        </TableContainer>
+      )}
 
       <Dialog open={saveDialogOpen} onClose={() => setSaveDialogOpen(false)} maxWidth="xs" fullWidth>
         <DialogTitle sx={{ fontWeight: 700 }}>Lưu bộ lọc hiện tại</DialogTitle>
@@ -461,6 +538,6 @@ export default function CasesListPage() {
           </Button>
         </DialogActions>
       </Dialog>
-    </>
+    </Box>
   );
 }
