@@ -4,7 +4,7 @@ import { firebaseAuth, requireCapability } from '../../auth/middleware.js';
 import { asyncRoute } from '../../core/http.js';
 import { db } from '../../core/db/client.js';
 import { dashboardSnapshot } from './dashboard.schema.js';
-import { rebuildDashboard, trend } from './dashboard.service.js';
+import { rebuildDashboard, trend, getAcademicPulse } from './dashboard.service.js';
 
 export const dashboardRouter = Router();
 
@@ -17,6 +17,13 @@ dashboardRouter.get(
     if (row) return r.json(row);
     return r.json(await rebuildDashboard());
   })
+);
+
+dashboardRouter.get(
+  '/academic-pulse',
+  firebaseAuth,
+  requireCapability('VIEW_DASHBOARD'),
+  asyncRoute(async (_q, r) => r.json(await getAcademicPulse()))
 );
 
 dashboardRouter.get(

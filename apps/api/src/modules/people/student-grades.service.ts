@@ -26,6 +26,41 @@ export interface SubjectTopicGrade {
   }>;
 }
 
+export interface LearningCurvePoint {
+  id: string;
+  title: string;
+  subjectName: string;
+  date: string;
+  score: number;
+  maxPoints: number;
+  standardizedScore: number;
+}
+
+export interface RadarSkill {
+  subject: string;
+  score: number;
+  completionRate: number;
+  fullMark: number;
+}
+
+export interface DigitalDiscipline {
+  onTimeCount: number;
+  lateCount: number;
+  missingCount: number;
+  onTimeRate: number;
+  disciplineScore: number;
+  habitAssessment: string;
+}
+
+export interface AtRiskAssessment {
+  level: 'EXCELLENT' | 'GOOD' | 'NORMAL' | 'ATTENTION' | 'CRITICAL';
+  label: string;
+  velocityDelta: number;
+  velocityStatus: 'ACCELERATING' | 'STEADY' | 'DECLINING';
+  reasons: string[];
+  recommendedAction: string;
+}
+
 export interface StudentTranscript {
   studentId: string;
   displayName: string;
@@ -51,6 +86,10 @@ export interface StudentTranscript {
     subjectName?: string;
     completionRate?: number;
   }>;
+  learningCurve?: LearningCurvePoint[];
+  radarSkills?: RadarSkill[];
+  digitalDiscipline?: DigitalDiscipline;
+  atRisk?: AtRiskAssessment;
 }
 
 export const STANDARD_TOPICS = [
@@ -222,6 +261,97 @@ export async function getStudentTranscript(studentId: string): Promise<StudentTr
     else rank = 'Đạt';
   }
 
+  // 5. Chuỗi thời gian Đường cong học tập (Learning Curve)
+  const gradedList: LearningCurvePoint[] = [];
+  let lateCount = 0;
+
+  for (const s of subjects) {
+    for (const a of s.assignments) {
+      if (a.isLate) lateCount++;
+      if (a.assignedGrade != null) {
+        gradedList.push({
+          id: a.id,
+          title: a.title,
+          subjectName: s.subjectCode || s.topicName.split(' ')[0] || 'Chung',
+          date: a.dueDate || 'Gần đây',
+          score: a.assignedGrade,
+          maxPoints: a.maxPoints || 10,
+          standardizedScore: Math.round((a.assignedGrade / (a.maxPoints || 10)) * 10 * 10) / 10
+        });
+      }
+    }
+  }
+
+  gradedList.sort((a, b) => (a.date > b.date ? 1 : -1));
+
+  // 6. Tính chỉ số Đà tiến bộ (Academic Velocity Delta)
+  let velocityDelta = 0;
+  let velocityStatus: 'ACCELERATING' | 'STEADY' | 'DECLINING' = 'STEADY';
+  if (gradedList.length >= 4) {
+    const half = Math.floor(gradedList.length / 2);
+    const firstHalf = gradedList.slice(0, half);
+    const secondHalf = gradedList.slice(half);
+    const avg1 = firstHalf.reduce((acc, curr) => acc + curr.standardizedScore, 0) / firstHalf.length;
+    const avg2 = secondHalf.reduce((acc, curr) => acc + curr.standardizedScore, 0) / secondHalf.length;
+    velocityDelta = Math.round((avg2 - avg1) * 10) / 10;
+    if (velocityDelta >= 0.4) velocityStatus = 'ACCELERATING';
+    else if (velocityDelta <= -0.4) velocityStatus = 'DECLINING';
+    else velocityStatus = 'STEADY';
+  }
+
+  // 7. Radar đánh giá năng lực liên môn
+  const radarSkills: RadarSkill[] = subjects.map((s) => ({
+    subject: s.subjectCode || s.topicName.split(' ')[0] || 'Chung',
+    score: s.averageScore != null ? s.averageScore : (gpa != null ? gpa : 7.0),
+    completionRate: s.completionRate,
+    fullMark: 10
+  }));
+
+  // 8. Đánh giá Kỷ luật học tập số (Digital Discipline)
+  const missingCount = Math.max(0, totalAssignmentsCount - totalSubmittedCount);
+  const onTimeCount = Math.max(0, totalSubmittedCount - lateCount);
+  const onTimeRate = totalSubmittedCount > 0 ? Math.round((onTimeCount / totalSubmittedCount) * 100) : 100;
+  const disciplineScore = Math.round(overallComp * 0.7 + onTimeRate * 0.3);
+  let habitAssessment = 'Kỷ luật số tốt, nộp bài đầy đủ và đúng hạn';
+  if (missingCount >= 3) {
+    habitAssessment = 'Thiếu nhiều bài tập, cần đôn đốc khẩn trương';
+  } else if (lateCount > 2) {
+    habitAssessment = 'Có thói quen nộp muộn sát giờ, cần cải thiện tốc độ hoàn thành';
+  } else if (overallComp >= 90) {
+    habitAssessment = 'Tác phong học tập số chuẩn mực, nộp bài chủ động';
+  }
+
+  // 9. Phân loại Học sinh Nguy cơ (At-Risk Assessment)
+  let atRiskLevel: 'EXCELLENT' | 'GOOD' | 'NORMAL' | 'ATTENTION' | 'CRITICAL' = 'NORMAL';
+  let atRiskLabel = 'Đạt chuẩn tiến độ';
+  const reasons: string[] = [];
+  let recommendedAction = 'Tiếp tục duy trì nề nếp và tinh thần học tập tích cực.';
+
+  if (missingCount >= 3 || (gpa != null && gpa < 5.0) || velocityDelta <= -1.0) {
+    atRiskLevel = 'CRITICAL';
+    atRiskLabel = 'Nguy cơ cao - Cần can thiệp';
+    if (missingCount >= 3) reasons.push(`Đang bỏ lỡ ${missingCount} bài tập chưa nộp`);
+    if (gpa != null && gpa < 5.0) reasons.push(`Điểm số trung bình dưới chuẩn (${gpa} điểm)`);
+    if (velocityDelta <= -1.0) reasons.push(`Đà học tập tụt dốc mạnh (${velocityDelta} điểm)`);
+    recommendedAction = 'GVCN cần liên hệ trực tiếp với phụ huynh để phối hợp đôn đốc học sinh nộp bài bù.';
+  } else if (missingCount >= 2 || (gpa != null && gpa < 6.5) || velocityDelta <= -0.5) {
+    atRiskLevel = 'ATTENTION';
+    atRiskLabel = 'Cần quan tâm theo dõi';
+    if (missingCount >= 2) reasons.push(`Còn ${missingCount} bài tập chưa nộp`);
+    if (velocityDelta <= -0.5) reasons.push(`Điểm số các bài gần đây có xu hướng giảm (${velocityDelta})`);
+    recommendedAction = 'Nhắc nhở học sinh trong giờ sinh hoạt lớp và giao nhóm bạn cùng tiến kèm cặp.';
+  } else if (gpa != null && gpa >= 8.5 && overallComp >= 90) {
+    atRiskLevel = 'EXCELLENT';
+    atRiskLabel = 'Học sinh Xuất sắc';
+    reasons.push('Điểm trung bình và tỷ lệ hoàn thành ở nhóm dẫn đầu trường');
+    recommendedAction = 'Gợi ý tham gia các đội tuyển học sinh giỏi hoặc làm nhóm trưởng môn học.';
+  } else if (gpa != null && gpa >= 7.5) {
+    atRiskLevel = 'GOOD';
+    atRiskLabel = 'Học sinh Khá Giỏi';
+    reasons.push('Hoàn thành tốt các nhiệm vụ học tập trên Google Classroom');
+    recommendedAction = 'Tiếp tục phát huy và thử sức với các bài tập nâng cao.';
+  }
+
   return {
     studentId,
     displayName: String(displayName || (email ? email.split('@')[0] : 'Học sinh')),
@@ -246,6 +376,24 @@ export async function getStudentTranscript(studentId: string): Promise<StudentTr
       name: c.name,
       subjectName: c.subjectName,
       completionRate: c.completionRate != null ? Number(c.completionRate) : undefined
-    }))
+    })),
+    learningCurve: gradedList,
+    radarSkills,
+    digitalDiscipline: {
+      onTimeCount,
+      lateCount,
+      missingCount,
+      onTimeRate,
+      disciplineScore,
+      habitAssessment
+    },
+    atRisk: {
+      level: atRiskLevel,
+      label: atRiskLabel,
+      velocityDelta,
+      velocityStatus,
+      reasons,
+      recommendedAction
+    }
   };
 }

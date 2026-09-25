@@ -636,13 +636,71 @@ classesRouter.get(
       };
     });
 
+    // 6. Đối soát độ vênh sĩ số liên môn (Cross-Subject Enrollment Discrepancy)
+    const crossSubjectDiscrepancies: Array<{
+      userId: string;
+      name: string;
+      email: string;
+      enrolledCount: number;
+      totalCourses: number;
+      missingCourseNames: string[];
+    }> = [];
+
+    if (linkedCourses.length > 1) {
+      for (const st of Array.from(studentsMap.values())) {
+        if (st.courseCount < linkedCourses.length) {
+          const studentCourseIds = new Set(
+            studentMembers
+              .filter((m) => m.userId === st.userId || (st.email && m.email === st.email))
+              .map((m) => m.courseId)
+          );
+          const missing = linkedCourses
+            .filter((c) => !studentCourseIds.has(c.id))
+            .map((c) => c.name || c.subjectName || c.id);
+
+          crossSubjectDiscrepancies.push({
+            userId: st.userId,
+            name: st.name,
+            email: st.email,
+            enrolledCount: st.courseCount,
+            totalCourses: linkedCourses.length,
+            missingCourseNames: missing
+          });
+        }
+      }
+    }
+
+    // 7. Phân tích tải học tập theo ngày trong tuần (Weekly Workload)
+    const daysOfWeek = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật'];
+    const workloadMap = new Map<string, number>();
+    for (const d of daysOfWeek) workloadMap.set(d, 0);
+
+    for (const cw of recentCoursework) {
+      if (cw.dueDate) {
+        const dObj = new Date(cw.dueDate);
+        if (!isNaN(dObj.getTime())) {
+          const dayIdx = (dObj.getDay() + 6) % 7;
+          const dayName = daysOfWeek[dayIdx] || 'Thứ 2';
+          workloadMap.set(dayName, (workloadMap.get(dayName) || 0) + 1);
+        }
+      }
+    }
+
+    const weeklyWorkload = daysOfWeek.map((day) => ({
+      day,
+      count: workloadMap.get(day) || 0,
+      isHeavy: (workloadMap.get(day) || 0) >= 3
+    }));
+
     res.json({
       ok: true,
       class: existing,
       courses: linkedCourses,
       students: studentsList,
       subjectsSummary,
-      recentCoursework
+      recentCoursework,
+      crossSubjectDiscrepancies,
+      weeklyWorkload
     });
   })
 );

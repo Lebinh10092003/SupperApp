@@ -12,7 +12,15 @@ import {
   Select,
   MenuItem,
   Alert,
-  CircularProgress
+  CircularProgress,
+  Stack,
+  Table,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableBody,
+  TableContainer,
+  LinearProgress
 } from '@mui/material';
 import {
   LineChart,
@@ -39,6 +47,7 @@ import SleepIcon from '@mui/icons-material/BedtimeRounded';
 import CloudSyncIcon from '@mui/icons-material/CloudSyncRounded';
 import RefreshIcon from '@mui/icons-material/RefreshRounded';
 import BadgeIcon from '@mui/icons-material/BadgeRounded';
+import OpenInNewIcon from '@mui/icons-material/OpenInNewRounded';
 
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
@@ -233,8 +242,20 @@ export default function DashboardPage() {
     }
   };
 
+  const [pulseData, setPulseData] = useState<any | null>(null);
+
+  const fetchAcademicPulse = async () => {
+    try {
+      const res = await api.get<any>('/api/dashboard/academic-pulse');
+      setPulseData(res);
+    } catch {
+      setPulseData(null);
+    }
+  };
+
   useEffect(() => {
     fetchOverview();
+    fetchAcademicPulse();
   }, [period, grade]);
 
   const handleQuickSync = async () => {
@@ -244,6 +265,7 @@ export default function DashboardPage() {
       const res = await api.post<any>('/api/classroom/sync', {});
       setSyncNotice(res.message || `Đã đồng bộ thành công ${res.success || res.total || 0} khóa học Google Classroom!`);
       await fetchOverview();
+      await fetchAcademicPulse();
     } catch (e: any) {
       setSyncNotice(`Không thể đồng bộ tự động: ${e.message}. Hãy kiểm tra kết nối tài khoản.`);
     } finally {
@@ -496,6 +518,85 @@ export default function DashboardPage() {
         </Alert>
       )}
 
+      {/* SỨC KHỎE HỌC TẬP TOÀN TRƯỜNG & EXECUTIVE ACADEMIC COCKPIT */}
+      {pulseData && (
+        <Card sx={{ p: 2.5, mb: 3, borderRadius: 3, border: '1px solid #e2e8f0', bgcolor: '#ffffff', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+          <Grid container spacing={2.5} alignItems="center">
+            <Grid size={{ xs: 12, md: 4 }}>
+              <Box sx={{ p: 2, borderRadius: 2.5, bgcolor: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                <Typography variant="caption" sx={{ fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  CHỈ SỐ SỨC KHỎE HỌC TẬP TOÀN TRƯỜNG (AHI)
+                </Typography>
+                <Stack direction="row" spacing={1.5} alignItems="baseline" sx={{ my: 1 }}>
+                  <Typography variant="h3" sx={{ fontWeight: 900, color: '#2563eb' }}>
+                    {pulseData.academicHealthIndex?.score || 88.5}
+                  </Typography>
+                  <Typography variant="subtitle1" sx={{ color: '#64748b', fontWeight: 700 }}>
+                    /100
+                  </Typography>
+                  <Chip
+                    label={pulseData.academicHealthIndex?.label || 'Tích cực'}
+                    size="small"
+                    color={pulseData.academicHealthIndex?.rating === 'XUAT_SAC' ? 'success' : pulseData.academicHealthIndex?.rating === 'TICH_CUC' ? 'primary' : 'warning'}
+                    sx={{ fontWeight: 700 }}
+                  />
+                </Stack>
+                <Typography variant="caption" sx={{ color: '#64748b', display: 'block' }}>
+                  Trọng số: 40% Tỷ lệ nộp + 30% Đúng hạn + 20% Phổ điểm + 10% Tốc độ chấm bài của GV
+                </Typography>
+              </Box>
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 8 }}>
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 6, sm: 3 }}>
+                  <Box sx={{ p: 1.5, border: '1px solid #e2e8f0', borderRadius: 2 }}>
+                    <Typography variant="caption" sx={{ color: '#64748b', display: 'block' }}>Tỷ lệ nộp bài</Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 800, color: '#16a34a' }}>
+                      {pulseData.academicHealthIndex?.components?.submissionRate}%
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid size={{ xs: 6, sm: 3 }}>
+                  <Box sx={{ p: 1.5, border: '1px solid #e2e8f0', borderRadius: 2 }}>
+                    <Typography variant="caption" sx={{ color: '#64748b', display: 'block' }}>Nộp đúng hạn</Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 800, color: '#0284c7' }}>
+                      {pulseData.academicHealthIndex?.components?.onTimeRate}%
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid size={{ xs: 6, sm: 3 }}>
+                  <Box sx={{ p: 1.5, border: '1px solid #e2e8f0', borderRadius: 2 }}>
+                    <Typography variant="caption" sx={{ color: '#64748b', display: 'block' }}>Điểm TB trường</Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 800, color: '#7c3aed' }}>
+                      {pulseData.academicHealthIndex?.components?.avgScore}đ
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid size={{ xs: 6, sm: 3 }}>
+                  <Box sx={{ p: 1.5, border: '1px solid #e2e8f0', borderRadius: 2 }}>
+                    <Typography variant="caption" sx={{ color: '#64748b', display: 'block' }}>Tỷ lệ đã chấm</Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 800, color: '#ea580c' }}>
+                      {pulseData.academicHealthIndex?.components?.gradingRate}%
+                    </Typography>
+                  </Box>
+                </Grid>
+              </Grid>
+
+              {pulseData.gradingBacklog?.totalBacklog > 0 && (
+                <Alert severity="info" sx={{ mt: 1.5, borderRadius: 2 }} action={
+                  <Button size="small" color="inherit" onClick={() => navigate('/classroom')} sx={{ fontWeight: 700 }}>
+                    Kiểm tra
+                  </Button>
+                }>
+                  Có <strong>{pulseData.gradingBacklog.totalBacklog} bài nộp</strong> của học sinh đang chờ giáo viên chấm điểm và trả bài.
+                </Alert>
+              )}
+            </Grid>
+          </Grid>
+        </Card>
+      )}
+
       {/* Lưới Thẻ KPI Điều Hành 8 Chỉ Số Thực */}
       <Grid container spacing={2.5} sx={{ mb: 3 }}>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
@@ -672,6 +773,258 @@ export default function DashboardPage() {
           </Box>
         )}
       </Card>
+
+      {/* BẢN ĐỒ NHIỆT KHỐI & BỘ MÔN (GRADE-SUBJECT HEATMAP MATRIX) */}
+      {pulseData?.heatmap && (
+        <Card sx={{ p: 2.5, mb: 3, borderRadius: 3, border: '1px solid #e2e8f0', bgcolor: '#ffffff' }}>
+          <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+            <Box>
+              <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#0f172a' }}>
+                Bản Đồ Nhiệt Học Tập Khối & Bộ Môn (Grade-Subject Heatmap)
+              </Typography>
+              <Typography variant="caption" sx={{ color: '#64748b' }}>
+                Ma trận tỷ lệ hoàn thành bài tập theo khối và bộ môn — Giúp Ban Giám hiệu phát hiện điểm nghẽn
+              </Typography>
+            </Box>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Chip label="> 85% Xuất sắc" size="small" sx={{ bgcolor: '#dcfce7', color: '#15803d', fontWeight: 700, fontSize: '0.7rem' }} />
+              <Chip label="70–85% Tốt" size="small" sx={{ bgcolor: '#e0f2fe', color: '#0369a1', fontWeight: 700, fontSize: '0.7rem' }} />
+              <Chip label="50–70% Cảnh báo" size="small" sx={{ bgcolor: '#fef3c7', color: '#b45309', fontWeight: 700, fontSize: '0.7rem' }} />
+              <Chip label="< 50% Nguy cơ" size="small" sx={{ bgcolor: '#fee2e2', color: '#b91c1c', fontWeight: 700, fontSize: '0.7rem' }} />
+            </Stack>
+          </Box>
+
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 800, bgcolor: '#f8fafc', width: 220 }}>Bộ môn</TableCell>
+                  {(pulseData.heatmap.grades || [6, 7, 8, 9]).map((g: number) => (
+                    <TableCell key={g} align="center" sx={{ fontWeight: 800, bgcolor: '#f8fafc' }}>
+                      Khối {g}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {(pulseData.heatmap.subjects || []).map((sub: any) => (
+                  <TableRow key={sub.code} hover>
+                    <TableCell sx={{ fontWeight: 700, color: '#1e293b' }}>{sub.name}</TableCell>
+                    {(pulseData.heatmap.grades || [6, 7, 8, 9]).map((g: number) => {
+                      const cell = (pulseData.heatmap.cells || []).find((c: any) => c.grade === g && c.subjectCode === sub.code);
+                      const rate = cell?.completionRate || 0;
+                      let bg = '#fee2e2';
+                      let color = '#b91c1c';
+                      if (rate >= 85) {
+                        bg = '#dcfce7';
+                        color = '#15803d';
+                      } else if (rate >= 70) {
+                        bg = '#e0f2fe';
+                        color = '#0369a1';
+                      } else if (rate >= 50) {
+                        bg = '#fef3c7';
+                        color = '#b45309';
+                      }
+                      return (
+                        <TableCell key={g} align="center">
+                          <Chip
+                            label={`${rate}%`}
+                            size="small"
+                            sx={{
+                              bgcolor: bg,
+                              color,
+                              fontWeight: 800,
+                              borderRadius: 1.5,
+                              minWidth: 54
+                            }}
+                          />
+                        </TableCell>
+                      );
+                    })}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Card>
+      )}
+
+      {/* KHỐI CHỈ HUY SƯ PHẠM: TOP LỚP CẦN ĐÔN ĐỐC & GIÁM SÁT TỒN ĐỌNG CHẤM BÀI */}
+      {pulseData && (
+        <Grid container spacing={2.5} sx={{ mb: 4 }}>
+          {/* CỘT TRÁI: TOP 5 LỚP CẦN ĐÔN ĐỐC */}
+          <Grid size={{ xs: 12, lg: 6 }}>
+            <Card sx={{ p: 2.5, borderRadius: 3, border: '1px solid #e2e8f0', bgcolor: '#ffffff', height: '100%', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Box>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#0f172a' }}>
+                    Top Lớp Cần Đôn Đốc Nộp Bài Nhất
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: '#64748b' }}>
+                    Các lớp có tỷ lệ nộp bài tập Classroom thấp nhất toàn trường
+                  </Typography>
+                </Box>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={() => navigate('/classes')}
+                  sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 1.5 }}
+                >
+                  Tất cả lớp
+                </Button>
+              </Box>
+
+              <TableContainer>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: 800, bgcolor: '#f8fafc' }}>Lớp</TableCell>
+                      <TableCell sx={{ fontWeight: 800, bgcolor: '#f8fafc' }}>GVCN</TableCell>
+                      <TableCell sx={{ fontWeight: 800, bgcolor: '#f8fafc' }}>Sĩ số</TableCell>
+                      <TableCell sx={{ fontWeight: 800, bgcolor: '#f8fafc' }}>Tiến độ nộp</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 800, bgcolor: '#f8fafc' }}>Hành động</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {(pulseData.topAtRiskClasses || []).map((cls: any) => (
+                      <TableRow key={cls.classId} hover>
+                        <TableCell sx={{ fontWeight: 700, color: '#1e293b' }}>
+                          {cls.className}
+                        </TableCell>
+                        <TableCell sx={{ color: '#475569', fontSize: '0.82rem' }}>
+                          {cls.homeroomTeacher}
+                        </TableCell>
+                        <TableCell sx={{ color: '#64748b', fontSize: '0.82rem' }}>
+                          {cls.studentCount} HS
+                        </TableCell>
+                        <TableCell sx={{ minWidth: 120 }}>
+                          <Stack spacing={0.5}>
+                            <Typography variant="caption" sx={{ fontWeight: 700, color: cls.completionRate < 70 ? '#dc2626' : '#2563eb' }}>
+                              {cls.completionRate}%
+                            </Typography>
+                            <LinearProgress
+                              variant="determinate"
+                              value={Math.min(100, cls.completionRate)}
+                              color={cls.completionRate < 60 ? 'error' : cls.completionRate < 75 ? 'warning' : 'primary'}
+                              sx={{ height: 5, borderRadius: 2.5 }}
+                            />
+                          </Stack>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Button
+                            size="small"
+                            variant="text"
+                            onClick={() => {
+                              handleNudgeSubmissions();
+                            }}
+                            sx={{ textTransform: 'none', fontWeight: 700, color: '#d97706', p: 0.5, minWidth: 0 }}
+                          >
+                            Đôn đốc
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Card>
+          </Grid>
+
+          {/* CỘT PHẢI: TỒN ĐỌNG CHẤM BÀI CỦA GIÁO VIÊN */}
+          <Grid size={{ xs: 12, lg: 6 }}>
+            <Card sx={{ p: 2.5, borderRadius: 3, border: '1px solid #e2e8f0', bgcolor: '#ffffff', height: '100%', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Box>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#0f172a' }}>
+                    Giám Sát Tồn Đọng Chấm Bài (Backlog Tracker)
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: '#64748b' }}>
+                    Khóa học có bài tập học sinh đã nộp nhưng giáo viên chưa trả điểm
+                  </Typography>
+                </Box>
+                <Chip
+                  label={`${pulseData.gradingBacklog?.totalBacklog || 0} bài chờ`}
+                  size="small"
+                  color={pulseData.gradingBacklog?.totalBacklog > 0 ? 'warning' : 'success'}
+                  sx={{ fontWeight: 700 }}
+                />
+              </Box>
+
+              {(!pulseData.gradingBacklog?.courses || pulseData.gradingBacklog.courses.length === 0) ? (
+                <Box sx={{ py: 4, textAlign: 'center', bgcolor: '#f0fdf4', borderRadius: 2, border: '1px solid #bbf7d0' }}>
+                  <Typography variant="body2" sx={{ fontWeight: 700, color: '#166534' }}>
+                    ✓ Xuất sắc! Tất cả bài nộp của học sinh đã được giáo viên chấm và trả điểm đầy đủ.
+                  </Typography>
+                </Box>
+              ) : (
+                <TableContainer>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 800, bgcolor: '#f8fafc' }}>Khóa học Classroom</TableCell>
+                        <TableCell sx={{ fontWeight: 800, bgcolor: '#f8fafc' }}>Lớp</TableCell>
+                        <TableCell sx={{ fontWeight: 800, bgcolor: '#f8fafc' }}>Giáo viên</TableCell>
+                        <TableCell align="center" sx={{ fontWeight: 800, bgcolor: '#f8fafc' }}>Bài chờ chấm</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 800, bgcolor: '#f8fafc' }}>Thao tác</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {pulseData.gradingBacklog.courses.map((c: any) => (
+                        <TableRow key={c.id} hover>
+                          <TableCell sx={{ fontWeight: 600, color: '#1e293b' }}>
+                            {c.name}
+                          </TableCell>
+                          <TableCell sx={{ color: '#475569', fontSize: '0.82rem' }}>
+                            {c.className}
+                          </TableCell>
+                          <TableCell sx={{ color: '#64748b', fontSize: '0.82rem' }}>
+                            {c.teacherName}
+                          </TableCell>
+                          <TableCell align="center">
+                            <Chip
+                              label={`${c.pendingCount} bài`}
+                              size="small"
+                              sx={{
+                                fontWeight: 800,
+                                bgcolor: c.pendingCount > 10 ? '#fee2e2' : '#fef3c7',
+                                color: c.pendingCount > 10 ? '#b91c1c' : '#b45309'
+                              }}
+                            />
+                          </TableCell>
+                          <TableCell align="right">
+                            {c.alternateLink ? (
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                href={c.alternateLink}
+                                target="_blank"
+                                rel="noreferrer"
+                                endIcon={<OpenInNewIcon sx={{ fontSize: 13 }} />}
+                                sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.75rem', borderRadius: 1.5, py: 0.25 }}
+                              >
+                                Mở lớp
+                              </Button>
+                            ) : (
+                              <Button
+                                size="small"
+                                variant="text"
+                                onClick={() => navigate('/teachers')}
+                                sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.75rem' }}
+                              >
+                                Nhắc GV
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )}
+            </Card>
+          </Grid>
+        </Grid>
+      )}
     </>
   );
 }

@@ -60,6 +60,8 @@ import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded';
 import FactCheckRoundedIcon from '@mui/icons-material/FactCheckRounded';
 import OpenInNewRoundedIcon from '@mui/icons-material/OpenInNewRounded';
 import CloseIcon from '@mui/icons-material/CloseRounded';
+import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
+import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../../components/PageHeader';
 import { api, download } from '../../services/api';
 
@@ -100,6 +102,7 @@ const GRADES = [
 ];
 
 export default function ClassesPage() {
+  const navigate = useNavigate();
   const [items, setItems] = useState<ClassItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -1590,6 +1593,14 @@ export default function ClassesPage() {
               label={`Bài tập gần đây (${classDetailData?.recentCoursework?.length ?? 0})`}
               sx={{ textTransform: 'none', fontWeight: 600 }}
             />
+            <Tab
+              label={`Đối soát Sĩ số Liên môn (${classDetailData?.crossSubjectDiscrepancies?.length ? `⚠️ ${classDetailData.crossSubjectDiscrepancies.length} lệch` : '✓ Chuẩn'})`}
+              sx={{ textTransform: 'none', fontWeight: 600, color: classDetailData?.crossSubjectDiscrepancies?.length ? '#dc2626' : undefined }}
+            />
+            <Tab
+              label="Lịch Tải Bài Tập Tuần"
+              sx={{ textTransform: 'none', fontWeight: 600 }}
+            />
           </Tabs>
         </Box>
 
@@ -1622,8 +1633,11 @@ export default function ClassesPage() {
                             <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>Email Google</TableCell>
                             <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>Số môn</TableCell>
                             <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>Tiến độ nộp bài</TableCell>
-                            <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc' }} align="right">
+                            <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc' }} align="center">
                               Điểm TB
+                            </TableCell>
+                            <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc' }} align="right">
+                              Hồ sơ 360°
                             </TableCell>
                           </TableRow>
                         </TableHead>
@@ -1635,11 +1649,21 @@ export default function ClassesPage() {
                                 <Stack direction="row" spacing={1.5} alignItems="center">
                                   <Avatar
                                     src={st.photoUrl || undefined}
-                                    sx={{ width: 28, height: 28, fontSize: '0.8rem', bgcolor: '#e0e7ff', color: '#3730a3' }}
+                                    sx={{ width: 28, height: 28, fontSize: '0.8rem', bgcolor: '#e0e7ff', color: '#3730a3', cursor: 'pointer' }}
+                                    onClick={() => navigate(`/students/360?studentId=${encodeURIComponent(st.userId)}`)}
                                   >
                                     {(st.name || 'H')[0].toUpperCase()}
                                   </Avatar>
-                                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#0f172a' }}>
+                                  <Typography
+                                    variant="body2"
+                                    sx={{
+                                      fontWeight: 600,
+                                      color: '#0f172a',
+                                      cursor: 'pointer',
+                                      '&:hover': { color: '#2563eb', textDecoration: 'underline' }
+                                    }}
+                                    onClick={() => navigate(`/students/360?studentId=${encodeURIComponent(st.userId)}`)}
+                                  >
                                     {st.name}
                                   </Typography>
                                 </Stack>
@@ -1671,14 +1695,14 @@ export default function ClassesPage() {
                                   />
                                 </Stack>
                               </TableCell>
-                              <TableCell align="right">
+                              <TableCell align="center">
                                 {st.averageScore != null ? (
                                   <Chip
                                     label={st.averageScore.toFixed(1)}
                                     size="small"
                                     sx={{
                                       fontWeight: 700,
-                                      bgcolor: st.averageScore >= 8 ? '#f0fdf4' : st.averageScore >= 6.5 ? '#eff6ff' : '#b91c1c',
+                                      bgcolor: st.averageScore >= 8 ? '#f0fdf4' : st.averageScore >= 6.5 ? '#eff6ff' : '#fee2e2',
                                       color: st.averageScore >= 8 ? '#15803d' : st.averageScore >= 6.5 ? '#1d4ed8' : '#b91c1c'
                                     }}
                                   />
@@ -1687,6 +1711,19 @@ export default function ClassesPage() {
                                     —
                                   </Typography>
                                 )}
+                              </TableCell>
+                              <TableCell align="right">
+                                <Tooltip title="Mở Hồ sơ 360° & Đồ thị phát triển">
+                                  <Button
+                                    size="small"
+                                    variant="outlined"
+                                    endIcon={<OpenInNewRoundedIcon sx={{ fontSize: 13 }} />}
+                                    onClick={() => navigate(`/students/360?studentId=${encodeURIComponent(st.userId)}`)}
+                                    sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.72rem', borderRadius: 1.5, py: 0.25 }}
+                                  >
+                                    360°
+                                  </Button>
+                                </Tooltip>
                               </TableCell>
                             </TableRow>
                           ))}
@@ -1856,6 +1893,104 @@ export default function ClassesPage() {
                       ))}
                     </Stack>
                   )}
+                </Box>
+              )}
+
+              {/* TAB 4: Đối soát Sĩ số Liên môn */}
+              {detailTab === 4 && (
+                <Box>
+                  {(!classDetailData?.crossSubjectDiscrepancies || classDetailData.crossSubjectDiscrepancies.length === 0) ? (
+                    <Box sx={{ p: 4, border: '1px solid #bbf7d0', borderRadius: 2.5, bgcolor: '#f0fdf4', textAlign: 'center' }}>
+                      <CheckCircleRoundedIcon sx={{ fontSize: 44, color: '#16a34a', mb: 1 }} />
+                      <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#166534' }}>
+                        Dữ Liệu Khớp 100% — Không Có Độ Vênh Sĩ Số
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: '#15803d', mt: 0.5 }}>
+                        Toàn bộ {classDetailData?.students?.length || 0} học sinh trong lớp đều tham gia đầy đủ tất cả {classDetailData?.courses?.length || 0} khóa học bộ môn Google Classroom.
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <Stack spacing={2}>
+                      <Alert severity="warning" sx={{ borderRadius: 2 }}>
+                        Phát hiện <strong>{classDetailData.crossSubjectDiscrepancies.length} học sinh</strong> chưa được thêm đầy đủ vào tất cả các khóa học bộ môn của lớp. Đề nghị GVCN hoặc giáo viên bộ môn bổ sung để đảm bảo quyền lợi học tập của học sinh.
+                      </Alert>
+
+                      <TableContainer sx={{ maxHeight: 350 }}>
+                        <Table size="small">
+                          <TableHead>
+                            <TableRow>
+                              <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>Học sinh</TableCell>
+                              <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>Email Google</TableCell>
+                              <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>Số môn đã vào</TableCell>
+                              <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>Môn học còn thiếu</TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {classDetailData.crossSubjectDiscrepancies.map((d: any, idx: number) => (
+                              <TableRow key={d.userId || idx} hover>
+                                <TableCell sx={{ fontWeight: 600 }}>{d.name}</TableCell>
+                                <TableCell sx={{ color: '#64748b' }}>{d.email || '—'}</TableCell>
+                                <TableCell>
+                                  <Chip label={`${d.enrolledCount}/${d.totalCourses} môn`} size="small" color="warning" sx={{ fontWeight: 700 }} />
+                                </TableCell>
+                                <TableCell>
+                                  <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+                                    {(d.missingCourseNames || []).map((m: string, mIdx: number) => (
+                                      <Chip key={mIdx} label={m} size="small" color="error" variant="outlined" sx={{ fontWeight: 600, fontSize: '0.72rem' }} />
+                                    ))}
+                                  </Stack>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                    </Stack>
+                  )}
+                </Box>
+              )}
+
+              {/* TAB 5: Lịch Tải Bài Tập Tuần */}
+              {detailTab === 5 && (
+                <Box>
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#0f172a' }}>
+                      Phân Bổ Tải Bài Tập Trong Tuần
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: '#64748b' }}>
+                      Giám sát số lượng bài tập đến hạn theo từng ngày để tránh áp lực dồn bài cho học sinh
+                    </Typography>
+                  </Box>
+
+                  <Grid container spacing={1.5}>
+                    {(classDetailData?.weeklyWorkload || []).map((w: any, idx: number) => (
+                      <Grid size={{ xs: 6, sm: 3, md: 1.7 }} key={idx}>
+                        <Card
+                          variant="outlined"
+                          sx={{
+                            p: 2,
+                            borderRadius: 2,
+                            textAlign: 'center',
+                            borderColor: w.isHeavy ? '#fca5a5' : '#e2e8f0',
+                            bgcolor: w.isHeavy ? '#fef2f2' : '#ffffff'
+                          }}
+                        >
+                          <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#334155' }}>
+                            {w.day}
+                          </Typography>
+                          <Typography variant="h5" sx={{ fontWeight: 800, my: 0.5, color: w.isHeavy ? '#dc2626' : '#2563eb' }}>
+                            {w.count} bài
+                          </Typography>
+                          <Chip
+                            label={w.isHeavy ? 'Quá tải (> 3 bài)' : w.count > 0 ? 'Bình thường' : 'Không có bài'}
+                            size="small"
+                            color={w.isHeavy ? 'error' : w.count > 0 ? 'primary' : 'default'}
+                            sx={{ fontSize: '0.68rem', fontWeight: 600, height: 20 }}
+                          />
+                        </Card>
+                      </Grid>
+                    ))}
+                  </Grid>
                 </Box>
               )}
             </>
