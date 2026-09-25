@@ -82,8 +82,16 @@ classesRouter.post(
     });
 
     const b = schema.parse(req.body);
-    const classId = b.classId || b.className.trim().replace(/\s+/g, '_');
-    const grade = b.grade ?? (Number(classId.match(/^[6789]|1[0-2]/)?.[0]) || null);
+    let classId = b.classId?.trim();
+    if (!classId) {
+      const match = b.className.trim().match(/^(?:Lớp\s*)?(1[0-2]|[1-9])\s*([a-zA-Z]+[0-9]{0,2})$/i);
+      if (match && match[1] && match[2]) {
+        classId = `${match[1]}${match[2].toUpperCase()}`;
+      } else {
+        classId = b.className.trim().replace(/\s+/g, '_');
+      }
+    }
+    const grade = b.grade ?? (Number(classId.match(/^(?:1[0-2]|[1-9])/)?.[0]) || null);
 
     const existing = await db.select().from(classes).where(eq(classes.classId, classId)).then((r) => r[0]);
     if (existing) {

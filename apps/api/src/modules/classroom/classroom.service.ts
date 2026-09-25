@@ -628,7 +628,7 @@ export async function rebuildClassesFromCourses(): Promise<number> {
     if (!classId) continue;
 
     if (!classesMap.has(classId)) {
-      const grade = c.grade || Number(classId.match(/^[6789]/)?.[0] || 0) || null;
+      const grade = c.grade || Number(classId.match(/^(?:1[0-2]|[1-9])/)?.[0] || 0) || null;
       classesMap.set(classId, {
         classId,
         className: c.className || `Lớp ${classId}`,
@@ -667,7 +667,8 @@ export async function rebuildClassesFromCourses(): Promise<number> {
   for (const existing of existingClasses) {
     if (existing.source === 'MANUAL') {
       // Lớp tạo thủ công: Giữ nguyên metadata định danh, chỉ đồng bộ chỉ số khoá học nếu có course map vào
-      const cls = classesMap.get(existing.classId);
+      const normalizedKey = existing.classId.replace(/^(?:Lớp\s*|Lớp_)/i, '').trim();
+      const cls = classesMap.get(existing.classId) || classesMap.get(normalizedKey) || classesMap.get(existing.className.replace(/^Lớp\s*/i, '').trim());
       if (cls) {
         const completionRate = cls.submissionsTotal ? Math.round((cls.submissionsTurnedIn / cls.submissionsTotal) * 1000) / 10 : null;
         const onTimeRate = cls.submissionsTurnedIn ? Math.round(((cls.submissionsTurnedIn - cls.submissionsLate) / cls.submissionsTurnedIn) * 1000) / 10 : null;
@@ -686,6 +687,23 @@ export async function rebuildClassesFromCourses(): Promise<number> {
             completionRate: completionRate != null ? String(completionRate) : null,
             onTimeRate: onTimeRate != null ? String(onTimeRate) : null,
             averageScore: avgScore != null ? String(avgScore) : null,
+            updatedAt: new Date()
+          })
+          .where(eq(classes.classId, existing.classId));
+      } else {
+        await db
+          .update(classes)
+          .set({
+            courseCount: 0,
+            courses: [],
+            subjects: [],
+            totalCoursework: 0,
+            submissionsTotal: 0,
+            submissionsTurnedIn: 0,
+            submissionsLate: 0,
+            completionRate: null,
+            onTimeRate: null,
+            averageScore: null,
             updatedAt: new Date()
           })
           .where(eq(classes.classId, existing.classId));
@@ -728,7 +746,9 @@ export async function rebuildClassesFromCourses(): Promise<number> {
 
   // 2. Cập nhật hoặc thêm mới các lớp có khoá học từ Classroom
   for (const [classId, cls] of classesMap.entries()) {
-    const existing = existingClasses.find((e) => e.classId === classId);
+    const existing = existingClasses.find(
+      (e) => e.classId === classId || e.classId.replace(/^(?:Lớp\s*|Lớp_)/i, '').trim() === classId || e.className.replace(/^Lớp\s*/i, '').trim() === classId
+    );
     if (existing && existing.source === 'MANUAL') {
       // Đã xử lý ở bước 1
       continue;

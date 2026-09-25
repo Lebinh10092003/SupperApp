@@ -6,9 +6,9 @@ import { asyncRoute } from '../../core/http.js';
 import { db } from '../../core/db/client.js';
 import { resolveServiceAccount } from '../../core/firebase.js';
 import { env } from '../../config/env.js';
-import { syncAllCourses, deleteSyncRun } from './classroom.service.js';
+import { syncAllCourses, deleteSyncRun, rebuildClassesFromCourses } from './classroom.service.js';
 import { rebuildDashboard } from '../dashboard/dashboard.service.js';
-import { courses, syncRuns } from './classroom.schema.js';
+import { courses, syncRuns, classMappings } from './classroom.schema.js';
 import { classes } from '../classes/classes.schema.js';
 import { googleConnections } from '../connections/connections.schema.js';
 import { systemConfig } from '../system/system.schema.js';
@@ -158,25 +158,48 @@ classroomRouter.patch(
       })
       .parse(q.body);
     const courseId = String(q.params.id);
+    const grade = Number(b.classId.match(/^(?:1[0-2]|[1-9])/)?.[0]) || null;
 
-    await db.update(courses).set({ classId: b.classId, className: b.className, updatedAt: new Date() }).where(eq(courses.id, courseId));
-
+    // 1. Cập nhật khoá học courses
     await db
-      .insert(classes)
-      .values({ classId: b.classId, className: b.className, courses: [courseId] })
+      .update(courses)
+      .set({
+        classId: b.classId,
+        className: b.className,
+        grade,
+        updatedAt: new Date()
+      })
+      .where(eq(courses.id, courseId));
+
+    // 2. Cập nhật hoặc lưu mới bảng ánh xạ classMappings (confirmed)
+    await db
+      .insert(classMappings)
+      .values({
+        courseId,
+        courseName: b.className,
+        classId: b.classId,
+        className: b.className,
+        grade,
+        confidence: '1.00',
+        confirmed: true
+      })
       .onConflictDoUpdate({
-        target: classes.classId,
+        target: classMappings.courseId,
         set: {
+          classId: b.classId,
           className: b.className,
-          courses: sql`(
-            SELECT jsonb_agg(DISTINCT value)
-            FROM jsonb_array_elements(COALESCE(${classes.courses}, '[]'::jsonb) || ${JSON.stringify([courseId])}::jsonb) AS value
-          )`,
+          grade,
+          confidence: '1.00',
+          confirmed: true,
           updatedAt: new Date()
         }
       });
 
-    r.json({ ok: true });
+    // 3. Tự động tính toán lại 100% dữ liệu lớp học và dashboard từ các khoá học
+    await rebuildClassesFromCourses();
+    await rebuildDashboard().catch(() => null);
+
+    r.json({ ok: true, message: `Đã ánh xạ thành công khóa học vào ${b.className}` });
   })
 );
 

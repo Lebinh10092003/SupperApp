@@ -49,15 +49,18 @@ export default function SubjectAnalyticsPage() {
           render: (val: any) => (val ? `Khối ${val}` : '—')
         },
         {
-          key: 'roster',
+          key: 'rosterStudents',
           label: 'Sĩ số',
-          render: (val: any) => (val?.students != null ? `${val.students} học sinh` : '—')
+          render: (val: any, row: any) => {
+            const count = val ?? row.rosterStudents ?? row.roster?.students;
+            return count != null ? `${count} học sinh` : '—';
+          }
         },
         {
-          key: 'content',
+          key: 'contentCoursework',
           label: 'Bài tập đã giao',
-          render: (val: any) => {
-            const total = val?.coursework ?? val?.courseWorkTotal ?? 0;
+          render: (val: any, row: any) => {
+            const total = val ?? row.contentCoursework ?? row.content?.coursework ?? row.content?.courseWorkTotal ?? 0;
             return (
               <Chip
                 label={`${total} bài`}

@@ -132,9 +132,14 @@ export default function ClassroomPage() {
   const mappedCount = items.filter((x) => x.className || x.classId).length;
 
   const avgSubmissionRate = useMemo(() => {
-    const withRates = items.filter((x) => typeof x.content?.completionRate === 'number' || typeof x.content?.submissionRate === 'number');
+    const withRates = items
+      .map((x) => {
+        const raw = x.completionRate ?? x.content?.completionRate ?? x.content?.submissionRate;
+        return raw != null && raw !== '' && !isNaN(Number(raw)) ? Number(raw) : null;
+      })
+      .filter((r): r is number => r !== null);
     if (withRates.length === 0) return 0;
-    const sum = withRates.reduce((acc, curr) => acc + (curr.content?.completionRate ?? curr.content?.submissionRate ?? 0), 0);
+    const sum = withRates.reduce((acc, curr) => acc + curr, 0);
     return Math.round(sum / withRates.length);
   }, [items]);
 
@@ -322,9 +327,9 @@ export default function ClassroomPage() {
               </TableHead>
               <TableBody>
                 {filtered.map((x) => {
-                  const subRate = typeof x.content?.completionRate === 'number'
-                    ? x.content.completionRate
-                    : (typeof x.content?.submissionRate === 'number' ? x.content.submissionRate : null);
+                  const rawSubRate = x.completionRate ?? x.content?.completionRate ?? x.content?.submissionRate;
+                  const subRate = rawSubRate != null && rawSubRate !== '' && !isNaN(Number(rawSubRate)) ? Number(rawSubRate) : null;
+                  const studentCount = x.rosterStudents ?? x.roster?.students ?? null;
                   const isMapped = Boolean(x.className || x.classId);
                   return (
                     <TableRow key={x.id} hover sx={{ '&:hover': { bgcolor: 'rgba(239, 246, 255, 0.6)' } }}>
@@ -366,7 +371,7 @@ export default function ClassroomPage() {
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" fontWeight={500} sx={{ color: '#0f172a' }}>
-                          {x.roster?.students ?? '—'} HS
+                          {studentCount != null ? `${studentCount} HS` : '—'}
                         </Typography>
                       </TableCell>
                       <TableCell>
