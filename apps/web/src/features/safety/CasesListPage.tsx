@@ -216,7 +216,7 @@ export default function CasesListPage() {
   };
 
   return (
-    <Box sx={{ p: isMobile ? 2 : 0, pb: isMobile ? 10 : 0 }}>
+    <Box sx={{ p: isMobile ? 2 : 0, pb: isMobile ? 2 : 0 }}>
       <PageHeader
         title="Sự vụ"
         icon={<ListAltIcon />}
@@ -549,7 +549,7 @@ export default function CasesListPage() {
 
       {isMobile && (
         <Suspense fallback={null}>
-          <MobileTabBar />
+          <MobileTabBar mode="sticky" />
         </Suspense>
       )}
     </Box>

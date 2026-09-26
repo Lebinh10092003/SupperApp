@@ -47,7 +47,7 @@ export default function EmergencyCockpitPage() {
   const open = items.filter((it) => it.state !== 'Đã đóng' && it.state !== 'Trùng' && it.state !== 'Tin rác');
 
   return (
-    <Box sx={{ p: isMobile ? 2 : 0, pb: isMobile ? 10 : 0 }}>
+    <Box sx={{ p: isMobile ? 2 : 0, pb: isMobile ? 2 : 0 }}>
       <PageHeader
         title="Cockpit khẩn cấp"
         icon={<WarningAmberIcon />}
@@ -116,7 +116,7 @@ export default function EmergencyCockpitPage() {
 
       {isMobile && (
         <Suspense fallback={null}>
-          <MobileTabBar />
+          <MobileTabBar mode="sticky" />
         </Suspense>
       )}
     </Box>

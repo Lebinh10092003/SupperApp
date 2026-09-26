@@ -84,8 +84,22 @@ export default function MobileMyIncidentsPage() {
     <IonPage>
       <IonContent style={{ '--background': '#f4f5f7' } as any}>
         <div style={{ padding: '16px 16px 4px' }}>
-          <p style={{ fontSize: 13, color: '#2563eb', fontWeight: 600, margin: '0 0 2px' }}>Cảnh báo an toàn</p>
-          <h1 style={{ fontFamily: 'inherit', fontWeight: 800, fontSize: 28, margin: '0 0 14px' }}>Sự vụ của tôi</h1>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+            <div>
+              <p style={{ fontSize: 13, color: '#2563eb', fontWeight: 600, margin: '0 0 2px' }}>Cảnh báo an toàn</p>
+              <h1 style={{ fontFamily: 'inherit', fontWeight: 800, fontSize: 28, margin: '0 0 14px' }}>Sự vụ của tôi</h1>
+            </div>
+            {/* Sin báo thiếu lối vào xem TOÀN BỘ sự vụ (không chỉ của
+                mình) — trước đây chỉ tới được qua "Quay lại danh sách"
+                sau khi lỡ mở 1 hồ sơ, không hợp lý. */}
+            <button
+              type="button"
+              onClick={() => navigate('/safety/cases')}
+              style={{ border: 'none', background: 'none', color: '#2563eb', fontSize: 13, fontWeight: 700, padding: '6px 0 14px', WebkitTapHighlightColor: 'transparent' }}
+            >
+              Tất cả sự vụ ›
+            </button>
+          </div>
           <IonSegment value={tab} onIonChange={(e) => setTab((e.detail.value as 'open' | 'closed') || 'open')}>
             <IonSegmentButton value="open">
               <IonLabel>Đang mở ({openCount})</IonLabel>

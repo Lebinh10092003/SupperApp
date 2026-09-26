@@ -35,13 +35,20 @@
  * giữa trang khi cuộn tay, dù đo bằng script cuộn lập trình
  * (`window.scrollTo`) trên DevTools thì vẫn đứng yên đúng đáy màn hình —
  * script không tái hiện được vì đây là lỗi CHỈ xảy ra với cử chỉ cuộn
- * chạm thật (touch/momentum scroll), không phải scroll lập trình).
- * NGUYÊN NHÂN: lỗi nền tảng đã biết của Safari iOS — phần tử
- * `position:fixed` không được đẩy lên layer GPU riêng dễ bị "rớt lại"
- * (jank/drift) trong lúc cuộn quán tính (momentum scroll) và thanh địa
- * chỉ Safari tự ẩn/hiện làm đổi chiều cao viewport. FIX: ép phần tử lên
- * layer GPU riêng bằng `transform: translateZ(0)` — cách khắc phục tiêu
- * chuẩn cho đúng lỗi này trên iOS Safari.
+ * chạm thật (touch/momentum scroll), không phải scroll lập trình). Thử
+ * `transform: translateZ(0)` (ép layer GPU riêng, cách khắc phục tiêu
+ * chuẩn cho `position:fixed` bị jank trên iOS Safari) — Sin xác nhận VẪN
+ * còn bị, chưa hết.
+ *
+ * FIX LẦN 2: đổi hẳn từ `position:fixed` sang `position:sticky` cho 5
+ * trang MUI thường (Sự vụ/chi tiết hồ sơ/Cockpit/Audit log/Phân tích) —
+ * `sticky` được tính lại trong đúng luồng cuộn bình thường của trình
+ * duyệt (không cần 1 layer composite riêng như `fixed`), theo nhiều báo
+ * cáo là bền hơn hẳn trước lỗi jank khi cuộn chạm thật trên iOS Safari.
+ * Prop `mode="sticky"` — 4 trang Ionic thật (An toàn/Lịch/Lớp học số/Cá
+ * nhân) vẫn giữ `mode="fixed"` mặc định, KHÔNG đụng vào vì chưa có báo
+ * lỗi ở đó (tránh gây thêm hồi quy như đã từng xảy ra 2 lần trong phiên
+ * này).
  */
 import { IonIcon, IonBadge } from '@ionic/react';
 import { shieldOutline, calendarOutline, schoolOutline, personCircleOutline } from 'ionicons/icons';
@@ -66,7 +73,7 @@ const TABS: TabDef[] = [
   { path: '/account', matchPaths: ['/account'], icon: personCircleOutline, label: 'Cá nhân' }
 ];
 
-export function MobileTabBar({ activeCount }: { activeCount?: number }) {
+export function MobileTabBar({ activeCount, mode = 'fixed' }: { activeCount?: number; mode?: 'fixed' | 'sticky' }) {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -76,16 +83,15 @@ export function MobileTabBar({ activeCount }: { activeCount?: number }) {
         display: 'flex',
         borderTop: '1px solid #e5e7eb',
         paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-        position: 'fixed',
+        position: mode,
         left: 0,
         right: 0,
         bottom: 0,
         background: '#fff',
         zIndex: 10,
-        transform: 'translateZ(0)',
-        WebkitTransform: 'translateZ(0)',
-        WebkitBackfaceVisibility: 'hidden',
-        willChange: 'transform'
+        ...(mode === 'fixed'
+          ? { transform: 'translateZ(0)', WebkitTransform: 'translateZ(0)', WebkitBackfaceVisibility: 'hidden' as const, willChange: 'transform' }
+          : {})
       }}
     >
       {TABS.map((t) => {

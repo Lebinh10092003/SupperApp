@@ -143,7 +143,7 @@ export default function AuditLogPage() {
   };
 
   return (
-    <Box sx={{ p: isMobile ? 2 : 0, pb: isMobile ? 10 : 0 }}>
+    <Box sx={{ p: isMobile ? 2 : 0, pb: isMobile ? 2 : 0 }}>
       <PageHeader
         title="Nhật ký kiểm toán"
         icon={<HistoryRoundedIcon />}
@@ -244,7 +244,7 @@ export default function AuditLogPage() {
 
       {isMobile && (
         <Suspense fallback={null}>
-          <MobileTabBar />
+          <MobileTabBar mode="sticky" />
         </Suspense>
       )}
     </Box>

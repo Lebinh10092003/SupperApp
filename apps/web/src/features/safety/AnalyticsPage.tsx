@@ -314,7 +314,7 @@ export default function AnalyticsPage() {
   const [tab, setTab] = useState(0);
 
   return (
-    <Box sx={{ p: isMobile ? 2 : 0, pb: isMobile ? 10 : 0 }}>
+    <Box sx={{ p: isMobile ? 2 : 0, pb: isMobile ? 2 : 0 }}>
       <PageHeader title="Phân tích & thống kê" icon={<InsightsRoundedIcon />} />
 
       <Paper sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none', p: isMobile ? 1.5 : 2.5 }}>
@@ -330,7 +330,7 @@ export default function AnalyticsPage() {
 
       {isMobile && (
         <Suspense fallback={null}>
-          <MobileTabBar />
+          <MobileTabBar mode="sticky" />
         </Suspense>
       )}
     </Box>

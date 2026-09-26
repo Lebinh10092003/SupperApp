@@ -21,6 +21,7 @@ import {
   DialogContent,
   DialogTitle,
   Divider,
+  IconButton,
   Link as MuiLink,
   MenuItem,
   Snackbar,
@@ -251,16 +252,38 @@ export default function IncidentDetailPage() {
   const canEditPriority = isCommander || isSenior;
 
   return (
-    <Box sx={{ p: isMobile ? 2 : 0, pb: isMobile ? 10 : 0 }}>
-      <PageHeader
-        title={`Hồ sơ sự cố ${incident.incidentId}`}
-        subtitle={incident.categoryLabel || incident.categoryCode || undefined}
-        action={
-          <Button component={Link} to="/safety/incidents" startIcon={<ArrowBackIcon />} sx={{ textTransform: 'none', color: '#64748b' }}>
-            Quay lại danh sách
-          </Button>
-        }
-      />
+    <Box sx={{ p: isMobile ? 2 : 0, pb: isMobile ? 2 : 0 }}>
+      {isMobile ? (
+        // Nút quay lại kiểu app di động thật (icon tròn, không phải link
+        // chữ nằm lệch dưới tiêu đề như PageHeader bản desktop) — Sin báo
+        // "trông như UI web" — dùng navigate(-1) để quay đúng nơi vừa đến
+        // (Sự vụ của tôi / Tất cả sự vụ / Cockpit), không cố định 1 đích.
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
+          <IconButton onClick={() => navigate(-1)} sx={{ ml: -1, color: '#0f172a' }}>
+            <ArrowBackIcon />
+          </IconButton>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="h6" fontWeight={800} sx={{ lineHeight: 1.25 }} noWrap>
+              {incident.incidentId}
+            </Typography>
+            {(incident.categoryLabel || incident.categoryCode) && (
+              <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
+                {incident.categoryLabel || incident.categoryCode}
+              </Typography>
+            )}
+          </Box>
+        </Stack>
+      ) : (
+        <PageHeader
+          title={`Hồ sơ sự cố ${incident.incidentId}`}
+          subtitle={incident.categoryLabel || incident.categoryCode || undefined}
+          action={
+            <Button component={Link} to="/safety/incidents" startIcon={<ArrowBackIcon />} sx={{ textTransform: 'none', color: '#64748b' }}>
+              Quay lại danh sách
+            </Button>
+          }
+        />
+      )}
 
       <Snackbar
         open={!!toast}
@@ -743,7 +766,7 @@ export default function IncidentDetailPage() {
 
       {isMobile && (
         <Suspense fallback={null}>
-          <MobileTabBar />
+          <MobileTabBar mode="sticky" />
         </Suspense>
       )}
     </Box>
