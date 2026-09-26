@@ -27,6 +27,7 @@ const MobileIncidentDetailPage = lazy(() => import("../mobile/pages/MobileIncide
 const MobileCockpitPage = lazy(() => import("../mobile/pages/MobileCockpitPage"));
 const MobileAuditLogPage = lazy(() => import("../mobile/pages/MobileAuditLogPage"));
 const MobileAnalyticsPage = lazy(() => import("../mobile/pages/MobileAnalyticsPage"));
+const MobileLoginPage = lazy(() => import("../mobile/pages/MobileLoginPage"));
 import DashboardPage from "../features/dashboard/DashboardPage";
 import TodayPage from "../features/today/TodayPage";
 import ClassesPage from "../features/classes/ClassesPage";
@@ -128,7 +129,10 @@ const ROLES_WORK_SCHEDULE_STAFF = ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL
 export function App() {
   return (
     <Routes>
-      <Route path="/login" element={<LoginPage />} />
+      <Route
+        path="/login"
+        element={<Responsive desktop={<LoginPage />} mobile={<Suspense fallback={null}><MobileLoginPage /></Suspense>} />}
+      />
       <Route
         path="/"
         element={pResponsive(

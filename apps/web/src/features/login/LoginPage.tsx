@@ -1,130 +1,38 @@
-﻿import { useState, useRef, useEffect } from 'react';
+﻿import { useState } from 'react';
 import { Box, Button, Card, CardContent, Typography, Stack, Divider, TextField, Alert, CircularProgress, InputAdornment, IconButton, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 import { Link as RouterLink, Navigate } from 'react-router-dom';
 import GoogleIcon from '@mui/icons-material/Google';
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded';
 import VisibilityOffRoundedIcon from '@mui/icons-material/VisibilityOffRounded';
-import { useAuth } from '../../auth/AuthProvider';
-
-function friendlyAuthError(e: any): string {
-  const code = e?.code || '';
-  switch (code) {
-    case 'auth/invalid-credential':
-    case 'auth/wrong-password':
-    case 'auth/user-not-found':
-      return 'Email hoặc mật khẩu không đúng.';
-    case 'auth/too-many-requests':
-      return 'Đã thử sai quá nhiều lần, vui lòng đợi ít phút rồi thử lại.';
-    case 'auth/popup-closed-by-user':
-      return 'Cửa sổ đăng nhập Google đã bị đóng trước khi hoàn tất.';
-    case 'auth/user-disabled':
-      return 'Tài khoản đã bị vô hiệu hóa.';
-    case 'auth/email-already-in-use':
-      return 'Email này đã có tài khoản — hãy đăng nhập thay vì tạo mới.';
-    case 'auth/weak-password':
-      return 'Mật khẩu quá ngắn — cần tối thiểu 6 ký tự.';
-    case 'auth/invalid-email':
-      return 'Địa chỉ email không hợp lệ.';
-    default:
-      // Lỗi từ backend bootstrap (VD "Tài khoản chưa được cấp quyền") đã là
-      // tiếng Việt, thân thiện sẵn — không có `.code` (không phải lỗi
-      // Firebase) nên hiển thị thẳng message thay vì rơi vào câu chung
-      // chung ở dưới.
-      return e?.message && !code ? e.message : 'Đăng nhập không thành công. Vui lòng thử lại.';
-  }
-}
+import { useLoginController } from './useLoginController';
 
 export default function LoginPage() {
-  const { profile, loading, login, loginWithPassword, resetPasswordEmail, authError, clearAuthError } = useAuth();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const {
+    profile,
+    loading,
+    email,
+    setEmail,
+    password,
+    setPassword,
+    error,
+    info,
+    googleLoading,
+    passwordLoading,
+    forgotOpen,
+    setForgotOpen,
+    forgotEmail,
+    setForgotEmail,
+    forgotSending,
+    forgotError,
+    forgotSent,
+    emailInputRef,
+    passwordInputRef,
+    handleForgotPassword,
+    closeForgotDialog,
+    handleGoogleLogin,
+    handlePasswordSubmit
+  } = useLoginController();
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
-  const [info, setInfo] = useState('');
-  const [googleLoading, setGoogleLoading] = useState(false);
-  const [passwordLoading, setPasswordLoading] = useState(false);
-  const [forgotOpen, setForgotOpen] = useState(false);
-  const [forgotEmail, setForgotEmail] = useState('');
-  const [forgotSending, setForgotSending] = useState(false);
-  const [forgotError, setForgotError] = useState('');
-  const [forgotSent, setForgotSent] = useState(false);
-  const emailInputRef = useRef<HTMLInputElement>(null);
-  const passwordInputRef = useRef<HTMLInputElement>(null);
-
-  // Chrome/Safari tự điền email+mật khẩu đã lưu THẲNG vào DOM khi tải lại
-  // trang, không bắn sự kiện onChange của React — nên state (và nút "Đăng
-  // nhập" khoá theo state) không hay biết gì, trông như nút bị "kẹt" disable
-  // cho tới khi người dùng bấm/gõ lại. Đọc thẳng giá trị DOM ngay sau khi
-  // mount để đồng bộ lại state, khớp với autofill.
-  useEffect(() => {
-    const t = setTimeout(() => {
-      if (emailInputRef.current?.value) setEmail(emailInputRef.current.value);
-      if (passwordInputRef.current?.value) setPassword(passwordInputRef.current.value);
-    }, 300);
-    return () => clearTimeout(t);
-  }, []);
-
-  // Kết quả đăng nhập Google (signInWithRedirect) chỉ có được SAU KHI trang
-  // tải lại — AuthProvider tự kiểm tra qua getRedirectResult() và đẩy lỗi
-  // (nếu có) ra đây qua context, vì handleGoogleLogin() bên dưới không còn
-  // "chờ được" tới lúc xong như kiểu popup cũ nữa.
-  useEffect(() => {
-    if (authError) {
-      setError(friendlyAuthError(authError.startsWith('auth/') ? { code: authError } : { message: authError }));
-      clearAuthError();
-    }
-  }, [authError, clearAuthError]);
-
-  const handleForgotPassword = async () => {
-    if (!forgotEmail.trim()) return;
-    setForgotError('');
-    setForgotSending(true);
-    try {
-      await resetPasswordEmail(forgotEmail.trim());
-      setForgotSent(true);
-    } catch (e: any) {
-      setForgotError(friendlyAuthError(e));
-    } finally {
-      setForgotSending(false);
-    }
-  };
-
-  const closeForgotDialog = () => {
-    setForgotOpen(false);
-    setForgotEmail('');
-    setForgotError('');
-    setForgotSent(false);
-  };
-
-  const handleGoogleLogin = async () => {
-    setError('');
-    setInfo('');
-    setGoogleLoading(true);
-    try {
-      await login();
-    } catch (e: any) {
-      setError(friendlyAuthError(e));
-    } finally {
-      setGoogleLoading(false);
-    }
-  };
-
-  const handlePasswordSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const emailVal = emailInputRef.current?.value ?? email;
-    const passwordVal = passwordInputRef.current?.value ?? password;
-    if (!emailVal.trim() || !passwordVal) return;
-    setError('');
-    setInfo('');
-    setPasswordLoading(true);
-    try {
-      await loginWithPassword(emailVal.trim(), passwordVal);
-    } catch (e: any) {
-      setError(friendlyAuthError(e));
-    } finally {
-      setPasswordLoading(false);
-    }
-  };
 
   if (profile) {
     return <Navigate to="/" replace />;
