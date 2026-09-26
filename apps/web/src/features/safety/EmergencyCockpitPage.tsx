@@ -18,6 +18,7 @@ import { StatusChip } from './components/StatusChip';
 import { PriorityChip } from './components/PriorityChip';
 import { useIncidents } from './hooks/useIncidents';
 import { CAMPUS_LABEL, SLA_CLOCK_LABEL } from './constants';
+import { useIsMobileViewport } from '../../hooks/useIsMobileViewport';
 
 function formatDateTime(iso?: string) {
   if (!iso) return '—';
@@ -29,6 +30,7 @@ function formatDateTime(iso?: string) {
 }
 
 export default function EmergencyCockpitPage() {
+  const isMobile = useIsMobileViewport();
   const { items, loading, error, refetch } = useIncidents({ priorities: ['P0', 'P1'] });
 
   // Poll lại mỗi 30s — Phase 1 chưa có websocket/live update.
@@ -41,7 +43,7 @@ export default function EmergencyCockpitPage() {
   const open = items.filter((it) => it.state !== 'Đã đóng' && it.state !== 'Trùng' && it.state !== 'Tin rác');
 
   return (
-    <>
+    <Box sx={{ p: isMobile ? 2 : 0, pb: isMobile ? 4 : 0 }}>
       <PageHeader
         title="Cockpit khẩn cấp"
         icon={<WarningAmberIcon />}
@@ -107,6 +109,6 @@ export default function EmergencyCockpitPage() {
           ))}
         </Stack>
       )}
-    </>
+    </Box>
   );
 }

@@ -164,9 +164,14 @@ export function App() {
         path="/safety/incidents/:id"
         element={pResponsive(<IncidentDetailPage />, <IncidentDetailPage />, ROLES_SAFETY_STAFF)}
       />
-      <Route path="/safety/cockpit" element={p(<EmergencyCockpitPage />, ROLES_SAFETY_STAFF)} />
-      <Route path="/safety/audit-logs" element={p(<AuditLogPage />, ROLES_SAFETY_STAFF)} />
-      <Route path="/safety/analytics" element={p(<AnalyticsPage />, ROLES_SAFETY_STAFF)} />
+      {/* Bỏ khung AppShell desktop trên điện thoại cho cả 3 trang này —
+          cùng cơ chế pResponsive như /safety/cases. Cockpit (danh sách thẻ
+          P0/P1) đã sẵn hợp mobile, chỉ cần bỏ khung; Audit log/Analytics
+          vẫn còn bảng cần cuộn ngang (đã có cuộn mượt ở theme dùng chung)
+          — card-list riêng cho 2 trang này là việc cần làm tiếp theo. */}
+      <Route path="/safety/cockpit" element={pResponsive(<EmergencyCockpitPage />, <EmergencyCockpitPage />, ROLES_SAFETY_STAFF)} />
+      <Route path="/safety/audit-logs" element={pResponsive(<AuditLogPage />, <AuditLogPage />, ROLES_SAFETY_STAFF)} />
+      <Route path="/safety/analytics" element={pResponsive(<AnalyticsPage />, <AnalyticsPage />, ROLES_SAFETY_STAFF)} />
       {/* Module Lịch công tác và Giao việc — hệ quyền R.* riêng
           (work-schedule.authz.ts), khớp thiết kế của Mr Tiến (nguyên văn
           trong TICH_HOP_MODULE_LICH_CONG_TAC.md). Gate advisory only. */}

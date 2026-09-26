@@ -22,6 +22,7 @@ import InsightsRoundedIcon from '@mui/icons-material/InsightsRounded';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
 import { CAMPUS_IDS, CAMPUS_LABEL } from './constants';
+import { useIsMobileViewport } from '../../hooks/useIsMobileViewport';
 
 /**
  * Phân tích & thống kê — gộp lại các block đã có backend từ trước
@@ -305,14 +306,15 @@ function ClassStatsPanel() {
 }
 
 export default function AnalyticsPage() {
+  const isMobile = useIsMobileViewport();
   const [tab, setTab] = useState(0);
 
   return (
-    <>
+    <Box sx={{ p: isMobile ? 2 : 0, pb: isMobile ? 4 : 0 }}>
       <PageHeader title="Phân tích & thống kê" icon={<InsightsRoundedIcon />} />
 
-      <Paper sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none', p: 2.5 }}>
-        <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2 }}>
+      <Paper sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none', p: isMobile ? 1.5 : 2.5 }}>
+        <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2 }} variant={isMobile ? 'scrollable' : 'standard'} scrollButtons={isMobile ? 'auto' : false} allowScrollButtonsMobile>
           <Tab label="Đề xuất xử lý" />
           <Tab label="So sánh cơ sở" />
           <Tab label="Theo lớp học" />
@@ -321,6 +323,6 @@ export default function AnalyticsPage() {
         {tab === 1 && <CampusComparisonPanel />}
         {tab === 2 && <ClassStatsPanel />}
       </Paper>
-    </>
+    </Box>
   );
 }

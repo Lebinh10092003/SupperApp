@@ -21,6 +21,7 @@ import {
 import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
+import { useIsMobileViewport } from '../../hooks/useIsMobileViewport';
 
 interface AuditLogEntry {
   logId: string;
@@ -91,6 +92,7 @@ const ACTION_LABEL: Record<string, string> = {
 };
 
 export default function AuditLogPage() {
+  const isMobile = useIsMobileViewport();
   const [objectId, setObjectId] = useState('');
   const [items, setItems] = useState<AuditLogEntry[]>([]);
   const [loading, setLoading] = useState(false);
@@ -137,7 +139,7 @@ export default function AuditLogPage() {
   };
 
   return (
-    <>
+    <Box sx={{ p: isMobile ? 2 : 0, pb: isMobile ? 4 : 0 }}>
       <PageHeader
         title="Nhật ký kiểm toán"
         icon={<HistoryRoundedIcon />}
@@ -150,9 +152,10 @@ export default function AuditLogPage() {
           onChange={(e) => setObjectId(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && load()}
           placeholder="VD: SC.2609.0001 — để trống xem gần đây nhất"
-          sx={{ minWidth: 320 }}
+          sx={{ minWidth: isMobile ? 0 : 320 }}
+          fullWidth={isMobile}
         />
-        <Button variant="contained" onClick={load} disabled={loading} sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}>
+        <Button variant="contained" onClick={load} disabled={loading} fullWidth={isMobile} sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}>
           Tra cứu
         </Button>
       </Stack>
@@ -234,6 +237,6 @@ export default function AuditLogPage() {
           <Button onClick={() => setDetail(null)}>Đóng</Button>
         </DialogActions>
       </Dialog>
-    </>
+    </Box>
   );
 }
