@@ -7,15 +7,26 @@ import { useAuth } from "../auth/AuthProvider";
 import { isFermatTechAdminEmail } from "../config/adminAccess";
 import { useIsMobileViewport } from "../hooks/useIsMobileViewport";
 import LoginPage from "../features/login/LoginPage";
-// Pilot UI di động (Ionic React) — Sin duyệt hướng 2026-09-25, xem nhánh
-// git feature/ionic-mobile-pilot. CỐ Ý lazy-load (KHÔNG import tĩnh như
-// các trang khác): @ionic/react kéo theo bộ CSS reset riêng, tách chunk
-// để KHÔNG lẫn vào bundle chính — chỉ tải khi `Responsive` (dưới) thật sự
-// chọn nhánh mobile, không ảnh hưởng bundle của bản desktop.
+// UI di động (antd-mobile) — xem nhánh git feature/ionic-mobile-pilot.
+// CỐ Ý lazy-load (KHÔNG import tĩnh như các trang khác): antd-mobile kéo
+// theo CSS/JS riêng, tách chunk để KHÔNG lẫn vào bundle chính — chỉ tải
+// khi `Responsive` (dưới) thật sự chọn nhánh mobile, không ảnh hưởng
+// bundle của bản desktop.
 const MobileMyIncidentsPage = lazy(() => import("../mobile/MobileMyIncidentsPage"));
 const MobileMyTasksPage = lazy(() => import("../mobile/MobileMyTasksPage"));
 const MobileClassroomPage = lazy(() => import("../mobile/MobileClassroomPage"));
 const MobileProfilePage = lazy(() => import("../mobile/MobileProfilePage"));
+// Sin: sau nhiều lần vá lỗi vặt (thanh tab kẹt/không phủ hết, nút trông
+// như web...) đã quyết định dừng lại, đổi hẳn sang bộ UI kit mobile
+// chuẩn (antd-mobile) thay vì tự dựng tay — 5 trang MUI trước đây tái sử
+// dụng NGUYÊN component desktop cho nhánh mobile giờ có TRANG MOBILE
+// RIÊNG (thư mục mobile/pages/), dùng chung LOGIC qua hook/API nhưng
+// khác hẳn lớp hiển thị — không còn tái dùng JSX desktop nữa.
+const MobileCasesListPage = lazy(() => import("../mobile/pages/MobileCasesListPage"));
+const MobileIncidentDetailPage = lazy(() => import("../mobile/pages/MobileIncidentDetailPage"));
+const MobileCockpitPage = lazy(() => import("../mobile/pages/MobileCockpitPage"));
+const MobileAuditLogPage = lazy(() => import("../mobile/pages/MobileAuditLogPage"));
+const MobileAnalyticsPage = lazy(() => import("../mobile/pages/MobileAnalyticsPage"));
 import DashboardPage from "../features/dashboard/DashboardPage";
 import TodayPage from "../features/today/TodayPage";
 import ClassesPage from "../features/classes/ClassesPage";
@@ -150,7 +161,7 @@ export function App() {
       {/* CasesListPage tự chuyển bảng -> card khi màn hình hẹp (component
           tự check useIsMobileViewport) — chỉ cần bỏ khung AppShell trên
           điện thoại như các trang mobile khác, không cần 2 component. */}
-      <Route path="/safety/cases" element={pResponsive(<CasesListPage />, <CasesListPage />, ROLES_SAFETY_STAFF)} />
+      <Route path="/safety/cases" element={pResponsive(<CasesListPage />, <MobileCasesListPage />, ROLES_SAFETY_STAFF)} />
       {/* 2 route cũ giữ lại làm redirect — tránh vỡ link cũ đã lưu/đã gửi
           (bookmark, email, chuông thông báo lịch sử trước ngày gộp). */}
       <Route path="/safety/reports/pending" element={<Navigate to="/safety/cases" replace />} />
@@ -162,16 +173,16 @@ export function App() {
           sách" riêng, không phụ thuộc AppShell. */}
       <Route
         path="/safety/incidents/:id"
-        element={pResponsive(<IncidentDetailPage />, <IncidentDetailPage />, ROLES_SAFETY_STAFF)}
+        element={pResponsive(<IncidentDetailPage />, <MobileIncidentDetailPage />, ROLES_SAFETY_STAFF)}
       />
       {/* Bỏ khung AppShell desktop trên điện thoại cho cả 3 trang này —
           cùng cơ chế pResponsive như /safety/cases. Cockpit (danh sách thẻ
           P0/P1) đã sẵn hợp mobile, chỉ cần bỏ khung; Audit log/Analytics
           vẫn còn bảng cần cuộn ngang (đã có cuộn mượt ở theme dùng chung)
           — card-list riêng cho 2 trang này là việc cần làm tiếp theo. */}
-      <Route path="/safety/cockpit" element={pResponsive(<EmergencyCockpitPage />, <EmergencyCockpitPage />, ROLES_SAFETY_STAFF)} />
-      <Route path="/safety/audit-logs" element={pResponsive(<AuditLogPage />, <AuditLogPage />, ROLES_SAFETY_STAFF)} />
-      <Route path="/safety/analytics" element={pResponsive(<AnalyticsPage />, <AnalyticsPage />, ROLES_SAFETY_STAFF)} />
+      <Route path="/safety/cockpit" element={pResponsive(<EmergencyCockpitPage />, <MobileCockpitPage />, ROLES_SAFETY_STAFF)} />
+      <Route path="/safety/audit-logs" element={pResponsive(<AuditLogPage />, <MobileAuditLogPage />, ROLES_SAFETY_STAFF)} />
+      <Route path="/safety/analytics" element={pResponsive(<AnalyticsPage />, <MobileAnalyticsPage />, ROLES_SAFETY_STAFF)} />
       {/* Module Lịch công tác và Giao việc — hệ quyền R.* riêng
           (work-schedule.authz.ts), khớp thiết kế của Mr Tiến (nguyên văn
           trong TICH_HOP_MODULE_LICH_CONG_TAC.md). Gate advisory only. */}

@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense } from 'react';
+import { useState } from 'react';
 import {
   Alert,
   Box,
@@ -21,11 +21,7 @@ import {
 import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
-import { useIsMobileViewport } from '../../hooks/useIsMobileViewport';
-
-// Xem ghi chú ở CasesListPage.tsx — bỏ khung AppShell trên điện thoại làm
-// mất điều hướng, thêm lại thanh tab dưới cùng (lazy-load riêng).
-const MobileTabBar = lazy(() => import('../../mobile/MobileTabBar').then((m) => ({ default: m.MobileTabBar })));
+import { ACTION_LABEL } from './auditActionLabels';
 
 interface AuditLogEntry {
   logId: string;
@@ -46,57 +42,7 @@ interface AuditLogEntry {
  */
 const PAGE_SIZE = 50;
 
-/** Toàn bộ giá trị `action` thật ghi vào audit_logs — đối chiếu trực tiếp từng file backend (report-flow.ts/incident-lifecycle.ts/evidence.ts/safety-query.routes.ts/directory-assignments.ts), không suy đoán. */
-const ACTION_LABEL: Record<string, string> = {
-  'audit.read': 'Xem nhật ký kiểm toán',
-  'catalog.edit': 'Sửa danh mục/danh bạ',
-  'config.grade_supervisor_assignment_edited': 'Gán giáo viên phụ trách khối',
-  'config.homeroom_assignment_edited': 'Gán giáo viên chủ nhiệm',
-  'evidence.download_url_issued': 'Cấp link tải minh chứng',
-  'evidence.scan_infected_deleted': 'Xoá minh chứng nhiễm mã độc',
-  'incident.acknowledged': 'Tự tiếp nhận (trở thành chỉ huy)',
-  'incident.participant_added': 'Thêm người tham gia xử lý',
-  'incident.participant_joined': 'Tự tham gia sự vụ',
-  'incident.participant_left': 'Rời khỏi sự vụ',
-  'incident.merged_duplicate': 'Gộp sự vụ trùng nhau',
-  'incident.cancel_acknowledgment_requested': 'Yêu cầu huỷ tiếp nhận',
-  'incident.acknowledgment_cancelled': 'Đã duyệt huỷ tiếp nhận',
-  'incident.cancel_acknowledgment_rejected': 'Từ chối yêu cầu huỷ tiếp nhận',
-  'incident.assign_commander': 'Chỉ định chỉ huy hồ sơ',
-  'incident.classification_corrected': 'Đã sửa phân loại hồ sơ',
-  'incident.close': 'Đóng hồ sơ',
-  'incident.close_confirmed_by_reporter': 'Người báo tin xác nhận đóng hồ sơ',
-  'incident.correct_classification': 'Yêu cầu sửa phân loại hồ sơ',
-  'incident.priority_changed': 'Đổi mức ưu tiên',
-  'incident.reassign_commander': 'Đổi chỉ huy hồ sơ',
-  'incident.reopen': 'Mở lại hồ sơ',
-  'incident.state_changed': 'Đổi trạng thái hồ sơ',
-  'incident.view': 'Xem hồ sơ',
-  'incident.view_c1_c2': 'Xem hồ sơ (C1–C2)',
-  'incident.view_c3': 'Xem hồ sơ (C3)',
-  'incident.view_c4': 'Xem hồ sơ (C4)',
-  'incident.view_campus_comparison': 'Xem so sánh cơ sở',
-  'incident.view_class_stats': 'Xem thống kê theo lớp',
-  'incident.view_evidence': 'Xem minh chứng',
-  'incident.view_stats': 'Xem thống kê an toàn',
-  'incident.view_trend_alerts': 'Xem cảnh báo xu hướng',
-  'notify.acknowledged': 'Xác nhận đã nhận thông báo',
-  read: 'Xem',
-  'safety.incident.created': 'Tạo hồ sơ sự cố',
-  'safety.incident.homeroom_notified': 'Đã báo giáo viên chủ nhiệm',
-  'safety.incident.p0_activated': 'Kích hoạt khẩn cấp P0',
-  'safety.incident.p1_escalation_notified': 'Leo thang thông báo P1',
-  'safety.incident.p1_no_recipients': 'P1 không có người nhận thông báo',
-  'safety.report.merged': 'Gộp tin báo vào hồ sơ',
-  'safety.report.received': 'Tiếp nhận tin báo',
-  'safety.report.reporter_notified': 'Đã báo người báo tin',
-  'safety.report.urgent_no_recipients': 'Tin khẩn không có người nhận',
-  'safety.report.urgent_notified': 'Đã báo tin khẩn',
-  'safety.report.view': 'Xem tin báo'
-};
-
 export default function AuditLogPage() {
-  const isMobile = useIsMobileViewport();
   const [objectId, setObjectId] = useState('');
   const [items, setItems] = useState<AuditLogEntry[]>([]);
   const [loading, setLoading] = useState(false);
@@ -143,7 +89,7 @@ export default function AuditLogPage() {
   };
 
   return (
-    <Box sx={{ p: isMobile ? 2 : 0, pb: isMobile ? 2 : 0 }}>
+    <>
       <PageHeader
         title="Nhật ký kiểm toán"
         icon={<HistoryRoundedIcon />}
@@ -156,10 +102,9 @@ export default function AuditLogPage() {
           onChange={(e) => setObjectId(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && load()}
           placeholder="VD: SC.2609.0001 — để trống xem gần đây nhất"
-          sx={{ minWidth: isMobile ? 0 : 320 }}
-          fullWidth={isMobile}
+          sx={{ minWidth: 320 }}
         />
-        <Button variant="contained" onClick={load} disabled={loading} fullWidth={isMobile} sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}>
+        <Button variant="contained" onClick={load} disabled={loading} sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}>
           Tra cứu
         </Button>
       </Stack>
@@ -241,19 +186,6 @@ export default function AuditLogPage() {
           <Button onClick={() => setDetail(null)}>Đóng</Button>
         </DialogActions>
       </Dialog>
-
-      {isMobile && (
-        // mx âm để phá ra hết viền màn hình — Box cha có padding 16px
-        // (p: isMobile ? 2 : 0) khiến thanh tab "sticky" bị co hẹp lại,
-        // không phủ hết chiều ngang như bản "fixed" (Sin phát hiện, so
-        // sánh trực tiếp 2 ảnh chụp: tab "An toàn" phủ hết, tab ở trang
-        // này thì không).
-        <Box sx={{ mx: -2 }}>
-          <Suspense fallback={null}>
-            <MobileTabBar mode="sticky" />
-          </Suspense>
-        </Box>
-      )}
-    </Box>
+    </>
   );
 }

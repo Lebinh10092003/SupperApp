@@ -8,7 +8,7 @@
  * PR #12) — trước đó dùng `useIncidentsTemp` tạm thời cùng interface,
  * đã xoá sau khi Chunk A merge.
  */
-import { useEffect, lazy, Suspense } from 'react';
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Alert, Box, Card, CardContent, Chip, CircularProgress, Stack, Typography } from '@mui/material';
 import WarningAmberIcon from '@mui/icons-material/WarningAmberRounded';
@@ -18,11 +18,6 @@ import { StatusChip } from './components/StatusChip';
 import { PriorityChip } from './components/PriorityChip';
 import { useIncidents } from './hooks/useIncidents';
 import { CAMPUS_LABEL, SLA_CLOCK_LABEL } from './constants';
-import { useIsMobileViewport } from '../../hooks/useIsMobileViewport';
-
-// Xem ghi chú ở CasesListPage.tsx — bỏ khung AppShell trên điện thoại làm
-// mất điều hướng, thêm lại thanh tab dưới cùng (lazy-load riêng).
-const MobileTabBar = lazy(() => import('../../mobile/MobileTabBar').then((m) => ({ default: m.MobileTabBar })));
 
 function formatDateTime(iso?: string) {
   if (!iso) return '—';
@@ -34,7 +29,6 @@ function formatDateTime(iso?: string) {
 }
 
 export default function EmergencyCockpitPage() {
-  const isMobile = useIsMobileViewport();
   const { items, loading, error, refetch } = useIncidents({ priorities: ['P0', 'P1'] });
 
   // Poll lại mỗi 30s — Phase 1 chưa có websocket/live update.
@@ -47,7 +41,7 @@ export default function EmergencyCockpitPage() {
   const open = items.filter((it) => it.state !== 'Đã đóng' && it.state !== 'Trùng' && it.state !== 'Tin rác');
 
   return (
-    <Box sx={{ p: isMobile ? 2 : 0, pb: isMobile ? 2 : 0 }}>
+    <>
       <PageHeader
         title="Cockpit khẩn cấp"
         icon={<WarningAmberIcon />}
@@ -113,19 +107,6 @@ export default function EmergencyCockpitPage() {
           ))}
         </Stack>
       )}
-
-      {isMobile && (
-        // mx âm để phá ra hết viền màn hình — Box cha có padding 16px
-        // (p: isMobile ? 2 : 0) khiến thanh tab "sticky" bị co hẹp lại,
-        // không phủ hết chiều ngang như bản "fixed" (Sin phát hiện, so
-        // sánh trực tiếp 2 ảnh chụp: tab "An toàn" phủ hết, tab ở trang
-        // này thì không).
-        <Box sx={{ mx: -2 }}>
-          <Suspense fallback={null}>
-            <MobileTabBar mode="sticky" />
-          </Suspense>
-        </Box>
-      )}
-    </Box>
+    </>
   );
 }

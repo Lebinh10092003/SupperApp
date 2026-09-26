@@ -1,43 +1,24 @@
 /**
- * MobileMyIncidentsPage.tsx — pilot màn hình "Sự vụ của tôi" theo phong
- * cách Ionic, DÙNG DỮ LIỆU THẬT qua đúng hook `useIncidents` đã có sẵn
- * (KHÔNG tạo API/hook riêng — tái dùng nguyên logic đang chạy ở
- * MyIncidentsSection.tsx, chỉ đổi lớp hiển thị). Tự động hiện thay cho
- * bản desktop khi mở "/" hoặc "/safety" trên màn hình hẹp — xem
- * `pResponsive`/`Responsive` ở App.tsx (không còn URL riêng).
+ * MobileMyIncidentsPage.tsx — màn hình "Sự vụ của tôi", dùng component
+ * antd-mobile (Tabs/SearchBar/Card/FloatingBubble) — DÙNG DỮ LIỆU THẬT
+ * qua đúng hook `useIncidents` đã có sẵn (không tạo API riêng). Tự động
+ * hiện thay cho bản desktop khi mở "/" hoặc "/safety" trên màn hình hẹp —
+ * xem `pResponsive`/`Responsive` ở App.tsx.
+ *
+ * Đã BỎ HẲN @ionic/react (xem MobileTabBar.tsx để biết lý do: onClick bị
+ * chặn ngoài IonTabs, CSS structure.css phá cuộn body toàn app) — đổi
+ * sang antd-mobile, cùng bộ với các trang mobile khác trong app cho đồng
+ * bộ (Sin: "phải tham khảo UI mobile chứ không phải áp web vào").
  */
 import { useMemo, useState } from 'react';
-import {
-  IonPage,
-  IonContent,
-  IonSearchbar,
-  IonSegment,
-  IonSegmentButton,
-  IonLabel,
-  IonCard,
-  IonCardContent,
-  IonChip,
-  IonFabButton,
-  IonFab,
-  IonIcon,
-  IonSpinner,
-  setupIonicReact
-} from '@ionic/react';
-// CSS thật của Ionic — CỐ Ý import ngay trong file của route lazy-load
-// này (không import ở main.tsx toàn cục) để reset CSS của Ionic KHÔNG
-// lẫn vào các trang MUI khác, chỉ áp dụng khi chunk này được tải.
-import '@ionic/react/css/core.css';
-import '@ionic/react/css/normalize.css';
-import '@ionic/react/css/structure.css';
-import '@ionic/react/css/typography.css';
-
-setupIonicReact({ mode: 'md' });
-import { addOutline } from 'ionicons/icons';
+import { Tabs, SearchBar, Card, Tag, FloatingBubble, SpinLoading } from 'antd-mobile';
+import { AddOutline } from 'antd-mobile-icons';
+import { Box, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useIncidents, type IncidentListItem } from '../features/safety/hooks/useIncidents';
 import { useActor } from '../features/safety/hooks/useActor';
+import { MobileScreenShell } from './MobileScreenShell';
 import { MobileTabBar } from './MobileTabBar';
-import { useIonicBodyScrollFix } from '../hooks/useIonicBodyScrollFix';
 
 const TERMINAL_STATES = new Set(['Đã đóng', 'Trùng', 'Tin rác']);
 
@@ -59,14 +40,11 @@ function formatRelative(iso?: string): string {
 }
 
 export default function MobileMyIncidentsPage() {
-  useIonicBodyScrollFix();
   const { actor } = useActor();
   const [tab, setTab] = useState<'open' | 'closed'>('open');
   const [search, setSearch] = useState('');
   const navigate = useNavigate();
 
-  // Tái dùng NGUYÊN hook thật — cùng nguồn dữ liệu với bản desktop
-  // (MyIncidentsSection.tsx), không phải dữ liệu giả lập cho demo.
   const { items, loading, error } = useIncidents({ onlyMine: true, limit: 500 });
 
   const filtered = useMemo(() => {
@@ -81,89 +59,91 @@ export default function MobileMyIncidentsPage() {
   const openCount = items.filter((it) => !TERMINAL_STATES.has(it.state)).length;
 
   return (
-    <IonPage>
-      <IonContent style={{ '--background': '#f4f5f7' } as any}>
-        <div style={{ padding: '16px 16px 4px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-            <div>
-              <p style={{ fontSize: 13, color: '#2563eb', fontWeight: 600, margin: '0 0 2px' }}>Cảnh báo an toàn</p>
-              <h1 style={{ fontFamily: 'inherit', fontWeight: 800, fontSize: 28, margin: '0 0 14px' }}>Sự vụ của tôi</h1>
-            </div>
-            {/* Sin báo thiếu lối vào xem TOÀN BỘ sự vụ (không chỉ của
-                mình) — trước đây chỉ tới được qua "Quay lại danh sách"
-                sau khi lỡ mở 1 hồ sơ, không hợp lý. */}
-            <button
-              type="button"
-              onClick={() => navigate('/safety/cases')}
-              style={{ border: 'none', background: 'none', color: '#2563eb', fontSize: 13, fontWeight: 700, padding: '6px 0 14px', WebkitTapHighlightColor: 'transparent' }}
-            >
-              Tất cả sự vụ ›
-            </button>
-          </div>
-          <IonSegment value={tab} onIonChange={(e) => setTab((e.detail.value as 'open' | 'closed') || 'open')}>
-            <IonSegmentButton value="open">
-              <IonLabel>Đang mở ({openCount})</IonLabel>
-            </IonSegmentButton>
-            <IonSegmentButton value="closed">
-              <IonLabel>Đã xử lý</IonLabel>
-            </IonSegmentButton>
-          </IonSegment>
-        </div>
+    <MobileScreenShell tabBar={<MobileTabBar activeCount={openCount} />} contentPadding={false}>
+      <Box sx={{ p: 2, pb: 0.5, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        <Box>
+          <Typography variant="caption" sx={{ color: '#2563eb', fontWeight: 700 }}>
+            Cảnh báo an toàn
+          </Typography>
+          <Typography variant="h5" fontWeight={800} sx={{ mt: 0.25 }}>
+            Sự vụ của tôi
+          </Typography>
+        </Box>
+        {/* Sin báo thiếu lối vào xem TOÀN BỘ sự vụ (không chỉ của mình) —
+            trước đây chỉ tới được qua "Quay lại danh sách" sau khi lỡ mở
+            1 hồ sơ, không hợp lý. */}
+        <Typography
+          component="button"
+          onClick={() => navigate('/safety/cases')}
+          sx={{ border: 'none', background: 'none', color: '#2563eb', fontSize: 13, fontWeight: 700, p: 0, cursor: 'pointer' }}
+        >
+          Tất cả sự vụ ›
+        </Typography>
+      </Box>
 
-        <IonSearchbar
-          value={search}
-          onIonInput={(e) => setSearch(e.detail.value || '')}
-          placeholder="Tìm theo mã hồ sơ, lớp..."
-          debounce={200}
-        />
+      <Tabs activeKey={tab} onChange={(k) => setTab(k as 'open' | 'closed')}>
+        <Tabs.Tab title={`Đang mở (${openCount})`} key="open" />
+        <Tabs.Tab title="Đã xử lý" key="closed" />
+      </Tabs>
 
-        {loading && (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}>
-            <IonSpinner />
-          </div>
-        )}
-        {error && <p style={{ padding: 16, color: '#dc2626', fontSize: 14 }}>{error}</p>}
-        {!loading && !error && filtered.length === 0 && (
-          <p style={{ padding: 16, color: '#64748b', fontSize: 14, textAlign: 'center' }}>Không có hồ sơ nào trong mục này.</p>
-        )}
+      <Box sx={{ p: 2, pb: 1 }}>
+        <SearchBar placeholder="Tìm theo mã hồ sơ, lớp..." value={search} onChange={setSearch} />
+      </Box>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '4px 12px 100px' }}>
-          {filtered.map((it: IncidentListItem) => {
-            const p = it.priority ? PRIORITY_STYLE[it.priority] : PRIORITY_STYLE.P3;
-            const isCommander = actor?.perId && it.commanderPerId === actor.perId;
-            return (
-              <IonCard key={it.incidentId} button onClick={() => navigate(`/safety/incidents/${it.incidentId}`)} style={{ margin: 0, borderRadius: 16 }}>
-                <IonCardContent>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                    <span style={{ fontSize: 12.5, color: '#64748b', fontWeight: 600 }}>{it.incidentId}</span>
-                    <IonChip style={{ background: p.bg, color: p.fg, fontWeight: 800, fontSize: 11.5, height: 22, margin: 0 }}>
-                      {it.priority ? p.label : 'Chưa phân loại'}
-                    </IonChip>
-                  </div>
-                  <div style={{ fontSize: 15.5, fontWeight: 700, margin: '6px 0', lineHeight: 1.35 }}>
-                    {it.categoryLabel || it.categoryCode}
-                    {it.className ? ` — lớp ${it.className}` : ''}
-                  </div>
-                  <div style={{ fontSize: 13, color: '#64748b' }}>
-                    {isCommander ? 'Bạn là chỉ huy' : it.commanderName ? `Chỉ huy: ${it.commanderName}` : 'Chưa có ai tiếp nhận'}
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
-                    <span style={{ fontSize: 12, fontWeight: 700 }}>{it.state}</span>
-                    <span style={{ fontSize: 12, color: '#94a3b8' }}>{formatRelative(it.updatedAt)}</span>
-                  </div>
-                </IonCardContent>
-              </IonCard>
-            );
-          })}
-        </div>
+      {loading && (
+        <Box sx={{ display: 'grid', placeItems: 'center', py: 5 }}>
+          <SpinLoading />
+        </Box>
+      )}
+      {error && (
+        <Typography color="error" sx={{ px: 2 }}>
+          {error}
+        </Typography>
+      )}
+      {!loading && !error && filtered.length === 0 && (
+        <Typography color="text.secondary" align="center" sx={{ py: 4 }}>
+          Không có hồ sơ nào trong mục này.
+        </Typography>
+      )}
 
-        <IonFab vertical="bottom" horizontal="end" style={{ bottom: 84 }}>
-          <IonFabButton color="primary" onClick={() => navigate('/safety/report')}>
-            <IonIcon icon={addOutline} />
-          </IonFabButton>
-        </IonFab>
-      </IonContent>
-      <MobileTabBar activeCount={openCount} />
-    </IonPage>
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25, px: 2, pb: 2 }}>
+        {filtered.map((it: IncidentListItem) => {
+          const p = it.priority ? PRIORITY_STYLE[it.priority] : PRIORITY_STYLE.P3;
+          const isCommander = actor?.perId && it.commanderPerId === actor.perId;
+          return (
+            <Card key={it.incidentId} onClick={() => navigate(`/safety/incidents/${it.incidentId}`)} style={{ cursor: 'pointer' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1 }}>
+                <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600 }}>
+                  {it.incidentId}
+                </Typography>
+                <Tag style={{ '--background-color': p.bg, '--text-color': p.fg } as any}>{it.priority ? p.label : 'Chưa phân loại'}</Tag>
+              </Box>
+              <Typography variant="body1" sx={{ fontWeight: 700, my: 0.5, lineHeight: 1.35 }}>
+                {it.categoryLabel || it.categoryCode}
+                {it.className ? ` — lớp ${it.className}` : ''}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {isCommander ? 'Bạn là chỉ huy' : it.commanderName ? `Chỉ huy: ${it.commanderName}` : 'Chưa có ai tiếp nhận'}
+              </Typography>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
+                <Typography variant="caption" fontWeight={700}>
+                  {it.state}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {formatRelative(it.updatedAt)}
+                </Typography>
+              </Box>
+            </Card>
+          );
+        })}
+      </Box>
+
+      <FloatingBubble
+        onClick={() => navigate('/safety/report')}
+        style={{ '--initial-position-bottom': '84px', '--initial-position-right': '24px', '--background': '#2563eb' } as any}
+      >
+        <AddOutline fontSize={26} color="#fff" />
+      </FloatingBubble>
+    </MobileScreenShell>
   );
 }

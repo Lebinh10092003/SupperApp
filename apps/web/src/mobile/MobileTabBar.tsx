@@ -1,134 +1,61 @@
 /**
- * MobileTabBar.tsx — thanh điều hướng dưới cùng kiểu app di động thật,
- * pilot 2026-09-25 sau khi Sin duyệt hướng "sửa UI mobile theo Ionic
- * React" (xem demo artifact trước đó). CỐ Ý KHÔNG dùng
- * `@ionic/react-router` (package đó yêu cầu react-router-dom <6, dự án
- * đang ở v7) — tự điều hướng bằng `useNavigate`/`useLocation` của
- * react-router-dom v7 sẵn có.
+ * MobileTabBar.tsx — thanh điều hướng dưới cùng, dùng component `TabBar`
+ * thật của thư viện antd-mobile (không tự dựng tay nữa).
  *
- * BUG THẬT đã tìm ra + tự kiểm chứng bằng DevTools 2026-09-26 (Sin báo
- * "bấm cái nào cũng đẩy về An toàn", sau đó 1 bản vá tạm còn làm CRASH
- * TRẮNG MÀN HÌNH — đã rollback ngay và ghi lại ở đây để không lặp lại):
+ * LỊCH SỬ 3 LẦN SỬA THẤT BẠI TRƯỚC ĐÓ (2026-09-26, tự dựng tay bằng
+ * `<button>` + CSS `position`) — giữ lại để không lặp lại:
+ *  1. `IonTabButton` của @ionic/react tự bóc `onClick` khi đứng ngoài
+ *     `<IonTabs>` → bấm không chạy.
+ *  2. `position:fixed` + `transform:translateZ(0)` (ép layer GPU) — Sin
+ *     xác nhận trên iPhone thật VẪN bị trôi/kẹt khi cuộn chạm (lỗi nền
+ *     tảng iOS Safari với fixed + cuộn quán tính, không phải lỗi code).
+ *  3. `position:sticky` — hết trôi khi cuộn, nhưng Sin chỉ ra ĐÚNG:
+ *     sticky ở CUỐI nội dung trang chỉ "dính" khi cuộn TỚI gần đó, không
+ *     hiện xuyên suốt như 1 thanh điều hướng thật phải có — sai bản chất
+ *     yêu cầu (phải LUÔN ở đáy màn hình bất kể cuộn tới đâu).
  *
- * `<IonTabBar>`/`<IonTabButton>` của @ionic/react được thiết kế để CHỈ
- * hoạt động đúng bên trong `<IonTabs>` (dùng prop `tab`/`href`, tự quản
- * lý route qua `IonTabsContext`). Đứng độc lập như ở đây:
- *  1) `onClick` trên `IonTabButton` bị chính component tự bóc khỏi DOM,
- *     chỉ gọi lại qua sự kiện nội bộ `ionTabButtonClick` — sự kiện đó cần
- *     `IonTabs` mới phát sinh đáng tin cậy → onClick không bao giờ chạy.
- *  2) Bọc `IonTabButton` bằng 1 thẻ `<div>` để né (1) làm hỏng LUÔN việc
- *     phân phối slot Shadow DOM của `ion-tab-bar` (`<slot>` chỉ nhận CON
- *     TRỰC TIẾP) → thanh tab biến mất hoàn toàn.
- *  3) Lấy `ref` trên `<IonTabBar>` để tự `querySelectorAll` KHÔNG trả về
- *     DOM node thật — nó forward tới `IonTabBarUnwrapped`, một
- *     `React.PureComponent` (class), nên `ref.current` là INSTANCE REACT,
- *     không có `.querySelectorAll` → `TypeError`, crash trắng toàn app
- *     (đã tự gây ra, tự phát hiện qua console error, rollback ngay).
- *
- * FIX DỨT ĐIỂM: bỏ hẳn `IonTabBar`/`IonTabButton`, tự dựng thanh tab bằng
- * phần tử HTML thường (`<button>`) — chỉ mượn `<IonIcon>` (thuần hiển
- * thị, không dính onClick) để giữ đúng bộ icon Ionic. `<button>` là
- * DOM/React chuẩn, onClick chắc chắn chạy, không có custom
- * element/shadow-DOM/class-ref nào để hỏng.
- *
- * BUG THỨ 2 — 2026-09-26 (Sin báo trên iPhone thật: thanh tab "trôi/kẹt"
- * giữa trang khi cuộn tay, dù đo bằng script cuộn lập trình
- * (`window.scrollTo`) trên DevTools thì vẫn đứng yên đúng đáy màn hình —
- * script không tái hiện được vì đây là lỗi CHỈ xảy ra với cử chỉ cuộn
- * chạm thật (touch/momentum scroll), không phải scroll lập trình). Thử
- * `transform: translateZ(0)` (ép layer GPU riêng, cách khắc phục tiêu
- * chuẩn cho `position:fixed` bị jank trên iOS Safari) — Sin xác nhận VẪN
- * còn bị, chưa hết.
- *
- * FIX LẦN 2: đổi hẳn từ `position:fixed` sang `position:sticky` cho 5
- * trang MUI thường (Sự vụ/chi tiết hồ sơ/Cockpit/Audit log/Phân tích) —
- * `sticky` được tính lại trong đúng luồng cuộn bình thường của trình
- * duyệt (không cần 1 layer composite riêng như `fixed`), theo nhiều báo
- * cáo là bền hơn hẳn trước lỗi jank khi cuộn chạm thật trên iOS Safari.
- * Prop `mode="sticky"` — 4 trang Ionic thật (An toàn/Lịch/Lớp học số/Cá
- * nhân) vẫn giữ `mode="fixed"` mặc định, KHÔNG đụng vào vì chưa có báo
- * lỗi ở đó (tránh gây thêm hồi quy như đã từng xảy ra 2 lần trong phiên
- * này).
+ * FIX ĐÚNG KIẾN TRÚC: bỏ hẳn CSS `position` tự chế — component này giờ
+ * THUẦN HIỂN THỊ, không tự định vị gì cả. Nó được đặt làm phần tử cuối
+ * cùng (không cuộn) trong `MobileScreenShell.tsx` — 1 khung flex-column
+ * cao đúng 100dvh, vùng nội dung MỚI là phần cuộn (overflow-y:auto),
+ * thanh tab nằm NGOÀI vùng cuộn nên không bao giờ cần "dính"/"cố định"
+ * bằng CSS position nữa — luôn ở đáy, không jank, không phụ thuộc hành vi
+ * cuộn quán tính của bất kỳ trình duyệt nào.
  */
-import { IonIcon, IonBadge } from '@ionic/react';
-import { shieldOutline, calendarOutline, schoolOutline, personCircleOutline } from 'ionicons/icons';
+import type { ReactNode } from 'react';
+import { TabBar } from 'antd-mobile';
+import { CheckShieldOutline, CalendarOutline, UserOutline } from 'antd-mobile-icons';
+import { SchoolOutline } from './icons/SchoolOutline';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 interface TabDef {
   path: string;
   matchPaths: string[];
-  icon: string;
-  label: string;
+  icon: ReactNode;
+  title: string;
 }
 
 // Trỏ thẳng vào ĐÚNG URL desktop đã dùng (/safety, /work-schedule/tasks,
-// /classroom) — không còn "/mobile-preview/..." riêng (Sin phản hồi
-// 2026-09-25 lần 2: không muốn bị dẫn sang link khác, giao diện phải tự
-// đổi ngay trên URL người dùng đang mở qua `pResponsive` ở App.tsx).
+// /classroom) — không có "/mobile-preview/..." riêng (Sin: không muốn bị
+// dẫn sang link khác, giao diện phải tự đổi ngay trên URL đang mở).
 // "/account" là trang mới (hồ sơ cá nhân), chưa có ở bản desktop.
 const TABS: TabDef[] = [
-  { path: '/safety', matchPaths: ['/', '/safety'], icon: shieldOutline, label: 'An toàn' },
-  { path: '/work-schedule/tasks', matchPaths: ['/work-schedule', '/work-schedule/tasks'], icon: calendarOutline, label: 'Lịch' },
-  { path: '/classroom', matchPaths: ['/classroom'], icon: schoolOutline, label: 'Lớp học số' },
-  { path: '/account', matchPaths: ['/account'], icon: personCircleOutline, label: 'Cá nhân' }
+  { path: '/safety', matchPaths: ['/', '/safety'], icon: <CheckShieldOutline />, title: 'An toàn' },
+  { path: '/work-schedule/tasks', matchPaths: ['/work-schedule', '/work-schedule/tasks'], icon: <CalendarOutline />, title: 'Lịch' },
+  { path: '/classroom', matchPaths: ['/classroom'], icon: <SchoolOutline />, title: 'Lớp học số' },
+  { path: '/account', matchPaths: ['/account'], icon: <UserOutline />, title: 'Cá nhân' }
 ];
 
-export function MobileTabBar({ activeCount, mode = 'fixed' }: { activeCount?: number; mode?: 'fixed' | 'sticky' }) {
+export function MobileTabBar({ activeCount }: { activeCount?: number }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const activeTab = TABS.find((t) => t.matchPaths.includes(location.pathname));
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        borderTop: '1px solid #e5e7eb',
-        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-        position: mode,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: '#fff',
-        zIndex: 10,
-        ...(mode === 'fixed'
-          ? { transform: 'translateZ(0)', WebkitTransform: 'translateZ(0)', WebkitBackfaceVisibility: 'hidden' as const, willChange: 'transform' }
-          : {})
-      }}
-    >
-      {TABS.map((t) => {
-        const isActive = t.matchPaths.includes(location.pathname);
-        const color = isActive ? '#2563eb' : '#64748b';
-        return (
-          <button
-            key={t.path}
-            type="button"
-            onClick={() => navigate(t.path)}
-            style={{
-              flex: 1,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 2,
-              padding: '6px 0',
-              border: 'none',
-              background: 'transparent',
-              color,
-              position: 'relative',
-              WebkitTapHighlightColor: 'transparent'
-            }}
-          >
-            <span style={{ position: 'relative' }}>
-              <IonIcon icon={t.icon} style={{ fontSize: 22 }} />
-              {t.label === 'An toàn' && !!activeCount && (
-                <IonBadge color="danger" style={{ position: 'absolute', top: -6, right: -10, fontSize: 10 }}>
-                  {activeCount}
-                </IonBadge>
-              )}
-            </span>
-            <span style={{ fontSize: 11, fontWeight: isActive ? 700 : 500 }}>{t.label}</span>
-          </button>
-        );
-      })}
-    </div>
+    <TabBar activeKey={activeTab?.path} onChange={(key) => navigate(key)} safeArea style={{ borderTop: '1px solid #e5e7eb', flexShrink: 0 }}>
+      {TABS.map((t) => (
+        <TabBar.Item key={t.path} icon={t.icon} title={t.title} badge={t.path === '/safety' && activeCount ? activeCount : undefined} />
+      ))}
+    </TabBar>
   );
 }

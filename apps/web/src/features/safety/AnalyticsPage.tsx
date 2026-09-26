@@ -1,4 +1,4 @@
-import { useEffect, useState, lazy, Suspense } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   Box,
@@ -22,11 +22,6 @@ import InsightsRoundedIcon from '@mui/icons-material/InsightsRounded';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
 import { CAMPUS_IDS, CAMPUS_LABEL } from './constants';
-import { useIsMobileViewport } from '../../hooks/useIsMobileViewport';
-
-// Xem ghi chú ở CasesListPage.tsx — bỏ khung AppShell trên điện thoại làm
-// mất điều hướng, thêm lại thanh tab dưới cùng (lazy-load riêng).
-const MobileTabBar = lazy(() => import('../../mobile/MobileTabBar').then((m) => ({ default: m.MobileTabBar })));
 
 /**
  * Phân tích & thống kê — gộp lại các block đã có backend từ trước
@@ -47,7 +42,11 @@ interface TrendAlert {
   severity: 'critical' | 'warning';
 }
 
-function TrendAlertsPanel() {
+// 3 panel export ra để MobileAnalyticsPage.tsx dùng lại nguyên — nội dung
+// bên trong (bảng + bộ lọc ngày/tháng) không phải phần Sin phàn nàn
+// "trông như web" (đó là khung điều hướng ngoài), nên giữ nguyên MUI y
+// hệt bản desktop, chỉ đổi khung/tab bên ngoài sang antd-mobile.
+export function TrendAlertsPanel() {
   const [alerts, setAlerts] = useState<TrendAlert[]>([]);
   const [error, setError] = useState('');
   const [categoryLabel, setCategoryLabel] = useState<Record<string, string>>({});
@@ -96,7 +95,7 @@ function TrendAlertsPanel() {
   );
 }
 
-function CampusComparisonPanel() {
+export function CampusComparisonPanel() {
   // Backend (`safety-stats.routes.ts` /stats/campus-comparison) đã nhận
   // sẵn `fromMonth`/`toMonth` từ đầu — trước đây chỉ CHƯA nối vào UI (Sin
   // phản hồi 2026-09-11: "thống kê cảnh báo an toàn... có sort và check
@@ -222,7 +221,7 @@ const RANGE_DAYS_OPTIONS = [
   { value: 'all', label: 'Toàn bộ thời gian' }
 ];
 
-function ClassStatsPanel() {
+export function ClassStatsPanel() {
   const [campusId, setCampusId] = useState('MAIN_CAMPUS');
   const [reason, setReason] = useState('');
   // Backend (`/stats/classes`) đã nhận sẵn `rangeDays` từ đầu — trước đây
@@ -310,15 +309,14 @@ function ClassStatsPanel() {
 }
 
 export default function AnalyticsPage() {
-  const isMobile = useIsMobileViewport();
   const [tab, setTab] = useState(0);
 
   return (
-    <Box sx={{ p: isMobile ? 2 : 0, pb: isMobile ? 2 : 0 }}>
+    <>
       <PageHeader title="Phân tích & thống kê" icon={<InsightsRoundedIcon />} />
 
-      <Paper sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none', p: isMobile ? 1.5 : 2.5 }}>
-        <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2 }} variant={isMobile ? 'scrollable' : 'standard'} scrollButtons={isMobile ? 'auto' : false} allowScrollButtonsMobile>
+      <Paper sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none', p: 2.5 }}>
+        <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2 }}>
           <Tab label="Đề xuất xử lý" />
           <Tab label="So sánh cơ sở" />
           <Tab label="Theo lớp học" />
@@ -327,19 +325,6 @@ export default function AnalyticsPage() {
         {tab === 1 && <CampusComparisonPanel />}
         {tab === 2 && <ClassStatsPanel />}
       </Paper>
-
-      {isMobile && (
-        // mx âm để phá ra hết viền màn hình — Box cha có padding 16px
-        // (p: isMobile ? 2 : 0) khiến thanh tab "sticky" bị co hẹp lại,
-        // không phủ hết chiều ngang như bản "fixed" (Sin phát hiện, so
-        // sánh trực tiếp 2 ảnh chụp: tab "An toàn" phủ hết, tab ở trang
-        // này thì không).
-        <Box sx={{ mx: -2 }}>
-          <Suspense fallback={null}>
-            <MobileTabBar mode="sticky" />
-          </Suspense>
-        </Box>
-      )}
-    </Box>
+    </>
   );
 }

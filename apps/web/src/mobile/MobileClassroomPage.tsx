@@ -1,22 +1,17 @@
 /**
- * MobileClassroomPage.tsx — tab "Lớp học số" trong bản pilot mobile.
- * Bản đọc-nhanh (read-only), gọi thẳng `GET /api/classroom` — cùng nguồn
- * dữ liệu với ClassroomPage.tsx bản desktop, chỉ đổi lớp hiển thị và bỏ
- * các thao tác quản trị (đồng bộ/xoá/gán lớp) vốn không phù hợp trên
- * điện thoại.
+ * MobileClassroomPage.tsx — tab "Lớp học số". Bản đọc-nhanh (read-only),
+ * gọi thẳng `GET /api/classroom` — cùng nguồn dữ liệu với
+ * ClassroomPage.tsx bản desktop, chỉ đổi lớp hiển thị và bỏ các thao tác
+ * quản trị (đồng bộ/xoá/gán lớp) vốn không phù hợp trên điện thoại. Đã bỏ
+ * @ionic/react, đổi sang antd-mobile.
  */
 import { useEffect, useState } from 'react';
-import { IonPage, IonContent, IonCard, IonCardContent, IonChip, IonSpinner, IonIcon, setupIonicReact } from '@ionic/react';
-import { openOutline } from 'ionicons/icons';
+import { Card, Tag, SpinLoading } from 'antd-mobile';
+import { LinkOutline } from 'antd-mobile-icons';
+import { Box, Typography } from '@mui/material';
 import { api } from '../services/api';
+import { MobileScreenShell } from './MobileScreenShell';
 import { MobileTabBar } from './MobileTabBar';
-import { useIonicBodyScrollFix } from '../hooks/useIonicBodyScrollFix';
-import '@ionic/react/css/core.css';
-import '@ionic/react/css/normalize.css';
-import '@ionic/react/css/structure.css';
-import '@ionic/react/css/typography.css';
-
-setupIonicReact({ mode: 'md' });
 
 interface CourseItem {
   id: string;
@@ -29,7 +24,6 @@ interface CourseItem {
 }
 
 export default function MobileClassroomPage() {
-  useIonicBodyScrollFix();
   const [items, setItems] = useState<CourseItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -44,67 +38,73 @@ export default function MobileClassroomPage() {
   const activeCount = items.filter((c) => c.courseState === 'ACTIVE').length;
 
   return (
-    <IonPage>
-      <IonContent style={{ '--background': '#f4f5f7' } as any}>
-        <div style={{ padding: '16px 16px 4px' }}>
-          <p style={{ fontSize: 13, color: '#2563eb', fontWeight: 600, margin: '0 0 2px' }}>Google Classroom</p>
-          <h1 style={{ fontFamily: 'inherit', fontWeight: 800, fontSize: 28, margin: '0 0 6px' }}>Lớp học số</h1>
-          <p style={{ fontSize: 13.5, color: '#64748b', margin: '0 0 14px' }}>{activeCount} lớp đang mở</p>
-        </div>
+    <MobileScreenShell tabBar={<MobileTabBar />} contentPadding={false}>
+      <Box sx={{ p: 2, pb: 0.5 }}>
+        <Typography variant="caption" sx={{ color: '#2563eb', fontWeight: 700 }}>
+          Google Classroom
+        </Typography>
+        <Typography variant="h5" fontWeight={800} sx={{ mt: 0.25 }}>
+          Lớp học số
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+          {activeCount} lớp đang mở
+        </Typography>
+      </Box>
 
-        {loading && (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}>
-            <IonSpinner />
-          </div>
-        )}
-        {error && <p style={{ padding: 16, color: '#dc2626', fontSize: 14 }}>{error}</p>}
-        {!loading && !error && items.length === 0 && (
-          <p style={{ padding: 16, color: '#64748b', fontSize: 14, textAlign: 'center' }}>Chưa có lớp học nào được đồng bộ.</p>
-        )}
+      {loading && (
+        <Box sx={{ display: 'grid', placeItems: 'center', py: 5 }}>
+          <SpinLoading />
+        </Box>
+      )}
+      {error && (
+        <Typography color="error" sx={{ px: 2 }}>
+          {error}
+        </Typography>
+      )}
+      {!loading && !error && items.length === 0 && (
+        <Typography color="text.secondary" align="center" sx={{ py: 4 }}>
+          Chưa có lớp học nào được đồng bộ.
+        </Typography>
+      )}
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '4px 12px 100px' }}>
-          {items.map((c) => {
-            const active = c.courseState === 'ACTIVE';
-            return (
-              <IonCard key={c.id} style={{ margin: 0, borderRadius: 16 }}>
-                <IonCardContent>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                    <div style={{ fontSize: 15.5, fontWeight: 700, lineHeight: 1.35, flex: 1 }}>{c.name}</div>
-                    <IonChip
-                      style={{
-                        background: active ? '#ecfdf5' : '#f1f5f9',
-                        color: active ? '#059669' : '#64748b',
-                        fontWeight: 800,
-                        fontSize: 11.5,
-                        height: 22,
-                        margin: 0,
-                        flexShrink: 0
-                      }}
-                    >
-                      {active ? 'Đang mở' : c.courseState || '—'}
-                    </IonChip>
-                  </div>
-                  {c.section && <div style={{ fontSize: 13, color: '#64748b', marginTop: 6 }}>{c.section}</div>}
-                  {(c.className || c.classId) && (
-                    <div style={{ fontSize: 12.5, color: '#94a3b8', marginTop: 2 }}>Đã gán lớp: {c.className || c.classId}</div>
-                  )}
-                  {c.alternateLink && (
-                    <a
-                      href={c.alternateLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 8, fontSize: 12.5, color: '#2563eb', textDecoration: 'none', fontWeight: 600 }}
-                    >
-                      Mở Google Classroom <IonIcon icon={openOutline} style={{ fontSize: 13 }} />
-                    </a>
-                  )}
-                </IonCardContent>
-              </IonCard>
-            );
-          })}
-        </div>
-      </IonContent>
-      <MobileTabBar />
-    </IonPage>
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25, px: 2, pb: 2 }}>
+        {items.map((c) => {
+          const active = c.courseState === 'ACTIVE';
+          return (
+            <Card key={c.id}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1 }}>
+                <Typography variant="body1" sx={{ fontWeight: 700, lineHeight: 1.35, flex: 1 }}>
+                  {c.name}
+                </Typography>
+                <Tag style={{ '--background-color': active ? '#ecfdf5' : '#f1f5f9', '--text-color': active ? '#059669' : '#64748b' } as any}>
+                  {active ? 'Đang mở' : c.courseState || '—'}
+                </Tag>
+              </Box>
+              {c.section && (
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
+                  {c.section}
+                </Typography>
+              )}
+              {(c.className || c.classId) && (
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
+                  Đã gán lớp: {c.className || c.classId}
+                </Typography>
+              )}
+              {c.alternateLink && (
+                <Box
+                  component="a"
+                  href={c.alternateLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, mt: 1, fontSize: 12.5, color: '#2563eb', textDecoration: 'none', fontWeight: 600 }}
+                >
+                  Mở Google Classroom <LinkOutline fontSize={13} />
+                </Box>
+              )}
+            </Card>
+          );
+        })}
+      </Box>
+    </MobileScreenShell>
   );
 }
