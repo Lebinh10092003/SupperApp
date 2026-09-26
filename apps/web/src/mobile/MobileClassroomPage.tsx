@@ -10,6 +10,7 @@ import { IonPage, IonContent, IonCard, IonCardContent, IonChip, IonSpinner, IonI
 import { openOutline } from 'ionicons/icons';
 import { api } from '../services/api';
 import { MobileTabBar } from './MobileTabBar';
+import { useIonicBodyScrollFix } from '../hooks/useIonicBodyScrollFix';
 import '@ionic/react/css/core.css';
 import '@ionic/react/css/normalize.css';
 import '@ionic/react/css/structure.css';
@@ -28,6 +29,7 @@ interface CourseItem {
 }
 
 export default function MobileClassroomPage() {
+  useIonicBodyScrollFix();
   const [items, setItems] = useState<CourseItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

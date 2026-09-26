@@ -37,6 +37,7 @@ import { useNavigate } from 'react-router-dom';
 import { useIncidents, type IncidentListItem } from '../features/safety/hooks/useIncidents';
 import { useActor } from '../features/safety/hooks/useActor';
 import { MobileTabBar } from './MobileTabBar';
+import { useIonicBodyScrollFix } from '../hooks/useIonicBodyScrollFix';
 
 const TERMINAL_STATES = new Set(['Đã đóng', 'Trùng', 'Tin rác']);
 
@@ -58,6 +59,7 @@ function formatRelative(iso?: string): string {
 }
 
 export default function MobileMyIncidentsPage() {
+  useIonicBodyScrollFix();
   const { actor } = useActor();
   const [tab, setTab] = useState<'open' | 'closed'>('open');
   const [search, setSearch] = useState('');

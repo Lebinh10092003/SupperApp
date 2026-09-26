@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTasks } from '../features/work-schedule/hooks/useTasks';
 import { useActor as useWorkScheduleActor } from '../features/work-schedule/hooks/useActor';
 import { MobileTabBar } from './MobileTabBar';
+import { useIonicBodyScrollFix } from '../hooks/useIonicBodyScrollFix';
 import '@ionic/react/css/core.css';
 import '@ionic/react/css/normalize.css';
 import '@ionic/react/css/structure.css';
@@ -31,6 +32,7 @@ function formatDue(iso?: string): string {
 }
 
 export default function MobileMyTasksPage() {
+  useIonicBodyScrollFix();
   const { actor } = useWorkScheduleActor();
   const { items, loading, error } = useTasks(actor?.perId ? { assigneePerId: actor.perId } : {});
   const navigate = useNavigate();

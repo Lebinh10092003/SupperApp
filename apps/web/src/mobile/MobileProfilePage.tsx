@@ -10,6 +10,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { enablePushNotifications, isPushSubscribedOnThisDevice, isPushSupported } from '../features/safety/push-subscribe';
 import { useEffect, useState } from 'react';
 import { MobileTabBar } from './MobileTabBar';
+import { useIonicBodyScrollFix } from '../hooks/useIonicBodyScrollFix';
 import '@ionic/react/css/core.css';
 import '@ionic/react/css/normalize.css';
 import '@ionic/react/css/structure.css';
@@ -29,6 +30,7 @@ const ROLE_LABEL: Record<string, string> = {
 };
 
 export default function MobileProfilePage() {
+  useIonicBodyScrollFix();
   const { profile, logout } = useAuth();
   const navigate = useNavigate();
   const [pushOn, setPushOn] = useState(false);
