@@ -548,9 +548,16 @@ export default function CasesListPage() {
       </Dialog>
 
       {isMobile && (
-        <Suspense fallback={null}>
-          <MobileTabBar mode="sticky" />
-        </Suspense>
+        // mx âm để phá ra hết viền màn hình — Box cha có padding 16px
+        // (p: isMobile ? 2 : 0) khiến thanh tab "sticky" bị co hẹp lại,
+        // không phủ hết chiều ngang như bản "fixed" (Sin phát hiện, so
+        // sánh trực tiếp 2 ảnh chụp: tab "An toàn" phủ hết, tab ở trang
+        // này thì không).
+        <Box sx={{ mx: -2 }}>
+          <Suspense fallback={null}>
+            <MobileTabBar mode="sticky" />
+          </Suspense>
+        </Box>
       )}
     </Box>
   );
