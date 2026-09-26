@@ -52,6 +52,7 @@ import { ContactInfoButton } from './components/ContactInfoButton';
 import { CorrectClassificationDialog, type CorrectClassificationTarget } from './dialogs/CorrectClassificationDialog';
 import { CAMPUS_LABEL, SLA_CLOCK_LABEL, SLA_STATUS_LABEL } from './constants';
 import { useActor } from './hooks/useActor';
+import { useIsMobileViewport } from '../../hooks/useIsMobileViewport';
 
 interface EvidenceSummary {
   evidenceId: string;
@@ -119,6 +120,7 @@ function formatDateTime(iso?: string) {
 }
 
 export default function IncidentDetailPage() {
+  const isMobile = useIsMobileViewport();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { actor } = useActor();
@@ -244,7 +246,7 @@ export default function IncidentDetailPage() {
   const canEditPriority = isCommander || isSenior;
 
   return (
-    <>
+    <Box sx={{ p: isMobile ? 2 : 0, pb: isMobile ? 4 : 0 }}>
       <PageHeader
         title={`Hồ sơ sự cố ${incident.incidentId}`}
         subtitle={incident.categoryLabel || incident.categoryCode || undefined}
@@ -733,6 +735,6 @@ export default function IncidentDetailPage() {
           });
         }}
       />
-    </>
+    </Box>
   );
 }
