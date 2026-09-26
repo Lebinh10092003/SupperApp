@@ -7,12 +7,13 @@
  *
  * StatusChip/PriorityChip import từ `./components/*`.
  */
-import { useEffect, useState, lazy, Suspense } from 'react';
+import { useEffect, useState, lazy, Suspense, type ReactNode } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   Alert,
   Box,
   Button,
+  ButtonBase,
   Card,
   CardContent,
   CircularProgress,
@@ -30,6 +31,7 @@ import {
   Typography
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBackRounded';
+import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded';
 import SyncAltIcon from '@mui/icons-material/SyncAltRounded';
 import PriorityHighIcon from '@mui/icons-material/PriorityHighRounded';
 import RestartAltIcon from '@mui/icons-material/RestartAltRounded';
@@ -123,6 +125,67 @@ function formatDateTime(iso?: string) {
   } catch {
     return iso;
   }
+}
+
+/**
+ * Hàng hành động dưới cùng hồ sơ — Sin báo dãy nút viền tròn (button
+ * outlined desktop) xếp lại cho vừa màn hình hẹp "trông như web", không
+ * giống app di động. Trên điện thoại đổi hẳn sang DANH SÁCH HÀNG dọc kiểu
+ * iOS Settings (icon trái, tên giữa, mũi tên phải, full-width, có gạch
+ * chia dòng) — mẫu hành động quen thuộc trên mobile thay vì hàng nút nhỏ.
+ * Bản desktop giữ nguyên `<Button variant="outlined">` như cũ.
+ */
+function ActionItem({
+  icon,
+  label,
+  onClick,
+  disabled,
+  error,
+  mobile
+}: {
+  icon: ReactNode;
+  label: string;
+  onClick?: () => void;
+  disabled?: boolean;
+  error?: boolean;
+  mobile: boolean;
+}) {
+  if (mobile) {
+    return (
+      <ButtonBase
+        onClick={onClick}
+        disabled={disabled}
+        sx={{
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1.5,
+          px: 2,
+          py: 1.6,
+          justifyContent: 'flex-start',
+          textAlign: 'left',
+          color: error ? '#dc2626' : '#0f172a',
+          opacity: disabled ? 0.5 : 1
+        }}
+      >
+        <Box sx={{ color: error ? '#dc2626' : '#2563eb', display: 'flex', flexShrink: 0 }}>{icon}</Box>
+        <Typography sx={{ fontWeight: 600, fontSize: 15, flex: 1 }}>{label}</Typography>
+        {!disabled && <ChevronRightRoundedIcon sx={{ color: '#cbd5e1' }} fontSize="small" />}
+      </ButtonBase>
+    );
+  }
+  return (
+    <Button
+      variant="outlined"
+      color={error ? 'error' : undefined}
+      startIcon={icon}
+      onClick={onClick}
+      disabled={disabled}
+      sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
+    >
+      {label}
+    </Button>
+  );
 }
 
 export default function IncidentDetailPage() {
@@ -477,23 +540,24 @@ export default function IncidentDetailPage() {
 
       <Divider sx={{ my: 3 }} />
 
-      <Stack direction="row" spacing={1.5} sx={{ flexWrap: 'wrap' }}>
-        {!incident.commanderPerId && (
-          <Button
-            variant="contained"
-            startIcon={<HowToRegIcon />}
-            onClick={() => setAckChoiceOpen(true)}
-            disabled={acknowledging}
-            sx={{ bgcolor: '#16a34a', '&:hover': { bgcolor: '#15803d' }, textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
-          >
-            {acknowledging ? 'Đang tiếp nhận...' : 'Tiếp nhận xử lý'}
-          </Button>
-        )}
-        {actor?.perId && (incident.commanderPerId === actor.perId || isSenior) && (
-          <Button
-            variant="outlined"
-            startIcon={<GroupAddIcon />}
-            onClick={() =>
+      {(() => {
+        const items: Array<{ key: string; icon: ReactNode; label: string; onClick?: () => void; disabled?: boolean; error?: boolean; contained?: boolean }> = [];
+        if (!incident.commanderPerId) {
+          items.push({
+            key: 'ack',
+            icon: <HowToRegIcon />,
+            label: acknowledging ? 'Đang tiếp nhận...' : 'Tiếp nhận xử lý',
+            onClick: () => setAckChoiceOpen(true),
+            disabled: acknowledging,
+            contained: true
+          });
+        }
+        if (actor?.perId && (incident.commanderPerId === actor.perId || isSenior)) {
+          items.push({
+            key: 'add-participant',
+            icon: <GroupAddIcon />,
+            label: 'Thêm người xử lý',
+            onClick: () =>
               setAddParticipantTarget({
                 incidentId: incident.incidentId,
                 suggested: incident.suggestedParticipants,
@@ -502,98 +566,103 @@ export default function IncidentDetailPage() {
                   ...(incident.participantPerIds || []).map((p) => ({ perId: p, label: incident.participantLabels?.[p] || p }))
                 ]
               })
-            }
-            sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
-          >
-            Thêm người xử lý
-          </Button>
-        )}
-        {actor?.perId && incident.commanderPerId === actor.perId && !incident.cancelRequestedAt && (
-          <Button variant="outlined" color="error" onClick={() => setCancelAckDialogOpen(true)} sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}>
-            Huỷ tiếp nhận
-          </Button>
-        )}
-        {actor?.perId &&
+          });
+        }
+        if (actor?.perId && incident.commanderPerId === actor.perId && !incident.cancelRequestedAt) {
+          items.push({ key: 'cancel-ack', icon: <GroupAddIcon />, label: 'Huỷ tiếp nhận', onClick: () => setCancelAckDialogOpen(true), error: true });
+        }
+        if (
+          actor?.perId &&
           incident.commanderPerId &&
           incident.commanderPerId !== actor.perId &&
           !(incident.participantPerIds || []).includes(actor.perId) &&
-          !(incident.pendingJoinRequests || []).some((r) => r.perId === actor.perId) && (
-            <Button variant="outlined" startIcon={<GroupAddIcon />} onClick={() => setJoinDialogOpen(true)} sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}>
-              Tham gia sự vụ
-            </Button>
-          )}
-        {actor?.perId && (incident.pendingJoinRequests || []).some((r) => r.perId === actor.perId) && (
-          <Button variant="outlined" disabled sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}>
-            Đang chờ chỉ huy duyệt tham gia
-          </Button>
-        )}
-        {actor?.perId && incident.commanderPerId !== actor.perId && (incident.participantPerIds || []).includes(actor.perId) && (
-          <Button variant="outlined" color="error" onClick={() => setLeaveDialogOpen(true)} sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}>
-            Rời khỏi sự vụ
-          </Button>
-        )}
-        {canEdit && (
-          <Button
-            variant="outlined"
-            startIcon={<SyncAltIcon />}
-            onClick={() => setStatusTarget({ incidentId: incident.incidentId, state: incident.state })}
-            sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
-          >
-            Đổi trạng thái
-          </Button>
-        )}
-        {canEditPriority && (
-          <Button
-            variant="outlined"
-            startIcon={<PriorityHighIcon />}
-            onClick={() => setPriorityTarget({ incidentId: incident.incidentId, priority: incident.priority })}
-            sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
-          >
-            Đổi ưu tiên
-          </Button>
-        )}
-        {incident.state === STATE_CLOSED && (
-          <Button
-            variant="outlined"
-            color="error"
-            startIcon={<RestartAltIcon />}
-            onClick={() => setReopenTarget({ incidentId: incident.incidentId })}
-            sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
-          >
-            Mở lại hồ sơ
-          </Button>
-        )}
-        {/* Chỉ hiện khi ĐÃ có chỉ huy (đổi chỉ huy) — Sin chốt 2026-09-24:
-            lúc CHƯA có chỉ huy, nút này trùng hệt lựa chọn "Chỉ định người
-            khác" trong modal xác nhận tiếp nhận (setAckChoiceOpen ở trên),
-            giữ cả 2 là thừa. */}
-        {isSenior && incident.commanderPerId && (
-          <Button
-            variant="outlined"
-            startIcon={<PersonAddAlt1Icon />}
-            onClick={() =>
+          !(incident.pendingJoinRequests || []).some((r) => r.perId === actor.perId)
+        ) {
+          items.push({ key: 'join', icon: <GroupAddIcon />, label: 'Tham gia sự vụ', onClick: () => setJoinDialogOpen(true) });
+        }
+        if (actor?.perId && (incident.pendingJoinRequests || []).some((r) => r.perId === actor.perId)) {
+          items.push({ key: 'join-pending', icon: <GroupAddIcon />, label: 'Đang chờ chỉ huy duyệt tham gia', disabled: true });
+        }
+        if (actor?.perId && incident.commanderPerId !== actor.perId && (incident.participantPerIds || []).includes(actor.perId)) {
+          items.push({ key: 'leave', icon: <GroupAddIcon />, label: 'Rời khỏi sự vụ', onClick: () => setLeaveDialogOpen(true), error: true });
+        }
+        if (canEdit) {
+          items.push({
+            key: 'change-status',
+            icon: <SyncAltIcon />,
+            label: 'Đổi trạng thái',
+            onClick: () => setStatusTarget({ incidentId: incident.incidentId, state: incident.state })
+          });
+        }
+        if (canEditPriority) {
+          items.push({
+            key: 'change-priority',
+            icon: <PriorityHighIcon />,
+            label: 'Đổi ưu tiên',
+            onClick: () => setPriorityTarget({ incidentId: incident.incidentId, priority: incident.priority })
+          });
+        }
+        if (incident.state === STATE_CLOSED) {
+          items.push({ key: 'reopen', icon: <RestartAltIcon />, label: 'Mở lại hồ sơ', onClick: () => setReopenTarget({ incidentId: incident.incidentId }), error: true });
+        }
+        // Chỉ hiện khi ĐÃ có chỉ huy (đổi chỉ huy) — Sin chốt 2026-09-24:
+        // lúc CHƯA có chỉ huy, nút này trùng hệt lựa chọn "Chỉ định người
+        // khác" trong modal xác nhận tiếp nhận (setAckChoiceOpen ở trên),
+        // giữ cả 2 là thừa.
+        if (isSenior && incident.commanderPerId) {
+          items.push({
+            key: 'change-commander',
+            icon: <PersonAddAlt1Icon />,
+            label: 'Đổi chỉ huy',
+            onClick: () =>
               setCommanderTarget({
                 incidentId: incident.incidentId,
                 commanderPerId: incident.commanderPerId,
                 commanderName: incident.commanderName
               })
-            }
-            sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
-          >
-            Đổi chỉ huy
-          </Button>
-        )}
-        {canEdit && (
-          <Button
-            variant="outlined"
-            startIcon={<EditIcon />}
-            onClick={() => setClassificationTarget({ incidentId: incident.incidentId, currentClassName: incident.className || null })}
-            sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
-          >
-            Sửa lớp liên quan
-          </Button>
-        )}
-      </Stack>
+          });
+        }
+        if (canEdit) {
+          items.push({
+            key: 'edit-class',
+            icon: <EditIcon />,
+            label: 'Sửa lớp liên quan',
+            onClick: () => setClassificationTarget({ incidentId: incident.incidentId, currentClassName: incident.className || null })
+          });
+        }
+
+        if (isMobile) {
+          return (
+            <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none', overflow: 'hidden' }}>
+              {items.map((it, i) => (
+                <Box key={it.key} sx={{ borderTop: i === 0 ? 'none' : '1px solid #f1f5f9' }}>
+                  <ActionItem icon={it.icon} label={it.label} onClick={it.onClick} disabled={it.disabled} error={it.error} mobile />
+                </Box>
+              ))}
+            </Card>
+          );
+        }
+        return (
+          <Stack direction="row" spacing={1.5} sx={{ flexWrap: 'wrap' }}>
+            {items.map((it) =>
+              it.contained ? (
+                <Button
+                  key={it.key}
+                  variant="contained"
+                  startIcon={it.icon}
+                  onClick={it.onClick}
+                  disabled={it.disabled}
+                  sx={{ bgcolor: '#16a34a', '&:hover': { bgcolor: '#15803d' }, textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
+                >
+                  {it.label}
+                </Button>
+              ) : (
+                <ActionItem key={it.key} icon={it.icon} label={it.label} onClick={it.onClick} disabled={it.disabled} error={it.error} mobile={false} />
+              )
+            )}
+          </Stack>
+        );
+      })()}
 
       <ChangeStatusDialog
         target={statusTarget}
