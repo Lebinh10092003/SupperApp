@@ -30,6 +30,18 @@
  * thị, không dính onClick) để giữ đúng bộ icon Ionic. `<button>` là
  * DOM/React chuẩn, onClick chắc chắn chạy, không có custom
  * element/shadow-DOM/class-ref nào để hỏng.
+ *
+ * BUG THỨ 2 — 2026-09-26 (Sin báo trên iPhone thật: thanh tab "trôi/kẹt"
+ * giữa trang khi cuộn tay, dù đo bằng script cuộn lập trình
+ * (`window.scrollTo`) trên DevTools thì vẫn đứng yên đúng đáy màn hình —
+ * script không tái hiện được vì đây là lỗi CHỈ xảy ra với cử chỉ cuộn
+ * chạm thật (touch/momentum scroll), không phải scroll lập trình).
+ * NGUYÊN NHÂN: lỗi nền tảng đã biết của Safari iOS — phần tử
+ * `position:fixed` không được đẩy lên layer GPU riêng dễ bị "rớt lại"
+ * (jank/drift) trong lúc cuộn quán tính (momentum scroll) và thanh địa
+ * chỉ Safari tự ẩn/hiện làm đổi chiều cao viewport. FIX: ép phần tử lên
+ * layer GPU riêng bằng `transform: translateZ(0)` — cách khắc phục tiêu
+ * chuẩn cho đúng lỗi này trên iOS Safari.
  */
 import { IonIcon, IonBadge } from '@ionic/react';
 import { shieldOutline, calendarOutline, schoolOutline, personCircleOutline } from 'ionicons/icons';
@@ -69,7 +81,11 @@ export function MobileTabBar({ activeCount }: { activeCount?: number }) {
         right: 0,
         bottom: 0,
         background: '#fff',
-        zIndex: 10
+        zIndex: 10,
+        transform: 'translateZ(0)',
+        WebkitTransform: 'translateZ(0)',
+        WebkitBackfaceVisibility: 'hidden',
+        willChange: 'transform'
       }}
     >
       {TABS.map((t) => {
