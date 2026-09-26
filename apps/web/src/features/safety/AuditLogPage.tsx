@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import {
   Alert,
   Box,
@@ -22,6 +22,10 @@ import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
 import { useIsMobileViewport } from '../../hooks/useIsMobileViewport';
+
+// Xem ghi chú ở CasesListPage.tsx — bỏ khung AppShell trên điện thoại làm
+// mất điều hướng, thêm lại thanh tab dưới cùng (lazy-load riêng).
+const MobileTabBar = lazy(() => import('../../mobile/MobileTabBar').then((m) => ({ default: m.MobileTabBar })));
 
 interface AuditLogEntry {
   logId: string;
@@ -139,7 +143,7 @@ export default function AuditLogPage() {
   };
 
   return (
-    <Box sx={{ p: isMobile ? 2 : 0, pb: isMobile ? 4 : 0 }}>
+    <Box sx={{ p: isMobile ? 2 : 0, pb: isMobile ? 10 : 0 }}>
       <PageHeader
         title="Nhật ký kiểm toán"
         icon={<HistoryRoundedIcon />}
@@ -237,6 +241,12 @@ export default function AuditLogPage() {
           <Button onClick={() => setDetail(null)}>Đóng</Button>
         </DialogActions>
       </Dialog>
+
+      {isMobile && (
+        <Suspense fallback={null}>
+          <MobileTabBar />
+        </Suspense>
+      )}
     </Box>
   );
 }

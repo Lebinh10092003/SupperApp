@@ -8,7 +8,7 @@
  * PR #12) — trước đó dùng `useIncidentsTemp` tạm thời cùng interface,
  * đã xoá sau khi Chunk A merge.
  */
-import { useEffect } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import { Link } from 'react-router-dom';
 import { Alert, Box, Card, CardContent, Chip, CircularProgress, Stack, Typography } from '@mui/material';
 import WarningAmberIcon from '@mui/icons-material/WarningAmberRounded';
@@ -19,6 +19,10 @@ import { PriorityChip } from './components/PriorityChip';
 import { useIncidents } from './hooks/useIncidents';
 import { CAMPUS_LABEL, SLA_CLOCK_LABEL } from './constants';
 import { useIsMobileViewport } from '../../hooks/useIsMobileViewport';
+
+// Xem ghi chú ở CasesListPage.tsx — bỏ khung AppShell trên điện thoại làm
+// mất điều hướng, thêm lại thanh tab dưới cùng (lazy-load riêng).
+const MobileTabBar = lazy(() => import('../../mobile/MobileTabBar').then((m) => ({ default: m.MobileTabBar })));
 
 function formatDateTime(iso?: string) {
   if (!iso) return '—';
@@ -43,7 +47,7 @@ export default function EmergencyCockpitPage() {
   const open = items.filter((it) => it.state !== 'Đã đóng' && it.state !== 'Trùng' && it.state !== 'Tin rác');
 
   return (
-    <Box sx={{ p: isMobile ? 2 : 0, pb: isMobile ? 4 : 0 }}>
+    <Box sx={{ p: isMobile ? 2 : 0, pb: isMobile ? 10 : 0 }}>
       <PageHeader
         title="Cockpit khẩn cấp"
         icon={<WarningAmberIcon />}
@@ -108,6 +112,12 @@ export default function EmergencyCockpitPage() {
             </Card>
           ))}
         </Stack>
+      )}
+
+      {isMobile && (
+        <Suspense fallback={null}>
+          <MobileTabBar />
+        </Suspense>
       )}
     </Box>
   );

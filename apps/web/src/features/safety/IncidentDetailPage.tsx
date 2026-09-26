@@ -7,7 +7,7 @@
  *
  * StatusChip/PriorityChip import từ `./components/*`.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useState, lazy, Suspense } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   Alert,
@@ -53,6 +53,11 @@ import { CorrectClassificationDialog, type CorrectClassificationTarget } from '.
 import { CAMPUS_LABEL, SLA_CLOCK_LABEL, SLA_STATUS_LABEL } from './constants';
 import { useActor } from './hooks/useActor';
 import { useIsMobileViewport } from '../../hooks/useIsMobileViewport';
+
+// Xem ghi chú tương tự ở CasesListPage.tsx — bỏ khung AppShell trên điện
+// thoại làm mất điều hướng, thêm lại thanh tab dưới cùng (lazy-load riêng
+// để không kéo @ionic/react vào bundle chính).
+const MobileTabBar = lazy(() => import('../../mobile/MobileTabBar').then((m) => ({ default: m.MobileTabBar })));
 
 interface EvidenceSummary {
   evidenceId: string;
@@ -246,7 +251,7 @@ export default function IncidentDetailPage() {
   const canEditPriority = isCommander || isSenior;
 
   return (
-    <Box sx={{ p: isMobile ? 2 : 0, pb: isMobile ? 4 : 0 }}>
+    <Box sx={{ p: isMobile ? 2 : 0, pb: isMobile ? 10 : 0 }}>
       <PageHeader
         title={`Hồ sơ sự cố ${incident.incidentId}`}
         subtitle={incident.categoryLabel || incident.categoryCode || undefined}
@@ -735,6 +740,12 @@ export default function IncidentDetailPage() {
           });
         }}
       />
+
+      {isMobile && (
+        <Suspense fallback={null}>
+          <MobileTabBar />
+        </Suspense>
+      )}
     </Box>
   );
 }

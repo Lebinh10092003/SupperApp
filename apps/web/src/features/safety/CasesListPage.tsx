@@ -11,7 +11,7 @@
  * Cột "Nhóm sự cố" cũng chỉ hiện rút gọn (truncate + tooltip), giống cột
  * "Nội dung" — xem chi tiết đầy đủ phải bấm vào dòng.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, lazy, Suspense } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Alert,
@@ -53,6 +53,14 @@ import { StatusChip } from './components/StatusChip';
 import { PriorityChip } from './components/PriorityChip';
 import { CAMPUS_IDS, CAMPUS_LABEL, STATE_OPTIONS } from './constants';
 import { useIsMobileViewport } from '../../hooks/useIsMobileViewport';
+
+// Sin phát hiện: bỏ khung AppShell trên điện thoại làm các trang này MẤT
+// LUÔN điều hướng (không hamburger, không tab bar) — bị "kẹt", chỉ bấm
+// được trong trang. Thêm lại thanh tab dưới cùng — lazy-load riêng
+// (KHÔNG import tĩnh) vì MobileTabBar kéo theo @ionic/react (859KB) mà
+// trang này lại nằm trong bundle chính (App.tsx import tĩnh), import tĩnh
+// sẽ làm phình bundle chính giống hệt lỗi đã tránh ở các trang Ionic.
+const MobileTabBar = lazy(() => import('../../mobile/MobileTabBar').then((m) => ({ default: m.MobileTabBar })));
 
 const PRIORITY_OPTIONS = ['P0', 'P1', 'P2', 'P3'];
 type SortKey = 'incidentId' | 'campusId' | 'priority' | 'state' | 'updatedAt';
@@ -208,7 +216,7 @@ export default function CasesListPage() {
   };
 
   return (
-    <Box sx={{ p: isMobile ? 2 : 0, pb: isMobile ? 4 : 0 }}>
+    <Box sx={{ p: isMobile ? 2 : 0, pb: isMobile ? 10 : 0 }}>
       <PageHeader
         title="Sự vụ"
         icon={<ListAltIcon />}
@@ -538,6 +546,12 @@ export default function CasesListPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {isMobile && (
+        <Suspense fallback={null}>
+          <MobileTabBar />
+        </Suspense>
+      )}
     </Box>
   );
 }

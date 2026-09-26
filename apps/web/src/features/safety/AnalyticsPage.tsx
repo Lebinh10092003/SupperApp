@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, lazy, Suspense } from 'react';
 import {
   Alert,
   Box,
@@ -23,6 +23,10 @@ import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
 import { CAMPUS_IDS, CAMPUS_LABEL } from './constants';
 import { useIsMobileViewport } from '../../hooks/useIsMobileViewport';
+
+// Xem ghi chú ở CasesListPage.tsx — bỏ khung AppShell trên điện thoại làm
+// mất điều hướng, thêm lại thanh tab dưới cùng (lazy-load riêng).
+const MobileTabBar = lazy(() => import('../../mobile/MobileTabBar').then((m) => ({ default: m.MobileTabBar })));
 
 /**
  * Phân tích & thống kê — gộp lại các block đã có backend từ trước
@@ -310,7 +314,7 @@ export default function AnalyticsPage() {
   const [tab, setTab] = useState(0);
 
   return (
-    <Box sx={{ p: isMobile ? 2 : 0, pb: isMobile ? 4 : 0 }}>
+    <Box sx={{ p: isMobile ? 2 : 0, pb: isMobile ? 10 : 0 }}>
       <PageHeader title="Phân tích & thống kê" icon={<InsightsRoundedIcon />} />
 
       <Paper sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none', p: isMobile ? 1.5 : 2.5 }}>
@@ -323,6 +327,12 @@ export default function AnalyticsPage() {
         {tab === 1 && <CampusComparisonPanel />}
         {tab === 2 && <ClassStatsPanel />}
       </Paper>
+
+      {isMobile && (
+        <Suspense fallback={null}>
+          <MobileTabBar />
+        </Suspense>
+      )}
     </Box>
   );
 }
