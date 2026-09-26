@@ -12,6 +12,7 @@ import { AddOutline, FilterOutline } from 'antd-mobile-icons';
 import { Box, Typography, IconButton, Badge } from '@mui/material';
 import { useIncidents } from '../../features/safety/hooks/useIncidents';
 import { CAMPUS_IDS, CAMPUS_LABEL, STATE_OPTIONS } from '../../features/safety/constants';
+import { CreateIncidentDirectDialog } from '../../features/safety/dialogs/CreateIncidentDirectDialog';
 import { MobileScreenShell } from '../MobileScreenShell';
 import { MobileTabBar } from '../MobileTabBar';
 
@@ -42,6 +43,7 @@ export default function MobileCasesListPage() {
   const [priorityFilter, setPriorityFilter] = useState<string[]>([]);
   const [stateFilter, setStateFilter] = useState<string[]>([]);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const { items, loading, error } = useIncidents({
     campusId: campusFilter[0] || undefined,
@@ -57,7 +59,7 @@ export default function MobileCasesListPage() {
   return (
     <MobileScreenShell
       header={
-        <NavBar onBack={() => navigate(-1)} right={<IconButton onClick={() => navigate('/safety/report')} size="small" sx={{ color: '#2563eb' }}><AddOutline fontSize={22} /></IconButton>} style={{ background: '#fff' }}>
+        <NavBar onBack={() => navigate(-1)} right={<IconButton onClick={() => setCreateOpen(true)} size="small" sx={{ color: '#2563eb' }}><AddOutline fontSize={22} /></IconButton>} style={{ background: '#fff' }}>
           Sự vụ
         </NavBar>
       }
@@ -167,6 +169,15 @@ export default function MobileCasesListPage() {
           </Box>
         </Box>
       </Popup>
+
+      <CreateIncidentDirectDialog
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreated={(incidentId) => {
+          setCreateOpen(false);
+          navigate(`/safety/incidents/${incidentId}`);
+        }}
+      />
     </MobileScreenShell>
   );
 }

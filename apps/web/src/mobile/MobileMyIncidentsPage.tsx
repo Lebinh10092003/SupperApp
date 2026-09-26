@@ -17,6 +17,7 @@ import { Box, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useIncidents, type IncidentListItem } from '../features/safety/hooks/useIncidents';
 import { useActor } from '../features/safety/hooks/useActor';
+import { CreateIncidentDirectDialog } from '../features/safety/dialogs/CreateIncidentDirectDialog';
 import { MobileScreenShell } from './MobileScreenShell';
 import { MobileTabBar } from './MobileTabBar';
 
@@ -43,6 +44,7 @@ export default function MobileMyIncidentsPage() {
   const { actor } = useActor();
   const [tab, setTab] = useState<'open' | 'closed'>('open');
   const [search, setSearch] = useState('');
+  const [createOpen, setCreateOpen] = useState(false);
   const navigate = useNavigate();
 
   const { items, loading, error } = useIncidents({ onlyMine: true, limit: 500 });
@@ -139,11 +141,20 @@ export default function MobileMyIncidentsPage() {
       </Box>
 
       <FloatingBubble
-        onClick={() => navigate('/safety/report')}
+        onClick={() => setCreateOpen(true)}
         style={{ '--initial-position-bottom': '84px', '--initial-position-right': '24px', '--background': '#2563eb' } as any}
       >
         <AddOutline fontSize={26} color="#fff" />
       </FloatingBubble>
+
+      <CreateIncidentDirectDialog
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreated={(incidentId) => {
+          setCreateOpen(false);
+          navigate(`/safety/incidents/${incidentId}`);
+        }}
+      />
     </MobileScreenShell>
   );
 }
