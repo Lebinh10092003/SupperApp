@@ -176,3 +176,85 @@ test('inOrgScope hoạt động đúng với resource chỉ có campusId (không
     { campusId: 'CS.02' }
   ), true);
 });
+
+// Sin chốt 2026-09-27: "chỉ tổ trưởng, hiệu phó, hiệu trưởng xem được
+// toàn bộ danh sách sự vụ; y tế/bảo vệ/CSVC/tư vấn tâm lý chỉ xem thêm
+// đúng nhóm mình phụ trách; các vai trò khác không còn xem tràn nữa".
+
+test('incident.view — Giáo viên/GVCN thường không còn quyền xem tràn qua vai trò (chỉ còn đường quan hệ)', () => {
+  assert.equal(checkAuthorization({
+    actor: actor({ roles: [{ roleId: ROLE.TEACHER, campusId: 'CS.01' }] }),
+    action: 'incident.view', resource: { campusId: 'CS.01' }
+  }).allowed, false);
+  assert.equal(checkAuthorization({
+    actor: actor({ roles: [{ roleId: ROLE.HOMEROOM, campusId: 'CS.01' }] }),
+    action: 'incident.view', resource: { campusId: 'CS.01' }
+  }).allowed, false);
+});
+
+test('incident.view — Tổ trưởng/Phó HT/Hiệu trưởng vẫn xem toàn bộ đúng phạm vi cơ sở (không bị chặn bởi domain)', () => {
+  assert.equal(checkAuthorization({
+    actor: actor({ roles: [{ roleId: ROLE.DEPT_HEAD, campusId: 'CS.01' }] }),
+    action: 'incident.view', resource: { campusId: 'CS.01', domain: 'health' }
+  }).allowed, true);
+  assert.equal(checkAuthorization({
+    actor: actor({ roles: [{ roleId: ROLE.DEPT_HEAD, campusId: 'CS.01' }] }),
+    action: 'incident.view', resource: { campusId: 'CS.02', domain: 'health' }
+  }).allowed, false, 'Tổ trưởng khác cơ sở vẫn bị chặn theo bước 4 như cũ');
+  assert.equal(checkAuthorization({
+    actor: actor({ roles: [{ roleId: ROLE.VICE_PRINCIPAL, campusId: 'CS.01' }] }),
+    action: 'incident.view', resource: { campusId: 'CS.01', domain: 'security_traffic' }
+  }).allowed, true);
+  assert.equal(checkAuthorization({
+    actor: actor({ roles: [{ roleId: ROLE.PRINCIPAL }] }),
+    action: 'incident.view', resource: { campusId: 'CS.02', domain: 'facility' }
+  }).allowed, true, 'Hiệu trưởng toàn trường, không bị chặn bởi cơ sở lẫn lĩnh vực');
+});
+
+test('incident.view — Y tế chỉ xem đúng nhóm health, không xem được nhóm khác dù đúng cơ sở', () => {
+  const yTe = actor({ roles: [{ roleId: ROLE.HEALTH, campusId: 'CS.01' }] });
+  assert.equal(checkAuthorization({
+    actor: yTe, action: 'incident.view', resource: { campusId: 'CS.01', domain: 'health' }
+  }).allowed, true);
+  assert.equal(checkAuthorization({
+    actor: yTe, action: 'incident.view', resource: { campusId: 'CS.01', domain: 'student_safety' }
+  }).allowed, false, 'Y tế không được xem sự vụ nhóm student_safety (VD đánh nhau) nếu không liên quan');
+  assert.equal(checkAuthorization({
+    actor: yTe, action: 'incident.view', resource: { campusId: 'CS.02', domain: 'health' }
+  }).allowed, false, 'đúng nhóm nhưng khác cơ sở vẫn bị chặn ở bước 4');
+});
+
+test('incident.view — Bảo vệ xem cả 2 nhóm student_safety và security_traffic, CSVC xem cả facility và security_traffic', () => {
+  const baoVe = actor({ roles: [{ roleId: ROLE.SECURITY, campusId: 'CS.01' }] });
+  assert.equal(checkAuthorization({ actor: baoVe, action: 'incident.view', resource: { campusId: 'CS.01', domain: 'student_safety' } }).allowed, true);
+  assert.equal(checkAuthorization({ actor: baoVe, action: 'incident.view', resource: { campusId: 'CS.01', domain: 'security_traffic' } }).allowed, true);
+  assert.equal(checkAuthorization({ actor: baoVe, action: 'incident.view', resource: { campusId: 'CS.01', domain: 'health' } }).allowed, false);
+
+  const csvc = actor({ roles: [{ roleId: ROLE.FACILITY, campusId: 'CS.01' }] });
+  assert.equal(checkAuthorization({ actor: csvc, action: 'incident.view', resource: { campusId: 'CS.01', domain: 'facility' } }).allowed, true);
+  assert.equal(checkAuthorization({ actor: csvc, action: 'incident.view', resource: { campusId: 'CS.01', domain: 'security_traffic' } }).allowed, true);
+  assert.equal(checkAuthorization({ actor: csvc, action: 'incident.view', resource: { campusId: 'CS.01', domain: 'student_safety' } }).allowed, false);
+});
+
+test('incident.view — Trực ban KHÔNG trong ca không còn xem tràn qua vai trò; trong ca vẫn xem hết như cũ (không đổi)', () => {
+  assert.equal(checkAuthorization({
+    actor: actor({ roles: [{ roleId: ROLE.DUTY_OFFICER, campusId: 'CS.01' }], onDutyNow: false }),
+    action: 'incident.view', resource: { campusId: 'CS.01' }
+  }).allowed, false);
+  assert.equal(checkAuthorization({
+    actor: actor({ roles: [{ roleId: ROLE.DUTY_OFFICER, campusId: 'CS.01' }], onDutyNow: true }),
+    action: 'incident.view', resource: { campusId: 'CS.01', domain: 'health' }
+  }).allowed, true, 'quyền trực ban đến từ relationalGrant (onDutyNow), độc lập ma trận vai trò — không đổi');
+});
+
+test('incident.view — GVCN vẫn xem đúng hồ sơ lớp mình chủ nhiệm qua đường quan hệ (assignedTaskPerIds tự gán lúc tạo hồ sơ), không xem lớp khác', () => {
+  const gvcn = actor({ perId: 'PER.GVCN_8A2', roles: [{ roleId: ROLE.HOMEROOM, campusId: 'CS.01' }] });
+  assert.equal(checkAuthorization({
+    actor: gvcn, action: 'incident.view',
+    resource: { campusId: 'CS.01', domain: 'student_safety', assignedTaskPerIds: ['PER.GVCN_8A2'] }
+  }).allowed, true, 'lớp mình chủ nhiệm, được gán tự động — vẫn xem được dù không còn quyền theo vai trò');
+  assert.equal(checkAuthorization({
+    actor: gvcn, action: 'incident.view',
+    resource: { campusId: 'CS.01', domain: 'student_safety', assignedTaskPerIds: ['PER.GVCN_LOP_KHAC'] }
+  }).allowed, false, 'lớp không phải mình chủ nhiệm, không được gán — không còn xem được');
+});

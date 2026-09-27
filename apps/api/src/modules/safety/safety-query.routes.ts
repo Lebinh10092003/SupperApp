@@ -31,7 +31,7 @@ import { asyncRoute, HttpError } from '../../core/http.js';
 import { db } from '../../core/db/client.js';
 import { loadActorContext } from '../identity/actor-context.js';
 import { checkAuthorization, inOrgScope, type Actor } from './authz.js';
-import { CATEGORY_CATALOG, relevantRolesForCategory, suggestedPriorityForCategory, type Confidentiality } from './catalog.js';
+import { CATEGORY_CATALOG, groupForCategory, relevantRolesForCategory, suggestedPriorityForCategory, type Confidentiality } from './catalog.js';
 import { publicCodes } from './ids.schema.js';
 import { reports, reportIdentities, reportSupplements } from './reports.schema.js';
 import { incidents } from './incidents.schema.js';
@@ -385,7 +385,15 @@ safetyQueryRouter.get(
       const decision = checkAuthorization({
         actor,
         action: 'incident.view',
-        resource: { campusId: incident.campusId, commanderPerId: incident.commanderPerId ?? undefined, assignedTaskPerIds: incident.assignedTaskPerIds || [] }
+        resource: {
+          campusId: incident.campusId,
+          // Bước 5 (phạm vi lĩnh vực) — Sin chốt 2026-09-27: Y tế/Tư vấn tâm
+          // lý/Bảo vệ/CSVC chỉ xem đúng nhóm sự cố mình phụ trách qua
+          // `ROLE_VIEW_DOMAIN_GROUPS` (authz.ts), nối vào đây.
+          domain: incident.categoryCode ? groupForCategory(incident.categoryCode) : undefined,
+          commanderPerId: incident.commanderPerId ?? undefined,
+          assignedTaskPerIds: incident.assignedTaskPerIds || []
+        }
       });
       if (!decision.allowed) continue;
       visible.push(incident);
@@ -454,7 +462,12 @@ safetyQueryRouter.get(
     const decision = checkAuthorization({
       actor,
       action: 'incident.view',
-      resource: { campusId: incident.campusId, commanderPerId: incident.commanderPerId ?? undefined, assignedTaskPerIds: incident.assignedTaskPerIds || [] }
+      resource: {
+        campusId: incident.campusId,
+        domain: incident.categoryCode ? groupForCategory(incident.categoryCode) : undefined,
+        commanderPerId: incident.commanderPerId ?? undefined,
+        assignedTaskPerIds: incident.assignedTaskPerIds || []
+      }
     });
     if (!decision.allowed) throw new HttpError(403, decision.reason ?? 'Không đủ quyền.', 'PERMISSION_ERROR');
 
