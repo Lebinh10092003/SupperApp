@@ -1,7 +1,6 @@
-import { useState } from 'react';
 import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, TextField, Typography } from '@mui/material';
-import { api } from '../../../services/api';
 import { CAMPUS_IDS, CAMPUS_LABEL } from '../constants';
+import { useCreateIncidentDirectForm } from '../hooks/useCreateIncidentDirectForm';
 
 const PRIORITY_OPTIONS = ['P0', 'P1', 'P2', 'P3'];
 
@@ -11,34 +10,13 @@ const PRIORITY_OPTIONS = ['P0', 'P1', 'P2', 'P3'];
  * `/safety/report`, form CÔNG KHAI cho học sinh/phụ huynh gửi tin ẩn
  * danh). Trích xuất từ CasesListPage.tsx (desktop) ra dùng chung — Sin
  * chỉ ra bản mobile trước đây nhầm nút "+" sang thẳng form công khai
- * thay vì mở đúng luồng nội bộ này.
+ * thay vì mở đúng luồng nội bộ này. Bản mobile giờ dùng
+ * MobileCreateIncidentSheet.tsx (antd-mobile) thay vì Dialog này — Sin:
+ * "cái form mobile cũng chưa chuẩn phù hợp với kiểu mobile app" (Dialog
+ * MUI với label nổi bên trong ô nhìn lạc lõng giữa UI antd-mobile).
  */
 export function CreateIncidentDirectDialog({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: (incidentId: string) => void }) {
-  const [form, setForm] = useState({ campusId: '', categoryCode: '', content: '', className: '', priority: '' });
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
-
-  const handleSubmit = async () => {
-    setError('');
-    if (!form.campusId) return setError('Vui lòng chọn cơ sở.');
-    if (!form.categoryCode) return setError('Vui lòng nhập mã nhóm sự cố.');
-    setSubmitting(true);
-    try {
-      const res = await api.post<{ incidentId: string }>('/api/safety/incidents/direct', {
-        campusId: form.campusId,
-        categoryCode: form.categoryCode,
-        content: form.content,
-        className: form.className || undefined,
-        priority: form.priority || undefined
-      });
-      setForm({ campusId: '', categoryCode: '', content: '', className: '', priority: '' });
-      onCreated(res.incidentId);
-    } catch (e: any) {
-      setError(e.message || 'Tạo hồ sơ thất bại.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  const { form, setForm, submitting, error, handleSubmit } = useCreateIncidentDirectForm(onCreated);
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>

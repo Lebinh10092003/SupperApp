@@ -12,9 +12,9 @@ import { AddOutline, FilterOutline } from 'antd-mobile-icons';
 import { Box, Typography, IconButton, Badge } from '@mui/material';
 import { useIncidents } from '../../features/safety/hooks/useIncidents';
 import { CAMPUS_IDS, CAMPUS_LABEL, STATE_OPTIONS } from '../../features/safety/constants';
-import { CreateIncidentDirectDialog } from '../../features/safety/dialogs/CreateIncidentDirectDialog';
 import { MobileScreenShell } from '../MobileScreenShell';
 import { MobileTabBar } from '../MobileTabBar';
+import { MobileCreateIncidentSheet } from '../MobileCreateIncidentSheet';
 
 const PRIORITY_OPTIONS = ['P0', 'P1', 'P2', 'P3'];
 const PRIORITY_STYLE: Record<string, { bg: string; fg: string }> = {
@@ -170,8 +170,8 @@ export default function MobileCasesListPage() {
         </Box>
       </Popup>
 
-      <CreateIncidentDirectDialog
-        open={createOpen}
+      <MobileCreateIncidentSheet
+        visible={createOpen}
         onClose={() => setCreateOpen(false)}
         onCreated={(incidentId) => {
           setCreateOpen(false);

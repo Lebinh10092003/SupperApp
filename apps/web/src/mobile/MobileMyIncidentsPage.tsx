@@ -17,9 +17,9 @@ import { Box, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useIncidents, type IncidentListItem } from '../features/safety/hooks/useIncidents';
 import { useActor } from '../features/safety/hooks/useActor';
-import { CreateIncidentDirectDialog } from '../features/safety/dialogs/CreateIncidentDirectDialog';
 import { MobileScreenShell } from './MobileScreenShell';
 import { MobileTabBar } from './MobileTabBar';
+import { MobileCreateIncidentSheet } from './MobileCreateIncidentSheet';
 
 const TERMINAL_STATES = new Set(['Đã đóng', 'Trùng', 'Tin rác']);
 
@@ -147,8 +147,8 @@ export default function MobileMyIncidentsPage() {
         <AddOutline fontSize={26} color="#fff" />
       </FloatingBubble>
 
-      <CreateIncidentDirectDialog
-        open={createOpen}
+      <MobileCreateIncidentSheet
+        visible={createOpen}
         onClose={() => setCreateOpen(false)}
         onCreated={(incidentId) => {
           setCreateOpen(false);
