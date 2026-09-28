@@ -140,3 +140,76 @@ Sin báo lỗi. Ưu tiên nếu có thể: kiểm chứng trên 1 bản preview/
 khi chạm production, đặc biệt khi đang thử nghiệm cách né 1 hành vi lạ của
 thư viện bên thứ ba (dấu hiệu cần thận trọng hơn, không phải sửa 1 dòng
 quen thuộc).
+
+## 2026-09-27 — Chạy `npm test` trên VPS production, một test xoá sạch bảng `incidents` thật
+
+**Lỗi:** Sau khi sửa `authz.ts` (thu hẹp quyền xem danh sách sự vụ) và
+rsync các file `apps/api` đã đổi lên VPS, tôi chạy `npm run typecheck` VÀ
+`npm test` NGAY TRÊN VPS (2 lần — 1 lần bị treo lâu do thật sự chờ kết nối
+mạng ClamAV, tôi kill rồi chạy lại) như một bước "tự kiểm chứng trước khi
+restart service", theo đúng tinh thần các mục lỗi phía trên (không chỉ tin
+"build không lỗi"). Nhưng lại không hề nghĩ tới việc TEST SUITE CŨNG CÓ THỂ
+GHI/XOÁ DỮ LIỆU THẬT nếu chạy nhắm đúng DB production.
+
+**Nguyên nhân gốc:** `campus-comparison-stats.test.ts::resetTables()` gọi
+thẳng `db.delete(incidents).where(inArray(incidents.campusId, CAMPUS_IDS))`
+với `CAMPUS_IDS` là 3 mã cơ sở THẬT (`MAIN_CAMPUS`/`CAMPUS_1`/`CAMPUS_2`),
+không có cờ bảo vệ nào (không kiểm tra `NODE_ENV`, không kiểm tra tên DB,
+không dùng transaction rollback riêng cho test). VPS chỉ có DUY NHẤT 1
+`DATABASE_URL` cấu hình trong `.env` (EnvironmentFile của
+`supperapp-api.service`) — chính là DB production thật (tên DB
+`supperapp`), không có DB test riêng như máy dev local (`superapp_test`).
+`npm test` chạy `scripts/run-tests.mjs`, tự dò VÀ CHẠY HẾT mọi
+`*.test.ts` trong `src/`, không có bước hỏi lại/xác nhận nào trước khi
+đụng DB — nên lệnh tưởng như vô hại ("chỉ là chạy test để kiểm chứng") lại
+âm thầm xoá sạch bảng `incidents` thật (18 hồ sơ sự vụ thật, gồm cả 2 vụ
+Sin đang xem trực tiếp hôm đó: vụ nghi xâm hại và vụ bắt nạt lớp 6A6),
+đồng thời chèn thêm dữ liệu rác từ các file test khác cũng chạy chung đợt
+(`SC.TEST.*`, `SC.TA.TEST.*`, `SC.OLD.*`).
+
+**Hậu quả:** Toàn bộ hồ sơ sự vụ thật (bảng `incidents`) trên production bị
+xoá — may mắn bảng `reports` (tin báo gốc) và các bảng liên quan
+(`sla_clocks`, `audit_logs`...) vẫn giữ nguyên `reportId`/`incidentId` nên
+dò lại được chính xác 5 hồ sơ (trong số ít nhất 18 hồ sơ từng có — số còn
+lại có thể chưa từng có `incidents` row thật do lỗi khác từ trước, chưa
+xác minh hết) đã bị mất qua log/comment tôi tự viết trước đó trong session
+("Sin: có vụ đánh nhau của lớp này thì cả trường biết hết"). Tự phát hiện
+KHÔNG PHẢI qua báo lỗi của Sin, mà tình cờ khi Sin nhờ chuẩn bị dữ liệu để
+tự test tay chức năng mới — lúc đó tôi query DB để lấy dữ liệu test thật
+thì phát hiện bảng `incidents` gần như trống, đối chiếu lại mới lần ra
+nguyên nhân.
+
+**Cách sửa:**
+1. Tìm thấy hệ thống có sẵn backup Postgres tự động hàng đêm
+   (`/opt/supperapp-db-backups/`, cron `0 2 * * *`) — bản backup 2026-09-27
+   02:00 (TRƯỚC lúc tôi chạy test) còn nguyên 5 dòng `incidents` thật khớp
+   với dữ liệu Sin đã xem trực tiếp (`SC.2609.0004/0006/0016/0017/0018`).
+2. Trích riêng 5 dòng đó từ file backup (`.sql.gz`), viết script Node dùng
+   thẳng `db.insert(incidents)` của chính app (không dùng `psql` — VPS
+   không cài) để CHÈN LẠI đúng 5 dòng này — KHÔNG restore toàn bộ DB (tránh
+   ghi đè các thay đổi hợp lệ khác phát sinh sau 2h sáng).
+3. Xin xác nhận của Sin trước khi ghi bất kỳ gì vào DB production (đúng
+   nguyên tắc — dù Sin sau đó nói dữ liệu hiện tại toàn là dữ liệu giả nên
+   cho phép sửa thoải mái, TRỪ tài khoản quản trị).
+4. Xoá 12 dòng rác (`SC.TEST.*`/`SC.TA.TEST.*`/`SC.OLD.*`) để lại từ các
+   lần chạy test trước đó (không riêng lần này) — verify lại bảng
+   `incidents` chỉ còn đúng 5 dòng thật.
+5. Thêm chốt chặn CỨNG vào `scripts/run-tests.mjs` (điểm vào DUY NHẤT của
+   `npm test`) — từ chối chạy BẤT KỲ file test nào nếu tên database trong
+   `DATABASE_URL` không chứa chữ "test", in rõ lý do và dừng ngay
+   (`process.exit(1)`) trước khi tới bước tìm/chạy file test. Verify bằng
+   cách tự set `DATABASE_URL` giả dạng production (`.../supperapp`, không
+   có "test") — xác nhận bị chặn đúng như thiết kế; sau đó chạy lại
+   `npm test` bình thường ở máy local (DB tên `superapp_test`) — xác nhận
+   không bị chặn nhầm, kết quả pass/fail giống hệt trước khi thêm guard.
+
+**Phòng tránh lần sau:** KHÔNG BAO GIỜ chạy `npm test` (hay bất kỳ lệnh nào
+gọi tới test suite) trên một máy/VPS mà không tự xác nhận trước
+`DATABASE_URL` ở đó trỏ tới DB test riêng, tách biệt hoàn toàn khỏi DB
+production — "test" trong tên lệnh không có nghĩa "an toàn tuyệt đối,
+không cần nghĩ tới") ngay cả khi mục đích chỉ là "kiểm chứng thêm cho chắc"
+trước khi restart service. Quy tắc chung rút ra: MỌI lệnh có khả năng
+ghi/xoá dữ liệu (test suite, seed script, migration, script dọn dẹp) đều
+phải được coi ngang hàng với thao tác ghi dữ liệu thật khi chạy trên môi
+trường có kết nối tới DB thật — không được miễn trừ chỉ vì nó nằm trong
+thư mục `test/` hay có chữ "test" trong tên lệnh gọi nó.

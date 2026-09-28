@@ -17,6 +17,34 @@ import { readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+// CHẶN CỨNG chạy test nhắm vào DB không phải DB test (2026-09-28, sau sự
+// cố thật: chạy `npm test` trên VPS production đã xoá sạch bảng
+// `incidents` thật, vì `campus-comparison-stats.test.ts::resetTables()`
+// gọi `db.delete(incidents)` không có transaction/rollback, và VPS đó chỉ
+// có 1 DATABASE_URL cấu hình sẵn — đúng DB production, không có DB test
+// riêng. Quy ước AN TOÀN: tên database (phần cuối DATABASE_URL) BẮT BUỘC
+// chứa "test" (VD `superapp_test` ở .env local) — không đúng quy ước này
+// thì DỪNG NGAY, không chạy file test nào cả, kể cả file không đụng DB.
+// Đây là chốt chặn DUY NHẤT áp dụng cho MỌI file test hiện tại lẫn sau
+// này — không dựa vào việc từng file test tự cẩn thận.
+const dbUrl = process.env.DATABASE_URL;
+if (dbUrl) {
+  let dbName = '';
+  try {
+    dbName = new URL(dbUrl).pathname.replace(/^\//, '');
+  } catch {
+    dbName = dbUrl.split('/').pop() ?? '';
+  }
+  if (!dbName.toLowerCase().includes('test')) {
+    console.error(
+      `\n[run-tests] TỪ CHỐI chạy test: DATABASE_URL đang trỏ tới database "${dbName}", tên không chứa "test".\n` +
+      `Test suite có xoá/ghi dữ liệu thật (VD campus-comparison-stats.test.ts::resetTables()) — CHỈ được chạy nhắm vào DB test riêng (tên phải chứa "test", VD "superapp_test").\n` +
+      `Nếu đây thực sự là máy dev với DB test đặt tên khác, đổi tên DB cho có "test" trong đó — KHÔNG bỏ qua chốt chặn này.\n`
+    );
+    process.exit(1);
+  }
+}
+
 const srcDir = join(fileURLToPath(new URL('.', import.meta.url)), '..', 'src');
 
 function findTestFiles(dir) {
