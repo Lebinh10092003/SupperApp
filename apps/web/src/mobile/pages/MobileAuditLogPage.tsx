@@ -6,8 +6,8 @@
  */
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { NavBar, SearchBar, List, SpinLoading, Dialog as AntDialog } from 'antd-mobile';
-import { Box, Typography, Button } from '@mui/material';
+import { NavBar, SearchBar, List, SpinLoading, Dialog as AntDialog, Button as AntButton } from 'antd-mobile';
+import { Box, Typography } from '@mui/material';
 import { api } from '../../services/api';
 import { MobileScreenShell } from '../MobileScreenShell';
 import { MobileTabBar } from '../MobileTabBar';
@@ -94,9 +94,9 @@ export default function MobileAuditLogPage() {
           onSearch={() => load(objectId)}
           showCancelButton={false}
         />
-        <Button fullWidth variant="contained" sx={{ mt: 1.5, textTransform: 'none' }} onClick={() => load(objectId)}>
+        <AntButton block color="primary" style={{ marginTop: 12 }} onClick={() => load(objectId)}>
           Tra cứu
-        </Button>
+        </AntButton>
       </Box>
 
       {loading && (
@@ -126,9 +126,9 @@ export default function MobileAuditLogPage() {
       )}
       {searched && hasMore && !loading && (
         <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
-          <Button variant="outlined" onClick={loadMore} sx={{ textTransform: 'none' }}>
+          <AntButton fill="outline" onClick={loadMore}>
             Tải thêm
-          </Button>
+          </AntButton>
         </Box>
       )}
     </MobileScreenShell>
