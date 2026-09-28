@@ -206,16 +206,26 @@ export function App() {
       <Route path="/today" element={p(<TodayPage />)} />
       <Route path="/classes" element={p(<ClassesPage />)} />
       <Route path="/classroom" element={pResponsive(<ClassroomPage />, <MobileClassroomPage />)} />
-      {/* Tab "Cá nhân" của app di động — trang mới, chưa có bản desktop
-          tương đương nên không cần rẽ nhánh Responsive. */}
+      {/* Tab "Cá nhân" của app di động — Sin phát hiện 2026-09-28: trang
+          này trước đây LUÔN hiện MobileProfilePage kể cả mở trên PC (thanh
+          tab dưới cùng, không có sidebar) vì lúc làm chỉ tính tới lối vào
+          từ thanh tab di động, không tính trường hợp mở thẳng URL trên máy
+          tính. Bản desktop KHÔNG cần trang riêng — "Đăng xuất" đã có sẵn
+          qua menu avatar góc phải AppShell — nên rẽ nhánh Responsive:
+          desktop tự chuyển về trang chủ, di động vẫn y nguyên. */}
       <Route
         path="/account"
         element={
           <ProtectedRoute>
             <RoleRoute>
-              <Suspense fallback={null}>
-                <MobileProfilePage />
-              </Suspense>
+              <Responsive
+                desktop={<Navigate to="/" replace />}
+                mobile={
+                  <Suspense fallback={null}>
+                    <MobileProfilePage />
+                  </Suspense>
+                }
+              />
             </RoleRoute>
           </ProtectedRoute>
         }
