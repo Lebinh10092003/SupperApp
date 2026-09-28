@@ -4,7 +4,7 @@ import { eq, inArray } from 'drizzle-orm';
 import { db } from '../../core/db/client.js';
 import { reports, reportIdentities } from './reports.schema.js';
 import { incidents } from './incidents.schema.js';
-import { notifyReporterForReport, notifyReporterForIncident, REPORTER_EVENT } from './reporter-notify.js';
+import { notifyReporterForReport, notifyReporterForIncident, REPORTER_EVENT, renderReporterMessageHtml, reporterLookupUrl } from './reporter-notify.js';
 import type { DispatchAdapter } from './dispatch.js';
 
 /**
@@ -60,6 +60,10 @@ test('reporterNotify: notifyReporterForReport — không có email/không có ad
     assert.equal(sentMessages[0]!.to, 'nguoibaotin@example.com');
     assert.ok(String(sentMessages[0]!.text).includes('GV-RN-0001'));
     assert.ok(!String(sentMessages[0]!.text).includes('TB.RN_1'), 'nội dung email TUYỆT ĐỐI không được lộ mã nội bộ');
+    // Sin chốt 2026-09-28: email RECEIVED phải kèm nút điều hướng về tra cứu.
+    const html = String((sentMessages[0] as { html?: unknown }).html);
+    assert.ok(html.includes('/safety/lookup?code=GV-RN-0001'), 'HTML phải có link tra cứu kèm sẵn mã');
+    assert.ok(!html.includes('TB.RN_1'), 'HTML cũng KHÔNG được lộ mã nội bộ');
 
     const notFound = await notifyReporterForReport(db, { reportId: 'TB.RN_NOPE', eventType: REPORTER_EVENT.RECEIVED }, { emailAdapter: fakeAdapter });
     assert.equal(notFound.sent, false);
@@ -96,4 +100,25 @@ test('reporterNotify: notifyReporterForIncident — gửi tới người báo ti
   } finally {
     await cleanup();
   }
+});
+
+// Hàm thuần, không đụng DB — không cần `skip`.
+test('reporterNotify: renderReporterMessageHtml — RECEIVED/CONFIRM_CLOSE_REQUESTED có nút, CLOSED/IN_PROGRESS thì không', () => {
+  const received = renderReporterMessageHtml(REPORTER_EVENT.RECEIVED, 'GV-XYZ');
+  assert.ok(received.includes('<a href='), 'RECEIVED phải có nút');
+  assert.ok(received.includes(reporterLookupUrl('GV-XYZ')));
+
+  const confirmClose = renderReporterMessageHtml(REPORTER_EVENT.CONFIRM_CLOSE_REQUESTED, 'GV-XYZ');
+  assert.ok(confirmClose.includes('<a href='), 'CONFIRM_CLOSE_REQUESTED phải có nút');
+
+  const closed = renderReporterMessageHtml(REPORTER_EVENT.CLOSED, 'GV-XYZ');
+  assert.ok(!closed.includes('<a href='), 'CLOSED không cần nút');
+
+  const inProgress = renderReporterMessageHtml(REPORTER_EVENT.IN_PROGRESS, 'GV-XYZ');
+  assert.ok(!inProgress.includes('<a href='), 'IN_PROGRESS không cần nút');
+});
+
+test('reporterNotify: reporterLookupUrl — mã được encode đúng vào query string', () => {
+  const url = reporterLookupUrl('GV ABC/123');
+  assert.ok(url.endsWith('/safety/lookup?code=' + encodeURIComponent('GV ABC/123')));
 });

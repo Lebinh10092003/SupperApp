@@ -65,14 +65,19 @@ async function getTransporter() {
  */
 export const emailAdapter: DispatchAdapter = {
   async send(msg) {
-    const { to, subject, text } = msg as { to?: string; subject?: string; text?: string };
+    const { to, subject, text, html } = msg as { to?: string; subject?: string; text?: string; html?: string };
     if (!to) throw new Error('email-adapter: thiếu "to".');
     const { transporter, mode } = await getTransporter();
     const info = await transporter.sendMail({
       from: env.SMTP_FROM || '"THCS Giảng Võ — Cảnh báo an toàn" <no-reply@thcsgiangvo.edu.vn>',
       to,
       subject: subject || 'Thông báo từ hệ thống',
-      text: text || ''
+      text: text || '',
+      // `html` tuỳ chọn (chỉ reporter-notify.ts truyền tới hiện tại) — có
+      // nút bấm trỏ thẳng về trang tra cứu công khai (Sin chốt 2026-09-28:
+      // "nên có thêm nút điều hướng để người dùng thao tác luôn cho
+      // nhanh"). Client mail không hỗ trợ HTML sẽ tự rơi về `text`.
+      ...(html ? { html } : {})
     });
     const previewUrl = mode === 'ethereal' ? nodemailer.getTestMessageUrl(info) || undefined : undefined;
     return { status: 'sent', previewUrl };
