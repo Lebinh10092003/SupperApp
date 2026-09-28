@@ -178,6 +178,16 @@ const navGroups: NavGroup[] = [
         roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'DEPARTMENT_HEAD', 'TEACHER', 'HOMEROOM']
       },
       {
+        // Bổ sung 2026-09-28 — bảng tuần tự do kiểu Google Sheet, tách
+        // riêng khỏi "Lịch công tác" (Sự kiện, có quy trình duyệt) ở trên.
+        // XEM mở cho mọi vai trò ở đây (nav-level, advisory) — SỬA thật sự
+        // chỉ email trong WEEKLY_SHEET_EDITOR_EMAILS (server tự chặn).
+        path: '/work-schedule/weekly-sheet',
+        label: 'Lịch tuần',
+        icon: <GridViewIcon fontSize="small" />,
+        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'DEPARTMENT_HEAD', 'TEACHER', 'HOMEROOM']
+      },
+      {
         path: '/work-schedule/tasks',
         label: 'Giao việc',
         icon: <AttendanceIcon fontSize="small" />,

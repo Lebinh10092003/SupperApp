@@ -74,7 +74,15 @@ const schema = z.object({
   SMTP_PORT: z.coerce.number().default(587),
   SMTP_USER: z.string().default(''),
   SMTP_PASS: z.string().default(''),
-  SMTP_FROM: z.string().default('')
+  SMTP_FROM: z.string().default(''),
+
+  // "Lịch công tác tuần" (weekly-sheet.ts, bổ sung 2026-09-28) — danh sách
+  // email được SỬA bảng tuần tự do (thêm/sửa/xoá dòng, sao chép tuần) —
+  // ai KHÔNG có mặt ở đây vẫn XEM được bình thường, chỉ không sửa được.
+  // Ban đầu chỉ 2 thầy (Phương/Sơn) — mở rộng "toàn trường" sau này CHỈ
+  // cần thêm email vào biến này, không cần sửa code (Sin chốt 2026-09-28:
+  // "xây cho mô hình toàn trường nhưng hiện tại chỉ cần 2 thầy dùng").
+  WEEKLY_SHEET_EDITOR_EMAILS: z.string().default('phuongvd.c2gv@badinhedu.vn')
 });
 
 export const env = schema.parse(process.env);

@@ -32,6 +32,7 @@ import { directoryAssignmentsRouter } from './modules/safety/directory-assignmen
 import { meRouter } from './modules/safety/me.routes.js';
 import { savedFiltersRouter } from './modules/safety/saved-filters.routes.js';
 import { workScheduleRouter } from './modules/work-schedule/work-schedule.routes.js';
+import { weeklySheetRouter } from './modules/work-schedule/weekly-sheet.routes.js';
 import { handleMeetEvent } from './modules/meet/meet.events.js';
 
 const app = express();
@@ -103,6 +104,7 @@ app.use('/api/safety', meRouter);
 // Module Lịch công tác và Giao việc (K2: đặt tên "work-schedule" tránh đụng
 // /api/schedules có sẵn — đó là thời khoá biểu lớp học, khác nghiệp vụ).
 app.use('/api/work-schedule', workScheduleRouter);
+app.use('/api/work-schedule', weeklySheetRouter);
 
 app.post(
   '/events/meet',
