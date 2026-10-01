@@ -1,6 +1,10 @@
-import { Box, Typography, Stack } from '@mui/material';
 import type { ReactNode } from 'react';
 
+/** Tiêu đề đầu trang dùng chung — y hệt PageHeader cũ (bản MUI), dùng ở 24
+ * trang feature khác nhau nên GIỮ NGUYÊN đúng API (title/subtitle/action/
+ * icon), chỉ đổi lớp hiển thị sang Tailwind. `action` thường vẫn chứa
+ * Button/component MUI từ trang gọi — không vấn đề gì khi đặt cạnh layout
+ * Tailwind ở đây, 2 hệ thống style không xung đột. */
 export function PageHeader({
   title,
   subtitle,
@@ -13,58 +17,19 @@ export function PageHeader({
   icon?: ReactNode;
 }) {
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        flexDirection: { xs: 'column', sm: 'row' },
-        justifyContent: 'space-between',
-        alignItems: { xs: 'flex-start', sm: 'center' },
-        gap: 2,
-        mb: 3,
-        pb: 2.5,
-        borderBottom: '1px solid #e2e8f0'
-      }}
-    >
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.75 }}>
+    <div className="mb-6 flex flex-col items-start justify-between gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-center">
+      <div className="flex items-center gap-3.5">
         {icon && (
-          <Box
-            sx={{
-              width: 42,
-              height: 42,
-              borderRadius: 2,
-              border: '1px solid #bfdbfe',
-              background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
-              color: '#2563eb',
-              boxShadow: '0 2px 5px rgba(37, 99, 235, 0.08)',
-              display: 'grid',
-              placeItems: 'center',
-              flexShrink: 0
-            }}
-          >
+          <div className="grid size-[42px] shrink-0 place-items-center rounded-lg border border-blue-200 bg-gradient-to-br from-secondary to-blue-100 text-primary shadow-[0_2px_5px_rgba(37,99,235,0.08)]">
             {icon}
-          </Box>
+          </div>
         )}
-        <Box>
-          <Typography
-            variant="h5"
-            component="h1"
-            fontWeight={800}
-            sx={{ color: '#0f172a', letterSpacing: '-0.025em', lineHeight: 1.25 }}
-          >
-            {title}
-          </Typography>
-          {subtitle && (
-            <Typography variant="body2" sx={{ color: '#64748b', mt: 0.5, fontSize: '0.84rem' }}>
-              {subtitle}
-            </Typography>
-          )}
-        </Box>
-      </Box>
-      {action && (
-        <Stack direction="row" spacing={1} sx={{ width: { xs: '100%', sm: 'auto' }, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-          {action}
-        </Stack>
-      )}
-    </Box>
+        <div>
+          <h1 className="text-xl leading-tight font-extrabold tracking-tight text-[#0f172a]">{title}</h1>
+          {subtitle && <p className="mt-1 text-[0.84rem] text-slate-500">{subtitle}</p>}
+        </div>
+      </div>
+      {action && <div className="flex w-full flex-wrap justify-end gap-2 sm:w-auto">{action}</div>}
+    </div>
   );
 }

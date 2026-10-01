@@ -1,31 +1,28 @@
 import { useEffect, useState, useMemo } from 'react';
-import {
-  Card,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  TableContainer,
-  TablePagination,
-  TextField,
-  InputAdornment,
-  Box,
-  Typography,
-  Chip,
-  Skeleton,
-  Alert,
-  Button,
-  Stack
-} from '@mui/material';
-import SearchIcon from '@mui/icons-material/SearchRounded';
-import RefreshIcon from '@mui/icons-material/RefreshRounded';
-import CloudSyncIcon from '@mui/icons-material/CloudSyncRounded';
-import SchoolIcon from '@mui/icons-material/SchoolRounded';
 import { useNavigate } from 'react-router-dom';
+import { CloudUpload, RefreshCw, School, Search } from 'lucide-react';
 import { PageHeader } from './PageHeader';
 import { api } from '../services/api';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 
+/** Trang danh sách dạng bảng dùng chung (tìm kiếm + bảng + phân trang) —
+ * y hệt ApiTablePage cũ (bản MUI). Logic tải dữ liệu/lọc/phân trang GIỮ
+ * NGUYÊN 100%, chỉ đổi lớp hiển thị sang shadcn/Tailwind. Không có
+ * component "TablePagination" sẵn trong shadcn/ui nên tự dựng phần phân
+ * trang (Select số dòng/trang + nút lùi/tới + "X–Y trên Z") bằng các
+ * primitive đã có (Select/Button), theo đúng cách hiển thị cũ. */
 export function ApiTablePage({
   title,
   subtitle,
@@ -69,14 +66,16 @@ export function ApiTablePage({
   const filtered = useMemo(() => {
     if (!q.trim()) return items;
     const query = q.toLowerCase();
-    return items.filter((x) =>
-      Object.values(x).some((val) => String(val ?? '').toLowerCase().includes(query))
-    );
+    return items.filter((x) => Object.values(x).some((val) => String(val ?? '').toLowerCase().includes(query)));
   }, [items, q]);
 
   const pagedItems = useMemo(() => {
     return filtered.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
   }, [filtered, page, rowsPerPage]);
+
+  const pageCount = Math.max(1, Math.ceil(filtered.length / rowsPerPage));
+  const rangeFrom = filtered.length === 0 ? 0 : page * rowsPerPage + 1;
+  const rangeTo = Math.min(filtered.length, page * rowsPerPage + rowsPerPage);
 
   const renderCellContent = (c: any, row: any) => {
     if (c.render) return c.render(row[c.key], row);
@@ -85,18 +84,12 @@ export function ApiTablePage({
     if (c.key === 'status') {
       const isLive = String(val).toUpperCase() === 'LIVE';
       return (
-        <Chip
-          label={val || 'Hoàn thành'}
-          size="small"
-          sx={{
-            bgcolor: isLive ? '#fef2f2' : '#f8fafc',
-            color: isLive ? '#dc2626' : '#334155',
-            border: isLive ? '1px solid #fecaca' : '1px solid #e2e8f0',
-            fontWeight: 700,
-            fontSize: '0.72rem',
-            height: 24
-          }}
-        />
+        <Badge
+          variant="outline"
+          className={cn('h-6 text-[0.72rem] font-bold', isLive ? 'border-red-200 bg-red-50 text-red-600' : 'border-slate-200 bg-slate-50 text-slate-700')}
+        >
+          {val || 'Hoàn thành'}
+        </Badge>
       );
     }
 
@@ -104,11 +97,7 @@ export function ApiTablePage({
       const num = Number(val);
       if (!isNaN(num)) {
         return (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Typography variant="body2" fontWeight={700} sx={{ color: num >= 90 ? '#10b981' : num >= 75 ? '#f59e0b' : '#ef4444', fontSize: '0.84rem' }}>
-              {num}%
-            </Typography>
-          </Box>
+          <span className={cn('text-[0.84rem] font-bold', num >= 90 ? 'text-emerald-500' : num >= 75 ? 'text-amber-500' : 'text-red-500')}>{num}%</span>
         );
       }
     }
@@ -122,205 +111,143 @@ export function ApiTablePage({
         title={title}
         subtitle={subtitle}
         action={
-          <Box sx={{ display: 'flex', gap: 1 }}>
+          <div className="flex gap-2">
             {action}
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<RefreshIcon sx={{ fontSize: 16 }} />}
-              onClick={loadData}
-              sx={{
-                bgcolor: '#ffffff',
-                borderColor: '#cbd5e1',
-                color: '#334155',
-                fontWeight: 600,
-                fontSize: '0.8125rem',
-                '&:hover': { bgcolor: '#f8fafc', borderColor: '#94a3b8' }
-              }}
-            >
+            <Button variant="outline" size="sm" onClick={loadData} className="bg-white font-semibold text-slate-700">
+              <RefreshCw className="size-4" />
               Làm mới
             </Button>
-          </Box>
+          </div>
         }
       />
 
       {/* Filter Toolbar */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2, mb: 2.5, flexWrap: 'wrap' }}>
-        <TextField
-          size="small"
-          placeholder="Lọc dữ liệu tìm kiếm..."
-          value={q}
-          onChange={(e) => {
-            setQ(e.target.value);
-            setPage(0);
-          }}
-          sx={{ width: { xs: '100%', sm: 320 } }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon sx={{ color: '#64748b', fontSize: 19 }} />
-              </InputAdornment>
-            ),
-            sx: { height: 38, fontSize: '0.84rem', bgcolor: '#ffffff' }
-          }}
-        />
-
-        <Chip
-          label={`Tổng cộng ${filtered.length} bản ghi`}
-          size="small"
-          sx={{
-            bgcolor: '#eff6ff',
-            color: '#1d4ed8',
-            border: '1px solid #bfdbfe',
-            fontWeight: 700,
-            fontSize: '0.75rem',
-            height: 28,
-            px: 0.5
-          }}
-        />
-      </Box>
-
-      {err && (
-        <Alert severity="info" sx={{ mb: 2.5, borderRadius: 2, border: '1px solid #bfdbfe', bgcolor: '#eff6ff', color: '#1e40af' }}>
-          {err}
-        </Alert>
-      )}
-
-      {/* Table Card */}
-      <Card sx={{ borderRadius: 3, overflow: 'hidden', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px 0 rgba(15, 23, 42, 0.04)', bgcolor: '#ffffff' }}>
-        <TableContainer sx={{ width: '100%', overflowX: 'auto' }}>
-          <Table size="medium">
-            <TableHead sx={{ bgcolor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-              <TableRow>
-                {columns.map((c) => (
-                  <TableCell key={c.key} sx={{ fontWeight: 700, color: '#475569', py: 1.5, fontSize: '0.75rem', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-                    {c.label}
-                  </TableCell>
-                ))}
-              </TableRow>
-            </TableHead>
-
-            <TableBody>
-              {loading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={i}>
-                    {columns.map((c) => (
-                      <TableCell key={c.key} sx={{ py: 1.75 }}>
-                        <Skeleton variant="text" width="80%" height={22} />
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              ) : items.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={columns.length} sx={{ py: 8, textAlign: 'center' }}>
-                    <Box
-                      sx={{
-                        width: 52,
-                        height: 52,
-                        borderRadius: 2.5,
-                        border: '1px solid #bfdbfe',
-                        background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
-                        color: '#2563eb',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        mb: 2,
-                        boxShadow: '0 4px 10px rgba(37, 99, 235, 0.12)'
-                      }}
-                    >
-                      <SchoolIcon sx={{ fontSize: 26 }} />
-                    </Box>
-                    <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#0f172a', mb: 0.5 }}>
-                      Chưa có dữ liệu từ Google Classroom
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: '#64748b', maxWidth: 460, mx: 'auto', mb: 3, fontSize: '0.84rem', lineHeight: 1.6 }}>
-                      Toàn bộ thông tin học tập và danh bạ được đồng bộ trực tiếp từ Google Classroom. Hãy kết nối tài khoản hoặc tiến hành đồng bộ để hiển thị danh sách.
-                    </Typography>
-                    <Stack direction="row" spacing={1.5} justifyContent="center">
-                      <Button
-                        variant="contained"
-                        color="primary"
-                        startIcon={<CloudSyncIcon sx={{ fontSize: 18 }} />}
-                        onClick={() => navigate('/connections')}
-                        sx={{
-                          fontWeight: 700,
-                          fontSize: '0.84rem',
-                          px: 2.5,
-                          py: 0.85,
-                          borderRadius: 2
-                        }}
-                      >
-                        Kết nối & Đồng bộ Classroom
-                      </Button>
-                      <Button
-                        variant="outlined"
-                        startIcon={<RefreshIcon sx={{ fontSize: 18 }} />}
-                        onClick={loadData}
-                        sx={{ borderColor: '#cbd5e1', color: '#334155', fontWeight: 600, fontSize: '0.84rem', borderRadius: 2 }}
-                      >
-                        Thử lại
-                      </Button>
-                    </Stack>
-                  </TableCell>
-                </TableRow>
-              ) : pagedItems.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={columns.length} sx={{ py: 6, textAlign: 'center' }}>
-                    <Typography variant="body2" fontWeight={700} sx={{ color: '#0f172a', mb: 0.5 }}>
-                      Không tìm thấy kết quả phù hợp với "{q}"
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: '#64748b' }}>
-                      Vui lòng thử tìm kiếm bằng từ khóa khác
-                    </Typography>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                pagedItems.map((x, i) => (
-                  <TableRow
-                    key={x.id || i}
-                    sx={{
-                      borderBottom: '1px solid #f1f5f9',
-                      transition: 'background-color 0.12s ease',
-                      '&:hover': { bgcolor: 'rgba(239, 246, 255, 0.6) !important' }
-                    }}
-                  >
-                    {columns.map((c) => (
-                      <TableCell key={c.key} sx={{ py: 1.5, fontSize: '0.84rem' }}>
-                        {renderCellContent(c, x)}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-
-        {filtered.length > rowsPerPage && (
-          <TablePagination
-            rowsPerPageOptions={[10, 25, 50]}
-            component="div"
-            count={filtered.length}
-            rowsPerPage={rowsPerPage}
-            page={page}
-            onPageChange={(_, newPage) => setPage(newPage)}
-            onRowsPerPageChange={(e) => {
-              setRowsPerPage(parseInt(e.target.value, 10));
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
+        <div className="relative w-full sm:w-80">
+          <Search className="absolute top-1/2 left-3 size-[19px] -translate-y-1/2 text-slate-500" />
+          <Input
+            placeholder="Lọc dữ liệu tìm kiếm..."
+            value={q}
+            onChange={(e) => {
+              setQ(e.target.value);
               setPage(0);
             }}
-            labelRowsPerPage="Số hàng mỗi trang:"
-            labelDisplayedRows={({ from, to, count }) => `${from}–${to} trên ${count}`}
-            sx={{
-              borderTop: '1px solid #e2e8f0',
-              color: '#64748b',
-              fontSize: '0.78rem',
-              '& .MuiTablePagination-select': { fontSize: '0.78rem' },
-              '& .MuiTablePagination-displayedRows': { fontSize: '0.78rem' }
-            }}
+            className="h-[38px] bg-white pl-10 text-[0.84rem]"
           />
+        </div>
+
+        <Badge variant="outline" className="h-7 border-blue-200 bg-secondary px-2 text-[0.75rem] font-bold text-[#1d4ed8]">
+          Tổng cộng {filtered.length} bản ghi
+        </Badge>
+      </div>
+
+      {err && <p className="mb-5 rounded-lg border border-blue-200 bg-secondary px-4 py-3 text-sm text-blue-800">{err}</p>}
+
+      {/* Table Card */}
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_3px_0_rgba(15,23,42,0.04)]">
+        <Table>
+          <TableHeader className="bg-slate-50">
+            <TableRow className="hover:bg-slate-50">
+              {columns.map((c) => (
+                <TableHead key={c.key} className="py-3 text-[0.75rem] font-bold tracking-wider text-slate-600 uppercase">
+                  {c.label}
+                </TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+
+          <TableBody>
+            {loading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <TableRow key={i}>
+                  {columns.map((c) => (
+                    <TableCell key={c.key} className="py-3.5">
+                      <Skeleton className="h-[22px] w-4/5" />
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : items.length === 0 ? (
+              <TableRow className="hover:bg-transparent">
+                <TableCell colSpan={columns.length} className="py-16 text-center">
+                  <div className="mx-auto mb-4 inline-flex size-[52px] items-center justify-center rounded-xl border border-blue-200 bg-gradient-to-br from-secondary to-blue-100 text-primary shadow-[0_4px_10px_rgba(37,99,235,0.12)]">
+                    <School className="size-[26px]" />
+                  </div>
+                  <p className="mb-1 text-base font-bold text-[#0f172a]">Chưa có dữ liệu từ Google Classroom</p>
+                  <p className="mx-auto mb-6 max-w-[460px] text-[0.84rem] leading-relaxed text-slate-500">
+                    Toàn bộ thông tin học tập và danh bạ được đồng bộ trực tiếp từ Google Classroom. Hãy kết nối tài khoản hoặc tiến hành đồng bộ để hiển thị
+                    danh sách.
+                  </p>
+                  <div className="flex justify-center gap-3">
+                    <Button onClick={() => navigate('/connections')} className="rounded-lg px-5 py-2 text-[0.84rem] font-bold">
+                      <CloudUpload className="size-[18px]" />
+                      Kết nối &amp; Đồng bộ Classroom
+                    </Button>
+                    <Button variant="outline" onClick={loadData} className="rounded-lg text-[0.84rem] font-semibold text-slate-700">
+                      <RefreshCw className="size-[18px]" />
+                      Thử lại
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : pagedItems.length === 0 ? (
+              <TableRow className="hover:bg-transparent">
+                <TableCell colSpan={columns.length} className="py-12 text-center">
+                  <p className="mb-1 text-sm font-bold text-[#0f172a]">Không tìm thấy kết quả phù hợp với "{q}"</p>
+                  <p className="text-xs text-slate-500">Vui lòng thử tìm kiếm bằng từ khóa khác</p>
+                </TableCell>
+              </TableRow>
+            ) : (
+              pagedItems.map((x, i) => (
+                <TableRow key={x.id || i} className="border-b border-slate-100 hover:bg-blue-50/60">
+                  {columns.map((c) => (
+                    <TableCell key={c.key} className="py-3 text-[0.84rem]">
+                      {renderCellContent(c, x)}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+
+        {filtered.length > rowsPerPage && (
+          <div className="flex flex-wrap items-center justify-end gap-4 border-t border-slate-200 px-4 py-2.5 text-[0.78rem] text-slate-500">
+            <div className="flex items-center gap-2">
+              <span>Số hàng mỗi trang:</span>
+              <Select
+                value={String(rowsPerPage)}
+                onValueChange={(v) => {
+                  setRowsPerPage(parseInt(v, 10));
+                  setPage(0);
+                }}
+              >
+                <SelectTrigger size="sm" className="w-[70px] text-[0.78rem]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[10, 25, 50].map((n) => (
+                    <SelectItem key={n} value={String(n)}>
+                      {n}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <span>
+              {rangeFrom}–{rangeTo} trên {filtered.length}
+            </span>
+            <div className="flex gap-1">
+              <Button variant="ghost" size="sm" disabled={page === 0} onClick={() => setPage((p) => Math.max(0, p - 1))}>
+                Trước
+              </Button>
+              <Button variant="ghost" size="sm" disabled={page >= pageCount - 1} onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}>
+                Sau
+              </Button>
+            </div>
+          </div>
         )}
-      </Card>
+      </div>
     </>
   );
 }
