@@ -1,4 +1,5 @@
-import { Box, Avatar, Typography, Chip } from '@mui/material';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { ApiTablePage } from '../../components/ApiTablePage';
 
 export default function TeachersPage() {
@@ -13,55 +14,40 @@ export default function TeachersPage() {
           render: (val, row) => {
             const name = val || row.displayName || row.name || row.email || 'Chưa cập nhật';
             return (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                <Avatar
-                  src={row.photoUrl}
-                  sx={{ width: 34, height: 34, fontSize: '0.85rem', bgcolor: '#10b981', fontWeight: 700 }}
-                >
-                  {String(name)[0]?.toUpperCase()}
+              <div className="flex items-center gap-2.5">
+                <Avatar className="size-[34px] bg-emerald-500 text-[0.85rem] font-bold text-white">
+                  <AvatarImage src={row.photoUrl} />
+                  <AvatarFallback className="bg-emerald-500 text-white">{String(name)[0]?.toUpperCase()}</AvatarFallback>
                 </Avatar>
-                <Box>
-                  <Typography variant="body2" fontWeight={700} sx={{ color: '#0f172a' }}>
-                    {name}
-                  </Typography>
-                  <Typography variant="caption" sx={{ color: '#64748b' }}>
-                    {row.email}
-                  </Typography>
-                </Box>
-              </Box>
+                <div>
+                  <p className="font-bold text-[#0f172a]">{name}</p>
+                  <p className="text-xs text-slate-500">{row.email}</p>
+                </div>
+              </div>
             );
           }
         },
         {
           key: 'email',
           label: 'Email Google Workspace',
-          render: (val) => (
-            <Typography variant="body2" sx={{ color: '#2563eb', fontWeight: 500 }}>
-              {val || '—'}
-            </Typography>
-          )
+          render: (val) => <span className="font-medium text-primary">{val || '—'}</span>
         },
         {
           key: 'orgUnitPath',
           label: 'Tổ Chuyên Môn (Org Unit)',
           render: (val) => (
-            <Chip
-              label={val || 'Chưa phân tổ'}
-              size="small"
-              sx={{ bgcolor: '#ecfdf5', color: '#059669', fontWeight: 700 }}
-            />
+            <Badge variant="outline" className="border-transparent bg-emerald-50 font-bold text-emerald-600">
+              {val || 'Chưa phân tổ'}
+            </Badge>
           )
         },
         {
           key: 'courses',
           label: 'Lớp phụ trách',
           render: (val) => (
-            <Chip
-              label={`${Array.isArray(val) ? val.length : 0} lớp`}
-              size="small"
-              variant="outlined"
-              sx={{ borderColor: '#cbd5e1', fontWeight: 600 }}
-            />
+            <Badge variant="outline" className="font-semibold text-slate-600">
+              {Array.isArray(val) ? val.length : 0} lớp
+            </Badge>
           )
         }
       ]}

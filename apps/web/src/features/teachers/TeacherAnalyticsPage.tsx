@@ -1,5 +1,6 @@
-import { Box, Chip, Avatar, Typography } from '@mui/material';
-import BadgeIcon from '@mui/icons-material/BadgeRounded';
+import { IdCard } from 'lucide-react';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { ApiTablePage } from '../../components/ApiTablePage';
 
 export default function TeacherAnalyticsPage() {
@@ -14,58 +15,45 @@ export default function TeacherAnalyticsPage() {
           render: (val: any, row: any) => {
             const name = val || row.displayName || row.name || row.email || 'Chưa cập nhật họ tên';
             return (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                <Avatar
-                  src={row.photoUrl}
-                  sx={{ width: 32, height: 32, fontSize: '0.8rem', bgcolor: '#2563eb', fontWeight: 700 }}
-                >
-                  <BadgeIcon sx={{ fontSize: 18 }} />
+              <div className="flex items-center gap-2.5">
+                <Avatar className="size-8 bg-primary font-bold text-white">
+                  <AvatarImage src={row.photoUrl} />
+                  <AvatarFallback className="bg-primary text-white">
+                    <IdCard className="size-[18px]" />
+                  </AvatarFallback>
                 </Avatar>
-                <Box>
-                  <Typography variant="body2" fontWeight={700} sx={{ color: '#0f172a' }}>
-                    {name}
-                  </Typography>
-                  <Typography variant="caption" sx={{ color: '#64748b' }}>
-                    {row.email}
-                  </Typography>
-                </Box>
-              </Box>
+                <div>
+                  <p className="font-bold text-[#0f172a]">{name}</p>
+                  <p className="text-xs text-slate-500">{row.email}</p>
+                </div>
+              </div>
             );
           }
         },
         {
           key: 'email',
           label: 'Email Giảng dạy',
-          render: (val: any) => (
-            <Typography variant="body2" sx={{ color: '#2563eb', fontWeight: 500 }}>
-              {val || '—'}
-            </Typography>
-          )
+          render: (val: any) => <span className="font-medium text-primary">{val || '—'}</span>
         },
         {
           key: 'orgUnitPath',
           label: 'Tổ Chuyên Môn',
           render: (val: any) => (
-            <Chip
-              label={val || 'Chưa phân tổ'}
-              size="small"
-              sx={{ bgcolor: '#ecfdf5', color: '#059669', fontWeight: 700 }}
-            />
+            <Badge variant="outline" className="border-transparent bg-emerald-50 font-bold text-emerald-600">
+              {val || 'Chưa phân tổ'}
+            </Badge>
           )
         },
         {
           key: 'courses',
           label: 'Số lớp phụ trách',
           render: (val: any) => (
-            <Chip
-              label={`${Array.isArray(val) ? val.length : 0} khóa học`}
-              size="small"
-              sx={{ bgcolor: '#eff6ff', color: '#1d4ed8', fontWeight: 700 }}
-            />
+            <Badge variant="outline" className="border-transparent bg-secondary font-bold text-[#1d4ed8]">
+              {Array.isArray(val) ? val.length : 0} khóa học
+            </Badge>
           )
         }
       ]}
     />
   );
 }
-
