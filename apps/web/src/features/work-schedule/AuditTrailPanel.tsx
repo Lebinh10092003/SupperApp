@@ -6,10 +6,9 @@
  * lặp lại 2 lần.
  */
 import { useEffect, useState } from 'react';
-import { Accordion, AccordionDetails, AccordionSummary, Box, CircularProgress, Stack, Typography } from '@mui/material';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMoreRounded';
-import HistoryIcon from '@mui/icons-material/HistoryRounded';
+import { ChevronDown, History, Loader2 } from 'lucide-react';
 import { api } from '../../services/api';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 export interface AuditLogEntry {
   id: string;
@@ -43,7 +42,7 @@ export function AuditTrailPanel({
   entityType: 'event' | 'task';
   entityId: string;
   /** Tăng giá trị này (VD đếm số lần đã thao tác thành công) để buộc tải
-   * lại lịch sử — MUI Accordion KHÔNG unmount khi thu gọn/mở lại, nên nếu
+   * lại lịch sử — Collapsible KHÔNG unmount khi thu gọn/mở lại, nên nếu
    * chỉ phụ thuộc [entityType, entityId] (không đổi khi đổi trạng thái
    * trong cùng 1 phiên mở dialog), danh sách hiển thị sẽ bị CŨ sau khi
    * thực hiện hành động mà không đóng-mở lại dialog (Sin phản hồi
@@ -73,46 +72,35 @@ export function AuditTrailPanel({
   }, [entityType, entityId, refreshKey]);
 
   return (
-    <Accordion sx={{ boxShadow: 'none', border: '1px solid #e2e8f0', borderRadius: 2, '&:before': { display: 'none' } }}>
-      <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-        <Stack direction="row" spacing={1} alignItems="center">
-          <HistoryIcon fontSize="small" sx={{ color: '#64748b' }} />
-          <Typography variant="subtitle2" fontWeight={700}>
-            Lịch sử{items ? ` (${items.length})` : ''}
-          </Typography>
-        </Stack>
-      </AccordionSummary>
-      <AccordionDetails>
-        {error && (
-          <Typography variant="body2" color="error">
-            {error}
-          </Typography>
-        )}
+    <Collapsible className="rounded-lg border border-slate-200">
+      <CollapsibleTrigger className="group flex w-full items-center justify-between p-3 text-left">
+        <div className="flex items-center gap-1.5">
+          <History className="size-4 text-slate-500" />
+          <p className="text-sm font-bold">Lịch sử{items ? ` (${items.length})` : ''}</p>
+        </div>
+        <ChevronDown className="size-4 shrink-0 text-slate-500 transition-transform group-data-[state=open]:rotate-180" />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="px-3 pb-3">
+        {error && <p className="text-sm text-red-600">{error}</p>}
         {!items && !error && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 1 }}>
-            <CircularProgress size={18} />
-          </Box>
+          <div className="flex justify-center py-2">
+            <Loader2 className="size-[18px] animate-spin text-slate-400" />
+          </div>
         )}
-        {items && items.length === 0 && (
-          <Typography variant="body2" color="text.secondary">
-            Chưa có nhật ký nào.
-          </Typography>
-        )}
+        {items && items.length === 0 && <p className="text-sm text-slate-500">Chưa có nhật ký nào.</p>}
         {items && items.length > 0 && (
-          <Stack spacing={1}>
+          <div className="flex flex-col divide-y divide-slate-100">
             {items.map((log) => (
-              <Box key={log.id} sx={{ pb: 1, borderBottom: '1px solid #f1f5f9', '&:last-child': { borderBottom: 'none', pb: 0 } }}>
-                <Typography variant="body2" fontWeight={600}>
-                  {ACTION_LABEL[log.action] || log.action}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
+              <div key={log.id} className="py-1.5 first:pt-0 last:pb-0">
+                <p className="text-sm font-semibold">{ACTION_LABEL[log.action] || log.action}</p>
+                <p className="text-xs text-slate-500">
                   {log.actorLabel || log.actorPerId} — {new Date(log.createdAt).toLocaleString('vi-VN')}
-                </Typography>
-              </Box>
+                </p>
+              </div>
             ))}
-          </Stack>
+          </div>
         )}
-      </AccordionDetails>
-    </Accordion>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
