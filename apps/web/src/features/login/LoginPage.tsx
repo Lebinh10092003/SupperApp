@@ -187,7 +187,7 @@ export default function LoginPage() {
             <div className="flex flex-col gap-5">
               <div>
                 <p className="font-bold tracking-tight text-[#0f172a]">Đăng nhập tài khoản</p>
-                <p className="text-[0.84rem] text-slate-500">Sử dụng tài khoản Google Workspace do nhà trường cấp, hoặc email/mật khẩu đã được cấp quyền.</p>
+                <p className="text-sm text-slate-500">Sử dụng tài khoản Google Workspace do nhà trường cấp, hoặc email/mật khẩu đã được cấp quyền.</p>
               </div>
 
               {error && (
@@ -255,7 +255,7 @@ export default function LoginPage() {
                     </button>
                   </div>
                 </div>
-                <Button type="submit" variant="outline" disabled={passwordLoading} className="w-full py-5 font-bold">
+                <Button type="submit" variant="outline" disabled={passwordLoading} className="w-full py-5">
                   {passwordLoading && <Loader2 className="size-4 animate-spin" />}
                   {passwordLoading ? 'Đang xử lý...' : 'Đăng nhập'}
                 </Button>
@@ -320,7 +320,7 @@ export default function LoginPage() {
               {forgotSent ? 'Đóng' : 'Huỷ'}
             </Button>
             {!forgotSent && (
-              <Button disabled={forgotSending || !forgotEmail.trim()} onClick={handleForgotPassword} className="font-bold">
+              <Button disabled={forgotSending || !forgotEmail.trim()} onClick={handleForgotPassword}>
                 {forgotSending ? 'Đang gửi...' : 'Gửi email đặt lại'}
               </Button>
             )}

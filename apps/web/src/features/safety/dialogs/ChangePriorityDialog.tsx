@@ -125,7 +125,7 @@ export function ChangePriorityDialog({
           <Button variant="ghost" onClick={handleClose} className="text-slate-500">
             Hủy
           </Button>
-          <Button disabled={!toPriority || submitting} onClick={handleSubmit} className="font-bold">
+          <Button disabled={!toPriority || submitting} onClick={handleSubmit}>
             {submitting ? 'Đang lưu...' : 'Xác nhận đổi ưu tiên'}
           </Button>
         </DialogFooter>

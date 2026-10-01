@@ -101,7 +101,7 @@ export default function OverviewPage() {
               Không có lịch trong 7 ngày tới — chưa có lịch do bạn chủ trì, được mời tham dự hoặc áp dụng cho toàn trường.
             </p>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_3px_0_rgba(15,23,42,0.04)]">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -150,7 +150,7 @@ export default function OverviewPage() {
           {upcomingTasks.length === 0 ? (
             <p className="text-sm text-slate-500">Không có công việc nào đến hạn trong khoảng thời gian này.</p>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_3px_0_rgba(15,23,42,0.04)]">
               <Table>
                 <TableHeader>
                   <TableRow>

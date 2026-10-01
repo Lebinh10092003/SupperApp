@@ -74,7 +74,7 @@ export function ReasonPromptDialog({
           <Button variant="ghost" onClick={handleClose} className="text-slate-500">
             Hủy
           </Button>
-          <Button variant={confirmVariant} disabled={!reason.trim() || submitting} onClick={handleSubmit} className="font-bold">
+          <Button variant={confirmVariant} disabled={!reason.trim() || submitting} onClick={handleSubmit}>
             {submitting ? 'Đang gửi...' : confirmLabel}
           </Button>
         </DialogFooter>

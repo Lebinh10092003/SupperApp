@@ -159,7 +159,7 @@ export default function ClassComparePage() {
         subtitle="Phân tích đối đầu trực diện 1-vs-1 giữa các lớp học và xếp hạng chỉ số học tập so với chuẩn toàn khối."
         icon={<ArrowLeftRight className="text-primary" />}
         action={
-          <Button variant="outline" onClick={() => loadClassesAndBenchmarks(selectedGrade)} disabled={loading} className="rounded-lg font-semibold">
+          <Button variant="outline" onClick={() => loadClassesAndBenchmarks(selectedGrade)} disabled={loading} className="rounded-lg">
             <RefreshCw className="size-4" />
             Làm mới
           </Button>
@@ -171,7 +171,7 @@ export default function ClassComparePage() {
       {/* THANH ĐIỀU KHIỂN CHỌN LỚP ĐỐI ĐẦU */}
       <Card className="mb-6 overflow-hidden">
         <div className="border-b border-slate-200 bg-slate-50 p-5">
-          <p className="text-sm font-bold tracking-wide text-slate-700 uppercase">Thiết lập cặp lớp so sánh đối đầu (Head-to-Head Duel)</p>
+          <p className="text-sm font-medium text-slate-500">Thiết lập cặp lớp so sánh đối đầu (Head-to-Head Duel)</p>
         </div>
         <div className="grid grid-cols-1 items-center gap-4 p-5 sm:grid-cols-[repeat(12,minmax(0,1fr))]">
           {/* Lọc Khối */}
@@ -210,7 +210,7 @@ export default function ClassComparePage() {
 
           {/* VS Badge */}
           <div className="flex justify-center sm:col-span-1">
-            <span className="inline-flex size-[38px] items-center justify-center rounded-full bg-[#0f172a] text-[0.8rem] font-black tracking-wide text-white shadow-[0_2px_6px_rgba(0,0,0,0.15)]">
+            <span className="inline-flex size-[38px] items-center justify-center rounded-full bg-[#0f172a] text-xs font-black tracking-wide text-white shadow-[0_2px_6px_rgba(0,0,0,0.15)]">
               VS
             </span>
           </div>
@@ -249,7 +249,7 @@ export default function ClassComparePage() {
               <div className="p-5">
                 <div className="mb-4 flex items-start justify-between">
                   <div>
-                    <Badge variant="outline" className="mb-1 border-transparent bg-secondary font-bold text-[#1d4ed8]">
+                    <Badge variant="outline" className="mb-1 border-transparent bg-secondary text-[#1d4ed8]">
                       ĐỘI XANH
                     </Badge>
                     <p className="text-xl font-extrabold text-[#0f172a]">{duelData.classA.className}</p>
@@ -258,7 +258,7 @@ export default function ClassComparePage() {
                     </p>
                   </div>
                   <div className="text-right">
-                    <Badge variant="outline" className="border-transparent bg-slate-100 font-semibold">
+                    <Badge variant="outline" className="border-transparent bg-slate-100">
                       {duelData.classA.grade ? `Khối ${duelData.classA.grade}` : '—'}
                     </Badge>
                     <p className="mt-1 text-xs text-slate-500">Phòng: {duelData.classA.room || '—'}</p>
@@ -278,7 +278,7 @@ export default function ClassComparePage() {
               <div className="p-5">
                 <div className="mb-4 flex items-start justify-between">
                   <div>
-                    <Badge variant="outline" className="mb-1 border-transparent bg-violet-50 font-bold text-violet-700">
+                    <Badge variant="outline" className="mb-1 border-transparent bg-violet-50 text-violet-700">
                       ĐỘI TÍM
                     </Badge>
                     <p className="text-xl font-extrabold text-[#0f172a]">{duelData.classB.className}</p>
@@ -287,7 +287,7 @@ export default function ClassComparePage() {
                     </p>
                   </div>
                   <div className="text-right">
-                    <Badge variant="outline" className="border-transparent bg-slate-100 font-semibold">
+                    <Badge variant="outline" className="border-transparent bg-slate-100">
                       {duelData.classB.grade ? `Khối ${duelData.classB.grade}` : '—'}
                     </Badge>
                     <p className="mt-1 text-xs text-slate-500">Phòng: {duelData.classB.room || '—'}</p>
@@ -417,10 +417,10 @@ export default function ClassComparePage() {
           </div>
           {benchmarkData?.benchmarks && (
             <div className="flex flex-wrap gap-2">
-              <Badge variant="outline" className="border-transparent bg-secondary font-bold text-[#1d4ed8]">
+              <Badge variant="outline" className="border-transparent bg-secondary text-[#1d4ed8]">
                 TB Hoàn thành: {benchmarkData.benchmarks.avgCompletion}%
               </Badge>
-              <Badge variant="outline" className="border-transparent bg-emerald-50 font-bold text-emerald-700">
+              <Badge variant="outline" className="border-transparent bg-emerald-50 text-emerald-700">
                 TB Đúng hạn: {benchmarkData.benchmarks.avgOnTime}%
               </Badge>
             </div>
@@ -430,15 +430,15 @@ export default function ClassComparePage() {
         <Table className="min-w-[750px]">
           <TableHeader className="bg-slate-50">
             <TableRow className="hover:bg-slate-50">
-              <TableHead className="text-[0.85rem] font-bold text-slate-600">Thứ hạng</TableHead>
-              <TableHead className="text-[0.85rem] font-bold text-slate-600">Lớp học</TableHead>
-              <TableHead className="text-[0.85rem] font-bold text-slate-600">Khối</TableHead>
-              <TableHead className="text-[0.85rem] font-bold text-slate-600">Giáo viên Chủ nhiệm</TableHead>
-              <TableHead className="text-[0.85rem] font-bold text-slate-600">Sĩ số</TableHead>
-              <TableHead className="text-[0.85rem] font-bold text-slate-600">Khóa học số</TableHead>
-              <TableHead className="text-[0.85rem] font-bold text-slate-600">Tỷ lệ nộp bài</TableHead>
-              <TableHead className="text-[0.85rem] font-bold text-slate-600">Đúng hạn</TableHead>
-              <TableHead className="text-right text-[0.85rem] font-bold text-slate-600">Hành động</TableHead>
+              <TableHead className="text-xs font-medium text-slate-500">Thứ hạng</TableHead>
+              <TableHead className="text-xs font-medium text-slate-500">Lớp học</TableHead>
+              <TableHead className="text-xs font-medium text-slate-500">Khối</TableHead>
+              <TableHead className="text-xs font-medium text-slate-500">Giáo viên Chủ nhiệm</TableHead>
+              <TableHead className="text-xs font-medium text-slate-500">Sĩ số</TableHead>
+              <TableHead className="text-xs font-medium text-slate-500">Khóa học số</TableHead>
+              <TableHead className="text-xs font-medium text-slate-500">Tỷ lệ nộp bài</TableHead>
+              <TableHead className="text-xs font-medium text-slate-500">Đúng hạn</TableHead>
+              <TableHead className="text-right text-xs font-medium text-slate-500">Hành động</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -461,12 +461,12 @@ export default function ClassComparePage() {
                     <div className="flex items-center gap-2">
                       <p className="font-bold text-[#0f172a]">{cls.className}</p>
                       {isDuelA && (
-                        <Badge variant="outline" className="h-5 border-transparent bg-blue-100 text-[0.65rem] font-bold text-[#1d4ed8]">
+                        <Badge variant="outline" className="border-transparent bg-blue-100 text-xs text-[#1d4ed8]">
                           Đội Xanh
                         </Badge>
                       )}
                       {isDuelB && (
-                        <Badge variant="outline" className="h-5 border-transparent bg-violet-100 text-[0.65rem] font-bold text-violet-700">
+                        <Badge variant="outline" className="border-transparent bg-violet-100 text-xs text-violet-700">
                           Đội Tím
                         </Badge>
                       )}

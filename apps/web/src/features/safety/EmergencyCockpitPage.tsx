@@ -74,7 +74,7 @@ export default function EmergencyCockpitPage() {
               <div className="mb-2 flex flex-wrap items-center gap-1.5">
                 <PriorityChip priority={it.priority} compact />
                 <StatusChip state={it.state} />
-                <Badge variant="outline" className="h-6 border-transparent bg-slate-50 font-semibold text-slate-700">
+                <Badge variant="outline" className="border-transparent bg-slate-50 text-slate-700">
                   {CAMPUS_LABEL[it.campusId] || it.campusId}
                 </Badge>
               </div>

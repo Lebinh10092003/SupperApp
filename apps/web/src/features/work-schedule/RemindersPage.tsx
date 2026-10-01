@@ -100,7 +100,7 @@ export default function RemindersPage() {
           {actionEvents.length === 0 && actionTasks.length === 0 ? (
             <p className="text-sm text-slate-500">Không có lịch/việc nào đang cần bạn hành động.</p>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_3px_0_rgba(15,23,42,0.04)]">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -139,7 +139,7 @@ export default function RemindersPage() {
                       <TableCell>{t.title}</TableCell>
                       <TableCell>{CAMPUS_LABEL[t.campusId] || t.campusId}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="border-transparent bg-secondary font-semibold text-[#1d4ed8]">
+                        <Badge variant="outline" className="border-transparent bg-secondary text-[#1d4ed8]">
                           {TASK_REASON_LABEL[reason]}
                         </Badge>
                       </TableCell>
@@ -159,7 +159,7 @@ export default function RemindersPage() {
           {conflictingEvents.length === 0 ? (
             <p className="text-sm text-slate-500">Không có lịch nào đang trùng.</p>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_3px_0_rgba(15,23,42,0.04)]">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -176,7 +176,7 @@ export default function RemindersPage() {
                       <TableCell>{ev.title}</TableCell>
                       <TableCell>{CAMPUS_LABEL[ev.campusId] || ev.campusId}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="border-transparent bg-red-50 font-semibold text-red-600">
+                        <Badge variant="outline" className="border-transparent bg-red-50 text-red-600">
                           {ev.conflictNote}
                         </Badge>
                       </TableCell>
@@ -193,7 +193,7 @@ export default function RemindersPage() {
           {overdueTasks.length === 0 ? (
             <p className="text-sm text-slate-500">Không có công việc nào quá hạn.</p>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_3px_0_rgba(15,23,42,0.04)]">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -207,7 +207,7 @@ export default function RemindersPage() {
                   {overdueTasks.map((t) => (
                     <TableRow key={t.id} className="cursor-pointer" onClick={() => setTaskDetail(t)}>
                       <TableCell>
-                        <Badge variant="outline" className="border-transparent bg-orange-50 font-semibold text-orange-700">
+                        <Badge variant="outline" className="border-transparent bg-orange-50 text-orange-700">
                           {new Date(t.dueAt).toLocaleString('vi-VN')}
                         </Badge>
                       </TableCell>

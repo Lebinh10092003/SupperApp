@@ -126,7 +126,7 @@ export function NotificationBell() {
         <Button variant="ghost" size="icon" className="relative text-slate-500">
           <Bell className="size-5" />
           {unreadCount > 0 && (
-            <span className="absolute top-0.5 right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[0.65rem] font-bold text-white">
+            <span className="absolute top-0.5 right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-xs font-bold text-white">
               {unreadCount > 99 ? '99+' : unreadCount}
             </span>
           )}
@@ -139,7 +139,7 @@ export function NotificationBell() {
         {isPushSupported() && getNotificationPermission() !== 'denied' && (
           <div className="px-2 pb-1.5">
             {!pushSubscribed ? (
-              <Button variant="outline" size="sm" disabled={pushEnabling} onClick={handleEnablePush} className="w-full font-semibold">
+              <Button variant="outline" size="sm" disabled={pushEnabling} onClick={handleEnablePush} className="w-full">
                 <BellRing className="size-4" />
                 {pushEnabling ? 'Đang bật...' : 'Bật thông báo đẩy trên thiết bị này'}
               </Button>

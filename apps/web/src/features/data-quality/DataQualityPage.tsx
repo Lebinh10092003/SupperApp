@@ -51,7 +51,7 @@ export default function DataQualityPage() {
         title="Chất lượng dữ liệu"
         icon={<ShieldCheck />}
         action={
-          <Button variant="outline" size="sm" onClick={loadData} className="font-semibold">
+          <Button variant="outline" size="sm" onClick={loadData}>
             <RefreshCw className="size-4" />
             Làm mới
           </Button>
@@ -66,7 +66,7 @@ export default function DataQualityPage() {
               <strong>Dữ liệu thực:</strong> Điểm chất lượng được tính tự động dựa trên mức độ hoàn thiện của danh bạ, danh sách lớp và liên kết khóa học Google Classroom. Hiện tại chưa có dữ liệu đồng bộ.
             </AlertDescription>
           </div>
-          <Button size="sm" onClick={() => navigate('/connections')} className="shrink-0 font-bold">
+          <Button size="sm" onClick={() => navigate('/connections')} className="shrink-0">
             Đồng Bộ Classroom
           </Button>
         </Alert>
@@ -75,7 +75,7 @@ export default function DataQualityPage() {
       <div className="grid grid-cols-1 gap-6 md:grid-cols-12">
         {/* Overall Score Card */}
         <div className="rounded-xl border border-slate-200 bg-white p-6 text-center shadow-[0_1px_3px_rgba(0,0,0,0.05)] md:col-span-4">
-          <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">Chỉ số chất lượng toàn diện</p>
+          <p className="text-xs font-medium text-slate-500">Chỉ số chất lượng toàn diện</p>
           <div className="my-6">
             {loading ? (
               <Skeleton className="mx-auto size-20 rounded-full" />
@@ -87,7 +87,7 @@ export default function DataQualityPage() {
             )}
           </div>
           <Progress value={score} className="h-1.5 bg-slate-100" indicatorClassName={getScoreBarColor(score)} />
-          <p className="mt-4 text-[0.8125rem] text-slate-500">
+          <p className="mt-4 text-sm text-slate-500">
             {score >= 85
               ? 'Dữ liệu trường học đạt chuẩn độ chính xác cao'
               : score > 0
@@ -110,8 +110,8 @@ export default function DataQualityPage() {
               return (
                 <div key={key}>
                   <div className="mb-1.5 flex justify-between">
-                    <p className="text-[0.8125rem] font-medium text-[#0f172a]">{label}</p>
-                    <p className={cn('text-[0.8125rem] font-semibold', val >= 80 ? 'text-emerald-500' : 'text-primary')}>{val}%</p>
+                    <p className="text-sm font-medium text-[#0f172a]">{label}</p>
+                    <p className={cn('text-sm font-semibold', val >= 80 ? 'text-emerald-500' : 'text-primary')}>{val}%</p>
                   </div>
                   <Progress value={val} className="h-1.5 bg-slate-100" indicatorClassName={val >= 80 ? 'bg-emerald-500' : 'bg-primary'} />
                 </div>

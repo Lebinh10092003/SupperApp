@@ -28,7 +28,7 @@ export function PriorityChip({
   const c = priority ? PRIORITY_STYLE[priority] || PRIORITY_STYLE.P3 : UNCLASSIFIED_STYLE;
   const label = compact ? priority || '—' : c.label;
   return (
-    <Badge className="h-6 border-transparent font-bold text-white" style={{ backgroundColor: c.bg }}>
+    <Badge className="border-transparent text-white" style={{ backgroundColor: c.bg }}>
       {label}
     </Badge>
   );

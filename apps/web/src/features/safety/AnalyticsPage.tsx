@@ -137,7 +137,7 @@ function CampusComparisonTable({ data }: { data: any }) {
       <p className="mb-3 text-xs text-slate-500">
         {data.from_month} → {data.to_month} · {data.disclaimer}
       </p>
-      <div className="rounded-lg border border-slate-200">
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_3px_0_rgba(15,23,42,0.04)]">
         <Table>
           <TableHeader>
             <TableRow>
@@ -274,7 +274,7 @@ function ClassStatsPanel() {
         </Alert>
       )}
       {data && (
-        <div className="rounded-lg border border-slate-200">
+        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_3px_0_rgba(15,23,42,0.04)]">
           <Table>
             <TableHeader>
               <TableRow>

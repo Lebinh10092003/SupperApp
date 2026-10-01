@@ -87,7 +87,7 @@ export default function ReportsPage() {
             </SelectContent>
           </Select>
 
-          <p className="text-[0.8125rem] text-slate-500">
+          <p className="text-sm text-slate-500">
             Định dạng xuất chuẩn: <strong className="text-[#0f172a]">CSV (UTF-8 có BOM tiếng Việt)</strong> tương thích hoàn toàn với Microsoft Excel
             và Google Sheets.
           </p>
@@ -109,7 +109,7 @@ export default function ReportsPage() {
                 </Badge>
               </div>
               <p className="mb-1.5 font-bold tracking-tight text-[#0f172a]">{rep.title}</p>
-              <p className="text-[0.8125rem] leading-relaxed text-slate-500">{rep.desc}</p>
+              <p className="text-sm leading-relaxed text-slate-500">{rep.desc}</p>
             </div>
             <div className="p-4 pt-0">
               <Button

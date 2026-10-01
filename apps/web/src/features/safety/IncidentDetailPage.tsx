@@ -406,7 +406,7 @@ export default function IncidentDetailPage() {
 
       <div className="flex flex-wrap gap-2.5">
         {!incident.commanderPerId && (
-          <Button onClick={() => setAckChoiceOpen(true)} disabled={acknowledging} className="bg-green-600 font-bold hover:bg-green-700">
+          <Button onClick={() => setAckChoiceOpen(true)} disabled={acknowledging} className="bg-green-600 hover:bg-green-700">
             {acknowledging ? <Loader2 className="size-4 animate-spin" /> : <UserCheck className="size-4" />}
             {acknowledging ? 'Đang tiếp nhận...' : 'Tiếp nhận xử lý'}
           </Button>
@@ -431,7 +431,7 @@ export default function IncidentDetailPage() {
           </Button>
         )}
         {actor?.perId && incident.commanderPerId === actor.perId && !incident.cancelRequestedAt && (
-          <Button variant="outline" onClick={() => setCancelAckDialogOpen(true)} className="border-red-300 font-semibold text-red-600 hover:bg-red-50">
+          <Button variant="outline" onClick={() => setCancelAckDialogOpen(true)} className="border-red-300 text-red-600 hover:bg-red-50">
             Huỷ tiếp nhận
           </Button>
         )}
@@ -440,29 +440,29 @@ export default function IncidentDetailPage() {
           incident.commanderPerId !== actor.perId &&
           !(incident.participantPerIds || []).includes(actor.perId) &&
           !(incident.pendingJoinRequests || []).some((r) => r.perId === actor.perId) && (
-            <Button variant="outline" onClick={() => setJoinDialogOpen(true)} className="font-semibold">
+            <Button variant="outline" onClick={() => setJoinDialogOpen(true)}>
               <UsersRound className="size-4" />
               Tham gia sự vụ
             </Button>
           )}
         {actor?.perId && (incident.pendingJoinRequests || []).some((r) => r.perId === actor.perId) && (
-          <Button variant="outline" disabled className="font-semibold">
+          <Button variant="outline" disabled>
             Đang chờ chỉ huy duyệt tham gia
           </Button>
         )}
         {actor?.perId && incident.commanderPerId !== actor.perId && (incident.participantPerIds || []).includes(actor.perId) && (
-          <Button variant="outline" onClick={() => setLeaveDialogOpen(true)} className="border-red-300 font-semibold text-red-600 hover:bg-red-50">
+          <Button variant="outline" onClick={() => setLeaveDialogOpen(true)} className="border-red-300 text-red-600 hover:bg-red-50">
             Rời khỏi sự vụ
           </Button>
         )}
         {canEdit && (
-          <Button variant="outline" onClick={() => setStatusTarget({ incidentId: incident.incidentId, state: incident.state })} className="font-semibold">
+          <Button variant="outline" onClick={() => setStatusTarget({ incidentId: incident.incidentId, state: incident.state })}>
             <ArrowLeftRight className="size-4" />
             Đổi trạng thái
           </Button>
         )}
         {canEditPriority && (
-          <Button variant="outline" onClick={() => setPriorityTarget({ incidentId: incident.incidentId, priority: incident.priority })} className="font-semibold">
+          <Button variant="outline" onClick={() => setPriorityTarget({ incidentId: incident.incidentId, priority: incident.priority })}>
             <TriangleAlert className="size-4" />
             Đổi ưu tiên
           </Button>
@@ -652,7 +652,7 @@ export default function IncidentDetailPage() {
             <Button variant="ghost" onClick={() => setAckDialogOpen(false)} className="text-slate-500">
               Hủy
             </Button>
-            <Button disabled={!ackPriority || acknowledging} onClick={handleAcknowledgeWithPriority} className="bg-green-600 font-bold hover:bg-green-700">
+            <Button disabled={!ackPriority || acknowledging} onClick={handleAcknowledgeWithPriority} className="bg-green-600 hover:bg-green-700">
               {acknowledging ? 'Đang tiếp nhận...' : 'Tiếp nhận với mức này'}
             </Button>
           </DialogFooter>

@@ -103,7 +103,7 @@ export function CorrectClassificationDialog({
           <Button variant="ghost" onClick={handleClose} className="text-slate-500">
             Hủy
           </Button>
-          <Button disabled={!reason.trim() || submitting} onClick={handleSubmit} className="font-bold">
+          <Button disabled={!reason.trim() || submitting} onClick={handleSubmit}>
             {submitting ? 'Đang lưu...' : 'Lưu thay đổi'}
           </Button>
         </DialogFooter>

@@ -196,12 +196,12 @@ export function SafetyUsersSection() {
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="font-bold tracking-tight text-[#0f172a]">Danh sách người dùng</p>
-          <p className="text-[0.8125rem] text-slate-500">
+          <p className="text-sm text-slate-500">
             1 vai trò dùng chung cho toàn hệ thống (Tổ trưởng/Trực ban/Y tế/Giáo viên...) — áp dụng cho cả module An toàn lẫn Lịch công tác, không cần cấp
             riêng. Tạo tài khoản mới, reset mật khẩu, khoá/mở khoá tại đây.
           </p>
         </div>
-        <Button onClick={() => setEditing('new')} className="rounded-lg font-bold">
+        <Button onClick={() => setEditing('new')} className="rounded-lg">
           <UserPlus className="size-[18px]" />
           Thêm người dùng
         </Button>
@@ -280,9 +280,9 @@ export function SafetyUsersSection() {
               <TableHead>
                 <SortHeader col="role">Vai trò</SortHeader>
               </TableHead>
-              <TableHead className="font-bold">Cơ sở / Tổ</TableHead>
-              <TableHead className="font-bold">Trạng thái</TableHead>
-              <TableHead className="text-right font-bold">Hành động</TableHead>
+              <TableHead className="text-xs font-medium text-slate-500">Cơ sở / Tổ</TableHead>
+              <TableHead className="text-xs font-medium text-slate-500">Trạng thái</TableHead>
+              <TableHead className="text-right text-xs font-medium text-slate-500">Hành động</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -314,7 +314,7 @@ export function SafetyUsersSection() {
                   </TableCell>
                   <TableCell>
                     {u.roleId ? (
-                      <Badge variant="outline" className="border-blue-200 bg-secondary text-[0.7rem] font-bold text-[#1d4ed8]">
+                      <Badge variant="outline" className="bg-secondary text-xs text-[#1d4ed8]">
                         {ROLE_LABEL[u.roleId] || u.roleId}
                       </Badge>
                     ) : (
@@ -329,14 +329,14 @@ export function SafetyUsersSection() {
                   </TableCell>
                   <TableCell>
                     {!u.loggedInBefore ? (
-                      <Badge variant="outline" className="border-amber-200 bg-amber-50 text-[0.7rem] font-bold text-amber-700">
+                      <Badge variant="outline" className="bg-amber-50 text-xs text-amber-700">
                         Chưa đăng nhập
                       </Badge>
                     ) : (
                       <Badge
                         variant="outline"
                         className={cn(
-                          'text-[0.7rem] font-bold',
+                          'text-xs font-bold',
                           u.disabled ? 'border-slate-200 bg-slate-50 text-slate-500' : 'border-emerald-200 bg-emerald-50 text-emerald-600'
                         )}
                       >

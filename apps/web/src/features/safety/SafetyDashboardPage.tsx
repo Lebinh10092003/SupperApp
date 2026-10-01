@@ -17,9 +17,9 @@ interface IncidentStats {
 
 function StatCard({ label, value, className }: { label: string; value: number | string; className: string }) {
   return (
-    <div className="rounded-xl border border-slate-200 p-4">
-      <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">{label}</p>
-      <p className={cn('mt-1 text-3xl font-extrabold', className)}>{value}</p>
+    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
+      <p className="text-sm font-medium text-slate-500">{label}</p>
+      <p className={cn('mt-1 text-3xl font-bold', className)}>{value}</p>
     </div>
   );
 }
@@ -49,7 +49,7 @@ export default function SafetyDashboardPage() {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div
           onClick={() => navigate('/safety/cases')}
-          className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 p-4"
+          className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)]"
         >
           <ListChecks className="size-5 text-primary" />
           <div>
@@ -59,7 +59,7 @@ export default function SafetyDashboardPage() {
         </div>
         <div
           onClick={() => navigate('/safety/cockpit')}
-          className="flex cursor-pointer items-center gap-3 rounded-xl border border-red-200 bg-red-50 p-4"
+          className="flex cursor-pointer items-center gap-3 rounded-xl border border-red-200 bg-red-50 p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)]"
         >
           <TriangleAlert className="size-5 text-red-600" />
           <div>

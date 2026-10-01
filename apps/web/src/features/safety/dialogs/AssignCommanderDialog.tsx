@@ -124,7 +124,7 @@ export function AssignCommanderDialog({
           <Button variant="ghost" onClick={handleClose} className="text-slate-500">
             Hủy
           </Button>
-          <Button disabled={!commander || submitting} onClick={handleSubmit} className="font-bold">
+          <Button disabled={!commander || submitting} onClick={handleSubmit}>
             {submitting ? 'Đang lưu...' : 'Xác nhận chỉ định'}
           </Button>
         </DialogFooter>

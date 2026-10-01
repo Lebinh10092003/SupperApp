@@ -116,8 +116,8 @@ export function UserMenu() {
                 </AvatarFallback>
               </Avatar>
               <div className="min-w-0 flex-1 overflow-hidden text-left">
-                <p className="truncate text-[0.8125rem] font-bold text-[#0f172a]">{profile?.displayName || 'Người dùng'}</p>
-                <p className="truncate text-[0.7rem] text-slate-500">{roleLabelMap[profile?.role || ''] || profile?.role || 'Hệ thống'}</p>
+                <p className="truncate text-sm font-bold text-[#0f172a]">{profile?.displayName || 'Người dùng'}</p>
+                <p className="truncate text-xs text-slate-500">{roleLabelMap[profile?.role || ''] || profile?.role || 'Hệ thống'}</p>
               </div>
               <ChevronDown className="size-5 shrink-0 text-slate-400" />
             </button>

@@ -22,7 +22,7 @@ export default function CatalogMappingPage() {
           key: 'normalizedName',
           label: 'Định danh chuẩn',
           render: (val: any) => (
-            <Badge variant="outline" className="border-transparent bg-secondary font-bold text-[#1d4ed8]">
+            <Badge variant="outline" className="border-transparent bg-secondary text-[#1d4ed8]">
               {val || 'Chưa chuẩn hóa'}
             </Badge>
           )

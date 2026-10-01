@@ -72,7 +72,7 @@ export function AddParticipantDialog({
                 <p className="text-xs text-slate-500">Đang tham gia xử lý hồ sơ này:</p>
                 <div className="flex flex-wrap gap-1.5">
                   {target.current.map((c) => (
-                    <Badge key={c.perId} variant="outline" className="border-slate-300 text-slate-600">
+                    <Badge key={c.perId} variant="outline" className="text-slate-600">
                       {c.label}
                     </Badge>
                   ))}
@@ -85,7 +85,7 @@ export function AddParticipantDialog({
                 <div className="flex flex-wrap gap-1.5">
                   {target.suggested.map((s) => (
                     <button key={s.perId} type="button" onClick={() => setPerson({ perId: s.perId, name: s.label })}>
-                      <Badge variant="outline" className="cursor-pointer border-transparent bg-secondary font-semibold text-[#1d4ed8]">
+                      <Badge variant="outline" className="cursor-pointer border-transparent bg-secondary text-[#1d4ed8]">
                         {s.label}
                       </Badge>
                     </button>
@@ -105,7 +105,7 @@ export function AddParticipantDialog({
           <Button variant="ghost" onClick={handleClose} className="text-slate-500">
             Hủy
           </Button>
-          <Button disabled={!person || submitting} onClick={handleSubmit} className="font-bold">
+          <Button disabled={!person || submitting} onClick={handleSubmit}>
             {submitting ? 'Đang lưu...' : 'Thêm vào hồ sơ'}
           </Button>
         </DialogFooter>

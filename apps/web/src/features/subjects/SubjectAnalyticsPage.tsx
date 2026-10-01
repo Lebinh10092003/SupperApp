@@ -28,7 +28,7 @@ export default function SubjectAnalyticsPage() {
           render: (val: any, row: any) => {
             const cls = row.className || val;
             return cls ? (
-              <Badge variant="outline" className="border-transparent bg-secondary font-bold text-[#1d4ed8]">
+              <Badge variant="outline" className="border-transparent bg-secondary text-[#1d4ed8]">
                 {cls}
               </Badge>
             ) : (
@@ -55,7 +55,7 @@ export default function SubjectAnalyticsPage() {
           render: (val: any, row: any) => {
             const total = val ?? row.contentCoursework ?? row.content?.coursework ?? row.content?.courseWorkTotal ?? 0;
             return (
-              <Badge variant="outline" className="font-semibold text-slate-600">
+              <Badge variant="outline" className="text-slate-600">
                 {total} bài
               </Badge>
             );

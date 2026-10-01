@@ -26,7 +26,7 @@ export function PageHeader({
         )}
         <div>
           <h1 className="text-xl leading-tight font-extrabold tracking-tight text-[#0f172a]">{title}</h1>
-          {subtitle && <p className="mt-1 text-[0.84rem] text-slate-500">{subtitle}</p>}
+          {subtitle && <p className="mt-1 text-sm text-slate-500">{subtitle}</p>}
         </div>
       </div>
       {action && <div className="flex w-full flex-wrap justify-end gap-2 sm:w-auto">{action}</div>}

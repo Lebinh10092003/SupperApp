@@ -313,15 +313,15 @@ export default function ClassroomPage() {
         icon={<GraduationCap />}
         action={
           <div className="flex flex-wrap items-center gap-3">
-            <Button onClick={handleOpenPreview} className="font-bold">
+            <Button onClick={handleOpenPreview}>
               <ListChecks className="size-4" />
               Duyệt & Đồng bộ Lớp học
             </Button>
-            <Button variant="outline" onClick={handleQuickSync} disabled={syncingQuick} className="font-semibold">
+            <Button variant="outline" onClick={handleQuickSync} disabled={syncingQuick}>
               {syncingQuick ? <Loader2 className="size-4 animate-spin" /> : <RotateCw className="size-4" />}
               {syncingQuick ? 'Đang đồng bộ...' : 'Đồng bộ nhanh'}
             </Button>
-            <Button variant="outline" onClick={() => navigate('/connections')} className="font-semibold">
+            <Button variant="outline" onClick={() => navigate('/connections')}>
               <Link2 className="size-4" />
               Cấu hình Google Workspace
             </Button>
@@ -361,13 +361,13 @@ export default function ClassroomPage() {
       {/* Summary KPI Cards */}
       <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-          <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">Tổng khóa học đã đồng bộ</p>
+          <p className="text-xs font-medium text-slate-500">Tổng khóa học đã đồng bộ</p>
           <p className="my-0.5 text-[1.875rem] font-bold tracking-tight text-[#0f172a]">{items.length}</p>
           <p className="text-xs text-slate-500">Khóa học Google Classroom thực tế đang hoạt động</p>
         </div>
 
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-          <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">Tỷ lệ Mapping vào Lớp hành chính</p>
+          <p className="text-xs font-medium text-slate-500">Tỷ lệ Mapping vào Lớp hành chính</p>
           <p className="my-0.5 text-[1.875rem] font-bold tracking-tight text-primary">
             {items.length ? Math.round((mappedCount / items.length) * 100) : 0}%
           </p>
@@ -377,7 +377,7 @@ export default function ClassroomPage() {
         </div>
 
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-          <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">Tỷ lệ nộp bài trung bình</p>
+          <p className="text-xs font-medium text-slate-500">Tỷ lệ nộp bài trung bình</p>
           <p className="my-0.5 text-[1.875rem] font-bold tracking-tight text-emerald-500">{avgSubmissionRate}%</p>
           <p className="text-xs text-slate-500">{items.length ? 'Tổng hợp từ các bài tập đã giao trong học kỳ' : 'Chưa có dữ liệu bài tập'}</p>
         </div>
@@ -392,7 +392,7 @@ export default function ClassroomPage() {
               Bỏ chọn
             </Button>
           </div>
-          <Button size="sm" variant="destructive" onClick={() => setOpenBatchDeleteDialog(true)} className="font-bold">
+          <Button size="sm" variant="destructive" onClick={() => setOpenBatchDeleteDialog(true)}>
             <Trash2 className="size-4" />
             Xóa {selectedTableIds.size} khóa học đã chọn
           </Button>
@@ -407,7 +407,7 @@ export default function ClassroomPage() {
             <Input placeholder="Tìm theo tên khóa học, mã lớp, học kỳ..." value={q} onChange={(e) => setQ(e.target.value)} className="pl-9" />
           </div>
           <div className="flex items-center gap-3">
-            <Badge variant="outline" className="h-[26px] border-blue-200 bg-secondary font-semibold text-[#1d4ed8]">
+            <Badge variant="outline" className="bg-secondary text-[#1d4ed8]">
               Hiển thị {filtered.length} / {items.length} khóa học
             </Badge>
             <Tooltip>
@@ -432,18 +432,18 @@ export default function ClassroomPage() {
               Google trong phần cấu hình.
             </p>
             <div className="flex justify-center gap-3">
-              <Button onClick={handleOpenPreview} className="font-semibold">
+              <Button onClick={handleOpenPreview}>
                 <ListChecks className="size-4" />
                 Duyệt & Đồng bộ ngay
               </Button>
-              <Button variant="outline" onClick={() => navigate('/connections')} className="font-semibold">
+              <Button variant="outline" onClick={() => navigate('/connections')}>
                 <Link2 className="size-4" />
                 Cấu hình kết nối Google
               </Button>
             </div>
           </div>
         ) : (
-          <div className="w-full overflow-x-auto">
+          <div className="overflow-x-auto">
             <Table>
               <TableHeader className="bg-slate-50">
                 <TableRow className="hover:bg-slate-50">
@@ -453,13 +453,13 @@ export default function ClassroomPage() {
                       onCheckedChange={toggleSelectAllTable}
                     />
                   </TableHead>
-                  <TableHead className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">Tên khóa học</TableHead>
-                  <TableHead className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">Học kỳ / Section</TableHead>
-                  <TableHead className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">Trạng thái</TableHead>
-                  <TableHead className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">Lớp hành chính</TableHead>
-                  <TableHead className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">Sĩ số Roster</TableHead>
-                  <TableHead className="min-w-40 text-xs font-semibold tracking-wide text-zinc-500 uppercase">Tỷ lệ nộp bài</TableHead>
-                  <TableHead className="text-right text-xs font-semibold tracking-wide text-zinc-500 uppercase">Hành động</TableHead>
+                  <TableHead className="text-xs font-medium text-slate-500">Tên khóa học</TableHead>
+                  <TableHead className="text-xs font-medium text-slate-500">Học kỳ / Section</TableHead>
+                  <TableHead className="text-xs font-medium text-slate-500">Trạng thái</TableHead>
+                  <TableHead className="text-xs font-medium text-slate-500">Lớp hành chính</TableHead>
+                  <TableHead className="text-xs font-medium text-slate-500">Sĩ số Roster</TableHead>
+                  <TableHead className="min-w-40 text-xs font-medium text-slate-500">Tỷ lệ nộp bài</TableHead>
+                  <TableHead className="text-right text-xs font-medium text-slate-500">Hành động</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -502,12 +502,12 @@ export default function ClassroomPage() {
                       </TableCell>
                       <TableCell>
                         {isMapped ? (
-                          <Badge variant="outline" className="h-[22px] gap-1 border-blue-200 bg-secondary font-semibold text-[#1d4ed8]">
+                          <Badge variant="outline" className="gap-1 bg-secondary text-[#1d4ed8]">
                             <CheckCircle2 className="size-3.5" />
                             {x.className || x.classId}
                           </Badge>
                         ) : (
-                          <Badge variant="outline" className="h-[22px] border-amber-200 bg-amber-50 font-semibold text-amber-700">
+                          <Badge variant="outline" className="bg-amber-50 text-amber-700">
                             Chưa mapping
                           </Badge>
                         )}
@@ -531,7 +531,7 @@ export default function ClassroomPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1.5">
-                          <Button size="xs" variant="outline" onClick={() => openMapDialog(x)} className="font-semibold">
+                          <Button size="xs" variant="outline" onClick={() => openMapDialog(x)}>
                             <Link2 className="size-3.5" />
                             {isMapped ? 'Sửa map' : 'Mapping'}
                           </Button>
@@ -655,10 +655,10 @@ export default function ClassroomPage() {
                           }}
                         />
                       </TableHead>
-                      <TableHead className="font-bold text-slate-600">Khóa học Google</TableHead>
-                      <TableHead className="font-bold text-slate-600">Lớp đề xuất</TableHead>
-                      <TableHead className="font-bold text-slate-600">Môn học</TableHead>
-                      <TableHead className="font-bold text-slate-600">Trạng thái</TableHead>
+                      <TableHead className="text-xs font-medium text-slate-500">Khóa học Google</TableHead>
+                      <TableHead className="text-xs font-medium text-slate-500">Lớp đề xuất</TableHead>
+                      <TableHead className="text-xs font-medium text-slate-500">Môn học</TableHead>
+                      <TableHead className="text-xs font-medium text-slate-500">Trạng thái</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -701,7 +701,7 @@ export default function ClassroomPage() {
                             </TableCell>
                             <TableCell>
                               {c.className ? (
-                                <Badge variant="outline" className="h-[22px] border-transparent bg-secondary font-semibold text-[#1d4ed8]">
+                                <Badge variant="outline" className="border-transparent bg-secondary text-[#1d4ed8]">
                                   {c.className}
                                 </Badge>
                               ) : (
@@ -713,15 +713,15 @@ export default function ClassroomPage() {
                             </TableCell>
                             <TableCell>
                               {c.isIgnored ? (
-                                <Badge variant="outline" className="h-[22px] border-transparent bg-red-50 font-semibold text-red-700">
+                                <Badge variant="outline" className="border-transparent bg-red-50 text-red-700">
                                   Đang loại trừ
                                 </Badge>
                               ) : c.isAlreadySynced ? (
-                                <Badge variant="outline" className="h-[22px] border-transparent bg-slate-100 font-semibold text-slate-600">
+                                <Badge variant="outline" className="border-transparent bg-slate-100 text-slate-600">
                                   Đã có trong hệ thống
                                 </Badge>
                               ) : (
-                                <Badge variant="outline" className="h-[22px] border-transparent bg-emerald-50 font-bold text-emerald-600">
+                                <Badge variant="outline" className="border-transparent bg-emerald-50 text-emerald-600">
                                   Lớp mới
                                 </Badge>
                               )}
@@ -752,7 +752,7 @@ export default function ClassroomPage() {
               <Button variant="outline" onClick={() => setOpenPreviewDialog(false)} disabled={executingSync}>
                 Hủy
               </Button>
-              <Button onClick={handleExecuteSelectiveSync} disabled={executingSync || previewSelectedIds.size === 0} className="font-bold">
+              <Button onClick={handleExecuteSelectiveSync} disabled={executingSync || previewSelectedIds.size === 0}>
                 {executingSync ? <Loader2 className="size-4 animate-spin" /> : <RotateCw className="size-4" />}
                 {executingSync ? 'Đang nạp dữ liệu...' : `Bắt đầu đồng bộ ${previewSelectedIds.size} khóa học`}
               </Button>

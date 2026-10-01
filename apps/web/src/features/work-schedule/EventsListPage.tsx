@@ -33,7 +33,7 @@ import { cn } from '@/lib/utils';
 export function EventStatusChip({ status }: { status: string }) {
   const c = EVENT_STATUS_COLOR[status] || { bg: '#f1f5f9', fg: '#334155', border: '#e2e8f0' };
   return (
-    <Badge variant="outline" className="h-6 border font-bold" style={{ backgroundColor: c.bg, color: c.fg, borderColor: c.border }}>
+    <Badge variant="outline" className="border-transparent font-medium" style={{ backgroundColor: c.bg, color: c.fg }}>
       {EVENT_STATUS_LABEL[status] || status}
     </Badge>
   );
@@ -80,7 +80,7 @@ function MiniStepper({ steps, activeIndex }: { steps: readonly string[]; activeI
             >
               {i < activeIndex ? <Check className="size-4" /> : i + 1}
             </div>
-            <p className={cn('text-center text-[0.7rem]', i <= activeIndex ? 'font-semibold text-[#0f172a]' : 'text-slate-400')}>
+            <p className={cn('text-center text-xs', i <= activeIndex ? 'font-semibold text-[#0f172a]' : 'text-slate-400')}>
               {EVENT_STATUS_LABEL[s] || s}
             </p>
           </div>
@@ -248,7 +248,7 @@ export default function EventsListPage() {
         icon={<CalendarDays />}
         action={
           <div className="flex gap-2">
-            <Button variant="outline" asChild className="font-semibold">
+            <Button variant="outline" asChild>
               <a
                 href={`${(env.VITE_API_BASE_URL || '').replace(/\/+$/, '')}/api/work-schedule/calendar.ics${campusFilter ? `?campusId=${campusFilter}` : ''}`}
                 target="_blank"
@@ -258,7 +258,7 @@ export default function EventsListPage() {
                 Xuất .ics
               </a>
             </Button>
-            <Button onClick={() => setCreateOpen(true)} className="font-bold">
+            <Button onClick={() => setCreateOpen(true)}>
               <CirclePlus className="size-4" />
               Tạo lịch
             </Button>
@@ -331,7 +331,7 @@ export default function EventsListPage() {
         </Alert>
       )}
 
-      <div className="rounded-xl border border-slate-200">
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_3px_0_rgba(15,23,42,0.04)]">
         <Table>
           <TableHeader>
             <TableRow>
@@ -392,7 +392,7 @@ export default function EventsListPage() {
                       {ev.conflictNote && (
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Badge variant="outline" className="border-transparent bg-red-50 font-bold text-red-600">
+                            <Badge variant="outline" className="border-transparent bg-red-50 text-red-600">
                               Trùng lịch
                             </Badge>
                           </TooltipTrigger>

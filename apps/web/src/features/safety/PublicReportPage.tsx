@@ -186,7 +186,7 @@ export default function PublicReportPage() {
             <p className="mb-1 text-lg font-bold text-emerald-800">Cảm ơn bạn đã gửi tin báo</p>
             <p className="mb-4 text-sm text-emerald-800">Vui lòng lưu lại mã tra cứu dưới đây để theo dõi tiến độ xử lý:</p>
             <div className="flex items-center justify-center gap-2">
-              <Badge variant="outline" className="h-11 border-emerald-300 bg-white px-4 text-[1.1rem] font-extrabold text-emerald-800">
+              <Badge variant="outline" className="bg-white px-4 text-[1.1rem] text-emerald-800">
                 {publicCode}
               </Badge>
               <Button
@@ -295,7 +295,7 @@ export default function PublicReportPage() {
             )}
             {!googleUser ? (
               <div className="flex flex-col gap-1">
-                <Button variant="outline" onClick={handleGoogleSignIn} disabled={signingIn} className="w-fit font-bold">
+                <Button variant="outline" onClick={handleGoogleSignIn} disabled={signingIn} className="w-fit">
                   {signingIn ? <Loader2 className="size-4 animate-spin" /> : <GoogleLogo />}
                   {signingIn ? 'Đang đăng nhập...' : 'Đăng nhập nhanh bằng Google'}
                 </Button>
@@ -359,7 +359,7 @@ export default function PublicReportPage() {
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <Button asChild variant="outline" className="relative w-fit font-semibold">
+                  <Button asChild variant="outline" className="relative w-fit">
                     <label aria-disabled={files.length >= MAX_EVIDENCE_FILES}>
                       <Upload className="size-4" />
                       {files.length === 0 ? 'Đính kèm ảnh/video minh chứng (tuỳ chọn)' : `Thêm file (${files.length}/${MAX_EVIDENCE_FILES})`}
@@ -394,7 +394,7 @@ export default function PublicReportPage() {
               </div>
             )}
 
-            <Button onClick={handleSubmit} disabled={submitting || !googleUser} variant="destructive" className="sticky bottom-0 font-bold sm:static">
+            <Button onClick={handleSubmit} disabled={submitting || !googleUser} variant="destructive" className="sticky bottom-0 sm:static">
               {submitting ? <Loader2 className="size-5 animate-spin" /> : 'Gửi tin báo'}
             </Button>
 

@@ -64,7 +64,7 @@ export default function ApprovalCenterPage() {
       <div className="flex flex-col gap-6">
         <div>
           <p className="mb-2 text-sm font-bold">Lịch cần xử lý ({myEvents.length})</p>
-          <div className="rounded-xl border border-slate-200">
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_3px_0_rgba(15,23,42,0.04)]">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -99,7 +99,7 @@ export default function ApprovalCenterPage() {
 
         <div>
           <p className="mb-2 text-sm font-bold">Công việc chờ nghiệm thu ({myPendingAcceptanceTasks.length})</p>
-          <div className="rounded-xl border border-slate-200">
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_3px_0_rgba(15,23,42,0.04)]">
             <Table>
               <TableHeader>
                 <TableRow>

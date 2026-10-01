@@ -43,7 +43,7 @@ export function Sidebar({ onNavigate, onOpenSearch }: { onNavigate?: () => void;
         <img src="/logo-truong-transparent.png" alt="Logo trường" className="h-10 w-auto shrink-0 object-contain" />
         <div className="overflow-hidden">
           <p className="truncate text-sm font-extrabold tracking-tight text-[#0f172a]">Trường THCS Giảng Võ</p>
-          <span className="mt-0.5 inline-block truncate rounded px-[0.21rem] py-[0.04rem] text-[0.68rem] font-bold tracking-wide text-primary bg-secondary">
+          <span className="mt-0.5 inline-block truncate rounded px-[0.21rem] py-[0.04rem] text-xs font-bold tracking-wide text-primary bg-secondary">
             SuperApp
           </span>
         </div>
@@ -54,13 +54,13 @@ export function Sidebar({ onNavigate, onOpenSearch }: { onNavigate?: () => void;
         <button
           type="button"
           onClick={onOpenSearch}
-          className="flex w-full items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-left text-[0.78rem] text-slate-500 transition-colors hover:border-slate-300"
+          className="flex w-full items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-left text-xs text-slate-500 transition-colors hover:border-slate-300"
         >
           <span className="flex items-center gap-2">
             <Search className="size-3.5" />
             Tìm kiếm điều hành...
           </span>
-          <kbd className="rounded border border-slate-200 bg-white px-1 py-0.5 text-[0.65rem] text-slate-400">⌘K</kbd>
+          <kbd className="rounded border border-slate-200 bg-white px-1 py-0.5 text-xs text-slate-400">⌘K</kbd>
         </button>
       </div>
 
@@ -74,7 +74,7 @@ export function Sidebar({ onNavigate, onOpenSearch }: { onNavigate?: () => void;
               <Collapsible open={isOpen} onOpenChange={() => toggleGroup(group.groupTitle)}>
                 <CollapsibleTrigger
                   className={cn(
-                    'flex w-full items-center justify-between gap-1 rounded-md px-[0.3rem] py-1.5 text-left text-[0.65rem] font-bold tracking-wide uppercase transition-colors hover:bg-slate-100 hover:text-[#0f172a]',
+                    'flex w-full items-center justify-between gap-1 rounded-md px-[0.3rem] py-1.5 text-left text-xs font-medium transition-colors hover:bg-slate-100 hover:text-[#0f172a]',
                     groupHasActiveItem ? 'text-primary' : 'text-slate-400'
                   )}
                 >
@@ -93,7 +93,7 @@ export function Sidebar({ onNavigate, onOpenSearch }: { onNavigate?: () => void;
                           onNavigate?.();
                         }}
                         className={cn(
-                          'mb-1 flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-[0.8125rem] transition-colors',
+                          'mb-1 flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors',
                           isSelected
                             ? 'border-blue-200 bg-secondary font-bold text-[#1d4ed8] shadow-[0_1px_2px_rgba(37,99,235,0.05)]'
                             : 'border-transparent font-medium text-slate-700 hover:bg-slate-100 hover:text-[#0f172a]'
@@ -102,7 +102,7 @@ export function Sidebar({ onNavigate, onOpenSearch }: { onNavigate?: () => void;
                         <span className={cn('shrink-0', isSelected ? 'text-primary' : 'text-slate-500')}>{item.icon}</span>
                         <span className="min-w-0 flex-1 truncate text-left">{item.label}</span>
                         {item.badge && (
-                          <Badge variant="outline" className={cn('h-[18px] shrink-0 px-1 text-[0.65rem] font-bold', BADGE_STYLES[item.badge] ?? BADGE_DEFAULT)}>
+                          <Badge variant="outline" className={cn('h-[18px] shrink-0 px-1 text-xs font-bold', BADGE_STYLES[item.badge] ?? BADGE_DEFAULT)}>
                             {item.badge}
                           </Badge>
                         )}

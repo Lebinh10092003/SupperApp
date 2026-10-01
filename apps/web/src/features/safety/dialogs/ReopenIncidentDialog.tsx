@@ -100,7 +100,7 @@ export function ReopenIncidentDialog({
           <Button variant="ghost" onClick={handleClose} className="text-slate-500">
             Hủy
           </Button>
-          <Button variant="destructive" disabled={!reason.trim() || submitting} onClick={handleSubmit} className="font-bold">
+          <Button variant="destructive" disabled={!reason.trim() || submitting} onClick={handleSubmit}>
             {submitting ? 'Đang xử lý...' : 'Xác nhận mở lại hồ sơ'}
           </Button>
         </DialogFooter>

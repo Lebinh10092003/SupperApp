@@ -208,7 +208,7 @@ export default function CasesListPage() {
         title="Sự vụ"
         icon={<ListChecks />}
         action={
-          <Button onClick={() => setDialogOpen(true)} className="font-bold">
+          <Button onClick={() => setDialogOpen(true)}>
             <CirclePlus className="size-4" />
             Ghi nhận sự vụ trực tiếp
           </Button>
@@ -357,7 +357,7 @@ export default function CasesListPage() {
         </Tooltip>
       </div>
 
-      <div className="rounded-xl border border-slate-200">
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_3px_0_rgba(15,23,42,0.04)]">
         <Table>
           <TableHeader>
             <TableRow>
@@ -412,7 +412,7 @@ export default function CasesListPage() {
                 </TableCell>
                 <TableCell>
                   {it.commanderName || (
-                    <Badge variant="outline" className="border-transparent bg-amber-100 font-semibold text-amber-800">
+                    <Badge variant="outline" className="border-transparent bg-amber-100 text-amber-800">
                       Chưa tiếp nhận
                     </Badge>
                   )}

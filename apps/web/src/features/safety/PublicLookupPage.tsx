@@ -127,7 +127,7 @@ export default function PublicLookupPage() {
                   placeholder="VD: GV.2609.0001"
                 />
               </div>
-              <Button onClick={handleLookup} disabled={loading} className="whitespace-nowrap font-bold">
+              <Button onClick={handleLookup} disabled={loading} className="whitespace-nowrap">
                 {loading ? <Loader2 className="size-4 animate-spin" /> : 'Tra cứu'}
               </Button>
             </div>

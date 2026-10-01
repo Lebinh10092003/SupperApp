@@ -42,7 +42,7 @@ export default function Student360Page() {
           render: (val: any, row: any) => {
             const cls = val || row.classId || row.orgUnitPath?.split('/').pop() || '—';
             return (
-              <Badge variant="outline" className="border-transparent bg-slate-100 font-bold text-slate-700">
+              <Badge variant="outline" className="border-transparent bg-slate-100 text-slate-700">
                 {cls}
               </Badge>
             );
@@ -52,7 +52,7 @@ export default function Student360Page() {
           key: 'courses',
           label: 'Số lớp tham gia',
           render: (val: any) => (
-            <Badge variant="outline" className="border-transparent bg-secondary font-bold text-[#1d4ed8]">
+            <Badge variant="outline" className="border-transparent bg-secondary text-[#1d4ed8]">
               {Array.isArray(val) ? val.length : 0} môn
             </Badge>
           )

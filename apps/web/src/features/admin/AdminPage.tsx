@@ -35,7 +35,7 @@ export default function AdminPage() {
         title="Quản trị & phân quyền"
         icon={<ShieldCheck />}
         action={
-          <Button onClick={sync} disabled={syncing} className="rounded-lg font-bold">
+          <Button onClick={sync} disabled={syncing} className="rounded-lg">
             {syncing ? <Loader2 className="size-4 animate-spin" /> : <RotateCw className="size-4" />}
             {syncing ? 'Đang đồng bộ...' : 'Chạy Full Sync Google Workspace'}
           </Button>

@@ -39,7 +39,7 @@ export default function TeacherAnalyticsPage() {
           key: 'orgUnitPath',
           label: 'Tổ Chuyên Môn',
           render: (val: any) => (
-            <Badge variant="outline" className="border-transparent bg-emerald-50 font-bold text-emerald-600">
+            <Badge variant="outline" className="border-transparent bg-emerald-50 text-emerald-600">
               {val || 'Chưa phân tổ'}
             </Badge>
           )
@@ -48,7 +48,7 @@ export default function TeacherAnalyticsPage() {
           key: 'courses',
           label: 'Số lớp phụ trách',
           render: (val: any) => (
-            <Badge variant="outline" className="border-transparent bg-secondary font-bold text-[#1d4ed8]">
+            <Badge variant="outline" className="border-transparent bg-secondary text-[#1d4ed8]">
               {Array.isArray(val) ? val.length : 0} khóa học
             </Badge>
           )

@@ -17,7 +17,7 @@ export default function AttendancePage() {
           key: 'className',
           label: 'Lớp',
           render: (val) => (
-            <Badge variant="outline" className="border-transparent bg-secondary font-bold text-[#1d4ed8]">
+            <Badge variant="outline" className="border-transparent bg-secondary text-[#1d4ed8]">
               {val || '—'}
             </Badge>
           )

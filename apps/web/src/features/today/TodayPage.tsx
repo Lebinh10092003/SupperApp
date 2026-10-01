@@ -12,7 +12,7 @@ export default function TodayPage() {
           key: 'className',
           label: 'Lớp học',
           render: (val) => (
-            <Badge variant="outline" className="border-transparent bg-secondary font-bold text-[#1d4ed8]">
+            <Badge variant="outline" className="border-transparent bg-secondary text-[#1d4ed8]">
               {val}
             </Badge>
           )
@@ -38,7 +38,7 @@ export default function TodayPage() {
           key: 'status',
           label: 'Trạng thái',
           render: () => (
-            <Badge variant="outline" className="gap-1 border-transparent bg-red-100 font-extrabold text-red-600 shadow-[0_0_8px_rgba(220,38,38,0.2)]">
+            <Badge variant="outline" className="gap-1 border-transparent bg-red-100 text-red-600 shadow-[0_0_8px_rgba(220,38,38,0.2)]">
               <Video className="size-3.5" />
               ĐANG LIVE
             </Badge>

@@ -21,7 +21,7 @@ import { cn } from '@/lib/utils';
 export function TaskStatusChip({ status }: { status: string }) {
   const c = TASK_STATUS_COLOR[status] || { bg: '#f1f5f9', fg: '#334155', border: '#e2e8f0' };
   return (
-    <Badge variant="outline" className="h-6 border font-bold" style={{ backgroundColor: c.bg, color: c.fg, borderColor: c.border }}>
+    <Badge variant="outline" className="border-transparent font-medium" style={{ backgroundColor: c.bg, color: c.fg }}>
       {TASK_STATUS_LABEL[status] || status}
     </Badge>
   );
@@ -158,7 +158,7 @@ export default function TasksListPage() {
         title="Giao việc"
         icon={<ClipboardList />}
         action={
-          <Button onClick={() => setCreateOpen(true)} className="font-bold">
+          <Button onClick={() => setCreateOpen(true)}>
             <CirclePlus className="size-4" />
             Giao việc
           </Button>
@@ -243,7 +243,7 @@ export default function TasksListPage() {
         </Alert>
       )}
 
-      <div className="rounded-xl border border-slate-200">
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_3px_0_rgba(15,23,42,0.04)]">
         <Table>
           <TableHeader>
             <TableRow>

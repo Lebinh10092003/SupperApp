@@ -114,11 +114,11 @@ export default function AlertsPage() {
         title="Trung tâm cảnh báo sớm"
         action={
           <div className="flex gap-2">
-            <Button variant="outline" onClick={handleTriggerEvaluate} disabled={evaluating} className="font-semibold">
+            <Button variant="outline" onClick={handleTriggerEvaluate} disabled={evaluating}>
               <Play className="size-4" />
               Chạy quét cảnh báo
             </Button>
-            <Button onClick={() => setRulesOpen(true)} className="font-bold">
+            <Button onClick={() => setRulesOpen(true)}>
               <SlidersHorizontal className="size-4" />
               Cấu hình quy tắc động
             </Button>
@@ -137,7 +137,7 @@ export default function AlertsPage() {
         <TabsList>
           <TabsTrigger value="0" className="gap-1.5 font-semibold">
             Cần xử lý
-            {openCount > 0 && <Badge className="h-[18px] bg-red-500 px-1.5 text-[0.65rem] font-bold text-white">{openCount}</Badge>}
+            {openCount > 0 && <Badge className="bg-red-500 px-1.5 text-xs text-white">{openCount}</Badge>}
           </TabsTrigger>
           <TabsTrigger value="1" className="font-semibold">
             Đã giải quyết
@@ -171,7 +171,7 @@ export default function AlertsPage() {
                       <SevIcon className="size-3.5" />
                       {sp.label}
                     </Badge>
-                    <Badge variant="outline" className="h-6 border-slate-200 bg-slate-50 font-bold text-slate-700">
+                    <Badge variant="outline" className="bg-slate-50 text-slate-700">
                       {x.targetName || x.targetId || 'Lớp học'}
                     </Badge>
                     <p className="text-sm font-bold text-[#0f172a]">
@@ -192,7 +192,7 @@ export default function AlertsPage() {
                       Tiếp nhận & Xử lý
                     </Button>
                   ) : (
-                    <Badge variant="outline" className="h-6 gap-1 border-emerald-200 bg-emerald-50 font-bold text-emerald-600">
+                    <Badge variant="outline" className="gap-1 bg-emerald-50 text-emerald-600">
                       <CheckCircle2 className="size-3.5" />
                       Đã giải quyết
                     </Badge>
@@ -205,7 +205,7 @@ export default function AlertsPage() {
                 {/* Bằng chứng & Số liệu chứng minh */}
                 {x.evidence && (
                   <div className="mb-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
-                    <p className="mb-2 text-xs font-bold tracking-wide text-slate-500 uppercase">Số liệu chứng minh (Evidence)</p>
+                    <p className="mb-2 text-xs font-medium text-slate-500">Số liệu chứng minh (Evidence)</p>
                     <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                       <div>
                         <p className="text-xs text-slate-500">Chỉ số đo lường:</p>
@@ -260,7 +260,7 @@ export default function AlertsPage() {
             <Button variant="ghost" onClick={() => setResolveTarget(null)} className="text-slate-500">
               Hủy
             </Button>
-            <Button onClick={handleResolve} className="font-bold">
+            <Button onClick={handleResolve}>
               Lưu & Đóng cảnh báo
             </Button>
           </DialogFooter>
@@ -283,7 +283,7 @@ export default function AlertsPage() {
                 <div className="mb-1 flex items-center justify-between">
                   <p className="text-sm font-bold text-[#0f172a]">{rule.name}</p>
                   <label className="flex items-center gap-2">
-                    <span className="text-[0.8125rem] font-semibold text-slate-500">{rule.enabled ? 'Đang bật' : 'Tạm tắt'}</span>
+                    <span className="text-sm font-semibold text-slate-500">{rule.enabled ? 'Đang bật' : 'Tạm tắt'}</span>
                     <Switch checked={rule.enabled} onCheckedChange={(checked) => handleUpdateRule(rule.id, rule.threshold, checked)} />
                   </label>
                 </div>
@@ -305,7 +305,7 @@ export default function AlertsPage() {
           </div>
 
           <DialogFooter>
-            <Button onClick={() => setRulesOpen(false)} className="font-bold">
+            <Button onClick={() => setRulesOpen(false)}>
               Hoàn tất cấu hình
             </Button>
           </DialogFooter>

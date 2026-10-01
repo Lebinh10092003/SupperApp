@@ -74,7 +74,7 @@ const GRADES = [
 function KpiCard({ label, value, valueClassName, caption }: { label: string; value: string; valueClassName?: string; caption: string }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-      <p className="text-xs font-semibold tracking-wider text-slate-500 uppercase">{label}</p>
+      <p className="text-xs font-medium text-slate-500">{label}</p>
       <p className={cn('my-1 text-[1.75rem] font-extrabold text-[#0f172a]', valueClassName)}>{value}</p>
       <p className="text-xs text-slate-500">{caption}</p>
     </div>
@@ -375,7 +375,7 @@ export default function ClassesPage() {
               <Megaphone className="size-4" />
               Đôn đốc nộp bài
             </Button>
-            <Button variant="outline" onClick={handleSyncMetrics} disabled={syncingMetrics} className="font-semibold">
+            <Button variant="outline" onClick={handleSyncMetrics} disabled={syncingMetrics}>
               {syncingMetrics ? <Loader2 className="size-4 animate-spin" /> : <RotateCw className="size-4" />}
               {syncingMetrics ? 'Đang đối soát...' : 'Đối soát số liệu'}
             </Button>
@@ -387,7 +387,7 @@ export default function ClassesPage() {
               </TooltipTrigger>
               <TooltipContent>Làm mới dữ liệu</TooltipContent>
             </Tooltip>
-            <Button onClick={handleOpenCreate} className="rounded-lg px-5 font-semibold">
+            <Button onClick={handleOpenCreate} className="rounded-lg px-5">
               <Plus className="size-4" />
               Thêm lớp học
             </Button>
@@ -452,15 +452,15 @@ export default function ClassesPage() {
         <Table className="min-w-[850px]">
           <TableHeader className="bg-slate-50">
             <TableRow className="hover:bg-slate-50">
-              <TableHead className="text-[0.85rem] font-bold text-slate-600">Tên Lớp</TableHead>
-              <TableHead className="text-[0.85rem] font-bold text-slate-600">Khối</TableHead>
-              <TableHead className="text-[0.85rem] font-bold text-slate-600">Nguồn dữ liệu</TableHead>
-              <TableHead className="text-[0.85rem] font-bold text-slate-600">Sĩ số</TableHead>
-              <TableHead className="text-[0.85rem] font-bold text-slate-600">Giáo viên Chủ nhiệm</TableHead>
-              <TableHead className="text-[0.85rem] font-bold text-slate-600">Phòng học</TableHead>
-              <TableHead className="text-[0.85rem] font-bold text-slate-600">Khóa học Classroom</TableHead>
-              <TableHead className="text-[0.85rem] font-bold text-slate-600">Tỷ lệ nộp bài</TableHead>
-              <TableHead className="text-right text-[0.85rem] font-bold text-slate-600">Thao tác</TableHead>
+              <TableHead className="text-xs font-medium text-slate-500">Tên Lớp</TableHead>
+              <TableHead className="text-xs font-medium text-slate-500">Khối</TableHead>
+              <TableHead className="text-xs font-medium text-slate-500">Nguồn dữ liệu</TableHead>
+              <TableHead className="text-xs font-medium text-slate-500">Sĩ số</TableHead>
+              <TableHead className="text-xs font-medium text-slate-500">Giáo viên Chủ nhiệm</TableHead>
+              <TableHead className="text-xs font-medium text-slate-500">Phòng học</TableHead>
+              <TableHead className="text-xs font-medium text-slate-500">Khóa học Classroom</TableHead>
+              <TableHead className="text-xs font-medium text-slate-500">Tỷ lệ nộp bài</TableHead>
+              <TableHead className="text-right text-xs font-medium text-slate-500">Thao tác</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -502,7 +502,7 @@ export default function ClassesPage() {
 
                     {/* Khối */}
                     <TableCell>
-                      <Badge variant="outline" className="rounded-md border-transparent bg-slate-100 font-semibold text-slate-700">
+                      <Badge variant="outline" className="rounded-md border-transparent bg-slate-100 text-slate-700">
                         {cls.grade ? `Khối ${cls.grade}` : 'Chưa phân khối'}
                       </Badge>
                     </TableCell>
@@ -510,12 +510,12 @@ export default function ClassesPage() {
                     {/* Nguồn */}
                     <TableCell>
                       {isManual ? (
-                        <Badge variant="outline" className="gap-1 rounded-md border-violet-200 bg-violet-50 font-semibold text-violet-700">
+                        <Badge variant="outline" className="gap-1 rounded-md bg-violet-50 text-violet-700">
                           <User className="size-3.5" />
                           Thủ công
                         </Badge>
                       ) : (
-                        <Badge variant="outline" className="gap-1 rounded-md border-emerald-200 bg-emerald-50 font-semibold text-emerald-700">
+                        <Badge variant="outline" className="gap-1 rounded-md bg-emerald-50 text-emerald-700">
                           <CloudCog className="size-3.5" />
                           Tự động
                         </Badge>
@@ -531,7 +531,7 @@ export default function ClassesPage() {
                         </span>
                       </div>
                       {cls.studentCount > 0 && cls.expectedStudents && cls.expectedStudents !== cls.studentCount ? (
-                        <p className="text-[0.7rem] text-slate-500">Định mức: {cls.expectedStudents} HS</p>
+                        <p className="text-xs text-slate-500">Định mức: {cls.expectedStudents} HS</p>
                       ) : null}
                     </TableCell>
 
@@ -797,7 +797,7 @@ export default function ClassesPage() {
                 <p className="mb-2 text-xs font-semibold text-red-800">Lớp này hiện đang có {selectedClass.courseCount} khóa học Google Classroom liên kết.</p>
                 <label className="flex items-start gap-2 text-sm">
                   <Checkbox checked={unlinkLinkedCourses} onCheckedChange={(v) => setUnlinkLinkedCourses(v === true)} className="mt-0.5" />
-                  <span className="text-[0.8125rem] font-semibold text-slate-800">
+                  <span className="text-sm font-semibold text-slate-800">
                     Tự động gỡ liên kết {selectedClass.courseCount} khóa học Classroom thuộc lớp này và xóa lớp
                   </span>
                 </label>
@@ -848,7 +848,7 @@ export default function ClassesPage() {
             <Button variant="outline" onClick={() => setOpenNudgeDialog(false)} disabled={nudgeSubmitting}>
               Hủy
             </Button>
-            <Button onClick={handleNudgeSubmit} disabled={nudgeSubmitting} className="bg-amber-600 font-bold hover:bg-amber-700">
+            <Button onClick={handleNudgeSubmit} disabled={nudgeSubmitting} className="bg-amber-600 hover:bg-amber-700">
               {nudgeSubmitting ? <Loader2 className="size-4 animate-spin" /> : 'Phát lệnh đôn đốc ngay'}
             </Button>
           </DialogFooter>
@@ -875,7 +875,7 @@ export default function ClassesPage() {
                 Nội dung đã được chuẩn hóa theo số liệu nộp bài thực tế của lớp và danh tính GVCN. Bạn có thể sao chép để gửi vào nhóm Zalo hoặc tin nhắn SMS
                 phụ huynh:
               </p>
-              <div className="max-h-[280px] overflow-y-auto rounded-lg border border-slate-200 bg-slate-50 p-4 font-mono text-[0.85rem] leading-relaxed whitespace-pre-wrap text-slate-800">
+              <div className="max-h-[280px] overflow-y-auto rounded-lg border border-slate-200 bg-slate-50 p-4 font-mono text-sm leading-relaxed whitespace-pre-wrap text-slate-800">
                 {parentTemplate}
               </div>
             </>

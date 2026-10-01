@@ -45,7 +45,6 @@ export default function ExecutiveAnalyticsPage() {
       delta: k?.completionRate?.delta || 'Từ Google Classroom',
       icon: <ClipboardCheck className="size-[22px]" />,
       color: 'text-emerald-500',
-      bg: 'bg-emerald-50'
     },
     {
       title: 'Tỷ lệ Nộp Đúng Hạn',
@@ -53,7 +52,6 @@ export default function ExecutiveAnalyticsPage() {
       delta: k?.onTimeRate?.delta || 'Nộp trước hạn chót',
       icon: <BookOpenCheck className="size-[22px]" />,
       color: 'text-primary',
-      bg: 'bg-secondary'
     },
     {
       title: 'Điểm Trung Bình (GPA)',
@@ -61,7 +59,6 @@ export default function ExecutiveAnalyticsPage() {
       delta: k?.schoolGpa?.delta || 'Thang điểm 10 quy chuẩn',
       icon: <GraduationCap className="size-[22px]" />,
       color: 'text-amber-500',
-      bg: 'bg-amber-50'
     },
     {
       title: 'Cảnh báo Đang Mở',
@@ -69,7 +66,6 @@ export default function ExecutiveAnalyticsPage() {
       delta: k?.openAlerts?.delta || 'Chưa phát hiện vấn đề',
       icon: <TriangleAlert className="size-[22px]" />,
       color: 'text-red-500',
-      bg: 'bg-red-50'
     }
   ];
 
@@ -79,13 +75,13 @@ export default function ExecutiveAnalyticsPage() {
         title="Báo cáo điều hành & phân tích chiến lược"
         action={
           <div className="flex gap-2.5">
-            <Button variant="outline" size="sm" asChild className="font-semibold">
+            <Button variant="outline" size="sm" asChild>
               <a href="/api/reports/classroom.csv" download="bao-cao-google-classroom.csv">
                 <Download className="size-4" />
                 Xuất CSV Lớp Học
               </a>
             </Button>
-            <Button variant="outline" size="sm" onClick={loadData} className="font-semibold">
+            <Button variant="outline" size="sm" onClick={loadData}>
               <RefreshCw className="size-4" />
               Làm mới
             </Button>
@@ -99,7 +95,7 @@ export default function ExecutiveAnalyticsPage() {
             <strong>Dữ liệu thực tế:</strong> Báo cáo BI được tạo hoàn toàn từ dữ liệu Google Classroom thực của trường. Hiện chưa có khóa học nào
             được đồng bộ.
           </AlertDescription>
-          <Button size="sm" onClick={() => navigate('/connections')} className="shrink-0 font-bold">
+          <Button size="sm" onClick={() => navigate('/connections')} className="shrink-0">
             Kết Nối Google Classroom
           </Button>
         </Alert>
@@ -110,15 +106,15 @@ export default function ExecutiveAnalyticsPage() {
         {kpis.map((kpi, idx) => (
           <div key={idx} className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
             <div className="mb-2 flex items-center justify-between">
-              <p className="text-[0.72rem] font-bold tracking-wide text-slate-500 uppercase">{kpi.title}</p>
-              <div className={cn('grid size-9 place-items-center rounded-lg', kpi.bg, kpi.color)}>{kpi.icon}</div>
+              <p className="text-sm font-medium text-slate-500">{kpi.title}</p>
+              <div className={cn('grid size-9 place-items-center rounded-lg bg-slate-100', kpi.color)}>{kpi.icon}</div>
             </div>
             {loading ? (
               <Skeleton className="h-10 w-1/2" />
             ) : (
-              <p className="my-1 text-[1.85rem] font-extrabold tracking-tight text-[#0f172a]">{kpi.value}</p>
+              <p className="my-1 text-[1.85rem] font-bold tracking-tight text-[#0f172a]">{kpi.value}</p>
             )}
-            <Badge variant="outline" className="h-[22px] border-slate-200 bg-slate-50 font-semibold text-slate-500">
+            <Badge variant="outline" className="bg-slate-50 text-slate-500">
               {kpi.delta}
             </Badge>
           </div>
@@ -130,25 +126,25 @@ export default function ExecutiveAnalyticsPage() {
         <div className="flex items-center justify-between border-b border-slate-200 p-4">
           <div>
             <p className="font-bold tracking-tight text-[#0f172a]">So Sánh Tiến Độ Học Tập Theo Lớp Hành Chính</p>
-            <p className="text-[0.8125rem] text-slate-500">Tổng hợp từ tất cả các khóa học Google Classroom đã liên kết với từng lớp</p>
+            <p className="text-sm text-slate-500">Tổng hợp từ tất cả các khóa học Google Classroom đã liên kết với từng lớp</p>
           </div>
-          <Badge variant="outline" className="border-blue-200 bg-secondary font-bold text-[#1d4ed8]">
+          <Badge variant="outline" className="bg-secondary text-[#1d4ed8]">
             {classComparison.length} lớp học
           </Badge>
         </div>
 
-        <div className="w-full overflow-x-auto">
+        <div className="overflow-x-auto">
           <Table>
             <TableHeader className="bg-slate-50">
               <TableRow className="hover:bg-slate-50">
-                <TableHead className="text-xs font-bold tracking-wide text-slate-600 uppercase">Lớp</TableHead>
-                <TableHead className="text-xs font-bold tracking-wide text-slate-600 uppercase">Khối</TableHead>
-                <TableHead className="text-xs font-bold tracking-wide text-slate-600 uppercase">Sĩ số</TableHead>
-                <TableHead className="text-xs font-bold tracking-wide text-slate-600 uppercase">Số khóa học</TableHead>
-                <TableHead className="text-xs font-bold tracking-wide text-slate-600 uppercase">Bài tập đã giao</TableHead>
-                <TableHead className="text-xs font-bold tracking-wide text-slate-600 uppercase">Tỷ lệ nộp bài</TableHead>
-                <TableHead className="text-xs font-bold tracking-wide text-slate-600 uppercase">Nộp đúng hạn</TableHead>
-                <TableHead className="text-xs font-bold tracking-wide text-slate-600 uppercase">Điểm trung bình</TableHead>
+                <TableHead className="text-xs font-medium text-slate-500">Lớp</TableHead>
+                <TableHead className="text-xs font-medium text-slate-500">Khối</TableHead>
+                <TableHead className="text-xs font-medium text-slate-500">Sĩ số</TableHead>
+                <TableHead className="text-xs font-medium text-slate-500">Số khóa học</TableHead>
+                <TableHead className="text-xs font-medium text-slate-500">Bài tập đã giao</TableHead>
+                <TableHead className="text-xs font-medium text-slate-500">Tỷ lệ nộp bài</TableHead>
+                <TableHead className="text-xs font-medium text-slate-500">Nộp đúng hạn</TableHead>
+                <TableHead className="text-xs font-medium text-slate-500">Điểm trung bình</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -172,7 +168,7 @@ export default function ExecutiveAnalyticsPage() {
                     <p className="mx-auto mb-5 max-w-[460px] text-sm text-slate-500">
                       Khi bạn đồng bộ Google Classroom, hệ thống sẽ tự động gộp các khóa học theo mã lớp thực tế và xếp hạng tiến độ nộp bài.
                     </p>
-                    <Button onClick={() => navigate('/connections')} className="font-bold">
+                    <Button onClick={() => navigate('/connections')}>
                       <RotateCw className="size-[18px]" />
                       Kết Nối & Đồng Bộ Ngay
                     </Button>

@@ -122,11 +122,11 @@ export default function SchedulesPage() {
         icon={<CalendarDays />}
         action={
           <div className="flex flex-col gap-2 sm:flex-row">
-            <Button variant="outline" onClick={downloadSampleTemplate} className="font-semibold">
+            <Button variant="outline" onClick={downloadSampleTemplate}>
               <Download className="size-4" />
               Tải CSV Mẫu
             </Button>
-            <Button asChild className="relative font-bold">
+            <Button asChild className="relative">
               <label>
                 <Upload className="size-4" />
                 Import CSV
@@ -177,7 +177,7 @@ export default function SchedulesPage() {
           <Tabs value={String(dayTab)} onValueChange={(v) => setDayTab(Number(v))} className="overflow-x-auto md:basis-2/3">
             <TabsList>
               {dayNames.map((d, i) => (
-                <TabsTrigger key={d} value={String(i)} className="font-bold">
+                <TabsTrigger key={d} value={String(i)}>
                   {d}
                 </TabsTrigger>
               ))}
@@ -192,7 +192,7 @@ export default function SchedulesPage() {
 
       {/* Timetable Table */}
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
-        <div className="w-full overflow-x-auto">
+        <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -220,7 +220,7 @@ export default function SchedulesPage() {
                     <p className="mx-auto mb-5 max-w-[440px] text-sm text-slate-500">
                       Vui lòng sử dụng chức năng <strong>Import CSV</strong> để tải lịch học của trường lên hệ thống.
                     </p>
-                    <Button asChild className="relative font-bold">
+                    <Button asChild className="relative">
                       <label>
                         <Upload className="size-4" />
                         Tải File CSV Thời Khóa Biểu
@@ -238,16 +238,16 @@ export default function SchedulesPage() {
                 filtered.map((x) => (
                   <TableRow key={x.id}>
                     <TableCell>
-                      <Badge variant="outline" className="border-transparent bg-secondary font-bold text-[#1d4ed8]">
+                      <Badge variant="outline" className="border-transparent bg-secondary text-[#1d4ed8]">
                         Thứ {x.dayOfWeek}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="border-transparent bg-slate-100 font-bold text-slate-700">
+                      <Badge variant="outline" className="border-transparent bg-slate-100 text-slate-700">
                         Tiết {x.period}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-[0.8125rem] text-slate-500">
+                    <TableCell className="text-sm text-slate-500">
                       {x.startTime && x.endTime ? `${x.startTime} – ${x.endTime}` : x.startTime || x.endTime || '—'}
                     </TableCell>
                     <TableCell>
@@ -259,7 +259,7 @@ export default function SchedulesPage() {
                     <TableCell className="text-slate-600">{x.teacherEmail}</TableCell>
                     <TableCell>
                       {x.meetingCode || x.spaceName ? (
-                        <Badge variant="outline" className="gap-1 border-transparent bg-emerald-50 font-semibold text-emerald-600">
+                        <Badge variant="outline" className="gap-1 border-transparent bg-emerald-50 text-emerald-600">
                           <CheckCircle2 className="size-3.5" />
                           {x.meetingCode || x.spaceName}
                         </Badge>

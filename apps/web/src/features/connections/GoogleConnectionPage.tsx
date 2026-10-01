@@ -340,11 +340,11 @@ export default function GoogleConnectionPage() {
         title="Quản lý kết nối Google Classroom & dữ liệu thực tế"
         action={
           <div className="flex flex-wrap gap-2">
-            <Button onClick={handleManualSync} disabled={syncing} className="font-bold">
+            <Button onClick={handleManualSync} disabled={syncing}>
               {syncing ? <Loader2 className="size-4 animate-spin" /> : <RotateCw className="size-4" />}
               {syncing ? 'Đang đồng bộ...' : 'Đồng bộ Classroom ngay'}
             </Button>
-            <Button variant="outline" onClick={handleLoadDemoSeed} disabled={seedLoading} className="font-semibold">
+            <Button variant="outline" onClick={handleLoadDemoSeed} disabled={seedLoading}>
               {seedLoading ? <Loader2 className="size-4 animate-spin" /> : <PlayCircle className="size-4" />}
               Nạp lớp học mẫu Trường THCS Giảng Võ
             </Button>
@@ -383,13 +383,13 @@ export default function GoogleConnectionPage() {
             <p className="font-bold tracking-tight text-[#0f172a]">
               Số lượng khóa học Google Classroom đã nạp vào CSDL: {status?.syncedCoursesCount ?? 0} lớp
             </p>
-            <p className="text-[0.8125rem] text-slate-500">
+            <p className="text-sm text-slate-500">
               Tất cả dữ liệu điểm danh, bài tập, sĩ số học sinh và điểm số được đồng bộ trực tiếp từ máy chủ Google API theo chuẩn SSOT.
             </p>
           </div>
           <div className="flex items-center gap-2">
             {status?.syncedCoursesCount > 0 && (
-              <Button size="sm" variant="outline" onClick={() => navigate('/classroom')} className="rounded-lg font-semibold">
+              <Button size="sm" variant="outline" onClick={() => navigate('/classroom')} className="rounded-lg">
                 Xem danh sách lớp học ({status.syncedCoursesCount})
               </Button>
             )}
@@ -428,7 +428,7 @@ export default function GoogleConnectionPage() {
             )}
           </div>
 
-          <p className="mb-4 text-[0.8125rem] text-slate-500">
+          <p className="mb-4 text-sm text-slate-500">
             Dành cho Ban Giám hiệu hoặc Giáo viên kết nối tài khoản Google để kéo các lớp học mà tài khoản đó tham gia hoặc giảng dạy.
           </p>
 
@@ -439,7 +439,7 @@ export default function GoogleConnectionPage() {
               status?.modeA?.connected ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-slate-50'
             )}
           >
-            <p className="mb-1 text-xs font-semibold tracking-wide text-slate-500 uppercase">Trạng thái kết nối OAuth:</p>
+            <p className="mb-1 text-xs font-medium text-slate-500">Trạng thái kết nối OAuth:</p>
             <Badge
               variant="outline"
               className={cn(
@@ -492,10 +492,10 @@ export default function GoogleConnectionPage() {
               <ChevronDown className="size-4 shrink-0 text-slate-500 transition-transform group-data-[state=open]:rotate-180" />
             </CollapsibleTrigger>
             <CollapsibleContent className="px-3 pb-3">
-              <p className="mb-3 text-[0.8125rem] text-slate-600">
+              <p className="mb-3 text-sm text-slate-600">
                 Nếu bạn chưa thiết lập Google Cloud OAuth Client ID, hãy dùng Google OAuth Playground để lấy Access Token dùng ngay:
               </p>
-              <div className="flex flex-col gap-2 text-[0.8125rem] text-slate-700">
+              <div className="flex flex-col gap-2 text-sm text-slate-700">
                 <div>
                   <strong>Bước 1:</strong>{' '}
                   Mở trang{' '}
@@ -525,7 +525,7 @@ export default function GoogleConnectionPage() {
                   <strong>Bước 4:</strong> Bấm <strong>Exchange authorization code for tokens</strong>, copy dòng <strong>Access token</strong> (bắt
                   đầu bằng <code>ya29...</code>) rồi dán vào ô bên dưới.
                 </div>
-                <div className="rounded-md border border-blue-200 bg-secondary p-2.5 text-[0.78rem] text-blue-800">
+                <div className="rounded-md border border-blue-200 bg-secondary p-2.5 text-xs text-blue-800">
                   💡 <strong>Lưu ý về thời hạn:</strong> Access Token của Google mặc định có thời hạn <strong>1 giờ (3600 giây)</strong>. Để giữ kết
                   nối lâu dài / tự động làm mới vĩnh viễn, bạn hãy copy thêm ô <strong>Refresh token</strong> ở Bước 2 trên Playground và dán vào ô
                   bên dưới.
@@ -573,7 +573,7 @@ export default function GoogleConnectionPage() {
               />
               <p className="mt-1 text-xs text-slate-500">Tùy chọn: Giúp hệ thống tự động làm mới token mỗi khi hết hạn mà không cần nhập lại</p>
             </div>
-            <Button variant="outline" onClick={handleSaveDirectToken} disabled={syncing || !customToken.trim()} className="rounded-lg py-5 font-bold">
+            <Button variant="outline" onClick={handleSaveDirectToken} disabled={syncing || !customToken.trim()} className="rounded-lg py-5">
               {syncing && <Loader2 className="size-3.5 animate-spin" />}
               {syncing ? 'Đang xác thực và đồng bộ...' : 'Xác nhận Token & Đồng bộ ngay'}
             </Button>
@@ -584,12 +584,12 @@ export default function GoogleConnectionPage() {
             <CollapsibleTrigger className="group flex w-full items-center justify-between p-3 text-left">
               <div className="flex items-center gap-1.5">
                 <Settings className="size-4 text-slate-500" />
-                <p className="text-xs font-bold tracking-wide text-slate-600 uppercase">Cấu hình Google OAuth 2.0 Credentials (Tùy chọn)</p>
+                <p className="text-xs font-medium text-slate-500">Cấu hình Google OAuth 2.0 Credentials (Tùy chọn)</p>
               </div>
               <ChevronDown className="size-4 shrink-0 text-slate-500 transition-transform group-data-[state=open]:rotate-180" />
             </CollapsibleTrigger>
             <CollapsibleContent className="px-3 pb-3">
-              <p className="mb-3 text-[0.775rem] text-slate-500">
+              <p className="mb-3 text-xs text-slate-500">
                 Dán OAuth Client ID từ Google Cloud Console để bật tính năng bấm 1-click nút "Đăng nhập Google" không cần copy token thủ công.
               </p>
               <div className="flex flex-col gap-3">
@@ -617,7 +617,7 @@ export default function GoogleConnectionPage() {
                     {copiedRedirect ? 'Đã copy' : 'Copy'}
                   </Button>
                 </div>
-                <Button size="sm" onClick={handleSaveOAuthCredentials} disabled={savingOAuth || !clientId.trim()} className="w-fit font-semibold">
+                <Button size="sm" onClick={handleSaveOAuthCredentials} disabled={savingOAuth || !clientId.trim()} className="w-fit">
                   {savingOAuth ? 'Đang lưu...' : 'Lưu cấu hình OAuth'}
                 </Button>
               </div>
@@ -633,13 +633,13 @@ export default function GoogleConnectionPage() {
             </div>
             <p className="font-bold text-[#0f172a]">Chế Độ B: Google Workspace DWD Toàn Trường</p>
           </div>
-          <p className="mb-4 text-[0.8125rem] text-slate-500">
+          <p className="mb-4 text-sm text-slate-500">
             Sử dụng Service Account ủy quyền toàn miền (Domain-Wide Delegation) để đồng bộ tự động 100% lớp học của toàn bộ giáo viên và học sinh
             trên tên miền trường.
           </p>
 
           <div className="mb-5 rounded-lg border border-slate-200 bg-slate-50 p-3">
-            <p className="mb-1 text-xs font-semibold tracking-wide text-slate-500 uppercase">Trạng thái Service Account DWD:</p>
+            <p className="mb-1 text-xs font-medium text-slate-500">Trạng thái Service Account DWD:</p>
             <Badge
               variant="outline"
               className={cn(
@@ -654,7 +654,7 @@ export default function GoogleConnectionPage() {
             </p>
           </div>
 
-          <p className="mb-1.5 text-xs font-semibold tracking-wide text-slate-500 uppercase">Cung cấp nội dung file JSON Service Account:</p>
+          <p className="mb-1.5 text-xs font-medium text-slate-500">Cung cấp nội dung file JSON Service Account:</p>
           <Textarea
             placeholder='Dán toàn bộ nội dung file service-account.json (chứa "private_key" và "client_email")...'
             value={saJson}

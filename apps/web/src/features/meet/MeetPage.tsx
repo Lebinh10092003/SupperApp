@@ -18,7 +18,7 @@ export default function MeetPage() {
           key: 'className',
           label: 'Lớp học',
           render: (val) => (
-            <Badge variant="outline" className="border-transparent bg-secondary font-bold text-[#1d4ed8]">
+            <Badge variant="outline" className="border-transparent bg-secondary text-[#1d4ed8]">
               {val || '—'}
             </Badge>
           )
@@ -46,7 +46,7 @@ export default function MeetPage() {
           key: 'attendanceRate',
           label: 'Chuyên cần %',
           render: (val) => (
-            <Badge variant="outline" className="border-transparent bg-emerald-50 font-extrabold text-emerald-600">
+            <Badge variant="outline" className="border-transparent bg-emerald-50 text-emerald-600">
               {val !== undefined && val !== null ? `${val}%` : '—'}
             </Badge>
           )

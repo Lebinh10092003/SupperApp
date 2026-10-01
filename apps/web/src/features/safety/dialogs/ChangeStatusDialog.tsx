@@ -136,7 +136,7 @@ export function ChangeStatusDialog({
           <Button variant="ghost" onClick={handleClose} className="text-slate-500">
             Hủy
           </Button>
-          <Button disabled={!toState || submitting} onClick={handleSubmit} className="font-bold">
+          <Button disabled={!toState || submitting} onClick={handleSubmit}>
             {submitting ? 'Đang lưu...' : 'Xác nhận đổi trạng thái'}
           </Button>
         </DialogFooter>

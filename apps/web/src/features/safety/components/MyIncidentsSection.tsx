@@ -36,7 +36,7 @@ const ALL_STATE = '__all_state__';
 function StatCard({ label, value, className }: { label: string; value: number | string; className: string }) {
   return (
     <div className="rounded-xl border border-slate-200 p-4">
-      <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">{label}</p>
+      <p className="text-xs font-medium text-slate-500">{label}</p>
       <p className={cn('mt-1 text-3xl font-extrabold', className)}>{value}</p>
     </div>
   );
@@ -174,7 +174,7 @@ export function MyIncidentsSection() {
 
       {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
 
-      <div className="rounded-xl border border-slate-200">
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_3px_0_rgba(15,23,42,0.04)]">
         <Table>
           <TableHeader>
             <TableRow className="bg-slate-50 hover:bg-slate-50">

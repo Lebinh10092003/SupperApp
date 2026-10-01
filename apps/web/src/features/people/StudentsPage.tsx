@@ -15,7 +15,7 @@ export default function StudentsPage() {
             const name = val || row.displayName || row.name || row.email || 'Chưa cập nhật';
             return (
               <div className="flex items-center gap-2.5">
-                <Avatar className="size-[34px] bg-blue-500 text-[0.85rem] font-bold text-white">
+                <Avatar className="size-[34px] bg-blue-500 text-sm font-bold text-white">
                   <AvatarImage src={row.photoUrl} />
                   <AvatarFallback className="bg-blue-500 text-white">{String(name)[0]?.toUpperCase()}</AvatarFallback>
                 </Avatar>
@@ -36,7 +36,7 @@ export default function StudentsPage() {
           key: 'orgUnitPath',
           label: 'Đơn vị Tổ chức (Org Unit)',
           render: (val) => (
-            <Badge variant="outline" className="border-transparent bg-slate-100 font-semibold text-slate-600">
+            <Badge variant="outline" className="border-transparent bg-slate-100 text-slate-600">
               {val || 'Chưa phân đơn vị'}
             </Badge>
           )
@@ -45,7 +45,7 @@ export default function StudentsPage() {
           key: 'courses',
           label: 'Lớp tham gia',
           render: (val) => (
-            <Badge variant="outline" className="font-semibold text-slate-600">
+            <Badge variant="outline" className="text-slate-600">
               {Array.isArray(val) ? val.length : 0} lớp
             </Badge>
           )

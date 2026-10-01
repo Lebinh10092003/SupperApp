@@ -224,10 +224,10 @@ export default function SyncRunsPage() {
               </TooltipTrigger>
               <TooltipContent>Làm mới danh sách</TooltipContent>
             </Tooltip>
-            <Button variant="outline" onClick={() => navigate('/classroom')} className="font-semibold">
+            <Button variant="outline" onClick={() => navigate('/classroom')}>
               Xem Khoá học
             </Button>
-            <Button onClick={() => navigate('/connections')} className="font-semibold">
+            <Button onClick={() => navigate('/connections')}>
               <RotateCw className="size-4" />
               Đồng bộ dữ liệu
             </Button>
@@ -238,19 +238,19 @@ export default function SyncRunsPage() {
       {/* Thống kê nhanh KPI */}
       <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
-          <p className="text-xs font-semibold text-slate-500 uppercase">Tổng phiên đồng bộ</p>
+          <p className="text-xs font-medium text-slate-500">Tổng phiên đồng bộ</p>
           <p className="mt-1 text-3xl font-extrabold text-[#0f172a]">{totalSyncs}</p>
           <p className="mt-1 text-sm text-slate-400">Lần quét & import từ trước tới nay</p>
         </div>
 
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
-          <p className="text-xs font-semibold text-slate-500 uppercase">Khoá học đang lưu vết</p>
+          <p className="text-xs font-medium text-slate-500">Khoá học đang lưu vết</p>
           <p className="mt-1 text-3xl font-extrabold text-primary">{activeCoursesFromSync}</p>
           <p className="mt-1 text-sm text-slate-400">Thuộc các phiên đồng bộ hiện hành</p>
         </div>
 
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
-          <p className="text-xs font-semibold text-slate-500 uppercase">Phiên gần nhất</p>
+          <p className="text-xs font-medium text-slate-500">Phiên gần nhất</p>
           <p className="mt-2 overflow-hidden text-sm font-bold text-nowrap text-ellipsis text-[#0f172a]">
             {latestRun ? formatDate(latestRun.startedAt) : 'Chưa có'}
           </p>
@@ -258,7 +258,7 @@ export default function SyncRunsPage() {
         </div>
 
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
-          <p className="text-xs font-semibold text-slate-500 uppercase">Trạng thái gần nhất</p>
+          <p className="text-xs font-medium text-slate-500">Trạng thái gần nhất</p>
           <div className="mt-2">{latestRun ? getStatusBadge(latestRun.status) : '—'}</div>
           <p className="mt-2 text-sm text-slate-400">
             {latestRun ? `${latestRun.coursesSuccess}/${latestRun.coursesTotal} khoá thành công` : 'Sẵn sàng'}
@@ -280,12 +280,12 @@ export default function SyncRunsPage() {
           <Table className="min-w-[800px]">
             <TableHeader className="bg-slate-50">
               <TableRow className="hover:bg-slate-50">
-                <TableHead className="text-[0.85rem] font-bold text-slate-600">Mã Phiên Đồng bộ</TableHead>
-                <TableHead className="text-[0.85rem] font-bold text-slate-600">Thời gian thực hiện</TableHead>
-                <TableHead className="text-[0.85rem] font-bold text-slate-600">Người thực hiện</TableHead>
-                <TableHead className="text-[0.85rem] font-bold text-slate-600">Khoá học của phiên</TableHead>
-                <TableHead className="text-[0.85rem] font-bold text-slate-600">Trạng thái</TableHead>
-                <TableHead className="text-right text-[0.85rem] font-bold text-slate-600">Thao tác</TableHead>
+                <TableHead className="text-xs font-medium text-slate-500">Mã Phiên Đồng bộ</TableHead>
+                <TableHead className="text-xs font-medium text-slate-500">Thời gian thực hiện</TableHead>
+                <TableHead className="text-xs font-medium text-slate-500">Người thực hiện</TableHead>
+                <TableHead className="text-xs font-medium text-slate-500">Khoá học của phiên</TableHead>
+                <TableHead className="text-xs font-medium text-slate-500">Trạng thái</TableHead>
+                <TableHead className="text-right text-xs font-medium text-slate-500">Thao tác</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -410,11 +410,11 @@ export default function SyncRunsPage() {
               <Table>
                 <TableHeader className="bg-slate-50">
                   <TableRow className="hover:bg-slate-50">
-                    <TableHead className="font-bold">Tên Khoá học</TableHead>
-                    <TableHead className="font-bold">Lớp & Khối</TableHead>
-                    <TableHead className="font-bold">Môn học</TableHead>
-                    <TableHead className="font-bold">Sĩ số / GV</TableHead>
-                    <TableHead className="font-bold">Bài tập</TableHead>
+                    <TableHead className="text-xs font-medium text-slate-500">Tên Khoá học</TableHead>
+                    <TableHead className="text-xs font-medium text-slate-500">Lớp & Khối</TableHead>
+                    <TableHead className="text-xs font-medium text-slate-500">Môn học</TableHead>
+                    <TableHead className="text-xs font-medium text-slate-500">Sĩ số / GV</TableHead>
+                    <TableHead className="text-xs font-medium text-slate-500">Bài tập</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -428,7 +428,7 @@ export default function SyncRunsPage() {
                       </TableCell>
                       <TableCell>
                         {course.className ? (
-                          <Badge variant="outline" className="gap-1 border-transparent bg-secondary font-semibold text-[#1d4ed8]">
+                          <Badge variant="outline" className="gap-1 border-transparent bg-secondary text-[#1d4ed8]">
                             <GraduationCap className="size-3.5" />
                             {course.className}
                           </Badge>

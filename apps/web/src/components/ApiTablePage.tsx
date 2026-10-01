@@ -86,7 +86,7 @@ export function ApiTablePage({
       return (
         <Badge
           variant="outline"
-          className={cn('h-6 text-[0.72rem] font-bold', isLive ? 'border-red-200 bg-red-50 text-red-600' : 'border-slate-200 bg-slate-50 text-slate-700')}
+          className={cn('h-6 text-xs font-bold', isLive ? 'border-red-200 bg-red-50 text-red-600' : 'border-slate-200 bg-slate-50 text-slate-700')}
         >
           {val || 'Hoàn thành'}
         </Badge>
@@ -97,7 +97,7 @@ export function ApiTablePage({
       const num = Number(val);
       if (!isNaN(num)) {
         return (
-          <span className={cn('text-[0.84rem] font-bold', num >= 90 ? 'text-emerald-500' : num >= 75 ? 'text-amber-500' : 'text-red-500')}>{num}%</span>
+          <span className={cn('text-sm font-bold', num >= 90 ? 'text-emerald-500' : num >= 75 ? 'text-amber-500' : 'text-red-500')}>{num}%</span>
         );
       }
     }
@@ -113,7 +113,7 @@ export function ApiTablePage({
         action={
           <div className="flex gap-2">
             {action}
-            <Button variant="outline" size="sm" onClick={loadData} className="bg-white font-semibold text-slate-700">
+            <Button variant="outline" size="sm" onClick={loadData} className="bg-white text-slate-700">
               <RefreshCw className="size-4" />
               Làm mới
             </Button>
@@ -132,11 +132,11 @@ export function ApiTablePage({
               setQ(e.target.value);
               setPage(0);
             }}
-            className="h-[38px] bg-white pl-10 text-[0.84rem]"
+            className="h-[38px] bg-white pl-10 text-sm"
           />
         </div>
 
-        <Badge variant="outline" className="h-7 border-blue-200 bg-secondary px-2 text-[0.75rem] font-bold text-[#1d4ed8]">
+        <Badge variant="outline" className="bg-secondary px-2 text-xs text-[#1d4ed8]">
           Tổng cộng {filtered.length} bản ghi
         </Badge>
       </div>
@@ -149,7 +149,7 @@ export function ApiTablePage({
           <TableHeader className="bg-slate-50">
             <TableRow className="hover:bg-slate-50">
               {columns.map((c) => (
-                <TableHead key={c.key} className="py-3 text-[0.75rem] font-bold tracking-wider text-slate-600 uppercase">
+                <TableHead key={c.key} className="py-3 text-xs font-medium text-slate-500">
                   {c.label}
                 </TableHead>
               ))}
@@ -174,16 +174,16 @@ export function ApiTablePage({
                     <School className="size-[26px]" />
                   </div>
                   <p className="mb-1 text-base font-bold text-[#0f172a]">Chưa có dữ liệu từ Google Classroom</p>
-                  <p className="mx-auto mb-6 max-w-[460px] text-[0.84rem] leading-relaxed text-slate-500">
+                  <p className="mx-auto mb-6 max-w-[460px] text-sm leading-relaxed text-slate-500">
                     Toàn bộ thông tin học tập và danh bạ được đồng bộ trực tiếp từ Google Classroom. Hãy kết nối tài khoản hoặc tiến hành đồng bộ để hiển thị
                     danh sách.
                   </p>
                   <div className="flex justify-center gap-3">
-                    <Button onClick={() => navigate('/connections')} className="rounded-lg px-5 py-2 text-[0.84rem] font-bold">
+                    <Button onClick={() => navigate('/connections')} className="rounded-lg px-5 py-2 text-sm">
                       <CloudUpload className="size-[18px]" />
                       Kết nối &amp; Đồng bộ Classroom
                     </Button>
-                    <Button variant="outline" onClick={loadData} className="rounded-lg text-[0.84rem] font-semibold text-slate-700">
+                    <Button variant="outline" onClick={loadData} className="rounded-lg text-sm text-slate-700">
                       <RefreshCw className="size-[18px]" />
                       Thử lại
                     </Button>
@@ -201,7 +201,7 @@ export function ApiTablePage({
               pagedItems.map((x, i) => (
                 <TableRow key={x.id || i} className="border-b border-slate-100 hover:bg-blue-50/60">
                   {columns.map((c) => (
-                    <TableCell key={c.key} className="py-3 text-[0.84rem]">
+                    <TableCell key={c.key} className="py-3 text-sm">
                       {renderCellContent(c, x)}
                     </TableCell>
                   ))}
@@ -212,7 +212,7 @@ export function ApiTablePage({
         </Table>
 
         {filtered.length > rowsPerPage && (
-          <div className="flex flex-wrap items-center justify-end gap-4 border-t border-slate-200 px-4 py-2.5 text-[0.78rem] text-slate-500">
+          <div className="flex flex-wrap items-center justify-end gap-4 border-t border-slate-200 px-4 py-2.5 text-xs text-slate-500">
             <div className="flex items-center gap-2">
               <span>Số hàng mỗi trang:</span>
               <Select
@@ -222,7 +222,7 @@ export function ApiTablePage({
                   setPage(0);
                 }}
               >
-                <SelectTrigger size="sm" className="w-[70px] text-[0.78rem]">
+                <SelectTrigger size="sm" className="w-[70px] text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

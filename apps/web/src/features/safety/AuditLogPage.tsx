@@ -140,7 +140,7 @@ export default function AuditLogPage() {
             placeholder="VD: SC.2609.0001 — để trống xem gần đây nhất"
           />
         </div>
-        <Button onClick={load} disabled={loading} className="font-bold">
+        <Button onClick={load} disabled={loading}>
           Tra cứu
         </Button>
       </div>
@@ -152,7 +152,7 @@ export default function AuditLogPage() {
       )}
 
       {searched && (
-        <div className="overflow-hidden rounded-xl border border-slate-200">
+        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_3px_0_rgba(15,23,42,0.04)]">
           <Table>
             <TableHeader>
               <TableRow>

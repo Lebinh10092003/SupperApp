@@ -39,7 +39,7 @@ interface KpiItemProps {
   onClick?: () => void;
 }
 
-const CardK = ({ title, value, delta, deltaPositive = true, subtitle, icon, accentColor = 'text-primary', iconBg = 'bg-secondary', onClick }: KpiItemProps) => (
+const CardK = ({ title, value, delta, deltaPositive = true, subtitle, icon, accentColor = 'text-primary', onClick }: KpiItemProps) => (
   <div
     onClick={onClick}
     className={cn(
@@ -48,15 +48,24 @@ const CardK = ({ title, value, delta, deltaPositive = true, subtitle, icon, acce
     )}
   >
     <div className="mb-2 flex items-center justify-between">
-      <p className="text-[0.72rem] font-bold tracking-wide text-slate-500 uppercase">{title}</p>
-      <div className={cn('grid size-[34px] place-items-center rounded-lg shadow-[0_2px_4px_rgba(0,0,0,0.02)]', iconBg, accentColor)}>{icon}</div>
+      <p className="text-sm font-medium text-slate-500">{title}</p>
+      <div className={cn('grid size-[34px] place-items-center rounded-lg bg-slate-100', accentColor)}>{icon}</div>
     </div>
 
-    <p className="my-0.5 text-[1.85rem] leading-tight font-extrabold tracking-tight text-[#0f172a]">{value ?? '0'}</p>
+    <p className="my-0.5 text-[1.85rem] leading-tight font-bold tracking-tight text-[#0f172a]">{value ?? '0'}</p>
 
-    <div className="mt-1 flex flex-wrap items-center gap-1.5">
-      {delta && <span className={cn('text-xs font-bold', deltaPositive ? 'text-emerald-500' : 'text-red-500')}>{delta}</span>}
-      <span className="text-xs text-slate-400">• {subtitle || 'Classroom'}</span>
+    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+      {delta && (
+        <span
+          className={cn(
+            'rounded-full px-1.5 py-0.5 text-xs font-medium',
+            deltaPositive ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'
+          )}
+        >
+          {delta}
+        </span>
+      )}
+      <span className="text-xs text-slate-400">{subtitle || 'Classroom'}</span>
     </div>
   </div>
 );
@@ -200,7 +209,7 @@ export default function DashboardPage() {
         title="Bảng điều hành toàn trường"
         action={
           <div className="flex flex-wrap items-center gap-2.5">
-            <Button onClick={handleQuickSync} disabled={syncing} className="font-bold">
+            <Button onClick={handleQuickSync} disabled={syncing}>
               {syncing ? <Loader2 className="size-4 animate-spin" /> : <RotateCw className="size-4" />}
               {syncing ? 'Đang đồng bộ Classroom...' : 'Đồng Bộ Classroom'}
             </Button>
@@ -214,12 +223,12 @@ export default function DashboardPage() {
               {actionLoading === 'teachers' ? 'Đang gán...' : 'Phân Công GVCN'}
             </Button>
 
-            <Button onClick={handleNudgeSubmissions} disabled={actionLoading !== null} className="bg-amber-600 font-bold hover:bg-amber-700">
+            <Button onClick={handleNudgeSubmissions} disabled={actionLoading !== null} className="bg-amber-600 hover:bg-amber-700">
               {actionLoading === 'nudge' ? <Loader2 className="size-4 animate-spin" /> : <BellRing className="size-4" />}
               {actionLoading === 'nudge' ? 'Đang gửi...' : 'Đôn Đốc Nộp Bài'}
             </Button>
 
-            <Button variant="outline" onClick={fetchOverview} className="font-semibold">
+            <Button variant="outline" onClick={fetchOverview}>
               <RefreshCw className="size-4" />
               Làm mới
             </Button>
@@ -290,7 +299,7 @@ export default function DashboardPage() {
             ⚠️ <strong>Cảnh Báo Chậm Trả Điểm (&gt;48h):</strong> Hiện có <strong>{k?.ungradedAssignments?.value} bài tập</strong> đã nộp nhưng giáo
             viên bộ môn chưa chấm điểm. Cần hoàn thành chấm để đồng bộ điểm vào Hồ sơ 360° học sinh.
           </AlertDescription>
-          <Button size="sm" onClick={() => navigate('/teachers')} className="shrink-0 bg-amber-600 font-bold hover:bg-amber-700">
+          <Button size="sm" onClick={() => navigate('/teachers')} className="shrink-0 bg-amber-600 hover:bg-amber-700">
             Đôn Đốc Chấm Bài
           </Button>
         </Alert>
@@ -302,7 +311,7 @@ export default function DashboardPage() {
             <strong>Dữ liệu thực tế 100%:</strong> Hiện chưa có khóa học nào được đồng bộ từ Google Classroom, các chỉ số hiển thị giá trị thực (0).
             Vui lòng kết nối tài khoản Google Workspace hoặc bấm "Đồng Bộ Classroom" để nạp dữ liệu thật.
           </AlertDescription>
-          <Button size="sm" onClick={() => navigate('/connections')} className="shrink-0 font-bold">
+          <Button size="sm" onClick={() => navigate('/connections')} className="shrink-0">
             Cấu hình Google Classroom
           </Button>
         </Alert>
@@ -310,22 +319,22 @@ export default function DashboardPage() {
 
       {/* Lối tắt Điều Hành Nhanh */}
       <div className="mb-6 flex gap-2.5 overflow-x-auto pb-1">
-        <Button onClick={() => navigate('/executive')} className="shrink-0 font-bold shadow-[0_2px_4px_rgba(37,99,235,0.2)]">
+        <Button onClick={() => navigate('/executive')} className="shrink-0 shadow-[0_2px_4px_rgba(37,99,235,0.2)]">
           <LayoutGrid className="size-4" />
           Executive Heatmap Lớp × Môn
         </Button>
 
-        <Button variant="outline" onClick={() => navigate('/students/360')} className="shrink-0 font-semibold">
+        <Button variant="outline" onClick={() => navigate('/students/360')} className="shrink-0">
           <UserSearch className="size-4" />
           Hồ sơ 360° Học sinh
         </Button>
 
-        <Button variant="outline" onClick={() => navigate('/classes/compare')} className="shrink-0 font-semibold">
+        <Button variant="outline" onClick={() => navigate('/classes/compare')} className="shrink-0">
           <ArrowLeftRight className="size-4" />
           So sánh Lớp học Đối đầu
         </Button>
 
-        <Button variant="outline" onClick={() => navigate('/subjects/analytics')} className="shrink-0 font-semibold">
+        <Button variant="outline" onClick={() => navigate('/subjects/analytics')} className="shrink-0">
           <BookOpenCheck className="size-4" />
           Phân tích Môn học
         </Button>
@@ -353,7 +362,7 @@ export default function DashboardPage() {
               liệu hoặc thông báo mới từ giáo viên.
             </span>
           </AlertDescription>
-          <Button size="sm" variant="ghost" onClick={() => navigate('/classroom')} className="shrink-0 font-bold text-amber-900">
+          <Button size="sm" variant="ghost" onClick={() => navigate('/classroom')} className="shrink-0 text-amber-900">
             Xem chi tiết
           </Button>
         </Alert>
@@ -368,7 +377,6 @@ export default function DashboardPage() {
           subtitle={isSynced ? 'Lớp số hoạt động' : 'Chờ đồng bộ'}
           icon={<BookOpenCheck className="size-5" />}
           accentColor="text-primary"
-          iconBg="bg-secondary"
           onClick={() => navigate('/classroom')}
         />
 
@@ -379,7 +387,6 @@ export default function DashboardPage() {
           subtitle="Từ Classroom & Danh bạ"
           icon={<IdCard className="size-5" />}
           accentColor="text-indigo-600"
-          iconBg="bg-indigo-50"
           onClick={() => navigate('/teachers')}
         />
 
@@ -390,7 +397,6 @@ export default function DashboardPage() {
           subtitle="Từ Google Classroom"
           icon={<Users className="size-5" />}
           accentColor="text-sky-600"
-          iconBg="bg-sky-50"
           onClick={() => navigate('/students')}
         />
 
@@ -401,7 +407,6 @@ export default function DashboardPage() {
           subtitle="Khối 6, 7, 8, 9"
           icon={<GraduationCap className="size-5" />}
           accentColor="text-cyan-600"
-          iconBg="bg-cyan-50"
           onClick={() => navigate('/classes')}
         />
 
@@ -413,7 +418,6 @@ export default function DashboardPage() {
           subtitle={isSynced ? 'Tiến độ nộp bài' : 'Chưa có bài'}
           icon={<CheckCircle2 className="size-5" />}
           accentColor="text-emerald-500"
-          iconBg="bg-emerald-50"
           onClick={() => navigate('/executive')}
         />
 
@@ -425,7 +429,6 @@ export default function DashboardPage() {
           subtitle={isSynced ? 'Đúng hạn chót' : 'Chưa có số liệu'}
           icon={<ClipboardList className="size-5" />}
           accentColor="text-emerald-600"
-          iconBg="bg-green-50"
         />
 
         <CardK
@@ -436,7 +439,6 @@ export default function DashboardPage() {
           subtitle="Chờ giáo viên chấm"
           icon={<TriangleAlert className="size-5" />}
           accentColor="text-amber-500"
-          iconBg="bg-amber-50"
           onClick={() => navigate('/classroom')}
         />
 
@@ -448,7 +450,6 @@ export default function DashboardPage() {
           subtitle="Quét tự động"
           icon={<BellRing className="size-5" />}
           accentColor="text-red-500"
-          iconBg="bg-red-50"
           onClick={() => navigate('/alerts')}
         />
       </div>
@@ -458,7 +459,7 @@ export default function DashboardPage() {
         <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
           <div>
             <p className="font-bold tracking-tight text-[#0f172a]">Xu Hướng Học Tập Toàn Trường</p>
-            <p className="text-[0.78rem] text-slate-500">Theo dõi tiến độ hoàn thành bài tập và nộp bài đúng hạn từ Google Classroom</p>
+            <p className="text-xs text-slate-500">Theo dõi tiến độ hoàn thành bài tập và nộp bài đúng hạn từ Google Classroom</p>
           </div>
           <Badge
             variant="outline"
@@ -503,7 +504,7 @@ export default function DashboardPage() {
           </div>
         ) : (
           <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 py-10 text-center">
-            <p className="mb-1 text-[0.84rem] font-bold text-[#0f172a]">Chưa có dữ liệu lịch sử theo dõi</p>
+            <p className="mb-1 text-sm font-bold text-[#0f172a]">Chưa có dữ liệu lịch sử theo dõi</p>
             <p className="text-xs text-slate-500">
               Biểu đồ sẽ tự động hiển thị tiến trình khi dữ liệu bài nộp được tích lũy theo từng chu kỳ đồng bộ Google Classroom.
             </p>

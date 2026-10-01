@@ -126,7 +126,7 @@ export default function SystemPage() {
         title="Tình trạng hệ thống"
         icon={<Server />}
         action={
-          <Button onClick={checkStatus} disabled={loading} className="rounded-lg font-semibold shadow-[0_2px_6px_rgba(37,99,235,0.2)]">
+          <Button onClick={checkStatus} disabled={loading} className="rounded-lg shadow-[0_2px_6px_rgba(37,99,235,0.2)]">
             <RefreshCw className="size-4" />
             Kiểm tra kết nối
           </Button>
@@ -153,14 +153,14 @@ export default function SystemPage() {
                 {allCoreOk ? 'Backend & cơ sở dữ liệu đang hoạt động bình thường' : 'Backend hoặc cơ sở dữ liệu đang gặp sự cố'}
               </p>
             </div>
-            <p className="text-[0.8125rem] text-blue-100">
+            <p className="text-sm text-blue-100">
               Đang chạy trên VPS thật (production)
               {notConfiguredCount > 0 && ` • ${notConfiguredCount} tích hợp chưa cấu hình (xem bên dưới)`}
               {checkedAt && ` • Kiểm tra lúc ${checkedAt.toLocaleTimeString('vi-VN')}`}
             </p>
           </div>
           <div className="md:basis-1/3 md:text-right">
-            <Badge variant="outline" className="border-white/30 bg-white/15 font-semibold text-white backdrop-blur-sm">
+            <Badge variant="outline" className="bg-white/15 text-white backdrop-blur-sm">
               {health?.version ? `Phiên bản backend ${health.version}` : 'Không lấy được phiên bản'}
             </Badge>
           </div>
@@ -190,7 +190,7 @@ export default function SystemPage() {
                   {STATE_LABEL[svc.status]}
                 </Badge>
               </div>
-              <p className="text-[0.8125rem] text-slate-500">{svc.desc}</p>
+              <p className="text-sm text-slate-500">{svc.desc}</p>
               {svc.name === 'Backend API' && latency !== null && (
                 <p className="mt-3.5 border-t border-slate-100 pt-3.5 text-xs text-slate-500">
                   Độ trễ phản hồi thật: <strong className="text-[#0f172a]">{latency}ms</strong>
@@ -206,19 +206,19 @@ export default function SystemPage() {
         <p className="mb-4 font-bold tracking-tight text-[#0f172a]">Cấu hình môi trường thật</p>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
           <div>
-            <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">Nơi chạy backend</p>
+            <p className="text-xs font-medium text-slate-500">Nơi chạy backend</p>
             <p className="mt-1 text-sm font-semibold text-[#0f172a]">VPS (systemd, /opt/supperapp)</p>
           </div>
           <div>
-            <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">Cơ sở dữ liệu</p>
+            <p className="text-xs font-medium text-slate-500">Cơ sở dữ liệu</p>
             <p className="mt-1 text-sm font-semibold text-[#0f172a]">PostgreSQL tự host</p>
           </div>
           <div>
-            <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">Xác thực đăng nhập</p>
+            <p className="text-xs font-medium text-slate-500">Xác thực đăng nhập</p>
             <p className="mt-1 text-sm font-semibold text-[#0f172a]">Firebase Authentication (Google + email/mật khẩu)</p>
           </div>
           <div>
-            <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">Phiên bản backend</p>
+            <p className="text-xs font-medium text-slate-500">Phiên bản backend</p>
             <p className="mt-1 text-sm font-semibold text-[#0f172a]">{health?.version || 'Không xác định được'}</p>
           </div>
         </div>
