@@ -44,7 +44,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <div className="tw-scope flex min-h-screen bg-slate-50">
+    <div className="flex min-h-screen bg-slate-50">
       <Topbar onOpenMobileMenu={() => setMobileOpen(true)} />
 
       {/* Sidebar di động (Sheet) */}

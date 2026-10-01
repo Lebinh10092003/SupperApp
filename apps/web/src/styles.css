@@ -2,29 +2,10 @@
    first, Tailwind layers right after. */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
 
-/* Tailwind v4 — imported as separate layers (not the "@import "tailwindcss";"
-   shorthand) so Preflight is deliberately left OUT of the global cascade.
-   See the ".tw-scope" block below for why: this app is mid-migration from
-   MUI/Emotion to Tailwind/shadcn, and MUI's CssBaseline (still mounted in
-   main.tsx) already resets the whole document — a global Tailwind Preflight
-   would re-reset the same elements a second time with different values and
-   silently break every not-yet-migrated MUI page. Preflight-equivalent
-   resets are instead applied narrowly, scoped to ".tw-scope" (see below),
-   which wraps only the parts of the tree already migrated to shadcn/ui.
-   Once the whole app is migrated (Phase 4 of the migration plan), switch
-   back to the plain "@import "tailwindcss";" shorthand and delete the
-   ".tw-scope" block entirely. */
-/* Explicit layer order: "base" (our hand-ported .tw-scope resets, added
-   below) must come BEFORE "utilities" or every utility class will lose to
-   it — CSS cascade layers are ordered by first declaration, and an
-   unlayered rule always beats ANY layered one regardless of specificity,
-   so the resets themselves must also live in a layer (not bare CSS) once
-   Tailwind utilities are layered. Learned the hard way: border/bg/etc.
-   utility classes were silently no-op-ing against the unlayered version of
-   this reset. */
-@layer theme, base, utilities;
-@import 'tailwindcss/theme' layer(theme);
-@import 'tailwindcss/utilities' layer(utilities);
+/* Tailwind v4 — the migration to shadcn/ui is complete (no MUI/Emotion left
+   in the app), so Preflight is back in the global cascade via the standard
+   shorthand import. */
+@import 'tailwindcss';
 
 @theme {
   /* MUI's default theme.breakpoints.values.md is 900px; Tailwind's default
@@ -137,88 +118,6 @@ body {
   letter-spacing: -0.01em;
 }
 
-/* Hand-ported subset of tailwindcss/preflight.css (see that file for the
-   full original + its comments), scoped to ".tw-scope" instead of applied
-   globally — see the note at the top of this file for why. Radix portals
-   (Dialog/DropdownMenu/Sheet/etc.) render into document.body, outside
-   #root, so every rule here also targets
-   "[data-radix-popper-content-wrapper]"/"[role=dialog]" so portaled content
-   is covered too, not just whatever is physically inside .tw-scope's DOM
-   subtree. Covers exactly the resets that bit us migrating AppShell: native
-   <button>/<input> elements (Radix primitives render plain <button>s, e.g.
-   CollapsibleTrigger) were showing the browser's default border/background/
-   padding because Preflight — which normally zeroes those — is off. If a
-   future shadcn component shows unstyled native form-control chrome again,
-   the fix is here, not a one-off className on that component.
-
-   Must live inside @layer base (declared above as the middle layer,
-   between "theme" and "utilities") rather than as bare/unlayered CSS —
-   unlayered rules always beat ANY layered rule in the cascade regardless
-   of specificity, so an unlayered version of this block silently defeated
-   every Tailwind utility class (border-*, bg-*, etc.) that tried to
-   override it. */
-@layer base {
-  .tw-scope,
-  .tw-scope *,
-  .tw-scope ::before,
-  .tw-scope ::after,
-  [data-radix-popper-content-wrapper],
-  [data-radix-popper-content-wrapper] *,
-  [role='dialog'],
-  [role='dialog'] * {
-    box-sizing: border-box;
-    border-width: 0;
-    border-style: solid;
-    border-color: hsl(var(--border));
-  }
-
-  .tw-scope button,
-  .tw-scope input,
-  .tw-scope select,
-  .tw-scope optgroup,
-  .tw-scope textarea,
-  [data-radix-popper-content-wrapper] button,
-  [data-radix-popper-content-wrapper] input,
-  [role='dialog'] button,
-  [role='dialog'] input {
-    margin: 0;
-    padding: 0;
-    font: inherit;
-    letter-spacing: inherit;
-    color: inherit;
-    border-radius: 0;
-    background-color: transparent;
-    opacity: 1;
-  }
-
-  .tw-scope button,
-  .tw-scope select,
-  .tw-scope input:where([type='button'], [type='reset'], [type='submit']),
-  [data-radix-popper-content-wrapper] button,
-  [role='dialog'] button {
-    appearance: button;
-    text-transform: none;
-  }
-
-  .tw-scope ol,
-  .tw-scope ul,
-  .tw-scope menu,
-  [data-radix-popper-content-wrapper] ul,
-  [role='dialog'] ul {
-    list-style: none;
-  }
-
-  .tw-scope h1,
-  .tw-scope h2,
-  .tw-scope h3,
-  .tw-scope h4,
-  .tw-scope h5,
-  .tw-scope h6 {
-    font-size: inherit;
-    font-weight: inherit;
-  }
-}
-
 /* Elegant School Intelligence Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
@@ -236,33 +135,6 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
-}
-
-/* School Card Styling */
-.school-card,
-.shadcn-card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.04), 0 1px 2px -1px rgba(15, 23, 42, 0.04);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
-}
-
-.school-card:hover,
-.shadcn-card:hover {
-  border-color: #cbd5e1;
-  box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.06);
-}
-
-/* Interactive Elements */
-.school-interactive,
-.shadcn-interactive {
-  transition: all 0.15s ease-in-out;
-}
-
-.school-interactive:hover,
-.shadcn-interactive:hover {
-  background-color: #f1f5f9;
 }
 
 /* Recharts Custom Tooltip */
