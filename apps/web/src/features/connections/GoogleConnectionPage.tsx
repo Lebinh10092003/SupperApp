@@ -1,46 +1,42 @@
-﻿import { useState, useEffect } from 'react';
-import {
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  Button,
-  Alert,
-  Chip,
-  Grid,
-  TextField,
-  Divider,
-  CircularProgress,
-  Stack,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
-  Tooltip,
-  IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogContentText,
-  DialogActions
-} from '@mui/material';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import CloudDoneIcon from '@mui/icons-material/CloudDoneRounded';
-import VpnKeyIcon from '@mui/icons-material/VpnKeyRounded';
-import RefreshIcon from '@mui/icons-material/RefreshRounded';
-import SyncIcon from '@mui/icons-material/SyncRounded';
-import SchoolIcon from '@mui/icons-material/SchoolRounded';
-import ContentCopyIcon from '@mui/icons-material/ContentCopyRounded';
-import OpenInNewIcon from '@mui/icons-material/OpenInNewRounded';
-import CheckCircleIcon from '@mui/icons-material/CheckCircleRounded';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlineRounded';
-import DeleteForeverIcon from '@mui/icons-material/DeleteForeverRounded';
-import WarningAmberIcon from '@mui/icons-material/WarningAmberRounded';
-import SettingsIcon from '@mui/icons-material/SettingsRounded';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMoreRounded';
-import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutlineRounded';
+import {
+  CloudCheck,
+  KeyRound,
+  RefreshCw,
+  RotateCw,
+  GraduationCap,
+  Copy,
+  ExternalLink,
+  CheckCircle2,
+  Trash2,
+  TriangleAlert,
+  Settings,
+  ChevronDown,
+  PlayCircle,
+  Loader2,
+  X
+} from 'lucide-react';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
 import { useAuth } from '../../auth/AuthProvider';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
 
 const CLASSROOM_SCOPES_STRING = [
   'openid',
@@ -54,6 +50,12 @@ const CLASSROOM_SCOPES_STRING = [
   'https://www.googleapis.com/auth/classroom.courseworkmaterials.readonly',
   'https://www.googleapis.com/auth/classroom.profile.emails'
 ].join(' ');
+
+const MSG_STYLE: Record<'success' | 'error' | 'info', string> = {
+  success: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+  error: 'border-red-200 bg-red-50 text-red-700',
+  info: 'border-blue-200 bg-secondary text-blue-800'
+};
 
 export default function GoogleConnectionPage() {
   const navigate = useNavigate();
@@ -337,437 +339,372 @@ export default function GoogleConnectionPage() {
       <PageHeader
         title="Quản lý kết nối Google Classroom & dữ liệu thực tế"
         action={
-          <Stack direction="row" spacing={1.5} flexWrap="wrap" gap={1}>
-            <Button
-              variant="contained"
-              color="primary"
-              startIcon={syncing ? <CircularProgress size={16} color="inherit" /> : <SyncIcon />}
-              onClick={handleManualSync}
-              disabled={syncing}
-              sx={{ fontWeight: 700 }}
-            >
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={handleManualSync} disabled={syncing} className="font-bold">
+              {syncing ? <Loader2 className="size-4 animate-spin" /> : <RotateCw className="size-4" />}
               {syncing ? 'Đang đồng bộ...' : 'Đồng bộ Classroom ngay'}
             </Button>
-            <Button
-              variant="outlined"
-              color="secondary"
-              startIcon={seedLoading ? <CircularProgress size={16} color="inherit" /> : <PlayCircleOutlineIcon />}
-              onClick={handleLoadDemoSeed}
-              disabled={seedLoading}
-              sx={{ fontWeight: 600 }}
-            >
+            <Button variant="outline" onClick={handleLoadDemoSeed} disabled={seedLoading} className="font-semibold">
+              {seedLoading ? <Loader2 className="size-4 animate-spin" /> : <PlayCircle className="size-4" />}
               Nạp lớp học mẫu Trường THCS Giảng Võ
             </Button>
-            <Button variant="outlined" startIcon={<RefreshIcon />} onClick={loadStatus} disabled={loading}>
+            <Button variant="outline" onClick={loadStatus} disabled={loading}>
+              <RefreshCw className="size-4" />
               Làm mới
             </Button>
             <Button
-              variant="outlined"
-              color="error"
-              startIcon={<DeleteForeverIcon />}
+              variant="outline"
               onClick={handleOpenResetDialog}
-              sx={{ fontWeight: 600 }}
+              className="border-red-200 font-semibold text-red-600 hover:bg-red-50 hover:text-red-700"
             >
+              <Trash2 className="size-4" />
               Xoá dữ liệu Classroom
             </Button>
-          </Stack>
+          </div>
         }
       />
 
       {msg && (
-        <Alert severity={msg.type} sx={{ my: 2.5, borderRadius: '8px' }} onClose={() => setMsg(null)}>
-          {msg.text}
-        </Alert>
+        <div className={cn('my-5 flex items-start justify-between gap-3 rounded-lg border px-4 py-3 text-sm', MSG_STYLE[msg.type])}>
+          <span>{msg.text}</span>
+          <button type="button" onClick={() => setMsg(null)} className="shrink-0 opacity-70 hover:opacity-100" aria-label="Đóng">
+            <X className="size-4" />
+          </button>
+        </div>
       )}
 
       {/* Overview Card */}
-      <Card sx={{ mb: 3, bgcolor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-        <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-            <Box sx={{ p: 1.5, background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', color: '#fff', borderRadius: '10px', display: 'grid', placeItems: 'center', boxShadow: '0 4px 10px rgba(37, 99, 235, 0.25)' }}>
-              <SchoolIcon fontSize="medium" />
-            </Box>
-            <Box sx={{ flex: 1, minWidth: 240 }}>
-              <Typography variant="subtitle1" fontWeight={700} color="#0f172a" sx={{ letterSpacing: '-0.01em' }}>
-                Số lượng khóa học Google Classroom đã nạp vào CSDL: {status?.syncedCoursesCount ?? 0} lớp
-              </Typography>
-              <Typography variant="body2" color="#64748b" sx={{ fontSize: '0.8125rem' }}>
-                Tất cả dữ liệu điểm danh, bài tập, sĩ số học sinh và điểm số được đồng bộ trực tiếp từ máy chủ Google API theo chuẩn SSOT.
-              </Typography>
-            </Box>
-            <Stack direction="row" spacing={1} alignItems="center">
-              {status?.syncedCoursesCount > 0 && (
-                <Button
-                  size="small"
-                  variant="outlined"
-                  onClick={() => navigate('/classroom')}
-                  sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.8125rem', borderRadius: '8px' }}
-                >
-                  Xem danh sách lớp học ({status.syncedCoursesCount})
-                </Button>
-              )}
-              <Chip
-                label={status?.syncedCoursesCount > 0 ? 'Đã có dữ liệu lớp học' : 'Chưa có lớp học'}
-                size="small"
-                sx={{
-                  bgcolor: status?.syncedCoursesCount > 0 ? '#ecfdf5' : '#fef2f2',
-                  color: status?.syncedCoursesCount > 0 ? '#059669' : '#dc2626',
-                  border: status?.syncedCoursesCount > 0 ? '1px solid #a7f3d0' : '1px solid #fecaca',
-                  fontWeight: 600,
-                  fontSize: '0.75rem'
-                }}
-              />
-            </Stack>
-          </Box>
-        </CardContent>
-      </Card>
-
-      <Grid container spacing={3}>
-        {/* Mode A */}
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Card sx={{ borderRadius: '12px', height: '100%', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', bgcolor: '#ffffff' }}>
-            <CardContent sx={{ p: 3 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-                  <Box sx={{ p: 0.75, borderRadius: '8px', bgcolor: '#eff6ff', color: '#2563eb', display: 'grid', placeItems: 'center' }}>
-                    <CloudDoneIcon sx={{ fontSize: 20 }} />
-                  </Box>
-                  <Typography variant="subtitle1" fontWeight={700} color="#0f172a">
-                    Chế Độ A: Google OAuth Cá Nhân
-                  </Typography>
-                </Box>
-                {status?.modeA?.connected && (
-                  <Tooltip title="Ngắt kết nối tài khoản này">
-                    <IconButton size="small" color="error" onClick={handleDisconnect}>
-                      <DeleteOutlineIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                )}
-              </Box>
-
-              <Typography variant="body2" color="#64748b" sx={{ mb: 2, fontSize: '0.8125rem' }}>
-                Dành cho Ban Giám hiệu hoặc Giáo viên kết nối tài khoản Google để kéo các lớp học mà tài khoản đó tham gia hoặc giảng dạy.
-              </Typography>
-
-              {/* Status Badge */}
-              <Box sx={{ p: 2, bgcolor: status?.modeA?.connected ? '#f0fdf4' : '#f8fafc', borderRadius: '8px', border: status?.modeA?.connected ? '1px solid #bbf7d0' : '1px solid #e2e8f0', mb: 2.5 }}>
-                <Typography variant="caption" fontWeight={600} color="#64748b" display="block" gutterBottom sx={{ letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-                  Trạng thái kết nối OAuth:
-                </Typography>
-                <Chip
-                  icon={status?.modeA?.connected ? <CheckCircleIcon sx={{ fontSize: '16px !important' }} /> : undefined}
-                  label={
-                    status?.modeA?.connected
-                      ? (status?.modeA?.hasRefreshToken
-                          ? `ĐÃ KẾT NỐI VĨNH VIỄN (Refresh Token): ${status?.modeA?.email}`
-                          : `ĐÃ KẾT NỐI: ${status?.modeA?.email}`)
-                      : 'CHƯA KẾT NỐI OAUTH'
-                  }
-                  size="small"
-                  sx={{
-                    bgcolor: status?.modeA?.connected ? '#ecfdf5' : '#f1f5f9',
-                    color: status?.modeA?.connected ? '#059669' : '#64748b',
-                    border: status?.modeA?.connected ? '1px solid #a7f3d0' : '1px solid #cbd5e1',
-                    fontWeight: 700,
-                    fontSize: '0.75rem'
-                  }}
-                />
-                {status?.modeA?.connected && (
-                  <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
-                    <Typography variant="caption" sx={{ color: '#15803d' }}>
-                      Cập nhật lần cuối: {new Date(status.modeA.connectedAt || Date.now()).toLocaleString('vi-VN')}
-                      {status.modeA.hasRefreshToken ? ' • Tự động gia hạn vĩnh viễn' : ' • Hạn Access Token 1 giờ'}
-                    </Typography>
-                    {status.modeA.hasRefreshToken && (
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        onClick={handleRefreshToken}
-                        disabled={refreshing}
-                        startIcon={refreshing ? <CircularProgress size={12} /> : <SyncIcon sx={{ fontSize: 13 }} />}
-                        sx={{ fontSize: '0.7rem', textTransform: 'none', py: 0.2, px: 1, color: '#166534', borderColor: '#bbf7d0', '&:hover': { bgcolor: '#dcfce7' } }}
-                      >
-                        {refreshing ? 'Đang làm mới...' : 'Thử làm mới Token ngay'}
-                      </Button>
-                    )}
-                  </Box>
-                )}
-              </Box>
-
-              {/* Button Login OAuth */}
-              <Button
-                variant="contained"
-                onClick={handleConnectOAuth}
-                disabled={loading}
-                fullWidth
-                sx={{
-                  bgcolor: '#2563eb',
-                  color: '#ffffff',
-                  '&:hover': { bgcolor: '#1d4ed8' },
-                  textTransform: 'none',
-                  fontWeight: 600,
-                  fontSize: '0.875rem',
-                  py: 1.1,
-                  borderRadius: '8px',
-                  boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)',
-                  mb: 2.5
-                }}
-              >
-                🔐 Đăng nhập Google để cấp quyền Classroom
+      <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="grid place-items-center rounded-[10px] bg-gradient-to-br from-primary to-[#1d4ed8] p-3 text-white shadow-[0_4px_10px_rgba(37,99,235,0.25)]">
+            <GraduationCap className="size-6" />
+          </div>
+          <div className="min-w-60 flex-1">
+            <p className="font-bold tracking-tight text-[#0f172a]">
+              Số lượng khóa học Google Classroom đã nạp vào CSDL: {status?.syncedCoursesCount ?? 0} lớp
+            </p>
+            <p className="text-[0.8125rem] text-slate-500">
+              Tất cả dữ liệu điểm danh, bài tập, sĩ số học sinh và điểm số được đồng bộ trực tiếp từ máy chủ Google API theo chuẩn SSOT.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            {status?.syncedCoursesCount > 0 && (
+              <Button size="sm" variant="outline" onClick={() => navigate('/classroom')} className="rounded-lg font-semibold">
+                Xem danh sách lớp học ({status.syncedCoursesCount})
               </Button>
+            )}
+            <Badge
+              variant="outline"
+              className={cn(
+                'border-transparent font-semibold',
+                status?.syncedCoursesCount > 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'
+              )}
+            >
+              {status?.syncedCoursesCount > 0 ? 'Đã có dữ liệu lớp học' : 'Chưa có lớp học'}
+            </Badge>
+          </div>
+        </div>
+      </div>
 
-              {/* Accordion: Quick Guide for OAuth Playground */}
-              <Accordion sx={{ mb: 2.5, bgcolor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px !important', '&:before': { display: 'none' } }}>
-                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                  <Typography variant="body2" fontWeight={700} color="#1e293b">
-                    ⚡ Cách lấy Access Token nhanh trong 30 giây (OAuth Playground)
-                  </Typography>
-                </AccordionSummary>
-                <AccordionDetails sx={{ pt: 0 }}>
-                  <Typography variant="body2" color="#475569" sx={{ fontSize: '0.8125rem', mb: 1.5 }}>
-                    Nếu bạn chưa thiết lập Google Cloud OAuth Client ID, hãy dùng Google OAuth Playground để lấy Access Token dùng ngay:
-                  </Typography>
-                  <Stack spacing={1} sx={{ fontSize: '0.8125rem', color: '#334155' }}>
-                    <Box>
-                      <strong>Bước 1:</strong> Mở trang{' '}
-                      <a href="https://developers.google.com/oauthplayground" target="_blank" rel="noreferrer" style={{ color: '#2563eb', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 2 }}>
-                        Google OAuth 2.0 Playground <OpenInNewIcon sx={{ fontSize: 13 }} />
-                      </a>
-                    </Box>
-                    <Box>
-                      <strong>Bước 2:</strong> Bấm nút dưới để copy danh sách Scopes Google Classroom:
-                      <Box sx={{ mt: 0.5 }}>
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          startIcon={<ContentCopyIcon sx={{ fontSize: 14 }} />}
-                          onClick={handleCopyScopes}
-                          sx={{ textTransform: 'none', fontSize: '0.75rem', py: 0.4 }}
-                        >
-                          {copiedScopes ? 'Đã sao chép Scopes!' : 'Sao chép Scopes Classroom'}
-                        </Button>
-                      </Box>
-                    </Box>
-                    <Box>
-                      <strong>Bước 3:</strong> Tại Playground, cuộn xuống mục <em>"Input your own scopes"</em> ở cột bên trái, dán scopes vào và bấm <strong>Authorize APIs</strong>. Chọn tài khoản Google của bạn (<code>09.levanbinh2003@gmail.com</code>).
-                    </Box>
-                    <Box>
-                      <strong>Bước 4:</strong> Bấm <strong>Exchange authorization code for tokens</strong>, copy dòng <strong>Access token</strong> (bắt đầu bằng <code>ya29...</code>) rồi dán vào ô bên dưới.
-                    </Box>
-                    <Box sx={{ p: 1.25, bgcolor: '#eff6ff', borderRadius: '6px', border: '1px solid #bfdbfe', fontSize: '0.78rem', color: '#1e40af' }}>
-                      💡 <strong>Lưu ý về thời hạn:</strong> Access Token của Google mặc định có thời hạn <strong>1 giờ (3600 giây)</strong>. Để giữ kết nối lâu dài / tự động làm mới vĩnh viễn, bạn hãy copy thêm ô <strong>Refresh token</strong> ở Bước 2 trên Playground và dán vào ô bên dưới.
-                    </Box>
-                  </Stack>
-                </AccordionDetails>
-              </Accordion>
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        {/* Mode A */}
+        <div className="h-full rounded-xl border border-slate-200 bg-white p-6 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="grid place-items-center rounded-lg bg-secondary p-1.5 text-primary">
+                <CloudCheck className="size-5" />
+              </div>
+              <p className="font-bold text-[#0f172a]">Chế Độ A: Google OAuth Cá Nhân</p>
+            </div>
+            {status?.modeA?.connected && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button size="icon-xs" variant="ghost" onClick={handleDisconnect} className="text-red-600 hover:bg-red-50 hover:text-red-700">
+                    <Trash2 className="size-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Ngắt kết nối tài khoản này</TooltipContent>
+              </Tooltip>
+            )}
+          </div>
 
-              <Divider sx={{ my: 2, borderColor: '#e2e8f0', fontSize: '0.75rem', color: '#94a3b8', fontWeight: 600 }}>
-                HOẶC DÁN ACCESS TOKEN TRỰC TIẾP
-              </Divider>
+          <p className="mb-4 text-[0.8125rem] text-slate-500">
+            Dành cho Ban Giám hiệu hoặc Giáo viên kết nối tài khoản Google để kéo các lớp học mà tài khoản đó tham gia hoặc giảng dạy.
+          </p>
 
-              <Stack spacing={1.75}>
-                <TextField
-                  size="small"
-                  label="Email tài khoản Google"
-                  placeholder="09.levanbinh2003@gmail.com"
-                  value={tokenEmail}
-                  onChange={(e) => setTokenEmail(e.target.value)}
-                  fullWidth
-                  helperText="Tài khoản Google chứa các lớp học cần đồng bộ"
-                />
-                <TextField
-                  size="small"
-                  label="Google Access Token (Bearer)"
-                  placeholder="Dán token bắt đầu bằng ya29... vào đây (thời hạn 1 giờ)"
-                  value={customToken}
-                  onChange={(e) => setCustomToken(e.target.value)}
-                  multiline
-                  rows={2}
-                  fullWidth
-                  helperText="Bắt buộc: Token được bảo mật và xác thực trực tiếp với Google API"
-                />
-                <TextField
-                  size="small"
-                  label="Google Refresh Token (Tùy chọn — Tự động gia hạn vĩnh viễn)"
-                  placeholder="Dán Refresh token từ Bước 2 của Playground nếu muốn tự động làm mới mãi mãi"
-                  value={customRefreshToken}
-                  onChange={(e) => setCustomRefreshToken(e.target.value)}
-                  fullWidth
-                  helperText="Tùy chọn: Giúp hệ thống tự động làm mới token mỗi khi hết hạn mà không cần nhập lại"
-                />
-                <Button
-                  variant="outlined"
-                  onClick={handleSaveDirectToken}
-                  disabled={syncing || !customToken.trim()}
-                  startIcon={syncing ? <CircularProgress size={14} /> : undefined}
-                  sx={{ fontWeight: 700, fontSize: '0.8125rem', textTransform: 'none', borderRadius: '8px', py: 1 }}
-                >
-                  {syncing ? 'Đang xác thực và đồng bộ...' : 'Xác nhận Token & Đồng bộ ngay'}
-                </Button>
-              </Stack>
+          {/* Status Badge */}
+          <div
+            className={cn(
+              'mb-5 rounded-lg border p-3',
+              status?.modeA?.connected ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-slate-50'
+            )}
+          >
+            <p className="mb-1 text-xs font-semibold tracking-wide text-slate-500 uppercase">Trạng thái kết nối OAuth:</p>
+            <Badge
+              variant="outline"
+              className={cn(
+                'gap-1 border-transparent font-bold',
+                status?.modeA?.connected ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-500'
+              )}
+            >
+              {status?.modeA?.connected && <CheckCircle2 className="size-4" />}
+              {status?.modeA?.connected
+                ? status?.modeA?.hasRefreshToken
+                  ? `ĐÃ KẾT NỐI VĨNH VIỄN (Refresh Token): ${status?.modeA?.email}`
+                  : `ĐÃ KẾT NỐI: ${status?.modeA?.email}`
+                : 'CHƯA KẾT NỐI OAUTH'}
+            </Badge>
+            {status?.modeA?.connected && (
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs text-green-700">
+                  Cập nhật lần cuối: {new Date(status.modeA.connectedAt || Date.now()).toLocaleString('vi-VN')}
+                  {status.modeA.hasRefreshToken ? ' • Tự động gia hạn vĩnh viễn' : ' • Hạn Access Token 1 giờ'}
+                </p>
+                {status.modeA.hasRefreshToken && (
+                  <Button
+                    size="xs"
+                    variant="outline"
+                    onClick={handleRefreshToken}
+                    disabled={refreshing}
+                    className="border-emerald-200 text-emerald-800 hover:bg-emerald-100"
+                  >
+                    {refreshing ? <Loader2 className="size-3 animate-spin" /> : <RotateCw className="size-3" />}
+                    {refreshing ? 'Đang làm mới...' : 'Thử làm mới Token ngay'}
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
 
-              {/* Accordion: OAuth Credentials Settings */}
-              <Accordion sx={{ mt: 3, bgcolor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px !important', '&:before': { display: 'none' } }}>
-                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <SettingsIcon sx={{ fontSize: 16, color: '#64748b' }} />
-                    <Typography variant="caption" fontWeight={700} color="#475569" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                      Cấu hình Google OAuth 2.0 Credentials (Tùy chọn)
-                    </Typography>
-                  </Box>
-                </AccordionSummary>
-                <AccordionDetails sx={{ pt: 0 }}>
-                  <Typography variant="body2" color="#64748b" sx={{ fontSize: '0.775rem', mb: 1.5 }}>
-                    Dán OAuth Client ID từ Google Cloud Console để bật tính năng bấm 1-click nút "Đăng nhập Google" không cần copy token thủ công.
-                  </Typography>
-                  <Stack spacing={1.5}>
-                    <TextField
-                      size="small"
-                      label="OAuth Client ID"
-                      placeholder="...apps.googleusercontent.com"
-                      value={clientId}
-                      onChange={(e) => setClientId(e.target.value)}
-                      fullWidth
-                    />
-                    <TextField
-                      size="small"
-                      label="OAuth Client Secret (Tùy chọn)"
-                      placeholder="GOCSPX-..."
-                      type="password"
-                      value={clientSecret}
-                      onChange={(e) => setClientSecret(e.target.value)}
-                      fullWidth
-                    />
-                    <Box sx={{ p: 1, bgcolor: '#ffffff', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '0.75rem', color: '#64748b' }}>
-                      <strong>Redirect URI hợp lệ:</strong> {status?.oauthConfig?.redirectUri || 'http://localhost:8080/api/connections/oauth/callback'}
-                      <Button size="small" onClick={handleCopyRedirect} sx={{ ml: 1, textTransform: 'none', fontSize: '0.7rem', p: 0 }}>
-                        {copiedRedirect ? 'Đã copy' : 'Copy'}
-                      </Button>
-                    </Box>
-                    <Button
-                      size="small"
-                      variant="contained"
-                      onClick={handleSaveOAuthCredentials}
-                      disabled={savingOAuth || !clientId.trim()}
-                      sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.8125rem', alignSelf: 'flex-start' }}
-                    >
-                      {savingOAuth ? 'Đang lưu...' : 'Lưu cấu hình OAuth'}
+          {/* Button Login OAuth */}
+          <Button
+            onClick={handleConnectOAuth}
+            disabled={loading}
+            className="mb-5 w-full rounded-lg py-5 font-semibold shadow-[0_2px_8px_rgba(37,99,235,0.25)]"
+          >
+            🔐 Đăng nhập Google để cấp quyền Classroom
+          </Button>
+
+          {/* Collapsible: Quick Guide for OAuth Playground */}
+          <Collapsible className="mb-5 rounded-lg border border-slate-200 bg-slate-50">
+            <CollapsibleTrigger className="group flex w-full items-center justify-between p-3 text-left">
+              <p className="text-sm font-bold text-slate-800">⚡ Cách lấy Access Token nhanh trong 30 giây (OAuth Playground)</p>
+              <ChevronDown className="size-4 shrink-0 text-slate-500 transition-transform group-data-[state=open]:rotate-180" />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="px-3 pb-3">
+              <p className="mb-3 text-[0.8125rem] text-slate-600">
+                Nếu bạn chưa thiết lập Google Cloud OAuth Client ID, hãy dùng Google OAuth Playground để lấy Access Token dùng ngay:
+              </p>
+              <div className="flex flex-col gap-2 text-[0.8125rem] text-slate-700">
+                <div>
+                  <strong>Bước 1:</strong>{' '}
+                  Mở trang{' '}
+                  <a
+                    href="https://developers.google.com/oauthplayground"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 font-semibold text-primary"
+                  >
+                    Google OAuth 2.0 Playground <ExternalLink className="size-3" />
+                  </a>
+                </div>
+                <div>
+                  <strong>Bước 2:</strong> Bấm nút dưới để copy danh sách Scopes Google Classroom:
+                  <div className="mt-1">
+                    <Button size="xs" variant="outline" onClick={handleCopyScopes}>
+                      <Copy className="size-3" />
+                      {copiedScopes ? 'Đã sao chép Scopes!' : 'Sao chép Scopes Classroom'}
                     </Button>
-                  </Stack>
-                </AccordionDetails>
-              </Accordion>
-            </CardContent>
-          </Card>
-        </Grid>
+                  </div>
+                </div>
+                <div>
+                  <strong>Bước 3:</strong> Tại Playground, cuộn xuống mục <em>"Input your own scopes"</em> ở cột bên trái, dán scopes vào và bấm{' '}
+                  <strong>Authorize APIs</strong>. Chọn tài khoản Google của bạn (<code>09.levanbinh2003@gmail.com</code>).
+                </div>
+                <div>
+                  <strong>Bước 4:</strong> Bấm <strong>Exchange authorization code for tokens</strong>, copy dòng <strong>Access token</strong> (bắt
+                  đầu bằng <code>ya29...</code>) rồi dán vào ô bên dưới.
+                </div>
+                <div className="rounded-md border border-blue-200 bg-secondary p-2.5 text-[0.78rem] text-blue-800">
+                  💡 <strong>Lưu ý về thời hạn:</strong> Access Token của Google mặc định có thời hạn <strong>1 giờ (3600 giây)</strong>. Để giữ kết
+                  nối lâu dài / tự động làm mới vĩnh viễn, bạn hãy copy thêm ô <strong>Refresh token</strong> ở Bước 2 trên Playground và dán vào ô
+                  bên dưới.
+                </div>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+
+          <div className="my-4 flex items-center gap-3 text-xs font-semibold text-slate-400">
+            <Separator className="flex-1" />
+            HOẶC DÁN ACCESS TOKEN TRỰC TIẾP
+            <Separator className="flex-1" />
+          </div>
+
+          <div className="flex flex-col gap-3.5">
+            <div>
+              <Label htmlFor="token-email" className="mb-1.5 block">
+                Email tài khoản Google
+              </Label>
+              <Input id="token-email" placeholder="09.levanbinh2003@gmail.com" value={tokenEmail} onChange={(e) => setTokenEmail(e.target.value)} />
+              <p className="mt-1 text-xs text-slate-500">Tài khoản Google chứa các lớp học cần đồng bộ</p>
+            </div>
+            <div>
+              <Label htmlFor="token-access" className="mb-1.5 block">
+                Google Access Token (Bearer)
+              </Label>
+              <Textarea
+                id="token-access"
+                placeholder="Dán token bắt đầu bằng ya29... vào đây (thời hạn 1 giờ)"
+                value={customToken}
+                onChange={(e) => setCustomToken(e.target.value)}
+                rows={2}
+              />
+              <p className="mt-1 text-xs text-slate-500">Bắt buộc: Token được bảo mật và xác thực trực tiếp với Google API</p>
+            </div>
+            <div>
+              <Label htmlFor="token-refresh" className="mb-1.5 block">
+                Google Refresh Token (Tùy chọn — Tự động gia hạn vĩnh viễn)
+              </Label>
+              <Input
+                id="token-refresh"
+                placeholder="Dán Refresh token từ Bước 2 của Playground nếu muốn tự động làm mới mãi mãi"
+                value={customRefreshToken}
+                onChange={(e) => setCustomRefreshToken(e.target.value)}
+              />
+              <p className="mt-1 text-xs text-slate-500">Tùy chọn: Giúp hệ thống tự động làm mới token mỗi khi hết hạn mà không cần nhập lại</p>
+            </div>
+            <Button variant="outline" onClick={handleSaveDirectToken} disabled={syncing || !customToken.trim()} className="rounded-lg py-5 font-bold">
+              {syncing && <Loader2 className="size-3.5 animate-spin" />}
+              {syncing ? 'Đang xác thực và đồng bộ...' : 'Xác nhận Token & Đồng bộ ngay'}
+            </Button>
+          </div>
+
+          {/* Collapsible: OAuth Credentials Settings */}
+          <Collapsible className="mt-6 rounded-lg border border-slate-200 bg-slate-50">
+            <CollapsibleTrigger className="group flex w-full items-center justify-between p-3 text-left">
+              <div className="flex items-center gap-1.5">
+                <Settings className="size-4 text-slate-500" />
+                <p className="text-xs font-bold tracking-wide text-slate-600 uppercase">Cấu hình Google OAuth 2.0 Credentials (Tùy chọn)</p>
+              </div>
+              <ChevronDown className="size-4 shrink-0 text-slate-500 transition-transform group-data-[state=open]:rotate-180" />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="px-3 pb-3">
+              <p className="mb-3 text-[0.775rem] text-slate-500">
+                Dán OAuth Client ID từ Google Cloud Console để bật tính năng bấm 1-click nút "Đăng nhập Google" không cần copy token thủ công.
+              </p>
+              <div className="flex flex-col gap-3">
+                <div>
+                  <Label htmlFor="oauth-client-id" className="mb-1.5 block">
+                    OAuth Client ID
+                  </Label>
+                  <Input id="oauth-client-id" placeholder="...apps.googleusercontent.com" value={clientId} onChange={(e) => setClientId(e.target.value)} />
+                </div>
+                <div>
+                  <Label htmlFor="oauth-client-secret" className="mb-1.5 block">
+                    OAuth Client Secret (Tùy chọn)
+                  </Label>
+                  <Input
+                    id="oauth-client-secret"
+                    type="password"
+                    placeholder="GOCSPX-..."
+                    value={clientSecret}
+                    onChange={(e) => setClientSecret(e.target.value)}
+                  />
+                </div>
+                <div className="rounded-md border border-slate-200 bg-white p-2 text-xs text-slate-500">
+                  <strong>Redirect URI hợp lệ:</strong> {status?.oauthConfig?.redirectUri || 'http://localhost:8080/api/connections/oauth/callback'}
+                  <Button size="xs" variant="ghost" onClick={handleCopyRedirect} className="ml-1 h-auto p-0 text-xs">
+                    {copiedRedirect ? 'Đã copy' : 'Copy'}
+                  </Button>
+                </div>
+                <Button size="sm" onClick={handleSaveOAuthCredentials} disabled={savingOAuth || !clientId.trim()} className="w-fit font-semibold">
+                  {savingOAuth ? 'Đang lưu...' : 'Lưu cấu hình OAuth'}
+                </Button>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        </div>
 
         {/* Mode B */}
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Card sx={{ borderRadius: '12px', height: '100%', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', bgcolor: '#ffffff' }}>
-            <CardContent sx={{ p: 3 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, mb: 1.5 }}>
-                <Box sx={{ p: 0.75, borderRadius: '8px', bgcolor: '#eff6ff', color: '#2563eb', display: 'grid', placeItems: 'center' }}>
-                  <VpnKeyIcon sx={{ fontSize: 20 }} />
-                </Box>
-                <Typography variant="subtitle1" fontWeight={700} color="#0f172a">
-                  Chế Độ B: Google Workspace DWD Toàn Trường
-                </Typography>
-              </Box>
-              <Typography variant="body2" color="#64748b" sx={{ mb: 2, fontSize: '0.8125rem' }}>
-                Sử dụng Service Account ủy quyền toàn miền (Domain-Wide Delegation) để đồng bộ tự động 100% lớp học của toàn bộ giáo viên và học sinh trên tên miền trường.
-              </Typography>
+        <div className="h-full rounded-xl border border-slate-200 bg-white p-6 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
+          <div className="mb-3 flex items-center gap-2.5">
+            <div className="grid place-items-center rounded-lg bg-secondary p-1.5 text-primary">
+              <KeyRound className="size-5" />
+            </div>
+            <p className="font-bold text-[#0f172a]">Chế Độ B: Google Workspace DWD Toàn Trường</p>
+          </div>
+          <p className="mb-4 text-[0.8125rem] text-slate-500">
+            Sử dụng Service Account ủy quyền toàn miền (Domain-Wide Delegation) để đồng bộ tự động 100% lớp học của toàn bộ giáo viên và học sinh
+            trên tên miền trường.
+          </p>
 
-              <Box sx={{ p: 2, bgcolor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', mb: 2.5 }}>
-                <Typography variant="caption" fontWeight={600} color="#64748b" display="block" gutterBottom sx={{ letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-                  Trạng thái Service Account DWD:
-                </Typography>
-                <Chip
-                  label={status?.modeB?.configured ? `ĐÃ CẤU HÌNH DWD (${status?.modeB?.serviceAccount})` : 'CHƯA CÓ FILE SERVICE-ACCOUNT.JSON'}
-                  size="small"
-                  sx={{
-                    bgcolor: status?.modeB?.configured ? '#eff6ff' : '#fffbeb',
-                    color: status?.modeB?.configured ? '#1d4ed8' : '#b45309',
-                    border: status?.modeB?.configured ? '1px solid #bfdbfe' : '1px solid #fde68a',
-                    fontWeight: 600,
-                    fontSize: '0.75rem'
-                  }}
-                />
-                <Typography variant="caption" display="block" sx={{ mt: 1, color: '#64748b' }}>
-                  Tên miền Workspace: <strong style={{ color: '#0f172a' }}>{status?.modeB?.domain || 'thcsgiangvo.edu.vn'}</strong>
-                </Typography>
-              </Box>
+          <div className="mb-5 rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <p className="mb-1 text-xs font-semibold tracking-wide text-slate-500 uppercase">Trạng thái Service Account DWD:</p>
+            <Badge
+              variant="outline"
+              className={cn(
+                'border font-semibold',
+                status?.modeB?.configured ? 'border-blue-200 bg-secondary text-blue-700' : 'border-amber-200 bg-amber-50 text-amber-800'
+              )}
+            >
+              {status?.modeB?.configured ? `ĐÃ CẤU HÌNH DWD (${status?.modeB?.serviceAccount})` : 'CHƯA CÓ FILE SERVICE-ACCOUNT.JSON'}
+            </Badge>
+            <p className="mt-2 text-xs text-slate-500">
+              Tên miền Workspace: <strong className="text-[#0f172a]">{status?.modeB?.domain || 'thcsgiangvo.edu.vn'}</strong>
+            </p>
+          </div>
 
-              <Typography variant="caption" fontWeight={600} color="#64748b" gutterBottom display="block" sx={{ letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-                Cung cấp nội dung file JSON Service Account:
-              </Typography>
-              <TextField
-                size="small"
-                placeholder='Dán toàn bộ nội dung file service-account.json (chứa "private_key" và "client_email")...'
-                value={saJson}
-                onChange={(e) => setSaJson(e.target.value)}
-                multiline
-                rows={4}
-                fullWidth
-                sx={{ mb: 2 }}
-              />
-              <Button
-                variant="contained"
-                onClick={handleSaveServiceAccount}
-                disabled={syncing || !saJson.trim()}
-                fullWidth
-                sx={{
-                  bgcolor: '#2563eb',
-                  color: '#ffffff',
-                  '&:hover': { bgcolor: '#1d4ed8' },
-                  textTransform: 'none',
-                  fontWeight: 600,
-                  fontSize: '0.875rem',
-                  py: 1.1,
-                  borderRadius: '8px',
-                  boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)'
-                }}
-              >
-                Lưu Service Account & Đồng bộ toàn trường
-              </Button>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+          <p className="mb-1.5 text-xs font-semibold tracking-wide text-slate-500 uppercase">Cung cấp nội dung file JSON Service Account:</p>
+          <Textarea
+            placeholder='Dán toàn bộ nội dung file service-account.json (chứa "private_key" và "client_email")...'
+            value={saJson}
+            onChange={(e) => setSaJson(e.target.value)}
+            rows={4}
+            className="mb-4"
+          />
+          <Button
+            onClick={handleSaveServiceAccount}
+            disabled={syncing || !saJson.trim()}
+            className="w-full rounded-lg py-5 font-semibold shadow-[0_2px_8px_rgba(37,99,235,0.25)]"
+          >
+            Lưu Service Account & Đồng bộ toàn trường
+          </Button>
+        </div>
+      </div>
 
-      <Dialog open={resetDialogOpen} onClose={resetLoading ? undefined : handleCloseResetDialog} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, color: '#b91c1c', fontWeight: 700 }}>
-          <WarningAmberIcon color="error" />
-          Xoá dữ liệu Classroom — hành động không thể hoàn tác
-        </DialogTitle>
-        <DialogContent>
+      <Dialog open={resetDialogOpen} onOpenChange={(open) => !open && !resetLoading && handleCloseResetDialog()}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-700">
+              <TriangleAlert className="size-5 text-red-600" />
+              Xoá dữ liệu Classroom — hành động không thể hoàn tác
+            </DialogTitle>
+          </DialogHeader>
           {resetPreviewLoading ? (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 2 }}>
-              <CircularProgress size={20} />
-              <Typography variant="body2" color="#64748b">
-                Đang tính số liệu sẽ bị xoá...
-              </Typography>
-            </Box>
+            <div className="flex items-center gap-2.5 py-4">
+              <Loader2 className="size-5 animate-spin text-slate-500" />
+              <p className="text-sm text-slate-500">Đang tính số liệu sẽ bị xoá...</p>
+            </div>
           ) : (
             <>
-              <DialogContentText sx={{ color: '#334155', mb: 1.5 }}>
+              <DialogDescription className="text-slate-700">
                 Thao tác này sẽ xoá VĨNH VIỄN toàn bộ dữ liệu đã đồng bộ từ Google Classroom trong hệ thống, gồm:
-              </DialogContentText>
-              <Box sx={{ p: 1.5, bgcolor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', mb: 1.5 }}>
-                <Typography variant="body2" sx={{ color: '#991b1b', fontWeight: 600 }}>
+              </DialogDescription>
+              <div className="rounded-lg border border-red-200 bg-red-50 p-3">
+                <p className="text-sm font-semibold text-red-800">
                   {resetPreview?.courses ?? 0} khóa học, {resetPreview?.students ?? 0} học sinh, {resetPreview?.teachers ?? 0} giáo viên,{' '}
                   {resetPreview?.classesAffected ?? 0} lớp đã đồng bộ.
-                </Typography>
-              </Box>
-              <DialogContentText sx={{ color: '#334155', mb: 1.5 }}>
-                Kết nối Google (token) và dữ liệu module An toàn/Lịch công tác KHÔNG bị ảnh hưởng. Bạn KHÔNG thể hoàn tác thao tác này sau
-                khi xác nhận.
-              </DialogContentText>
-              <DialogContentText sx={{ color: '#334155', mb: 1 }}>
+                </p>
+              </div>
+              <DialogDescription className="text-slate-700">
+                Kết nối Google (token) và dữ liệu module An toàn/Lịch công tác KHÔNG bị ảnh hưởng. Bạn KHÔNG thể hoàn tác thao tác này sau khi xác
+                nhận.
+              </DialogDescription>
+              <DialogDescription className="text-slate-700">
                 Để xác nhận, hãy gõ đúng từ <strong>XOÁ</strong> vào ô bên dưới:
-              </DialogContentText>
-              <TextField
+              </DialogDescription>
+              <Input
                 autoFocus
-                size="small"
-                fullWidth
                 placeholder="Gõ XOÁ để xác nhận"
                 value={resetConfirmText}
                 onChange={(e) => setResetConfirmText(e.target.value)}
@@ -775,21 +712,20 @@ export default function GoogleConnectionPage() {
               />
             </>
           )}
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCloseResetDialog} disabled={resetLoading}>
+              Huỷ
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={resetLoading || resetPreviewLoading || resetConfirmText.trim() !== 'XOÁ'}
+              onClick={handleConfirmResetClassroomData}
+            >
+              {resetLoading ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+              {resetLoading ? 'Đang xoá...' : 'Xoá vĩnh viễn'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2.5 }}>
-          <Button onClick={handleCloseResetDialog} disabled={resetLoading}>
-            Huỷ
-          </Button>
-          <Button
-            variant="contained"
-            color="error"
-            disabled={resetLoading || resetPreviewLoading || resetConfirmText.trim() !== 'XOÁ'}
-            startIcon={resetLoading ? <CircularProgress size={16} color="inherit" /> : <DeleteForeverIcon />}
-            onClick={handleConfirmResetClassroomData}
-          >
-            {resetLoading ? 'Đang xoá...' : 'Xoá vĩnh viễn'}
-          </Button>
-        </DialogActions>
       </Dialog>
     </>
   );

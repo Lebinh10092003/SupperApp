@@ -1,5 +1,6 @@
-import { Box, Chip } from '@mui/material';
-import HistoryEduIcon from '@mui/icons-material/HistoryEduRounded';
+import { ScrollText } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import { ApiTablePage } from '../../components/ApiTablePage';
 
 /** Toàn bộ giá trị `action` thật từng ghi vào general_audit_logs (xem admin.routes.ts + connections.routes.ts) — không có giá trị nào khác. */
@@ -31,10 +32,10 @@ export default function ClassroomAuditPage() {
           key: 'action',
           label: 'Hành động',
           render: (val: any) => (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <HistoryEduIcon sx={{ color: '#2563eb', fontSize: 20 }} />
+            <div className="flex items-center gap-2">
+              <ScrollText className="size-5 text-primary" />
               <strong>{(val && ACTION_LABEL[val]) || val || '—'}</strong>
-            </Box>
+            </div>
           )
         },
         {
@@ -46,12 +47,19 @@ export default function ClassroomAuditPage() {
           key: 'status',
           label: 'Trạng thái',
           render: (val: any) => (
-            <Chip
-              label={STATUS_LABEL[val] || val || STATUS_LABEL.UNKNOWN}
-              size="small"
-              color={val === 'ERROR' ? 'error' : val === 'SUCCESS' ? 'success' : 'default'}
-              sx={{ fontWeight: 700 }}
-            />
+            <Badge
+              variant="outline"
+              className={cn(
+                'border-transparent font-bold',
+                val === 'ERROR'
+                  ? 'bg-red-50 text-red-700'
+                  : val === 'SUCCESS'
+                    ? 'bg-emerald-50 text-emerald-700'
+                    : 'bg-slate-100 text-slate-700'
+              )}
+            >
+              {STATUS_LABEL[val] || val || STATUS_LABEL.UNKNOWN}
+            </Badge>
           )
         },
         {

@@ -1,5 +1,5 @@
-import { Box, Chip } from '@mui/material';
-import AutoFixHighIcon from '@mui/icons-material/AutoFixHighRounded';
+import { Sparkles } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { ApiTablePage } from '../../components/ApiTablePage';
 
 export default function CatalogMappingPage() {
@@ -12,21 +12,19 @@ export default function CatalogMappingPage() {
           key: 'rawName',
           label: 'Tên gốc trên Google Classroom',
           render: (val: any) => (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <AutoFixHighIcon sx={{ color: '#2563eb', fontSize: 20 }} />
+            <div className="flex items-center gap-2">
+              <Sparkles className="size-5 text-primary" />
               <span>{val || 'Chưa xác định'}</span>
-            </Box>
+            </div>
           )
         },
         {
           key: 'normalizedName',
           label: 'Định danh chuẩn',
           render: (val: any) => (
-            <Chip
-              label={val || 'Chưa chuẩn hóa'}
-              size="small"
-              sx={{ bgcolor: '#eff6ff', color: '#1d4ed8', fontWeight: 700 }}
-            />
+            <Badge variant="outline" className="border-transparent bg-secondary font-bold text-[#1d4ed8]">
+              {val || 'Chưa chuẩn hóa'}
+            </Badge>
           )
         },
         {

@@ -1,22 +1,13 @@
 import { useEffect, useState } from 'react';
-import {
-  Card,
-  CardContent,
-  Grid,
-  LinearProgress,
-  Typography,
-  Box,
-  Stack,
-  Alert,
-  Button,
-  Skeleton
-} from '@mui/material';
-import VerifiedIcon from '@mui/icons-material/VerifiedRounded';
-import CloudSyncIcon from '@mui/icons-material/CloudSyncRounded';
-import RefreshIcon from '@mui/icons-material/RefreshRounded';
+import { ShieldCheck, CloudCog, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
+import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 
 export default function DataQualityPage() {
   const navigate = useNavigate();
@@ -44,172 +35,120 @@ export default function DataQualityPage() {
   const issues = d?.issues || [];
 
   const getScoreColor = (sc: number) => {
-    if (sc >= 85) return '#10b981';
-    if (sc >= 60) return '#f59e0b';
-    return '#ef4444';
+    if (sc >= 85) return 'text-emerald-500';
+    if (sc >= 60) return 'text-amber-500';
+    return 'text-red-500';
+  };
+  const getScoreBarColor = (sc: number) => {
+    if (sc >= 85) return 'bg-emerald-500';
+    if (sc >= 60) return 'bg-amber-500';
+    return 'bg-red-500';
   };
 
   return (
     <>
       <PageHeader
         title="Chất lượng dữ liệu"
-        icon={<VerifiedIcon />}
+        icon={<ShieldCheck />}
         action={
-          <Button
-            variant="outlined"
-            size="small"
-            startIcon={<RefreshIcon />}
-            onClick={loadData}
-            sx={{ bgcolor: '#fff', borderColor: '#cbd5e1', color: '#475569', fontWeight: 600 }}
-          >
+          <Button variant="outline" size="sm" onClick={loadData} className="font-semibold">
+            <RefreshCw className="size-4" />
             Làm mới
           </Button>
         }
       />
 
       {score === 0 && !loading && (
-        <Alert
-          severity="info"
-          sx={{ mb: 3, borderRadius: 2 }}
-          action={
-            <Button
-              color="primary"
-              variant="contained"
-              size="small"
-              onClick={() => navigate('/connections')}
-              sx={{ textTransform: 'none', fontWeight: 700 }}
-            >
-              Đồng Bộ Classroom
-            </Button>
-          }
-        >
-          <strong>Dữ liệu thực:</strong> Điểm chất lượng được tính tự động dựa trên mức độ hoàn thiện của danh bạ, danh sách lớp và liên kết khóa học Google Classroom. Hiện tại chưa có dữ liệu đồng bộ.
+        <Alert className="mb-6 flex items-center justify-between rounded-lg border-blue-200 bg-secondary">
+          <div>
+            <AlertTitle className="sr-only">Dữ liệu thực</AlertTitle>
+            <AlertDescription className="text-slate-700">
+              <strong>Dữ liệu thực:</strong> Điểm chất lượng được tính tự động dựa trên mức độ hoàn thiện của danh bạ, danh sách lớp và liên kết khóa học Google Classroom. Hiện tại chưa có dữ liệu đồng bộ.
+            </AlertDescription>
+          </div>
+          <Button size="sm" onClick={() => navigate('/connections')} className="shrink-0 font-bold">
+            Đồng Bộ Classroom
+          </Button>
         </Alert>
       )}
 
-      <Grid container spacing={3}>
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-12">
         {/* Overall Score Card */}
-        <Grid size={{ xs: 12, md: 4 }}>
-          <Card sx={{ height: '100%', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', bgcolor: '#ffffff' }}>
-            <CardContent sx={{ p: 3, textAlign: 'center' }}>
-              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Chỉ số chất lượng toàn diện
-              </Typography>
-              <Box sx={{ my: 3 }}>
-                {loading ? (
-                  <Skeleton variant="circular" width={80} height={80} sx={{ mx: 'auto' }} />
-                ) : (
-                  <>
-                    <Typography sx={{ fontSize: '3.5rem', fontWeight: 800, color: getScoreColor(score), lineHeight: 1, letterSpacing: '-0.03em' }}>
-                      {score}
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: '#64748b', mt: 0.5 }}>
-                      / 100 Điểm
-                    </Typography>
-                  </>
-                )}
-              </Box>
-              <LinearProgress
-                variant="determinate"
-                value={score}
-                sx={{
-                  height: 6,
-                  borderRadius: 3,
-                  bgcolor: '#f1f5f9',
-                  '& .MuiLinearProgress-bar': { bgcolor: getScoreColor(score) }
-                }}
-              />
-              <Typography variant="body2" color="#64748b" sx={{ mt: 2, fontSize: '0.8125rem' }}>
-                {score >= 85
-                  ? 'Dữ liệu trường học đạt chuẩn độ chính xác cao'
-                  : score > 0
-                  ? 'Dữ liệu đang được đồng bộ và cần bổ sung ánh xạ'
-                  : 'Chưa có dữ liệu để đánh giá chất lượng'}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
+        <div className="rounded-xl border border-slate-200 bg-white p-6 text-center shadow-[0_1px_3px_rgba(0,0,0,0.05)] md:col-span-4">
+          <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">Chỉ số chất lượng toàn diện</p>
+          <div className="my-6">
+            {loading ? (
+              <Skeleton className="mx-auto size-20 rounded-full" />
+            ) : (
+              <>
+                <p className={cn('text-[3.5rem] leading-none font-extrabold tracking-tight', getScoreColor(score))}>{score}</p>
+                <p className="mt-1 text-sm text-slate-500">/ 100 Điểm</p>
+              </>
+            )}
+          </div>
+          <Progress value={score} className="h-1.5 bg-slate-100" indicatorClassName={getScoreBarColor(score)} />
+          <p className="mt-4 text-[0.8125rem] text-slate-500">
+            {score >= 85
+              ? 'Dữ liệu trường học đạt chuẩn độ chính xác cao'
+              : score > 0
+                ? 'Dữ liệu đang được đồng bộ và cần bổ sung ánh xạ'
+                : 'Chưa có dữ liệu để đánh giá chất lượng'}
+          </p>
+        </div>
 
         {/* Component Metrics Card */}
-        <Grid size={{ xs: 12, md: 8 }}>
-          <Card sx={{ height: '100%', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', bgcolor: '#ffffff' }}>
-            <CardContent sx={{ p: 3 }}>
-              <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#0f172a', mb: 2.5, letterSpacing: '-0.01em' }}>
-                Phân tích thành phần chất lượng thực tế
-              </Typography>
-              <Stack spacing={2.5}>
-                {[
-                  { label: 'Độ đầy đủ Danh sách Học viên (Roster Completeness)', key: 'completeness' },
-                  { label: 'Tỷ lệ Ánh xạ Lớp học Hành chính (Class Mapping)', key: 'coverage' },
-                  { label: 'Đồng bộ Danh bạ Người dùng (Directory Users)', key: 'directory' },
-                  { label: 'Tính nhất quán và Tính toàn vẹn (Data Consistency)', key: 'consistency' }
-                ].map(({ label, key }) => {
-                  const val = Number(components[key] || 0);
-                  return (
-                    <Box key={key}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.75 }}>
-                        <Typography variant="body2" fontWeight={500} sx={{ color: '#0f172a', fontSize: '0.8125rem' }}>
-                          {label}
-                        </Typography>
-                        <Typography variant="body2" fontWeight={600} sx={{ color: val >= 80 ? '#10b981' : '#2563eb', fontSize: '0.8125rem' }}>
-                          {val}%
-                        </Typography>
-                      </Box>
-                      <LinearProgress
-                        variant="determinate"
-                        value={val}
-                        sx={{
-                          height: 6,
-                          borderRadius: 3,
-                          bgcolor: '#f1f5f9',
-                          '& .MuiLinearProgress-bar': { bgcolor: val >= 80 ? '#10b981' : '#2563eb' }
-                        }}
-                      />
-                    </Box>
-                  );
-                })}
-              </Stack>
-            </CardContent>
-          </Card>
-        </Grid>
+        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-[0_1px_3px_rgba(0,0,0,0.05)] md:col-span-8">
+          <p className="mb-5 font-bold tracking-tight text-[#0f172a]">Phân tích thành phần chất lượng thực tế</p>
+          <div className="flex flex-col gap-5">
+            {[
+              { label: 'Độ đầy đủ Danh sách Học viên (Roster Completeness)', key: 'completeness' },
+              { label: 'Tỷ lệ Ánh xạ Lớp học Hành chính (Class Mapping)', key: 'coverage' },
+              { label: 'Đồng bộ Danh bạ Người dùng (Directory Users)', key: 'directory' },
+              { label: 'Tính nhất quán và Tính toàn vẹn (Data Consistency)', key: 'consistency' }
+            ].map(({ label, key }) => {
+              const val = Number(components[key] || 0);
+              return (
+                <div key={key}>
+                  <div className="mb-1.5 flex justify-between">
+                    <p className="text-[0.8125rem] font-medium text-[#0f172a]">{label}</p>
+                    <p className={cn('text-[0.8125rem] font-semibold', val >= 80 ? 'text-emerald-500' : 'text-primary')}>{val}%</p>
+                  </div>
+                  <Progress value={val} className="h-1.5 bg-slate-100" indicatorClassName={val >= 80 ? 'bg-emerald-500' : 'bg-primary'} />
+                </div>
+              );
+            })}
+          </div>
+        </div>
 
         {/* Issues List */}
-        <Grid size={{ xs: 12 }}>
-          <Card sx={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', bgcolor: '#ffffff' }}>
-            <CardContent sx={{ p: 3 }}>
-              <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#0f172a', mb: 2, letterSpacing: '-0.01em' }}>
-                Các điểm cần chuẩn hóa dữ liệu ({issues.length})
-              </Typography>
-              {issues.length === 0 ? (
-                <Box sx={{ py: 4, textAlign: 'center' }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Không có vấn đề bất thường nào về chất lượng dữ liệu.
-                  </Typography>
-                </Box>
-              ) : (
-                <Stack spacing={2}>
-                  {issues.map((iss: any, i: number) => (
-                    <Alert
-                      key={iss.id || i}
-                      severity={iss.severity === 'CRITICAL' ? 'error' : iss.severity === 'WARNING' ? 'warning' : 'info'}
-                      sx={{ borderRadius: '6px' }}
-                    >
-                      <Typography variant="subtitle2" fontWeight={600}>
-                        {iss.message || iss.type}
-                      </Typography>
-                      {iss.entity && (
-                        <Typography variant="caption" sx={{ display: 'block', mt: 0.5, color: '#71717a' }}>
-                          Khóa học / Thực thể: {iss.entity}
-                        </Typography>
-                      )}
-                    </Alert>
-                  ))}
-                </Stack>
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-[0_1px_3px_rgba(0,0,0,0.05)] md:col-span-12">
+          <p className="mb-4 font-bold tracking-tight text-[#0f172a]">Các điểm cần chuẩn hóa dữ liệu ({issues.length})</p>
+          {issues.length === 0 ? (
+            <div className="py-8 text-center">
+              <p className="text-sm text-slate-500">Không có vấn đề bất thường nào về chất lượng dữ liệu.</p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {issues.map((iss: any, i: number) => (
+                <Alert
+                  key={iss.id || i}
+                  className={cn(
+                    'rounded-md',
+                    iss.severity === 'CRITICAL'
+                      ? 'border-red-200 bg-red-50'
+                      : iss.severity === 'WARNING'
+                        ? 'border-amber-200 bg-amber-50'
+                        : 'border-blue-200 bg-secondary'
+                  )}
+                >
+                  <AlertTitle className="font-semibold">{iss.message || iss.type}</AlertTitle>
+                  {iss.entity && <AlertDescription className="text-zinc-500">Khóa học / Thực thể: {iss.entity}</AlertDescription>}
+                </Alert>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </>
   );
 }

@@ -1,23 +1,10 @@
-﻿import { useEffect, useState } from 'react';
-import {
-  Card,
-  CardContent,
-  Grid,
-  Typography,
-  Box,
-  Chip,
-  Button
-} from '@mui/material';
-import DnsIcon from '@mui/icons-material/DnsRounded';
-import CheckCircleIcon from '@mui/icons-material/CheckCircleRounded';
-import WarningAmberIcon from '@mui/icons-material/WarningAmberRounded';
-import RefreshIcon from '@mui/icons-material/RefreshRounded';
-import CloudDoneIcon from '@mui/icons-material/CloudDoneRounded';
-import StorageIcon from '@mui/icons-material/StorageRounded';
-import SecurityIcon from '@mui/icons-material/SecurityRounded';
-import GppMaybeIcon from '@mui/icons-material/GppMaybeRounded';
+import { useEffect, useState } from 'react';
+import { Server, CheckCircle2, TriangleAlert, RefreshCw, CloudCheck, Database, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 type ServiceState = 'ONLINE' | 'ERROR' | 'NOT_CONFIGURED' | 'CHECKING';
 
@@ -36,11 +23,11 @@ const STATE_LABEL: Record<ServiceState, string> = {
   CHECKING: 'Đang kiểm tra...'
 };
 
-const STATE_STYLE: Record<ServiceState, { bg: string; color: string; border: string }> = {
-  ONLINE: { bg: '#ecfdf5', color: '#059669', border: '#a7f3d0' },
-  ERROR: { bg: '#fef2f2', color: '#dc2626', border: '#fecaca' },
-  NOT_CONFIGURED: { bg: '#fffbeb', color: '#b45309', border: '#fde68a' },
-  CHECKING: { bg: '#f1f5f9', color: '#64748b', border: '#e2e8f0' }
+const STATE_STYLE: Record<ServiceState, string> = {
+  ONLINE: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  ERROR: 'bg-red-50 text-red-700 border-red-200',
+  NOT_CONFIGURED: 'bg-amber-50 text-amber-800 border-amber-200',
+  CHECKING: 'bg-slate-100 text-slate-600 border-slate-200'
 };
 
 export default function SystemPage() {
@@ -102,21 +89,21 @@ export default function SystemPage() {
       category: 'Dịch vụ lõi',
       status: apiState,
       desc: 'Node.js + Express, xử lý toàn bộ endpoint REST và xác thực. Kiểm tra bằng cách gọi thật /health.',
-      icon: <CloudDoneIcon sx={{ color: '#2563eb' }} />
+      icon: <CloudCheck className="size-5 text-primary" />
     },
     {
       name: 'Cơ sở dữ liệu PostgreSQL',
       category: 'Database',
       status: dbState,
       desc: 'PostgreSQL tự host trên VPS. Kiểm tra bằng truy vấn "select 1" thật.',
-      icon: <StorageIcon sx={{ color: '#10b981' }} />
+      icon: <Database className="size-5 text-emerald-500" />
     },
     {
       name: 'Đồng bộ Google Classroom (DWD)',
       category: 'Tích hợp Google Workspace',
       status: classroomSyncState,
       desc: classroomSyncDesc,
-      icon: <SecurityIcon sx={{ color: '#94a3b8' }} />
+      icon: <ShieldCheck className="size-5 text-slate-400" />
     },
     {
       name: 'Quét mã độc minh chứng (ClamAV)',
@@ -126,7 +113,7 @@ export default function SystemPage() {
         clamavState === 'ONLINE'
           ? 'clamd đang chạy thật trên VPS (clamav-daemon) — file minh chứng tải lên được quét mã độc thật trước khi lưu.'
           : 'clamd CHƯA được cài/chạy ở môi trường này, nên file minh chứng tải lên vẫn kẹt ở trạng thái "chờ quét".',
-      icon: <GppMaybeIcon sx={{ color: '#94a3b8' }} />
+      icon: <ShieldAlert className="size-5 text-slate-400" />
     }
   ];
 
@@ -137,158 +124,105 @@ export default function SystemPage() {
     <>
       <PageHeader
         title="Tình trạng hệ thống"
-        icon={<DnsIcon />}
+        icon={<Server />}
         action={
-          <Button
-            variant="contained"
-            startIcon={<RefreshIcon sx={{ fontSize: 16 }} />}
-            onClick={checkStatus}
-            disabled={loading}
-            sx={{ bgcolor: '#2563eb', color: '#ffffff', '&:hover': { bgcolor: '#1d4ed8' }, fontWeight: 600, fontSize: '0.8125rem', textTransform: 'none', borderRadius: '8px', boxShadow: '0 2px 6px rgba(37, 99, 235, 0.2)' }}
-          >
+          <Button onClick={checkStatus} disabled={loading} className="rounded-lg font-semibold shadow-[0_2px_6px_rgba(37,99,235,0.2)]">
+            <RefreshCw className="size-4" />
             Kiểm tra kết nối
           </Button>
         }
       />
 
       {/* Main Health Banner */}
-      <Card sx={{
-        mb: 3,
-        background: allCoreOk
-          ? 'linear-gradient(135deg, #1e40af 0%, #2563eb 60%, #3b82f6 100%)'
-          : 'linear-gradient(135deg, #b45309 0%, #d97706 60%, #f59e0b 100%)',
-        color: '#ffffff',
-        borderRadius: '12px',
-        border: '1px solid rgba(255,255,255,0.3)',
-        boxShadow: '0 4px 16px rgba(37, 99, 235, 0.2)'
-      }}>
-        <CardContent sx={{ p: 3 }}>
-          <Grid container spacing={2} alignItems="center">
-            <Grid size={{ xs: 12, md: 8 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
-                <Box
-                  sx={{
-                    width: 12,
-                    height: 12,
-                    borderRadius: '50%',
-                    bgcolor: allCoreOk ? '#34d399' : '#fbbf24',
-                    boxShadow: allCoreOk ? '0 0 12px #34d399' : '0 0 12px #fbbf24',
-                    border: '2px solid #ffffff'
-                  }}
-                />
-                <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#ffffff', letterSpacing: '-0.01em', fontSize: '1.05rem' }}>
-                  {allCoreOk
-                    ? 'Backend & cơ sở dữ liệu đang hoạt động bình thường'
-                    : 'Backend hoặc cơ sở dữ liệu đang gặp sự cố'}
-                </Typography>
-              </Box>
-              <Typography variant="body2" sx={{ color: '#dbeafe', fontSize: '0.8125rem' }}>
-                Đang chạy trên VPS thật (production)
-                {notConfiguredCount > 0 && ` • ${notConfiguredCount} tích hợp chưa cấu hình (xem bên dưới)`}
-                {checkedAt && ` • Kiểm tra lúc ${checkedAt.toLocaleTimeString('vi-VN')}`}
-              </Typography>
-            </Grid>
-            <Grid size={{ xs: 12, md: 4 }} sx={{ textAlign: { xs: 'left', md: 'right' } }}>
-              <Chip
-                label={health?.version ? `Phiên bản backend ${health.version}` : 'Không lấy được phiên bản'}
-                size="small"
-                sx={{ bgcolor: 'rgba(255, 255, 255, 0.15)', backdropFilter: 'blur(4px)', color: '#ffffff', border: '1px solid rgba(255, 255, 255, 0.3)', fontWeight: 600, fontSize: '0.75rem' }}
+      <div
+        className={cn(
+          'mb-6 rounded-xl border border-white/30 p-6 text-white shadow-[0_4px_16px_rgba(37,99,235,0.2)]',
+          allCoreOk ? 'bg-gradient-to-br from-[#1e40af] via-primary to-[#3b82f6]' : 'bg-gradient-to-br from-[#b45309] via-[#d97706] to-[#f59e0b]'
+        )}
+      >
+        <div className="flex flex-col gap-4 md:flex-row md:items-center">
+          <div className="md:basis-2/3">
+            <div className="mb-1.5 flex items-center gap-2.5">
+              <span
+                className={cn(
+                  'inline-block size-3 rounded-full border-2 border-white',
+                  allCoreOk ? 'bg-emerald-400 shadow-[0_0_12px_#34d399]' : 'bg-amber-400 shadow-[0_0_12px_#fbbf24]'
+                )}
               />
-            </Grid>
-          </Grid>
-        </CardContent>
-      </Card>
+              <p className="text-[1.05rem] font-bold tracking-tight">
+                {allCoreOk ? 'Backend & cơ sở dữ liệu đang hoạt động bình thường' : 'Backend hoặc cơ sở dữ liệu đang gặp sự cố'}
+              </p>
+            </div>
+            <p className="text-[0.8125rem] text-blue-100">
+              Đang chạy trên VPS thật (production)
+              {notConfiguredCount > 0 && ` • ${notConfiguredCount} tích hợp chưa cấu hình (xem bên dưới)`}
+              {checkedAt && ` • Kiểm tra lúc ${checkedAt.toLocaleTimeString('vi-VN')}`}
+            </p>
+          </div>
+          <div className="md:basis-1/3 md:text-right">
+            <Badge variant="outline" className="border-white/30 bg-white/15 font-semibold text-white backdrop-blur-sm">
+              {health?.version ? `Phiên bản backend ${health.version}` : 'Không lấy được phiên bản'}
+            </Badge>
+          </div>
+        </div>
+      </div>
 
       {/* Service Cards Grid */}
-      <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#0f172a', mb: 2, letterSpacing: '-0.01em' }}>
-        Các dịch vụ thành phần
-      </Typography>
-      <Grid container spacing={2.5} sx={{ mb: 3 }}>
+      <p className="mb-2 font-bold tracking-tight text-[#0f172a]">Các dịch vụ thành phần</p>
+      <div className="mb-6 grid grid-cols-1 gap-3 md:grid-cols-2">
         {services.map((svc) => {
           const st = STATE_STYLE[svc.status];
           return (
-            <Grid key={svc.name} size={{ xs: 12, md: 6 }}>
-              <Card sx={{
-                height: '100%',
-                borderRadius: '12px',
-                border: '1px solid #e2e8f0',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                bgcolor: '#ffffff',
-                transition: 'all 0.2s ease',
-                '&:hover': {
-                  boxShadow: '0 4px 12px rgba(37, 99, 235, 0.08)',
-                  borderColor: '#bfdbfe'
-                }
-              }}>
-                <CardContent sx={{ p: 2.5 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                      <Box sx={{ p: 1.25, bgcolor: '#eff6ff', borderRadius: '10px', display: 'grid', placeItems: 'center' }}>
-                        {svc.icon}
-                      </Box>
-                      <Box>
-                        <Typography variant="subtitle2" fontWeight={700} sx={{ color: '#0f172a' }}>
-                          {svc.name}
-                        </Typography>
-                        <Typography variant="caption" sx={{ color: '#64748b' }}>
-                          {svc.category}
-                        </Typography>
-                      </Box>
-                    </Box>
-                    <Chip
-                      icon={
-                        svc.status === 'ONLINE' ? (
-                          <CheckCircleIcon sx={{ fontSize: '13px !important' }} />
-                        ) : (
-                          <WarningAmberIcon sx={{ fontSize: '13px !important' }} />
-                        )
-                      }
-                      label={STATE_LABEL[svc.status]}
-                      size="small"
-                      sx={{ bgcolor: st.bg, color: st.color, border: `1px solid ${st.border}`, fontWeight: 600, fontSize: '0.75rem', height: 22 }}
-                    />
-                  </Box>
-                  <Typography variant="body2" sx={{ color: '#64748b', fontSize: '0.8125rem' }}>
-                    {svc.desc}
-                  </Typography>
-                  {svc.name === 'Backend API' && latency !== null && (
-                    <Typography variant="caption" sx={{ display: 'block', mt: 1.5, pt: 1.5, borderTop: '1px solid #f1f5f9', color: 'text.secondary' }}>
-                      Độ trễ phản hồi thật: <strong style={{ color: '#0f172a' }}>{latency}ms</strong>
-                    </Typography>
-                  )}
-                </CardContent>
-              </Card>
-            </Grid>
+            <div
+              key={svc.name}
+              className="h-full rounded-xl border border-slate-200 bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.05)] transition-all hover:border-blue-200 hover:shadow-[0_4px_12px_rgba(37,99,235,0.08)]"
+            >
+              <div className="mb-2.5 flex items-start justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="grid place-items-center rounded-[10px] bg-secondary p-2.5">{svc.icon}</div>
+                  <div>
+                    <p className="text-sm font-bold text-[#0f172a]">{svc.name}</p>
+                    <p className="text-xs text-slate-500">{svc.category}</p>
+                  </div>
+                </div>
+                <Badge variant="outline" className={cn('h-[22px] gap-1 font-semibold', st)}>
+                  {svc.status === 'ONLINE' ? <CheckCircle2 className="size-[13px]" /> : <TriangleAlert className="size-[13px]" />}
+                  {STATE_LABEL[svc.status]}
+                </Badge>
+              </div>
+              <p className="text-[0.8125rem] text-slate-500">{svc.desc}</p>
+              {svc.name === 'Backend API' && latency !== null && (
+                <p className="mt-3.5 border-t border-slate-100 pt-3.5 text-xs text-slate-500">
+                  Độ trễ phản hồi thật: <strong className="text-[#0f172a]">{latency}ms</strong>
+                </p>
+              )}
+            </div>
           );
         })}
-      </Grid>
+      </div>
 
       {/* Configuration Metadata */}
-      <Card sx={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', bgcolor: '#ffffff' }}>
-        <CardContent sx={{ p: 3 }}>
-          <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#0f172a', mb: 2, letterSpacing: '-0.01em' }}>
-            Cấu hình môi trường thật
-          </Typography>
-          <Grid container spacing={2}>
-            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-              <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Nơi chạy backend</Typography>
-              <Typography variant="body2" fontWeight={600} sx={{ color: '#0f172a', mt: 0.5 }}>VPS (systemd, /opt/supperapp)</Typography>
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-              <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Cơ sở dữ liệu</Typography>
-              <Typography variant="body2" fontWeight={600} sx={{ color: '#0f172a', mt: 0.5 }}>PostgreSQL tự host</Typography>
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-              <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Xác thực đăng nhập</Typography>
-              <Typography variant="body2" fontWeight={600} sx={{ color: '#0f172a', mt: 0.5 }}>Firebase Authentication (Google + email/mật khẩu)</Typography>
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-              <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Phiên bản backend</Typography>
-              <Typography variant="body2" fontWeight={600} sx={{ color: '#0f172a', mt: 0.5 }}>{health?.version || 'Không xác định được'}</Typography>
-            </Grid>
-          </Grid>
-        </CardContent>
-      </Card>
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
+        <p className="mb-4 font-bold tracking-tight text-[#0f172a]">Cấu hình môi trường thật</p>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
+          <div>
+            <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">Nơi chạy backend</p>
+            <p className="mt-1 text-sm font-semibold text-[#0f172a]">VPS (systemd, /opt/supperapp)</p>
+          </div>
+          <div>
+            <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">Cơ sở dữ liệu</p>
+            <p className="mt-1 text-sm font-semibold text-[#0f172a]">PostgreSQL tự host</p>
+          </div>
+          <div>
+            <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">Xác thực đăng nhập</p>
+            <p className="mt-1 text-sm font-semibold text-[#0f172a]">Firebase Authentication (Google + email/mật khẩu)</p>
+          </div>
+          <div>
+            <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">Phiên bản backend</p>
+            <p className="mt-1 text-sm font-semibold text-[#0f172a]">{health?.version || 'Không xác định được'}</p>
+          </div>
+        </div>
+      </div>
     </>
   );
 }
