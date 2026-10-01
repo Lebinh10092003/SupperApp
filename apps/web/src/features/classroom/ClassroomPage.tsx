@@ -1,46 +1,31 @@
 import { useEffect, useState, useMemo } from 'react';
-import {
-  Button,
-  Card,
-  CardContent,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  TableContainer,
-  TextField,
-  InputAdornment,
-  Box,
-  Typography,
-  Chip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Grid,
-  LinearProgress,
-  Stack,
-  Alert,
-  CircularProgress,
-  Checkbox,
-  FormControlLabel,
-  IconButton,
-  Tooltip
-} from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import SearchIcon from '@mui/icons-material/SearchRounded';
-import SchoolIcon from '@mui/icons-material/SchoolRounded';
-import LinkIcon from '@mui/icons-material/LinkRounded';
-import CheckCircleIcon from '@mui/icons-material/CheckCircleRounded';
-import SyncIcon from '@mui/icons-material/SyncRounded';
-import DeleteIcon from '@mui/icons-material/DeleteRounded';
-import PlaylistAddCheckIcon from '@mui/icons-material/PlaylistAddCheckRounded';
-import OpenInNewIcon from '@mui/icons-material/OpenInNewRounded';
-import RefreshIcon from '@mui/icons-material/RefreshRounded';
-import WarningAmberIcon from '@mui/icons-material/WarningAmberRounded';
+import {
+  Search,
+  GraduationCap,
+  Link2,
+  CheckCircle2,
+  RotateCw,
+  Trash2,
+  ListChecks,
+  ExternalLink,
+  RefreshCw,
+  TriangleAlert,
+  Loader2
+} from 'lucide-react';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Progress } from '@/components/ui/progress';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
 
 export default function ClassroomPage() {
   const navigate = useNavigate();
@@ -294,6 +279,7 @@ export default function ClassroomPage() {
   }, [items]);
 
   const isAllTableSelected = filtered.length > 0 && filtered.every((x) => selectedTableIds.has(x.id));
+  const isSomeTableSelected = selectedTableIds.size > 0 && !isAllTableSelected;
 
   const toggleSelectAllTable = () => {
     if (isAllTableSelected) {
@@ -310,268 +296,172 @@ export default function ClassroomPage() {
     setSelectedTableIds(next);
   };
 
+  const isAllPreviewSelected = filteredPreviewItems.length > 0 && filteredPreviewItems.every((x) => previewSelectedIds.has(x.id));
+  const isSomePreviewSelected = filteredPreviewItems.some((x) => previewSelectedIds.has(x.id)) && !isAllPreviewSelected;
+
+  const PREVIEW_FILTER_CARDS: Array<{ key: typeof previewFilter; label: string; value: number; active: string; textActive: string }> = [
+    { key: 'ALL', label: 'TẤT CẢ TÌM THẤY', value: previewCounts.total, active: 'border-2 border-blue-500 bg-secondary', textActive: 'text-[#0f172a]' },
+    { key: 'NEW', label: 'LỚP MỚI CHƯA ĐỒNG BỘ', value: previewCounts.newCount, active: 'border-2 border-emerald-500 bg-emerald-50', textActive: 'text-emerald-600' },
+    { key: 'SYNCED', label: 'ĐÃ ĐỒNG BỘ', value: previewCounts.syncedCount, active: 'border-2 border-blue-600 bg-secondary', textActive: 'text-primary' },
+    { key: 'IGNORED', label: 'ĐÃ LOẠI TRỪ', value: previewCounts.ignoredCount, active: 'border-2 border-red-500 bg-red-50', textActive: 'text-red-600' }
+  ];
+
   return (
     <>
       <PageHeader
         title="Khóa học Bộ môn (Google Classroom)"
-        icon={<SchoolIcon />}
+        icon={<GraduationCap />}
         action={
-          <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap">
-            <Button
-              variant="contained"
-              color="primary"
-              startIcon={<PlaylistAddCheckIcon />}
-              onClick={handleOpenPreview}
-              sx={{ fontWeight: 700, borderRadius: 2, px: 2.5 }}
-            >
+          <div className="flex flex-wrap items-center gap-3">
+            <Button onClick={handleOpenPreview} className="font-bold">
+              <ListChecks className="size-4" />
               Duyệt & Đồng bộ Lớp học
             </Button>
-            <Button
-              variant="outlined"
-              color="inherit"
-              startIcon={syncingQuick ? <CircularProgress size={16} color="inherit" /> : <SyncIcon />}
-              onClick={handleQuickSync}
-              disabled={syncingQuick}
-              sx={{ fontWeight: 600, borderRadius: 2 }}
-            >
+            <Button variant="outline" onClick={handleQuickSync} disabled={syncingQuick} className="font-semibold">
+              {syncingQuick ? <Loader2 className="size-4 animate-spin" /> : <RotateCw className="size-4" />}
               {syncingQuick ? 'Đang đồng bộ...' : 'Đồng bộ nhanh'}
             </Button>
-            <Button
-              variant="outlined"
-              color="inherit"
-              startIcon={<LinkIcon />}
-              onClick={() => navigate('/connections')}
-              sx={{ fontWeight: 600, borderRadius: 2 }}
-            >
+            <Button variant="outline" onClick={() => navigate('/connections')} className="font-semibold">
+              <Link2 className="size-4" />
               Cấu hình Google Workspace
             </Button>
-          </Stack>
+          </div>
         }
       />
 
       {toast && (
         <Alert
-          severity={toast.severity}
-          onClose={() => setToast(null)}
-          sx={{ mb: 2.5, borderRadius: 2, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}
+          className={cn(
+            'mb-5',
+            toast.severity === 'error'
+              ? 'border-red-200 bg-red-50'
+              : toast.severity === 'success'
+                ? 'border-emerald-200 bg-emerald-50'
+                : toast.severity === 'warning'
+                  ? 'border-amber-200 bg-amber-50'
+                  : 'border-blue-200 bg-secondary'
+          )}
         >
-          {toast.text}
+          <AlertDescription
+            className={cn(
+              toast.severity === 'error'
+                ? 'text-red-700'
+                : toast.severity === 'success'
+                  ? 'text-emerald-700'
+                  : toast.severity === 'warning'
+                    ? 'text-amber-800'
+                    : 'text-blue-800'
+            )}
+          >
+            {toast.text}
+          </AlertDescription>
         </Alert>
       )}
 
       {/* Summary KPI Cards */}
-      <Grid container spacing={2.5} sx={{ mb: 3 }}>
-        <Grid size={{ xs: 12, sm: 4 }}>
-          <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', bgcolor: '#ffffff' }}>
-            <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
-              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Tổng khóa học đã đồng bộ
-              </Typography>
-              <Typography sx={{ fontSize: '1.875rem', fontWeight: 700, color: '#0f172a', my: 0.5, letterSpacing: '-0.025em' }}>
-                {items.length}
-              </Typography>
-              <Typography variant="caption" sx={{ color: '#64748b', fontSize: '0.75rem' }}>
-                Khóa học Google Classroom thực tế đang hoạt động
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
+      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+          <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">Tổng khóa học đã đồng bộ</p>
+          <p className="my-0.5 text-[1.875rem] font-bold tracking-tight text-[#0f172a]">{items.length}</p>
+          <p className="text-xs text-slate-500">Khóa học Google Classroom thực tế đang hoạt động</p>
+        </div>
 
-        <Grid size={{ xs: 12, sm: 4 }}>
-          <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', bgcolor: '#ffffff' }}>
-            <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
-              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Tỷ lệ Mapping vào Lớp hành chính
-              </Typography>
-              <Typography sx={{ fontSize: '1.875rem', fontWeight: 700, color: '#2563eb', my: 0.5, letterSpacing: '-0.025em' }}>
-                {items.length ? Math.round((mappedCount / items.length) * 100) : 0}%
-              </Typography>
-              <Typography variant="caption" sx={{ color: '#64748b', fontSize: '0.75rem' }}>
-                {mappedCount}/{items.length} khóa học đã liên kết lớp hành chính
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+          <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">Tỷ lệ Mapping vào Lớp hành chính</p>
+          <p className="my-0.5 text-[1.875rem] font-bold tracking-tight text-primary">
+            {items.length ? Math.round((mappedCount / items.length) * 100) : 0}%
+          </p>
+          <p className="text-xs text-slate-500">
+            {mappedCount}/{items.length} khóa học đã liên kết lớp hành chính
+          </p>
+        </div>
 
-        <Grid size={{ xs: 12, sm: 4 }}>
-          <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', bgcolor: '#ffffff' }}>
-            <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
-              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Tỷ lệ nộp bài trung bình
-              </Typography>
-              <Typography sx={{ fontSize: '1.875rem', fontWeight: 700, color: '#10b981', my: 0.5, letterSpacing: '-0.025em' }}>
-                {avgSubmissionRate}%
-              </Typography>
-              <Typography variant="caption" sx={{ color: '#64748b', fontSize: '0.75rem' }}>
-                {items.length ? 'Tổng hợp từ các bài tập đã giao trong học kỳ' : 'Chưa có dữ liệu bài tập'}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+          <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">Tỷ lệ nộp bài trung bình</p>
+          <p className="my-0.5 text-[1.875rem] font-bold tracking-tight text-emerald-500">{avgSubmissionRate}%</p>
+          <p className="text-xs text-slate-500">{items.length ? 'Tổng hợp từ các bài tập đã giao trong học kỳ' : 'Chưa có dữ liệu bài tập'}</p>
+        </div>
+      </div>
 
       {/* Thanh thao tác hàng loạt khi có dòng được chọn */}
       {selectedTableIds.size > 0 && (
-        <Box
-          sx={{
-            mb: 2,
-            p: 1.5,
-            px: 2.5,
-            borderRadius: 2,
-            bgcolor: '#fef2f2',
-            border: '1px solid #fecaca',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 2
-          }}
-        >
-          <Stack direction="row" spacing={1.5} alignItems="center">
-            <Typography variant="body2" fontWeight={700} sx={{ color: '#991b1b' }}>
-              Đã chọn {selectedTableIds.size} khóa học
-            </Typography>
-            <Button size="small" onClick={() => setSelectedTableIds(new Set())} sx={{ color: '#64748b', textTransform: 'none' }}>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-5 py-3">
+          <div className="flex items-center gap-3">
+            <p className="text-sm font-bold text-red-800">Đã chọn {selectedTableIds.size} khóa học</p>
+            <Button size="sm" variant="ghost" onClick={() => setSelectedTableIds(new Set())} className="text-slate-500">
               Bỏ chọn
             </Button>
-          </Stack>
-          <Button
-            variant="contained"
-            color="error"
-            size="small"
-            startIcon={<DeleteIcon fontSize="small" />}
-            onClick={() => setOpenBatchDeleteDialog(true)}
-            sx={{ fontWeight: 700, textTransform: 'none', borderRadius: 1.5 }}
-          >
+          </div>
+          <Button size="sm" variant="destructive" onClick={() => setOpenBatchDeleteDialog(true)} className="font-bold">
+            <Trash2 className="size-4" />
             Xóa {selectedTableIds.size} khóa học đã chọn
           </Button>
-        </Box>
+        </div>
       )}
 
       {/* Unified DataTable Block */}
-      <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden', bgcolor: '#ffffff' }}>
-        <Box sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, borderBottom: '1px solid #e2e8f0', flexWrap: 'wrap' }}>
-          <TextField
-            size="small"
-            placeholder="Tìm theo tên khóa học, mã lớp, học kỳ..."
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            sx={{ width: { xs: '100%', sm: 340 } }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon fontSize="small" sx={{ color: '#94a3b8' }} />
-                </InputAdornment>
-              )
-            }}
-          />
-          <Stack direction="row" spacing={1.5} alignItems="center">
-            <Chip
-              label={`Hiển thị ${filtered.length} / ${items.length} khóa học`}
-              size="small"
-              sx={{
-                height: 26,
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                bgcolor: '#eff6ff',
-                color: '#1d4ed8',
-                border: '1px solid #bfdbfe'
-              }}
-            />
-            <Tooltip title="Tải lại danh sách">
-              <IconButton size="small" onClick={load} sx={{ border: '1px solid #e2e8f0' }}>
-                <RefreshIcon fontSize="small" />
-              </IconButton>
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 p-4">
+          <div className="relative w-full sm:w-[340px]">
+            <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
+            <Input placeholder="Tìm theo tên khóa học, mã lớp, học kỳ..." value={q} onChange={(e) => setQ(e.target.value)} className="pl-9" />
+          </div>
+          <div className="flex items-center gap-3">
+            <Badge variant="outline" className="h-[26px] border-blue-200 bg-secondary font-semibold text-[#1d4ed8]">
+              Hiển thị {filtered.length} / {items.length} khóa học
+            </Badge>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button size="icon" variant="outline" onClick={load}>
+                  <RefreshCw className="size-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Tải lại danh sách</TooltipContent>
             </Tooltip>
-          </Stack>
-        </Box>
+          </div>
+        </div>
 
         {items.length === 0 && !loading ? (
-          <Box sx={{ p: 6, textAlign: 'center', bgcolor: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
-            <Box
-              sx={{
-                width: 56,
-                height: 56,
-                borderRadius: '16px',
-                background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
-                color: '#ffffff',
-                display: 'grid',
-                placeItems: 'center',
-                mx: 'auto',
-                mb: 2,
-                boxShadow: '0 4px 12px rgba(37, 99, 235, 0.25)'
-              }}
-            >
-              <SchoolIcon sx={{ fontSize: 32 }} />
-            </Box>
-            <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#0f172a', mb: 0.5 }}>
-              Chưa có khóa học nào được đồng bộ từ Google Classroom
-            </Typography>
-            <Typography variant="body2" color="#64748b" sx={{ maxWidth: 580, mx: 'auto', mb: 3 }}>
-              Bạn có thể bấm &quot;Duyệt &amp; Đồng bộ Lớp học&quot; để quét danh sách từ Google Classroom và chọn các lớp mong muốn, hoặc kết nối tài khoản Google trong phần cấu hình.
-            </Typography>
-            <Stack direction="row" spacing={1.5} justifyContent="center">
-              <Button
-                variant="contained"
-                startIcon={<PlaylistAddCheckIcon />}
-                onClick={handleOpenPreview}
-                sx={{
-                  bgcolor: '#2563eb',
-                  color: '#ffffff',
-                  '&:hover': { bgcolor: '#1d4ed8' },
-                  fontWeight: 600,
-                  fontSize: '0.8125rem',
-                  textTransform: 'none',
-                  borderRadius: 2
-                }}
-              >
+          <div className="border-t border-slate-200 bg-slate-50 p-10 text-center">
+            <div className="mx-auto mb-4 grid size-14 place-items-center rounded-2xl bg-gradient-to-br from-primary to-[#1d4ed8] text-white shadow-[0_4px_12px_rgba(37,99,235,0.25)]">
+              <GraduationCap className="size-8" />
+            </div>
+            <p className="mb-1 font-bold text-[#0f172a]">Chưa có khóa học nào được đồng bộ từ Google Classroom</p>
+            <p className="mx-auto mb-5 max-w-[580px] text-sm text-slate-500">
+              Bạn có thể bấm "Duyệt & Đồng bộ Lớp học" để quét danh sách từ Google Classroom và chọn các lớp mong muốn, hoặc kết nối tài khoản
+              Google trong phần cấu hình.
+            </p>
+            <div className="flex justify-center gap-3">
+              <Button onClick={handleOpenPreview} className="font-semibold">
+                <ListChecks className="size-4" />
                 Duyệt & Đồng bộ ngay
               </Button>
-              <Button
-                variant="outlined"
-                startIcon={<LinkIcon sx={{ fontSize: 16 }} />}
-                onClick={() => navigate('/connections')}
-                sx={{ fontWeight: 600, fontSize: '0.8125rem', textTransform: 'none', borderRadius: 2 }}
-              >
+              <Button variant="outline" onClick={() => navigate('/connections')} className="font-semibold">
+                <Link2 className="size-4" />
                 Cấu hình kết nối Google
               </Button>
-            </Stack>
-          </Box>
+            </div>
+          </div>
         ) : (
-          <TableContainer sx={{ width: '100%', overflowX: 'auto' }}>
-            <Table size="medium">
-              <TableHead sx={{ bgcolor: '#f8fafc' }}>
-                <TableRow>
-                  <TableCell padding="checkbox">
+          <div className="w-full overflow-x-auto">
+            <Table>
+              <TableHeader className="bg-slate-50">
+                <TableRow className="hover:bg-slate-50">
+                  <TableHead className="w-10">
                     <Checkbox
-                      size="small"
-                      checked={isAllTableSelected}
-                      indeterminate={selectedTableIds.size > 0 && !isAllTableSelected}
-                      onChange={toggleSelectAllTable}
+                      checked={isAllTableSelected ? true : isSomeTableSelected ? 'indeterminate' : false}
+                      onCheckedChange={toggleSelectAllTable}
                     />
-                  </TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Tên khóa học
-                  </TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Học kỳ / Section
-                  </TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Trạng thái
-                  </TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Lớp hành chính
-                  </TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Sĩ số Roster
-                  </TableCell>
-                  <TableCell sx={{ minWidth: 160, fontWeight: 600, fontSize: '0.75rem', color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Tỷ lệ nộp bài
-                  </TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 600, fontSize: '0.75rem', color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Hành động
-                  </TableCell>
+                  </TableHead>
+                  <TableHead className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">Tên khóa học</TableHead>
+                  <TableHead className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">Học kỳ / Section</TableHead>
+                  <TableHead className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">Trạng thái</TableHead>
+                  <TableHead className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">Lớp hành chính</TableHead>
+                  <TableHead className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">Sĩ số Roster</TableHead>
+                  <TableHead className="min-w-40 text-xs font-semibold tracking-wide text-zinc-500 uppercase">Tỷ lệ nộp bài</TableHead>
+                  <TableHead className="text-right text-xs font-semibold tracking-wide text-zinc-500 uppercase">Hành động</TableHead>
                 </TableRow>
-              </TableHead>
+              </TableHeader>
               <TableBody>
                 {filtered.map((x) => {
                   const rawSubRate = x.completionRate ?? x.content?.completionRate ?? x.content?.submissionRate;
@@ -581,304 +471,182 @@ export default function ClassroomPage() {
                   const isSelected = selectedTableIds.has(x.id);
 
                   return (
-                    <TableRow
-                      key={x.id}
-                      hover
-                      selected={isSelected}
-                      sx={{ '&:hover': { bgcolor: 'rgba(239, 246, 255, 0.6)' } }}
-                    >
-                      <TableCell padding="checkbox">
-                        <Checkbox
-                          size="small"
-                          checked={isSelected}
-                          onChange={() => toggleSelectTableRow(x.id)}
-                        />
+                    <TableRow key={x.id} className={cn(isSelected && 'bg-secondary/60')}>
+                      <TableCell>
+                        <Checkbox checked={isSelected} onCheckedChange={() => toggleSelectTableRow(x.id)} />
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2" fontWeight={600} sx={{ color: '#0f172a' }}>
-                          {x.name}
-                        </Typography>
+                        <p className="text-sm font-semibold text-[#0f172a]">{x.name}</p>
                         {x.alternateLink && (
-                          <Typography
-                            component="a"
+                          <a
                             href={x.alternateLink}
                             target="_blank"
                             rel="noopener noreferrer"
-                            variant="caption"
-                            sx={{
-                              color: '#2563eb',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: 0.5,
-                              textDecoration: 'none',
-                              '&:hover': { textDecoration: 'underline' }
-                            }}
+                            className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
                           >
-                            Mở Google Classroom <OpenInNewIcon sx={{ fontSize: 12 }} />
-                          </Typography>
+                            Mở Google Classroom <ExternalLink className="size-3" />
+                          </a>
                         )}
                       </TableCell>
-                      <TableCell sx={{ color: '#64748b' }}>{x.section || '—'}</TableCell>
+                      <TableCell className="text-slate-500">{x.section || '—'}</TableCell>
                       <TableCell>
-                        <Chip
-                          label={x.courseState === 'ACTIVE' ? 'Đang mở' : x.courseState}
-                          size="small"
-                          sx={{
-                            bgcolor: x.courseState === 'ACTIVE' ? '#ecfdf5' : '#f1f5f9',
-                            color: x.courseState === 'ACTIVE' ? '#059669' : '#64748b',
-                            border: x.courseState === 'ACTIVE' ? '1px solid #a7f3d0' : '1px solid #e2e8f0',
-                            fontWeight: 600,
-                            fontSize: '0.75rem',
-                            height: 22
-                          }}
-                        />
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            'h-[22px] font-semibold',
+                            x.courseState === 'ACTIVE' ? 'border-emerald-200 bg-emerald-50 text-emerald-600' : 'border-slate-200 bg-slate-100 text-slate-500'
+                          )}
+                        >
+                          {x.courseState === 'ACTIVE' ? 'Đang mở' : x.courseState}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         {isMapped ? (
-                          <Chip
-                            icon={<CheckCircleIcon sx={{ fontSize: '13px !important' }} />}
-                            label={x.className || x.classId}
-                            size="small"
-                            sx={{ bgcolor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', fontWeight: 600, fontSize: '0.75rem', height: 22 }}
-                          />
+                          <Badge variant="outline" className="h-[22px] gap-1 border-blue-200 bg-secondary font-semibold text-[#1d4ed8]">
+                            <CheckCircle2 className="size-3.5" />
+                            {x.className || x.classId}
+                          </Badge>
                         ) : (
-                          <Chip
-                            label="Chưa mapping"
-                            size="small"
-                            sx={{ bgcolor: '#fffbeb', color: '#b45309', border: '1px solid #fde68a', fontWeight: 600, fontSize: '0.75rem', height: 22 }}
-                          />
+                          <Badge variant="outline" className="h-[22px] border-amber-200 bg-amber-50 font-semibold text-amber-700">
+                            Chưa mapping
+                          </Badge>
                         )}
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2" fontWeight={500} sx={{ color: '#0f172a' }}>
-                          {studentCount != null ? `${studentCount} HS` : '—'}
-                        </Typography>
+                        <span className="text-sm font-medium text-[#0f172a]">{studentCount != null ? `${studentCount} HS` : '—'}</span>
                       </TableCell>
                       <TableCell>
                         {subRate !== null ? (
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Box sx={{ flex: 1 }}>
-                              <LinearProgress
-                                variant="determinate"
-                                value={Math.min(subRate, 100)}
-                                sx={{
-                                  height: 6,
-                                  borderRadius: 3,
-                                  bgcolor: '#f1f5f9',
-                                  '& .MuiLinearProgress-bar': { bgcolor: subRate >= 90 ? '#10b981' : '#2563eb' }
-                                }}
-                              />
-                            </Box>
-                            <Typography variant="caption" fontWeight={600} sx={{ minWidth: 35, color: '#0f172a' }}>
-                              {subRate}%
-                            </Typography>
-                          </Box>
+                          <div className="flex items-center gap-2">
+                            <Progress
+                              value={Math.min(subRate, 100)}
+                              className="h-1.5 flex-1 bg-slate-100"
+                              indicatorClassName={subRate >= 90 ? 'bg-emerald-500' : 'bg-primary'}
+                            />
+                            <span className="min-w-9 text-xs font-semibold text-[#0f172a]">{subRate}%</span>
+                          </div>
                         ) : (
-                          <Typography variant="caption" color="text.secondary">
-                            Chưa có bài tập
-                          </Typography>
+                          <span className="text-xs text-slate-500">Chưa có bài tập</span>
                         )}
                       </TableCell>
-                      <TableCell align="right">
-                        <Stack direction="row" spacing={1} justifyContent="flex-end" alignItems="center">
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            startIcon={<LinkIcon sx={{ fontSize: 14 }} />}
-                            onClick={() => openMapDialog(x)}
-                            sx={{ fontSize: '0.75rem', py: 0.4, px: 1.2, borderRadius: 1.5, fontWeight: 600, textTransform: 'none' }}
-                          >
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Button size="xs" variant="outline" onClick={() => openMapDialog(x)} className="font-semibold">
+                            <Link2 className="size-3.5" />
                             {isMapped ? 'Sửa map' : 'Mapping'}
                           </Button>
-                          <Tooltip title="Xóa khóa học này khỏi hệ thống">
-                            <IconButton
-                              size="small"
-                              onClick={() => {
-                                setDeleteTarget(x);
-                                setDeleteAddToIgnore(true);
-                              }}
-                              sx={{ color: '#94a3b8', '&:hover': { color: '#dc2626', bgcolor: '#fef2f2' } }}
-                            >
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                size="icon-xs"
+                                variant="ghost"
+                                onClick={() => {
+                                  setDeleteTarget(x);
+                                  setDeleteAddToIgnore(true);
+                                }}
+                                className="text-slate-400 hover:bg-red-50 hover:text-red-600"
+                              >
+                                <Trash2 className="size-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Xóa khóa học này khỏi hệ thống</TooltipContent>
                           </Tooltip>
-                        </Stack>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
                 })}
               </TableBody>
             </Table>
-          </TableContainer>
+          </div>
         )}
-      </Card>
+      </div>
 
       {/* DIALOG: DUYỆT & ĐỒNG BỘ GOOGLE CLASSROOM (SELECTIVE SYNC PREVIEW) */}
-      <Dialog
-        open={openPreviewDialog}
-        onClose={() => !executingSync && setOpenPreviewDialog(false)}
-        maxWidth="md"
-        fullWidth
-        PaperProps={{ sx: { borderRadius: 3 } }}
-      >
-        <DialogTitle sx={{ fontWeight: 700, color: '#0f172a', pb: 1 }}>
-          <Stack direction="row" spacing={1.5} alignItems="center">
-            <PlaylistAddCheckIcon sx={{ color: '#2563eb' }} />
-            <Box>
-              <Typography variant="h6" fontWeight={700} sx={{ lineHeight: 1.2 }}>
-                Duyệt & Chọn Lớp Đồng Bộ Từ Google Classroom
-              </Typography>
-              <Typography variant="caption" sx={{ color: '#64748b' }}>
-                Chọn chính xác các khóa học thuộc năm học hiện tại cần nạp vào hệ thống
-              </Typography>
-            </Box>
-          </Stack>
-        </DialogTitle>
+      <Dialog open={openPreviewDialog} onOpenChange={(open) => !executingSync && setOpenPreviewDialog(open)}>
+        <DialogContent className="sm:max-w-3xl">
+          <DialogHeader>
+            <div className="flex items-center gap-2.5">
+              <ListChecks className="size-5 text-primary" />
+              <div>
+                <DialogTitle>Duyệt & Chọn Lớp Đồng Bộ Từ Google Classroom</DialogTitle>
+                <DialogDescription>Chọn chính xác các khóa học thuộc năm học hiện tại cần nạp vào hệ thống</DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
 
-        <DialogContent dividers sx={{ p: 2.5 }}>
           {previewLoading ? (
-            <Box sx={{ py: 8, textAlign: 'center' }}>
-              <CircularProgress size={36} sx={{ color: '#2563eb', mb: 2 }} />
-              <Typography variant="body2" fontWeight={600} sx={{ color: '#334155' }}>
-                Đang kết nối Google Classroom và quét danh sách khóa học...
-              </Typography>
-              <Typography variant="caption" sx={{ color: '#94a3b8' }}>
-                Quá trình này có thể mất từ 3–5 giây tùy thuộc số lượng lớp của trường.
-              </Typography>
-            </Box>
+            <div className="py-12 text-center">
+              <Loader2 className="mx-auto mb-3 size-9 animate-spin text-primary" />
+              <p className="text-sm font-semibold text-slate-700">Đang kết nối Google Classroom và quét danh sách khóa học...</p>
+              <p className="text-xs text-slate-400">Quá trình này có thể mất từ 3–5 giây tùy thuộc số lượng lớp của trường.</p>
+            </div>
           ) : previewError ? (
-            <Alert severity="error" sx={{ my: 2, borderRadius: 2 }}>
-              {previewError}
+            <Alert className="border-red-200 bg-red-50">
+              <AlertDescription className="text-red-700">{previewError}</AlertDescription>
             </Alert>
           ) : (
-            <Stack spacing={2}>
+            <div className="flex flex-col gap-4">
               {/* Thẻ đếm số lượng */}
-              <Grid container spacing={1.5}>
-                <Grid size={{ xs: 6, sm: 3 }}>
-                  <Box
-                    onClick={() => setPreviewFilter('ALL')}
-                    sx={{
-                      p: 1.5,
-                      borderRadius: 2,
-                      bgcolor: previewFilter === 'ALL' ? '#eff6ff' : '#f8fafc',
-                      border: previewFilter === 'ALL' ? '2px solid #3b82f6' : '1px solid #e2e8f0',
-                      cursor: 'pointer'
-                    }}
+              <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+                {PREVIEW_FILTER_CARDS.map((card) => (
+                  <button
+                    key={card.key}
+                    type="button"
+                    onClick={() => setPreviewFilter(card.key)}
+                    className={cn(
+                      'rounded-lg border p-3 text-left',
+                      previewFilter === card.key ? card.active : 'border-slate-200 bg-slate-50'
+                    )}
                   >
-                    <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600 }}>TẤT CẢ TÌM THẤY</Typography>
-                    <Typography variant="h6" fontWeight={700} sx={{ color: '#0f172a' }}>{previewCounts.total}</Typography>
-                  </Box>
-                </Grid>
-                <Grid size={{ xs: 6, sm: 3 }}>
-                  <Box
-                    onClick={() => setPreviewFilter('NEW')}
-                    sx={{
-                      p: 1.5,
-                      borderRadius: 2,
-                      bgcolor: previewFilter === 'NEW' ? '#ecfdf5' : '#f8fafc',
-                      border: previewFilter === 'NEW' ? '2px solid #10b981' : '1px solid #e2e8f0',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <Typography variant="caption" sx={{ color: '#059669', fontWeight: 600 }}>LỚP MỚI CHƯA ĐỒNG BỘ</Typography>
-                    <Typography variant="h6" fontWeight={700} sx={{ color: '#059669' }}>{previewCounts.newCount}</Typography>
-                  </Box>
-                </Grid>
-                <Grid size={{ xs: 6, sm: 3 }}>
-                  <Box
-                    onClick={() => setPreviewFilter('SYNCED')}
-                    sx={{
-                      p: 1.5,
-                      borderRadius: 2,
-                      bgcolor: previewFilter === 'SYNCED' ? '#eff6ff' : '#f8fafc',
-                      border: previewFilter === 'SYNCED' ? '2px solid #2563eb' : '1px solid #e2e8f0',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <Typography variant="caption" sx={{ color: '#2563eb', fontWeight: 600 }}>ĐÃ ĐỒNG BỘ</Typography>
-                    <Typography variant="h6" fontWeight={700} sx={{ color: '#2563eb' }}>{previewCounts.syncedCount}</Typography>
-                  </Box>
-                </Grid>
-                <Grid size={{ xs: 6, sm: 3 }}>
-                  <Box
-                    onClick={() => setPreviewFilter('IGNORED')}
-                    sx={{
-                      p: 1.5,
-                      borderRadius: 2,
-                      bgcolor: previewFilter === 'IGNORED' ? '#fef2f2' : '#f8fafc',
-                      border: previewFilter === 'IGNORED' ? '2px solid #ef4444' : '1px solid #e2e8f0',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <Typography variant="caption" sx={{ color: '#dc2626', fontWeight: 600 }}>ĐÃ LOẠI TRỪ</Typography>
-                    <Typography variant="h6" fontWeight={700} sx={{ color: '#dc2626' }}>{previewCounts.ignoredCount}</Typography>
-                  </Box>
-                </Grid>
-              </Grid>
+                    <p className="text-xs font-semibold text-slate-500">{card.label}</p>
+                    <p className={cn('text-lg font-bold', previewFilter === card.key ? card.textActive : 'text-[#0f172a]')}>{card.value}</p>
+                  </button>
+                ))}
+              </div>
 
               {/* Thanh lọc & Nút chọn nhanh */}
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
-                <TextField
-                  size="small"
-                  placeholder="Lọc danh sách theo tên khóa học, mã lớp..."
-                  value={previewSearch}
-                  onChange={(e) => setPreviewSearch(e.target.value)}
-                  sx={{ width: { xs: '100%', sm: 280 } }}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <SearchIcon fontSize="small" sx={{ color: '#94a3b8' }} />
-                      </InputAdornment>
-                    )
-                  }}
-                />
-                <Stack direction="row" spacing={1}>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    onClick={() => setPreviewSelectedIds(new Set(previewItems.map((x) => x.id)))}
-                    sx={{ textTransform: 'none', fontSize: '0.75rem' }}
-                  >
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="relative w-full sm:w-[280px]">
+                  <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
+                  <Input
+                    placeholder="Lọc danh sách theo tên khóa học, mã lớp..."
+                    value={previewSearch}
+                    onChange={(e) => setPreviewSearch(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+                <div className="flex gap-1.5">
+                  <Button size="xs" variant="outline" onClick={() => setPreviewSelectedIds(new Set(previewItems.map((x) => x.id)))}>
                     Chọn tất cả ({previewItems.length})
                   </Button>
                   <Button
-                    size="small"
-                    variant="outlined"
+                    size="xs"
+                    variant="outline"
                     onClick={() => {
                       const newIds = previewItems.filter((x) => !x.isAlreadySynced && !x.isIgnored).map((x) => x.id);
                       setPreviewSelectedIds(new Set(newIds));
                     }}
-                    sx={{ textTransform: 'none', fontSize: '0.75rem' }}
                   >
                     Chỉ chọn lớp mới ({previewCounts.newCount})
                   </Button>
-                  <Button
-                    size="small"
-                    onClick={() => setPreviewSelectedIds(new Set())}
-                    sx={{ textTransform: 'none', fontSize: '0.75rem', color: '#64748b' }}
-                  >
+                  <Button size="xs" variant="ghost" onClick={() => setPreviewSelectedIds(new Set())} className="text-slate-500">
                     Bỏ chọn
                   </Button>
-                </Stack>
-              </Box>
+                </div>
+              </div>
 
               {/* Bảng danh sách chọn lớp */}
-              <TableContainer sx={{ maxHeight: 380, border: '1px solid #e2e8f0', borderRadius: 2 }}>
-                <Table size="small" stickyHeader>
-                  <TableHead>
+              <div className="max-h-[380px] overflow-auto rounded-lg border border-slate-200">
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell padding="checkbox">
+                      <TableHead className="w-10">
                         <Checkbox
-                          size="small"
-                          checked={filteredPreviewItems.length > 0 && filteredPreviewItems.every((x) => previewSelectedIds.has(x.id))}
-                          indeterminate={
-                            filteredPreviewItems.some((x) => previewSelectedIds.has(x.id)) &&
-                            !filteredPreviewItems.every((x) => previewSelectedIds.has(x.id))
-                          }
-                          onChange={() => {
-                            const allChecked = filteredPreviewItems.every((x) => previewSelectedIds.has(x.id));
+                          checked={isAllPreviewSelected ? true : isSomePreviewSelected ? 'indeterminate' : false}
+                          onCheckedChange={() => {
                             const next = new Set(previewSelectedIds);
-                            if (allChecked) {
+                            if (isAllPreviewSelected) {
                               for (const x of filteredPreviewItems) next.delete(x.id);
                             } else {
                               for (const x of filteredPreviewItems) next.add(x.id);
@@ -886,17 +654,17 @@ export default function ClassroomPage() {
                             setPreviewSelectedIds(next);
                           }}
                         />
-                      </TableCell>
-                      <TableCell sx={{ fontWeight: 700, color: '#475569' }}>Khóa học Google</TableCell>
-                      <TableCell sx={{ fontWeight: 700, color: '#475569' }}>Lớp đề xuất</TableCell>
-                      <TableCell sx={{ fontWeight: 700, color: '#475569' }}>Môn học</TableCell>
-                      <TableCell sx={{ fontWeight: 700, color: '#475569' }}>Trạng thái</TableCell>
+                      </TableHead>
+                      <TableHead className="font-bold text-slate-600">Khóa học Google</TableHead>
+                      <TableHead className="font-bold text-slate-600">Lớp đề xuất</TableHead>
+                      <TableHead className="font-bold text-slate-600">Môn học</TableHead>
+                      <TableHead className="font-bold text-slate-600">Trạng thái</TableHead>
                     </TableRow>
-                  </TableHead>
+                  </TableHeader>
                   <TableBody>
                     {filteredPreviewItems.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={5} align="center" sx={{ py: 3, color: '#94a3b8' }}>
+                        <TableCell colSpan={5} className="py-6 text-center text-slate-400">
                           Không có khóa học nào khớp với bộ lọc này.
                         </TableCell>
                       </TableRow>
@@ -906,46 +674,56 @@ export default function ClassroomPage() {
                         return (
                           <TableRow
                             key={c.id}
-                            hover
-                            selected={isChecked}
+                            className={cn('cursor-pointer', isChecked && 'bg-secondary/60')}
                             onClick={() => {
                               const next = new Set(previewSelectedIds);
                               if (next.has(c.id)) next.delete(c.id);
                               else next.add(c.id);
                               setPreviewSelectedIds(next);
                             }}
-                            sx={{ cursor: 'pointer' }}
                           >
-                            <TableCell padding="checkbox">
-                              <Checkbox size="small" checked={isChecked} />
+                            <TableCell onClick={(e) => e.stopPropagation()}>
+                              <Checkbox
+                                checked={isChecked}
+                                onCheckedChange={() => {
+                                  const next = new Set(previewSelectedIds);
+                                  if (next.has(c.id)) next.delete(c.id);
+                                  else next.add(c.id);
+                                  setPreviewSelectedIds(next);
+                                }}
+                              />
                             </TableCell>
                             <TableCell>
-                              <Typography variant="body2" fontWeight={600} sx={{ color: '#0f172a' }}>
-                                {c.name}
-                              </Typography>
-                              <Typography variant="caption" sx={{ color: '#64748b' }}>
+                              <p className="text-sm font-semibold text-[#0f172a]">{c.name}</p>
+                              <p className="text-xs text-slate-500">
                                 ID: {c.id} {c.section ? `• ${c.section}` : ''}
-                              </Typography>
+                              </p>
                             </TableCell>
                             <TableCell>
                               {c.className ? (
-                                <Chip label={c.className} size="small" sx={{ bgcolor: '#eff6ff', color: '#1d4ed8', fontWeight: 600, height: 22 }} />
+                                <Badge variant="outline" className="h-[22px] border-transparent bg-secondary font-semibold text-[#1d4ed8]">
+                                  {c.className}
+                                </Badge>
                               ) : (
-                                <Typography variant="caption" color="text.secondary">Chưa xác định</Typography>
+                                <span className="text-xs text-slate-500">Chưa xác định</span>
                               )}
                             </TableCell>
                             <TableCell>
-                              <Typography variant="body2" sx={{ color: '#334155', fontWeight: 500 }}>
-                                {c.subjectName || '—'}
-                              </Typography>
+                              <span className="text-sm font-medium text-slate-700">{c.subjectName || '—'}</span>
                             </TableCell>
                             <TableCell>
                               {c.isIgnored ? (
-                                <Chip label="Đang loại trừ" size="small" sx={{ bgcolor: '#fef2f2', color: '#b91c1c', fontWeight: 600, height: 22 }} />
+                                <Badge variant="outline" className="h-[22px] border-transparent bg-red-50 font-semibold text-red-700">
+                                  Đang loại trừ
+                                </Badge>
                               ) : c.isAlreadySynced ? (
-                                <Chip label="Đã có trong hệ thống" size="small" sx={{ bgcolor: '#f1f5f9', color: '#475569', fontWeight: 600, height: 22 }} />
+                                <Badge variant="outline" className="h-[22px] border-transparent bg-slate-100 font-semibold text-slate-600">
+                                  Đã có trong hệ thống
+                                </Badge>
                               ) : (
-                                <Chip label="Lớp mới" size="small" sx={{ bgcolor: '#ecfdf5', color: '#059669', fontWeight: 700, height: 22 }} />
+                                <Badge variant="outline" className="h-[22px] border-transparent bg-emerald-50 font-bold text-emerald-600">
+                                  Lớp mới
+                                </Badge>
                               )}
                             </TableCell>
                           </TableRow>
@@ -954,211 +732,131 @@ export default function ClassroomPage() {
                     )}
                   </TableBody>
                 </Table>
-              </TableContainer>
+              </div>
 
               {/* Tùy chọn loại trừ các lớp không chọn */}
-              <Box sx={{ pt: 1 }}>
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={previewAutoIgnoreUnselected}
-                      onChange={(e) => setPreviewAutoIgnoreUnselected(e.target.checked)}
-                      size="small"
-                      color="primary"
-                    />
-                  }
-                  label={
-                    <Typography variant="body2" sx={{ color: '#475569', fontSize: '0.85rem' }}>
-                      Đưa các khóa học <strong>không được chọn</strong> vào danh sách loại trừ (để tự động bỏ qua trong các đợt đồng bộ sau)
-                    </Typography>
-                  }
-                />
-              </Box>
-            </Stack>
+              <label className="flex items-start gap-2.5 pt-1">
+                <Checkbox checked={previewAutoIgnoreUnselected} onCheckedChange={(v) => setPreviewAutoIgnoreUnselected(v === true)} className="mt-0.5" />
+                <span className="text-sm text-slate-600">
+                  Đưa các khóa học <strong>không được chọn</strong> vào danh sách loại trừ (để tự động bỏ qua trong các đợt đồng bộ sau)
+                </span>
+              </label>
+            </div>
           )}
-        </DialogContent>
 
-        <DialogActions sx={{ px: 3, py: 2, bgcolor: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
-          <Stack direction="row" spacing={1.5} alignItems="center" sx={{ width: '100%', justifyContent: 'space-between' }}>
-            <Typography variant="body2" fontWeight={600} sx={{ color: '#334155' }}>
-              Đã chọn: <strong style={{ color: '#2563eb' }}>{previewSelectedIds.size}</strong> khóa học
-            </Typography>
-            <Stack direction="row" spacing={1}>
-              <Button onClick={() => setOpenPreviewDialog(false)} disabled={executingSync} sx={{ textTransform: 'none' }}>
+          <DialogFooter className="flex-row items-center justify-between sm:justify-between">
+            <p className="text-sm font-semibold text-slate-700">
+              Đã chọn: <strong className="text-primary">{previewSelectedIds.size}</strong> khóa học
+            </p>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setOpenPreviewDialog(false)} disabled={executingSync}>
                 Hủy
               </Button>
-              <Button
-                variant="contained"
-                startIcon={executingSync ? <CircularProgress size={16} color="inherit" /> : <SyncIcon />}
-                onClick={handleExecuteSelectiveSync}
-                disabled={executingSync || previewSelectedIds.size === 0}
-                sx={{
-                  bgcolor: '#2563eb',
-                  '&:hover': { bgcolor: '#1d4ed8' },
-                  fontWeight: 700,
-                  textTransform: 'none',
-                  px: 2.5,
-                  borderRadius: 2
-                }}
-              >
+              <Button onClick={handleExecuteSelectiveSync} disabled={executingSync || previewSelectedIds.size === 0} className="font-bold">
+                {executingSync ? <Loader2 className="size-4 animate-spin" /> : <RotateCw className="size-4" />}
                 {executingSync ? 'Đang nạp dữ liệu...' : `Bắt đầu đồng bộ ${previewSelectedIds.size} khóa học`}
               </Button>
-            </Stack>
-          </Stack>
-        </DialogActions>
+            </div>
+          </DialogFooter>
+        </DialogContent>
       </Dialog>
 
       {/* DIALOG: XÁC NHẬN XÓA 1 KHÓA HỌC */}
-      <Dialog open={Boolean(deleteTarget)} onClose={() => !deleting && setDeleteTarget(null)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700, color: '#dc2626', display: 'flex', alignItems: 'center', gap: 1 }}>
-          <WarningAmberIcon sx={{ color: '#dc2626' }} />
-          Xóa khóa học khỏi hệ thống
-        </DialogTitle>
-        <DialogContent dividers>
+      <Dialog open={Boolean(deleteTarget)} onOpenChange={(open) => !open && !deleting && setDeleteTarget(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <TriangleAlert className="size-5" />
+              Xóa khóa học khỏi hệ thống
+            </DialogTitle>
+          </DialogHeader>
           {deleteTarget && (
-            <Stack spacing={2} sx={{ pt: 1 }}>
-              <Typography variant="body2" sx={{ color: '#334155' }}>
+            <div className="flex flex-col gap-3">
+              <p className="text-sm text-slate-700">
                 Bạn có chắc chắn muốn xóa khóa học <strong>{deleteTarget.name}</strong> không?
-              </Typography>
-              <Typography variant="caption" sx={{ color: '#64748b', display: 'block' }}>
-                Toàn bộ dữ liệu điểm số, bài nộp và liên kết của khóa học này trong hệ thống sẽ được dọn sạch.
-              </Typography>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={deleteAddToIgnore}
-                    onChange={(e) => setDeleteAddToIgnore(e.target.checked)}
-                    size="small"
-                    color="primary"
-                  />
-                }
-                label={
-                  <Typography variant="body2" sx={{ color: '#1e293b', fontSize: '0.8125rem' }}>
-                    Đưa vào danh sách loại trừ (để không tự động nạp lại khi đồng bộ Google Classroom)
-                  </Typography>
-                }
-              />
-            </Stack>
+              </p>
+              <p className="text-xs text-slate-500">Toàn bộ dữ liệu điểm số, bài nộp và liên kết của khóa học này trong hệ thống sẽ được dọn sạch.</p>
+              <label className="flex items-start gap-2.5">
+                <Checkbox checked={deleteAddToIgnore} onCheckedChange={(v) => setDeleteAddToIgnore(v === true)} className="mt-0.5" />
+                <span className="text-sm text-slate-800">Đưa vào danh sách loại trừ (để không tự động nạp lại khi đồng bộ Google Classroom)</span>
+              </label>
+            </div>
           )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleting}>
+              Hủy
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteCourse} disabled={deleting}>
+              {deleting && <Loader2 className="size-4 animate-spin" />}
+              {deleting ? 'Đang xử lý...' : 'Xác nhận xóa'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={() => setDeleteTarget(null)} disabled={deleting} sx={{ textTransform: 'none' }}>
-            Hủy
-          </Button>
-          <Button
-            variant="contained"
-            color="error"
-            onClick={handleDeleteCourse}
-            disabled={deleting}
-            sx={{ fontWeight: 700, textTransform: 'none', px: 2.5 }}
-          >
-            {deleting ? <CircularProgress size={18} color="inherit" /> : 'Xác nhận xóa'}
-          </Button>
-        </DialogActions>
       </Dialog>
 
       {/* DIALOG: XÓA HÀNG LOẠT KHÓA HỌC */}
-      <Dialog open={openBatchDeleteDialog} onClose={() => !batchDeleting && setOpenBatchDeleteDialog(false)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700, color: '#dc2626', display: 'flex', alignItems: 'center', gap: 1 }}>
-          <DeleteIcon sx={{ color: '#dc2626' }} />
-          Xóa {selectedTableIds.size} khóa học đã chọn
-        </DialogTitle>
-        <DialogContent dividers>
-          <Stack spacing={2} sx={{ pt: 1 }}>
-            <Typography variant="body2" sx={{ color: '#334155' }}>
+      <Dialog open={openBatchDeleteDialog} onOpenChange={(open) => !open && !batchDeleting && setOpenBatchDeleteDialog(false)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <Trash2 className="size-5" />
+              Xóa {selectedTableIds.size} khóa học đã chọn
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-slate-700">
               Bạn đang yêu cầu xóa <strong>{selectedTableIds.size}</strong> khóa học cùng lúc khỏi hệ thống.
-            </Typography>
-            <Typography variant="caption" sx={{ color: '#64748b', display: 'block' }}>
-              Hành động này sẽ xóa vĩnh viễn dữ liệu bài tập và bài nộp liên quan của các khóa học được chọn.
-            </Typography>
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={batchDeleteAddToIgnore}
-                  onChange={(e) => setBatchDeleteAddToIgnore(e.target.checked)}
-                  size="small"
-                  color="primary"
-                />
-              }
-              label={
-                <Typography variant="body2" sx={{ color: '#1e293b', fontSize: '0.8125rem' }}>
-                  Đưa các khóa học này vào danh sách loại trừ (không tự động kéo lại)
-                </Typography>
-              }
-            />
-          </Stack>
+            </p>
+            <p className="text-xs text-slate-500">Hành động này sẽ xóa vĩnh viễn dữ liệu bài tập và bài nộp liên quan của các khóa học được chọn.</p>
+            <label className="flex items-start gap-2.5">
+              <Checkbox checked={batchDeleteAddToIgnore} onCheckedChange={(v) => setBatchDeleteAddToIgnore(v === true)} className="mt-0.5" />
+              <span className="text-sm text-slate-800">Đưa các khóa học này vào danh sách loại trừ (không tự động kéo lại)</span>
+            </label>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenBatchDeleteDialog(false)} disabled={batchDeleting}>
+              Hủy
+            </Button>
+            <Button variant="destructive" onClick={handleBatchDelete} disabled={batchDeleting}>
+              {batchDeleting && <Loader2 className="size-4 animate-spin" />}
+              {batchDeleting ? 'Đang xử lý...' : 'Xác nhận xóa tất cả'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={() => setOpenBatchDeleteDialog(false)} disabled={batchDeleting} sx={{ textTransform: 'none' }}>
-            Hủy
-          </Button>
-          <Button
-            variant="contained"
-            color="error"
-            onClick={handleBatchDelete}
-            disabled={batchDeleting}
-            sx={{ fontWeight: 700, textTransform: 'none', px: 2.5 }}
-          >
-            {batchDeleting ? <CircularProgress size={18} color="inherit" /> : 'Xác nhận xóa tất cả'}
-          </Button>
-        </DialogActions>
       </Dialog>
 
       {/* Mapping Dialog */}
-      <Dialog
-        open={Boolean(mapTarget)}
-        onClose={() => setMapTarget(null)}
-        maxWidth="xs"
-        fullWidth
-        PaperProps={{ sx: { borderRadius: '12px' } }}
-      >
-        <DialogTitle sx={{ fontWeight: 700, fontSize: '1.125rem', color: '#0f172a' }}>
-          Mapping Khóa Học Với Lớp Hành Chính
-        </DialogTitle>
-        <DialogContent dividers sx={{ borderColor: '#e2e8f0' }}>
+      <Dialog open={Boolean(mapTarget)} onOpenChange={(open) => !open && setMapTarget(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Mapping Khóa Học Với Lớp Hành Chính</DialogTitle>
+          </DialogHeader>
           {mapTarget && (
-            <Stack spacing={2} sx={{ pt: 1 }}>
-              <Typography variant="body2" color="text.secondary">
-                Khóa học: <strong style={{ color: '#0f172a' }}>{mapTarget.name}</strong>
-              </Typography>
-              <TextField
-                label="Mã Lớp (Class ID)"
-                placeholder="Ví dụ: 9A1, 8A2, 7A3..."
-                fullWidth
-                size="small"
-                value={classId}
-                onChange={(e) => setClassId(e.target.value)}
-              />
-              <TextField
-                label="Tên Lớp hiển thị"
-                placeholder="Ví dụ: Lớp 9A1, Lớp 8A2..."
-                fullWidth
-                size="small"
-                value={className}
-                onChange={(e) => setClassName(e.target.value)}
-              />
-            </Stack>
+            <div className="flex flex-col gap-3">
+              <p className="text-sm text-slate-500">
+                Khóa học: <strong className="text-[#0f172a]">{mapTarget.name}</strong>
+              </p>
+              <div>
+                <Label htmlFor="map-class-id" className="mb-1.5 block">
+                  Mã Lớp (Class ID)
+                </Label>
+                <Input id="map-class-id" placeholder="Ví dụ: 9A1, 8A2, 7A3..." value={classId} onChange={(e) => setClassId(e.target.value)} />
+              </div>
+              <div>
+                <Label htmlFor="map-class-name" className="mb-1.5 block">
+                  Tên Lớp hiển thị
+                </Label>
+                <Input id="map-class-name" placeholder="Ví dụ: Lớp 9A1, Lớp 8A2..." value={className} onChange={(e) => setClassName(e.target.value)} />
+              </div>
+            </div>
           )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMapTarget(null)}>
+              Hủy
+            </Button>
+            <Button onClick={handleSaveMapping}>Lưu Ánh Xạ</Button>
+          </DialogFooter>
         </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={() => setMapTarget(null)} sx={{ textTransform: 'none', color: '#64748b' }}>
-            Hủy
-          </Button>
-          <Button
-            variant="contained"
-            onClick={handleSaveMapping}
-            sx={{
-              bgcolor: '#2563eb',
-              color: '#ffffff',
-              fontWeight: 600,
-              textTransform: 'none',
-              borderRadius: '8px',
-              '&:hover': { bgcolor: '#1d4ed8' }
-            }}
-          >
-            Lưu Ánh Xạ
-          </Button>
-        </DialogActions>
       </Dialog>
     </>
   );
