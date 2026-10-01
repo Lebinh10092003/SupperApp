@@ -1,40 +1,22 @@
 import { useEffect, useState, useMemo } from 'react';
-import {
-  Button,
-  Card,
-  CardContent,
-  Stack,
-  Typography,
-  Box,
-  Chip,
-  Tabs,
-  Tab,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  Alert,
-  Grid,
-  Slider,
-  Switch,
-  FormControlLabel
-} from '@mui/material';
-import NotificationsActiveIcon from '@mui/icons-material/NotificationsActiveRounded';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutlineRounded';
-import DoneAllIcon from '@mui/icons-material/DoneAllRounded';
-import ErrorOutlineIcon from '@mui/icons-material/ErrorOutlineRounded';
-import WarningAmberIcon from '@mui/icons-material/WarningAmberRounded';
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import TuneIcon from '@mui/icons-material/TuneRounded';
-import PlayArrowIcon from '@mui/icons-material/PlayArrowRounded';
+import { BellRing, CheckCircle2, CheckCheck, CircleAlert, TriangleAlert, Info, SlidersHorizontal, Play } from 'lucide-react';
 
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Slider } from '@/components/ui/slider';
+import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
 
 export default function AlertsPage() {
   const [items, setItems] = useState<any[]>([]);
-  const [tab, setTab] = useState(0);
+  const [tab, setTab] = useState('0');
   const [resolveTarget, setResolveTarget] = useState<any>(null);
   const [resolutionText, setResolutionText] = useState('Đã kiểm tra và xử lý cùng GVCN');
   const [toast, setToast] = useState('');
@@ -106,45 +88,21 @@ export default function AlertsPage() {
   };
 
   const filtered = useMemo(() => {
-    if (tab === 0) return items.filter((x) => !x.resolved);
-    if (tab === 1) return items.filter((x) => x.resolved);
+    if (tab === '0') return items.filter((x) => !x.resolved);
+    if (tab === '1') return items.filter((x) => x.resolved);
     return items;
   }, [items, tab]);
 
   const severityProps = (s: string) => {
     switch (s?.toUpperCase()) {
       case 'CRITICAL':
-        return {
-          icon: <ErrorOutlineIcon fontSize="small" />,
-          color: '#ef4444',
-          bgcolor: '#fef2f2',
-          border: '1px solid #fecaca',
-          label: 'Khẩn cấp'
-        };
+        return { icon: CircleAlert, className: 'text-red-500 bg-red-50 border-red-200', borderL: 'border-l-red-500', label: 'Khẩn cấp' };
       case 'HIGH':
-        return {
-          icon: <ErrorOutlineIcon fontSize="small" />,
-          color: '#f97316',
-          bgcolor: '#fff7ed',
-          border: '1px solid #fed7aa',
-          label: 'Mức cao'
-        };
+        return { icon: CircleAlert, className: 'text-orange-500 bg-orange-50 border-orange-200', borderL: 'border-l-orange-500', label: 'Mức cao' };
       case 'WARNING':
-        return {
-          icon: <WarningAmberIcon fontSize="small" />,
-          color: '#f59e0b',
-          bgcolor: '#fffbeb',
-          border: '1px solid #fde68a',
-          label: 'Cảnh báo'
-        };
+        return { icon: TriangleAlert, className: 'text-amber-500 bg-amber-50 border-amber-200', borderL: 'border-l-amber-500', label: 'Cảnh báo' };
       default:
-        return {
-          icon: <InfoOutlinedIcon fontSize="small" />,
-          color: '#2563eb',
-          bgcolor: '#eff6ff',
-          border: '1px solid #bfdbfe',
-          label: 'Thông tin'
-        };
+        return { icon: Info, className: 'text-primary bg-secondary border-blue-200', borderL: 'border-l-primary', label: 'Thông tin' };
     }
   };
 
@@ -155,323 +113,203 @@ export default function AlertsPage() {
       <PageHeader
         title="Trung tâm cảnh báo sớm"
         action={
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <Button
-              variant="outlined"
-              startIcon={<PlayArrowIcon />}
-              onClick={handleTriggerEvaluate}
-              disabled={evaluating}
-              sx={{ fontWeight: 600, fontSize: '0.8125rem', borderRadius: 2 }}
-            >
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleTriggerEvaluate} disabled={evaluating} className="font-semibold">
+              <Play className="size-4" />
               Chạy quét cảnh báo
             </Button>
-            <Button
-              variant="contained"
-              startIcon={<TuneIcon />}
-              onClick={() => setRulesOpen(true)}
-              sx={{ bgcolor: '#2563eb', color: '#fff', '&:hover': { bgcolor: '#1d4ed8' }, fontWeight: 700, fontSize: '0.8125rem', borderRadius: 2 }}
-            >
+            <Button onClick={() => setRulesOpen(true)} className="font-bold">
+              <SlidersHorizontal className="size-4" />
               Cấu hình quy tắc động
             </Button>
-          </Box>
+          </div>
         }
       />
 
       {toast && (
-        <Alert severity="success" onClose={() => setToast('')} sx={{ mb: 2.5, borderRadius: 2 }}>
-          {toast}
+        <Alert className="mb-5 border-emerald-200 bg-emerald-50">
+          <AlertDescription className="text-emerald-700">{toast}</AlertDescription>
         </Alert>
       )}
 
       {/* Segmented Tabs */}
-      <Box
-        sx={{
-          display: 'inline-flex',
-          bgcolor: '#f1f5f9',
-          p: '4px',
-          borderRadius: 2,
-          border: '1px solid #e2e8f0',
-          mb: 3
-        }}
-      >
-        <Tabs
-          value={tab}
-          onChange={(_, v) => setTab(v)}
-          TabIndicatorProps={{ style: { display: 'none' } }}
-          sx={{
-            minHeight: 34,
-            '& .MuiTab-root': {
-              minHeight: 34,
-              py: 0.5,
-              px: 2,
-              borderRadius: 1.5,
-              textTransform: 'none',
-              fontWeight: 600,
-              fontSize: '0.8125rem',
-              color: '#64748b',
-              transition: 'all 0.15s ease',
-              '&.Mui-selected': {
-                bgcolor: '#ffffff',
-                color: '#2563eb',
-                fontWeight: 700,
-                boxShadow: '0 1px 3px rgba(15, 23, 42, 0.08)'
-              }
-            }
-          }}
-        >
-          <Tab
-            label={
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <span>Cần xử lý</span>
-                {openCount > 0 && (
-                  <Chip
-                    size="small"
-                    label={openCount}
-                    sx={{ height: 18, bgcolor: '#ef4444', color: '#fff', fontWeight: 700, fontSize: '0.65rem' }}
-                  />
-                )}
-              </Box>
-            }
-          />
-          <Tab label="Đã giải quyết" />
-          <Tab label="Tất cả cảnh báo" />
-        </Tabs>
-      </Box>
+      <Tabs value={tab} onValueChange={setTab} className="mb-6 w-fit">
+        <TabsList>
+          <TabsTrigger value="0" className="gap-1.5 font-semibold">
+            Cần xử lý
+            {openCount > 0 && <Badge className="h-[18px] bg-red-500 px-1.5 text-[0.65rem] font-bold text-white">{openCount}</Badge>}
+          </TabsTrigger>
+          <TabsTrigger value="1" className="font-semibold">
+            Đã giải quyết
+          </TabsTrigger>
+          <TabsTrigger value="2" className="font-semibold">
+            Tất cả cảnh báo
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       {/* Alert List */}
-      <Stack spacing={2}>
+      <div className="flex flex-col gap-4">
         {filtered.length === 0 ? (
-          <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none', bgcolor: '#ffffff' }}>
-            <CardContent sx={{ py: 6, textAlign: 'center' }}>
-              <CheckCircleOutlineIcon sx={{ fontSize: '3.2rem', color: '#10b981', mb: 1 }} />
-              <Typography variant="h6" fontWeight={700} sx={{ color: '#0f172a' }}>
-                Không có cảnh báo nào đang mở
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Toàn bộ lớp học số, tiến độ giao nộp bài và chuyên cần của trường đang ở ngưỡng an toàn
-              </Typography>
-            </CardContent>
-          </Card>
+          <div className="rounded-xl border border-slate-200 bg-white py-12 text-center">
+            <CheckCircle2 className="mx-auto mb-2 size-[3.2rem] text-emerald-500" />
+            <p className="font-bold text-[#0f172a]">Không có cảnh báo nào đang mở</p>
+            <p className="text-sm text-slate-500">Toàn bộ lớp học số, tiến độ giao nộp bài và chuyên cần của trường đang ở ngưỡng an toàn</p>
+          </div>
         ) : (
           filtered.map((x) => {
             const sp = severityProps(x.severity);
+            const SevIcon = sp.icon;
             return (
-              <Card
+              <div
                 key={x.id}
-                sx={{
-                  borderLeft: `4px solid ${sp.color}`,
-                  borderRadius: 3,
-                  border: '1px solid #e2e8f0',
-                  boxShadow: '0 1px 3px 0 rgba(15, 23, 42, 0.04)',
-                  bgcolor: '#ffffff'
-                }}
+                className={cn('rounded-xl border border-slate-200 bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)] border-l-4', sp.borderL)}
               >
-                <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      flexDirection: { xs: 'column', sm: 'row' },
-                      justifyContent: 'space-between',
-                      alignItems: { xs: 'flex-start', sm: 'center' },
-                      gap: 1.5,
-                      mb: 1.5
-                    }}
-                  >
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                      <Chip
-                        icon={sp.icon}
-                        label={sp.label}
-                        size="small"
-                        sx={{
-                          bgcolor: sp.bgcolor,
-                          color: sp.color,
-                          border: sp.border,
-                          fontWeight: 700,
-                          fontSize: '0.75rem',
-                          height: 24
-                        }}
-                      />
-                      <Chip
-                        label={x.targetName || x.targetId || 'Lớp học'}
-                        size="small"
-                        sx={{
-                          bgcolor: '#f8fafc',
-                          color: '#334155',
-                          border: '1px solid #e2e8f0',
-                          fontWeight: 700,
-                          fontSize: '0.75rem',
-                          height: 24
-                        }}
-                      />
-                      <Typography variant="subtitle2" fontWeight={700} color="#0f172a">
-                        {x.targetType === 'STUDENT' ? 'Cảnh báo học sinh' : x.targetType === 'CLASS' ? 'Cảnh báo tập thể lớp' : 'Cảnh báo Classroom'}
-                      </Typography>
-                    </Box>
+                <div className="mb-3 flex flex-col items-start justify-between gap-2.5 sm:flex-row sm:items-center">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="outline" className={cn('h-6 gap-1 font-bold', sp.className)}>
+                      <SevIcon className="size-3.5" />
+                      {sp.label}
+                    </Badge>
+                    <Badge variant="outline" className="h-6 border-slate-200 bg-slate-50 font-bold text-slate-700">
+                      {x.targetName || x.targetId || 'Lớp học'}
+                    </Badge>
+                    <p className="text-sm font-bold text-[#0f172a]">
+                      {x.targetType === 'STUDENT' ? 'Cảnh báo học sinh' : x.targetType === 'CLASS' ? 'Cảnh báo tập thể lớp' : 'Cảnh báo Classroom'}
+                    </p>
+                  </div>
 
-                    {!x.resolved ? (
-                      <Button
-                        size="small"
-                        variant="contained"
-                        startIcon={<DoneAllIcon sx={{ fontSize: 16 }} />}
-                        onClick={() => {
-                          setResolveTarget(x);
-                          setResolutionText('Đã chỉ đạo giáo viên bộ môn và chủ nhiệm đôn đốc');
-                        }}
-                        sx={{
-                          bgcolor: '#2563eb',
-                          color: '#ffffff',
-                          '&:hover': { bgcolor: '#1d4ed8' },
-                          fontWeight: 700,
-                          fontSize: '0.75rem',
-                          borderRadius: 2,
-                          textTransform: 'none',
-                          py: 0.6,
-                          px: 1.75
-                        }}
-                      >
-                        Tiếp nhận & Xử lý
-                      </Button>
-                    ) : (
-                      <Chip
-                        icon={<CheckCircleOutlineIcon sx={{ fontSize: '14px !important' }} />}
-                        label="Đã giải quyết"
-                        size="small"
-                        sx={{
-                          bgcolor: '#ecfdf5',
-                          color: '#059669',
-                          border: '1px solid #a7f3d0',
-                          fontWeight: 700,
-                          fontSize: '0.75rem',
-                          height: 24
-                        }}
-                      />
-                    )}
-                  </Box>
-
-                  {/* Lý do cảnh báo */}
-                  <Typography variant="body2" fontWeight={600} color="#0f172a" sx={{ mb: 1.5 }}>
-                    {x.reason || x.message}
-                  </Typography>
-
-                  {/* Bằng chứng & Số liệu chứng minh */}
-                  {x.evidence && (
-                    <Box sx={{ bgcolor: '#f8fafc', p: 2, borderRadius: 2, border: '1px solid #e2e8f0', mb: 1.5 }}>
-                      <Typography variant="caption" fontWeight={700} color="#64748b" sx={{ display: 'block', mb: 0.75, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-                        Số liệu chứng minh (Evidence)
-                      </Typography>
-                      <Grid container spacing={2}>
-                        <Grid size={{ xs: 6, sm: 3 }}>
-                          <Typography variant="caption" color="text.secondary">Chỉ số đo lường:</Typography>
-                          <Typography variant="body2" fontWeight={600} color="#0f172a">{x.evidence.metricName}</Typography>
-                        </Grid>
-                        <Grid size={{ xs: 6, sm: 3 }}>
-                          <Typography variant="caption" color="text.secondary">Giá trị thực tế:</Typography>
-                          <Typography variant="body2" fontWeight={700} color="error.main">{x.evidence.actualValue}</Typography>
-                        </Grid>
-                        <Grid size={{ xs: 12, sm: 6 }}>
-                          <Typography variant="caption" color="text.secondary">Chi tiết:</Typography>
-                          <Typography variant="body2" color="#334155">{x.evidence.details}</Typography>
-                        </Grid>
-                      </Grid>
-                    </Box>
+                  {!x.resolved ? (
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setResolveTarget(x);
+                        setResolutionText('Đã chỉ đạo giáo viên bộ môn và chủ nhiệm đôn đốc');
+                      }}
+                      className="font-bold"
+                    >
+                      <CheckCheck className="size-4" />
+                      Tiếp nhận & Xử lý
+                    </Button>
+                  ) : (
+                    <Badge variant="outline" className="h-6 gap-1 border-emerald-200 bg-emerald-50 font-bold text-emerald-600">
+                      <CheckCircle2 className="size-3.5" />
+                      Đã giải quyết
+                    </Badge>
                   )}
+                </div>
 
-                  {x.principalNotes && (
-                    <Box sx={{ p: 1.5, bgcolor: '#f0fdf4', borderRadius: 2, border: '1px solid #bbf7d0' }}>
-                      <Typography variant="caption" color="#166534">
-                        <strong>Ghi chú Ban Giám hiệu:</strong> {x.principalNotes} ({x.resolvedBy || 'Hiệu trưởng'})
-                      </Typography>
-                    </Box>
-                  )}
-                </CardContent>
-              </Card>
+                {/* Lý do cảnh báo */}
+                <p className="mb-3 text-sm font-semibold text-[#0f172a]">{x.reason || x.message}</p>
+
+                {/* Bằng chứng & Số liệu chứng minh */}
+                {x.evidence && (
+                  <div className="mb-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
+                    <p className="mb-2 text-xs font-bold tracking-wide text-slate-500 uppercase">Số liệu chứng minh (Evidence)</p>
+                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                      <div>
+                        <p className="text-xs text-slate-500">Chỉ số đo lường:</p>
+                        <p className="text-sm font-semibold text-[#0f172a]">{x.evidence.metricName}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500">Giá trị thực tế:</p>
+                        <p className="text-sm font-bold text-red-600">{x.evidence.actualValue}</p>
+                      </div>
+                      <div className="col-span-2">
+                        <p className="text-xs text-slate-500">Chi tiết:</p>
+                        <p className="text-sm text-slate-700">{x.evidence.details}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {x.principalNotes && (
+                  <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+                    <p className="text-xs text-emerald-800">
+                      <strong>Ghi chú Ban Giám hiệu:</strong> {x.principalNotes} ({x.resolvedBy || 'Hiệu trưởng'})
+                    </p>
+                  </div>
+                )}
+              </div>
             );
           })
         )}
-      </Stack>
+      </div>
 
       {/* Dialog Xử lý Cảnh báo */}
-      <Dialog open={Boolean(resolveTarget)} onClose={() => setResolveTarget(null)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700, fontSize: '1.125rem' }}>Xử Lý & Đóng Cảnh Báo Điều Hành</DialogTitle>
-        <DialogContent dividers sx={{ borderColor: '#e2e8f0' }}>
+      <Dialog open={Boolean(resolveTarget)} onOpenChange={(open) => !open && setResolveTarget(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Xử Lý & Đóng Cảnh Báo Điều Hành</DialogTitle>
+          </DialogHeader>
           {resolveTarget && (
-            <Stack spacing={2} sx={{ pt: 1 }}>
-              <Typography variant="body2">
+            <div className="flex flex-col gap-3">
+              <p className="text-sm">
                 Đối tượng: <strong>{resolveTarget.targetName}</strong>
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Nguyên nhân: {resolveTarget.reason}
-              </Typography>
-              <TextField
-                label="Biện pháp xử lý / Ghi chú của Ban Giám hiệu"
-                multiline
-                rows={3}
-                fullWidth
-                value={resolutionText}
-                onChange={(e) => setResolutionText(e.target.value)}
-              />
-            </Stack>
+              </p>
+              <p className="text-sm text-slate-500">Nguyên nhân: {resolveTarget.reason}</p>
+              <div>
+                <Label htmlFor="resolution-text" className="mb-1.5 block">
+                  Biện pháp xử lý / Ghi chú của Ban Giám hiệu
+                </Label>
+                <Textarea id="resolution-text" rows={3} value={resolutionText} onChange={(e) => setResolutionText(e.target.value)} />
+              </div>
+            </div>
           )}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setResolveTarget(null)} className="text-slate-500">
+              Hủy
+            </Button>
+            <Button onClick={handleResolve} className="font-bold">
+              Lưu & Đóng cảnh báo
+            </Button>
+          </DialogFooter>
         </DialogContent>
-        <DialogActions sx={{ p: 2, borderTop: '1px solid #e2e8f0' }}>
-          <Button onClick={() => setResolveTarget(null)} sx={{ textTransform: 'none', color: '#64748b' }}>Hủy</Button>
-          <Button variant="contained" onClick={handleResolve} sx={{ bgcolor: '#2563eb', color: '#ffffff', '&:hover': { bgcolor: '#1d4ed8' }, textTransform: 'none', fontWeight: 700, borderRadius: 2 }}>
-            Lưu & Đóng cảnh báo
-          </Button>
-        </DialogActions>
       </Dialog>
 
       {/* Dialog Cấu hình Dynamic Rules */}
-      <Dialog open={rulesOpen} onClose={() => setRulesOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700, fontSize: '1.125rem' }}>Cấu Hình Quy Tắc Cảnh Báo Sớm (Dynamic Rules)</DialogTitle>
-        <DialogContent dividers sx={{ borderColor: '#e2e8f0' }}>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+      <Dialog open={rulesOpen} onOpenChange={setRulesOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Cấu Hình Quy Tắc Cảnh Báo Sớm (Dynamic Rules)</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-slate-500">
             Ban Giám hiệu có thể điều chỉnh ngưỡng phát hiện tự động để cảnh báo phù hợp với quy mô và tiêu chuẩn thực tế của trường:
-          </Typography>
+          </p>
 
-          <Stack spacing={2.5}>
+          <div className="flex flex-col gap-4">
             {rules.map((rule) => (
-              <Box key={rule.id} sx={{ p: 2, border: '1px solid #e2e8f0', borderRadius: 2, bgcolor: '#f8fafc' }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                  <Typography variant="subtitle2" fontWeight={700} color="#0f172a">
-                    {rule.name}
-                  </Typography>
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={rule.enabled}
-                        onChange={(e) => handleUpdateRule(rule.id, rule.threshold, e.target.checked)}
-                        color="primary"
-                      />
-                    }
-                    label={<Typography sx={{ fontSize: '0.8125rem', color: '#64748b', fontWeight: 600 }}>{rule.enabled ? 'Đang bật' : 'Tạm tắt'}</Typography>}
-                  />
-                </Box>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
-                  {rule.description}
-                </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                  <Typography variant="body2" fontWeight={700} sx={{ minWidth: 140, color: '#0f172a' }}>
+              <div key={rule.id} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <div className="mb-1 flex items-center justify-between">
+                  <p className="text-sm font-bold text-[#0f172a]">{rule.name}</p>
+                  <label className="flex items-center gap-2">
+                    <span className="text-[0.8125rem] font-semibold text-slate-500">{rule.enabled ? 'Đang bật' : 'Tạm tắt'}</span>
+                    <Switch checked={rule.enabled} onCheckedChange={(checked) => handleUpdateRule(rule.id, rule.threshold, checked)} />
+                  </label>
+                </div>
+                <p className="mb-3 text-xs text-slate-500">{rule.description}</p>
+                <div className="flex items-center gap-4">
+                  <p className="min-w-36 text-sm font-bold text-[#0f172a]">
                     Ngưỡng: {rule.threshold} {rule.unit}
-                  </Typography>
+                  </p>
                   <Slider
-                    value={rule.threshold}
+                    value={[rule.threshold]}
                     min={1}
                     max={rule.unit === '%' ? 100 : 30}
                     disabled={!rule.enabled}
-                    onChange={(_, v) => handleUpdateRule(rule.id, v as number, rule.enabled)}
-                    sx={{ color: '#2563eb' }}
+                    onValueChange={([v]) => handleUpdateRule(rule.id, v ?? rule.threshold, rule.enabled)}
                   />
-                </Box>
-              </Box>
+                </div>
+              </div>
             ))}
-          </Stack>
+          </div>
+
+          <DialogFooter>
+            <Button onClick={() => setRulesOpen(false)} className="font-bold">
+              Hoàn tất cấu hình
+            </Button>
+          </DialogFooter>
         </DialogContent>
-        <DialogActions sx={{ p: 2, borderTop: '1px solid #e2e8f0' }}>
-          <Button variant="contained" onClick={() => setRulesOpen(false)} sx={{ bgcolor: '#2563eb', color: '#ffffff', '&:hover': { bgcolor: '#1d4ed8' }, textTransform: 'none', fontWeight: 700, borderRadius: 2 }}>
-            Hoàn tất cấu hình
-          </Button>
-        </DialogActions>
       </Dialog>
     </>
   );

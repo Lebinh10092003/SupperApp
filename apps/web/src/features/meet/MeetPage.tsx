@@ -1,5 +1,6 @@
-import { Box, Chip, Typography } from '@mui/material';
-import VideocamIcon from '@mui/icons-material/VideocamRounded';
+import { Video } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import { ApiTablePage } from '../../components/ApiTablePage';
 
 export default function MeetPage() {
@@ -17,21 +18,15 @@ export default function MeetPage() {
           key: 'className',
           label: 'Lớp học',
           render: (val) => (
-            <Chip
-              label={val || '—'}
-              size="small"
-              sx={{ bgcolor: '#eff6ff', color: '#1d4ed8', fontWeight: 700 }}
-            />
+            <Badge variant="outline" className="border-transparent bg-secondary font-bold text-[#1d4ed8]">
+              {val || '—'}
+            </Badge>
           )
         },
         {
           key: 'subject',
           label: 'Môn học',
-          render: (val) => (
-            <Typography variant="body2" fontWeight={600} sx={{ color: '#2563eb' }}>
-              {val || 'Chưa phân môn'}
-            </Typography>
-          )
+          render: (val) => <span className="text-sm font-semibold text-primary">{val || 'Chưa phân môn'}</span>
         },
         {
           key: 'teacherEmail',
@@ -42,24 +37,18 @@ export default function MeetPage() {
           key: 'onlineStudents',
           label: 'Online',
           render: (val, row) => (
-            <Typography
-              variant="body2"
-              fontWeight={700}
-              sx={{ color: row?.status === 'LIVE' ? '#dc2626' : '#64748b' }}
-            >
+            <span className={cn('text-sm font-bold', row?.status === 'LIVE' ? 'text-red-600' : 'text-slate-500')}>
               {val !== undefined && val !== null ? `${val} HS` : '0 HS'}
-            </Typography>
+            </span>
           )
         },
         {
           key: 'attendanceRate',
           label: 'Chuyên cần %',
           render: (val) => (
-            <Chip
-              label={val !== undefined && val !== null ? `${val}%` : '—'}
-              size="small"
-              sx={{ bgcolor: '#ecfdf5', color: '#059669', fontWeight: 800 }}
-            />
+            <Badge variant="outline" className="border-transparent bg-emerald-50 font-extrabold text-emerald-600">
+              {val !== undefined && val !== null ? `${val}%` : '—'}
+            </Badge>
           )
         },
         {
@@ -68,16 +57,13 @@ export default function MeetPage() {
           render: (val) => {
             const isLive = String(val).toUpperCase() === 'LIVE';
             return (
-              <Chip
-                icon={<VideocamIcon sx={{ fontSize: '14px !important' }} />}
-                label={isLive ? 'Đang diễn ra' : 'Đã kết thúc'}
-                size="small"
-                sx={{
-                  bgcolor: isLive ? '#fee2e2' : '#f1f5f9',
-                  color: isLive ? '#dc2626' : '#64748b',
-                  fontWeight: 800
-                }}
-              />
+              <Badge
+                variant="outline"
+                className={cn('gap-1 border-transparent font-extrabold', isLive ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-500')}
+              >
+                <Video className="size-3.5" />
+                {isLive ? 'Đang diễn ra' : 'Đã kết thúc'}
+              </Badge>
             );
           }
         }
