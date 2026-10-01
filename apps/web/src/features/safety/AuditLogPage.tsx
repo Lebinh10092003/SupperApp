@@ -1,26 +1,13 @@
 import { useState } from 'react';
-import {
-  Alert,
-  Box,
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Paper,
-  Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TextField,
-  Typography
-} from '@mui/material';
-import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded';
+import { History } from 'lucide-react';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 interface AuditLogEntry {
   logId: string;
@@ -138,49 +125,54 @@ export default function AuditLogPage() {
 
   return (
     <>
-      <PageHeader
-        title="Nhật ký kiểm toán"
-        icon={<HistoryRoundedIcon />}
-      />
+      <PageHeader title="Nhật ký kiểm toán" icon={<History />} />
 
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2 }}>
-        <TextField
-          label="Mã hồ sơ/đối tượng (objectId, tuỳ chọn)"
-          value={objectId}
-          onChange={(e) => setObjectId(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && load()}
-          placeholder="VD: SC.2609.0001 — để trống xem gần đây nhất"
-          sx={{ minWidth: 320 }}
-        />
-        <Button variant="contained" onClick={load} disabled={loading} sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}>
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+        <div className="min-w-80">
+          <Label htmlFor="audit-object-id" className="mb-1.5 block">
+            Mã hồ sơ/đối tượng (objectId, tuỳ chọn)
+          </Label>
+          <Input
+            id="audit-object-id"
+            value={objectId}
+            onChange={(e) => setObjectId(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && load()}
+            placeholder="VD: SC.2609.0001 — để trống xem gần đây nhất"
+          />
+        </div>
+        <Button onClick={load} disabled={loading} className="font-bold">
           Tra cứu
         </Button>
-      </Stack>
+      </div>
 
-      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      {error && (
+        <Alert className="mb-4 border-red-200 bg-red-50">
+          <AlertDescription className="text-red-700">{error}</AlertDescription>
+        </Alert>
+      )}
 
       {searched && (
-        <TableContainer component={Paper} sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none' }}>
+        <div className="overflow-hidden rounded-xl border border-slate-200">
           <Table>
-            <TableHead>
+            <TableHeader>
               <TableRow>
-                <TableCell>Thời gian</TableCell>
-                <TableCell>Người thực hiện</TableCell>
-                <TableCell>Hành động</TableCell>
-                <TableCell>Đối tượng</TableCell>
-                <TableCell>Lý do</TableCell>
+                <TableHead>Thời gian</TableHead>
+                <TableHead>Người thực hiện</TableHead>
+                <TableHead>Hành động</TableHead>
+                <TableHead>Đối tượng</TableHead>
+                <TableHead>Lý do</TableHead>
               </TableRow>
-            </TableHead>
+            </TableHeader>
             <TableBody>
               {items.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                  <TableCell colSpan={5} className="py-8 text-center text-slate-500">
                     Không có bản ghi nào.
                   </TableCell>
                 </TableRow>
               )}
               {items.map((it) => (
-                <TableRow key={it.logId} hover sx={{ cursor: 'pointer' }} onClick={() => setDetail(it)}>
+                <TableRow key={it.logId} className="cursor-pointer" onClick={() => setDetail(it)}>
                   <TableCell>{new Date(it.occurredAt).toLocaleString('vi-VN')}</TableCell>
                   <TableCell>{it.actorLabel || it.actorPerId}</TableCell>
                   <TableCell>{ACTION_LABEL[it.action] || it.action}</TableCell>
@@ -190,49 +182,49 @@ export default function AuditLogPage() {
               ))}
             </TableBody>
           </Table>
-        </TableContainer>
+        </div>
       )}
 
       {searched && hasMore && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-          <Button variant="outlined" onClick={loadMore} disabled={loadingMore}>
+        <div className="mt-4 flex justify-center">
+          <Button variant="outline" onClick={loadMore} disabled={loadingMore}>
             {loadingMore ? 'Đang tải...' : 'Tải thêm'}
           </Button>
-        </Box>
+        </div>
       )}
 
-      <Dialog open={!!detail} onClose={() => setDetail(null)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700 }}>Chi tiết bản ghi kiểm toán</DialogTitle>
-        <DialogContent dividers>
+      <Dialog open={!!detail} onOpenChange={(v) => !v && setDetail(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Chi tiết bản ghi kiểm toán</DialogTitle>
+          </DialogHeader>
           {detail && (
-            <Stack spacing={1.5}>
-              <Typography variant="body2">Thời gian: {new Date(detail.occurredAt).toLocaleString('vi-VN')}</Typography>
-              <Typography variant="body2">Người thực hiện: {detail.actorLabel || detail.actorPerId}</Typography>
-              <Typography variant="body2">Hành động: {ACTION_LABEL[detail.action] || detail.action}</Typography>
-              <Typography variant="body2">Đối tượng: {detail.objectId}</Typography>
-              {detail.reason && <Typography variant="body2">Lý do: {detail.reason}</Typography>}
+            <div className="flex flex-col gap-2.5">
+              <p className="text-sm">Thời gian: {new Date(detail.occurredAt).toLocaleString('vi-VN')}</p>
+              <p className="text-sm">Người thực hiện: {detail.actorLabel || detail.actorPerId}</p>
+              <p className="text-sm">Hành động: {ACTION_LABEL[detail.action] || detail.action}</p>
+              <p className="text-sm">Đối tượng: {detail.objectId}</p>
+              {detail.reason && <p className="text-sm">Lý do: {detail.reason}</p>}
               {detail.before != null && (
-                <Box>
-                  <Typography variant="caption" fontWeight={700}>Trước:</Typography>
-                  <Box component="pre" sx={{ bgcolor: '#f8fafc', p: 1.5, borderRadius: 1, fontSize: '0.75rem', overflow: 'auto', maxHeight: 200 }}>
-                    {JSON.stringify(detail.before, null, 2)}
-                  </Box>
-                </Box>
+                <div>
+                  <p className="text-xs font-bold">Trước:</p>
+                  <pre className="max-h-[200px] overflow-auto rounded-md bg-slate-50 p-3 text-xs">{JSON.stringify(detail.before, null, 2)}</pre>
+                </div>
               )}
               {detail.after != null && (
-                <Box>
-                  <Typography variant="caption" fontWeight={700}>Sau:</Typography>
-                  <Box component="pre" sx={{ bgcolor: '#f8fafc', p: 1.5, borderRadius: 1, fontSize: '0.75rem', overflow: 'auto', maxHeight: 200 }}>
-                    {JSON.stringify(detail.after, null, 2)}
-                  </Box>
-                </Box>
+                <div>
+                  <p className="text-xs font-bold">Sau:</p>
+                  <pre className="max-h-[200px] overflow-auto rounded-md bg-slate-50 p-3 text-xs">{JSON.stringify(detail.after, null, 2)}</pre>
+                </div>
               )}
-            </Stack>
+            </div>
           )}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDetail(null)}>
+              Đóng
+            </Button>
+          </DialogFooter>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDetail(null)}>Đóng</Button>
-        </DialogActions>
       </Dialog>
     </>
   );

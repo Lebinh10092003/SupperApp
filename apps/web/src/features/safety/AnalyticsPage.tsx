@@ -1,27 +1,16 @@
 import { useEffect, useState } from 'react';
-import {
-  Alert,
-  Box,
-  Button,
-  Chip,
-  MenuItem,
-  Paper,
-  Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Tabs,
-  Tab,
-  TextField,
-  Typography
-} from '@mui/material';
-import InsightsRoundedIcon from '@mui/icons-material/InsightsRounded';
+import { ChartNoAxesCombined } from 'lucide-react';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
 import { CAMPUS_IDS, CAMPUS_LABEL } from './constants';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 /**
  * Phân tích & thống kê — gộp lại các block đã có backend từ trước
@@ -59,35 +48,29 @@ function TrendAlertsPanel() {
   }, []);
 
   return (
-    <Box>
-      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-      {!error && alerts.length === 0 && (
-        <Typography variant="body2" color="text.secondary">
-          Không có cảnh báo xu hướng nào đang mở.
-        </Typography>
+    <div>
+      {error && (
+        <Alert className="mb-3 border-red-200 bg-red-50">
+          <AlertDescription className="text-red-700">{error}</AlertDescription>
+        </Alert>
       )}
-      <Stack spacing={1.5}>
+      {!error && alerts.length === 0 && <p className="text-sm text-slate-500">Không có cảnh báo xu hướng nào đang mở.</p>}
+      <div className="flex flex-col gap-2.5">
         {alerts.map((a, i) => (
-          <Paper
+          <div
             key={i}
-            sx={{
-              p: 2,
-              borderRadius: 2,
-              border: '1px solid',
-              borderColor: a.severity === 'critical' ? '#fecaca' : '#fde68a',
-              bgcolor: a.severity === 'critical' ? '#fef2f2' : '#fffbeb'
-            }}
+            className={`rounded-lg border p-3 ${a.severity === 'critical' ? 'border-red-200 bg-red-50' : 'border-amber-200 bg-amber-50'}`}
           >
-            <Typography variant="body2" fontWeight={700}>
+            <p className="text-sm font-bold">
               {CAMPUS_LABEL[a.campus_id] || a.campus_id} — {categoryLabel[a.category_code] || a.category_code}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
+            </p>
+            <p className="text-xs text-slate-500">
               {a.count} vụ trong {a.window_days} ngày gần đây — mức {a.severity === 'critical' ? 'nghiêm trọng' : 'cảnh báo'}
-            </Typography>
-          </Paper>
+            </p>
+          </div>
         ))}
-      </Stack>
-    </Box>
+      </div>
+    </div>
   );
 }
 
@@ -117,35 +100,31 @@ function CampusComparisonPanel() {
   useEffect(load, []);
 
   return (
-    <Box>
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2 }} alignItems={{ sm: 'flex-end' }}>
-        <TextField
-          label="Từ tháng"
-          type="month"
-          size="small"
-          value={fromMonth}
-          onChange={(e) => setFromMonth(e.target.value)}
-          slotProps={{ inputLabel: { shrink: true } }}
-          sx={{ minWidth: 160 }}
-        />
-        <TextField
-          label="Đến tháng"
-          type="month"
-          size="small"
-          value={toMonth}
-          onChange={(e) => setToMonth(e.target.value)}
-          slotProps={{ inputLabel: { shrink: true } }}
-          sx={{ minWidth: 160 }}
-        />
-        <Button variant="outlined" size="small" onClick={load} sx={{ height: 40 }}>
+    <div>
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+        <div>
+          <Label htmlFor="campus-from-month" className="mb-1.5 block">
+            Từ tháng
+          </Label>
+          <Input id="campus-from-month" type="month" value={fromMonth} onChange={(e) => setFromMonth(e.target.value)} className="min-w-40" />
+        </div>
+        <div>
+          <Label htmlFor="campus-to-month" className="mb-1.5 block">
+            Đến tháng
+          </Label>
+          <Input id="campus-to-month" type="month" value={toMonth} onChange={(e) => setToMonth(e.target.value)} className="min-w-40" />
+        </div>
+        <Button variant="outline" onClick={load}>
           Xem
         </Button>
-      </Stack>
-      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-      {!data && !error ? null : (
-        <CampusComparisonTable data={data} />
+      </div>
+      {error && (
+        <Alert className="mb-3 border-red-200 bg-red-50">
+          <AlertDescription className="text-red-700">{error}</AlertDescription>
+        </Alert>
       )}
-    </Box>
+      {!data && !error ? null : <CampusComparisonTable data={data} />}
+    </div>
   );
 }
 
@@ -154,20 +133,20 @@ function CampusComparisonTable({ data }: { data: any }) {
   const campusIds = Object.keys(data.campuses || {});
 
   return (
-    <Box>
-      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
+    <div>
+      <p className="mb-3 text-xs text-slate-500">
         {data.from_month} → {data.to_month} · {data.disclaimer}
-      </Typography>
-      <TableContainer component={Paper} sx={{ borderRadius: 2, border: '1px solid #e2e8f0', boxShadow: 'none' }}>
-        <Table size="small">
-          <TableHead>
+      </p>
+      <div className="rounded-lg border border-slate-200">
+        <Table>
+          <TableHeader>
             <TableRow>
-              <TableCell>Cơ sở</TableCell>
-              <TableCell>Tổng số vụ</TableCell>
-              <TableCell>Tỷ lệ P0/P1</TableCell>
-              <TableCell>So với tháng trước</TableCell>
+              <TableHead>Cơ sở</TableHead>
+              <TableHead>Tổng số vụ</TableHead>
+              <TableHead>Tỷ lệ P0/P1</TableHead>
+              <TableHead>So với tháng trước</TableHead>
             </TableRow>
-          </TableHead>
+          </TableHeader>
           <TableBody>
             {campusIds.map((cid) => {
               const entry = data.campuses[cid];
@@ -176,21 +155,26 @@ function CampusComparisonTable({ data }: { data: any }) {
                   <TableCell>
                     {CAMPUS_LABEL[cid] || cid}
                     {data.ranking?.highest_p0_p1_rate_campus === cid && (
-                      <Chip size="small" label="Cao nhất P0/P1" sx={{ ml: 1, bgcolor: '#fef2f2', color: '#dc2626' }} />
+                      <Badge variant="outline" className="ml-2 border-transparent bg-red-50 text-red-600">
+                        Cao nhất P0/P1
+                      </Badge>
                     )}
                   </TableCell>
                   <TableCell>{entry.total_count}</TableCell>
                   <TableCell>{entry.p0_p1_rate != null ? `${(entry.p0_p1_rate * 100).toFixed(0)}%` : '—'}</TableCell>
                   <TableCell>
                     {entry.compare_to_previous_month ? (
-                      <Chip
-                        size="small"
-                        label={`${entry.compare_to_previous_month.delta > 0 ? '+' : ''}${entry.compare_to_previous_month.delta}`}
-                        sx={{
-                          bgcolor: entry.compare_to_previous_month.direction === 'worsened' ? '#fef2f2' : '#f0fdf4',
-                          color: entry.compare_to_previous_month.direction === 'worsened' ? '#dc2626' : '#15803d'
-                        }}
-                      />
+                      <Badge
+                        variant="outline"
+                        className={
+                          entry.compare_to_previous_month.direction === 'worsened'
+                            ? 'border-transparent bg-red-50 text-red-600'
+                            : 'border-transparent bg-emerald-50 text-emerald-700'
+                        }
+                      >
+                        {entry.compare_to_previous_month.delta > 0 ? '+' : ''}
+                        {entry.compare_to_previous_month.delta}
+                      </Badge>
                     ) : (
                       '—'
                     )}
@@ -200,15 +184,14 @@ function CampusComparisonTable({ data }: { data: any }) {
             })}
           </TableBody>
         </Table>
-      </TableContainer>
-    </Box>
+      </div>
+    </div>
   );
 }
 
-
-// value rỗng '' cho "Toàn bộ thời gian" khiến MUI Select không hiện được
-// nhãn đã chọn (coi "" là "chưa chọn gì") — dùng sentinel 'all' thay vì
-// rỗng, chỉ bỏ qua khi build query string.
+// value rỗng '' cho "Toàn bộ thời gian" khiến Select không hiện được nhãn
+// đã chọn — dùng sentinel 'all' thay vì rỗng, chỉ bỏ qua khi build query
+// string.
 const RANGE_DAYS_OPTIONS = [
   { value: '7', label: '7 ngày gần đây' },
   { value: '30', label: '30 ngày gần đây' },
@@ -243,48 +226,67 @@ function ClassStatsPanel() {
   useEffect(load, [campusId, rangeDays]);
 
   return (
-    <Box>
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2 }} alignItems={{ sm: 'flex-end' }}>
-        <TextField select size="small" label="Cơ sở" value={campusId} onChange={(e) => setCampusId(e.target.value)} sx={{ minWidth: 200 }}>
-          {CAMPUS_IDS.map((c) => (
-            <MenuItem key={c} value={c}>
-              {CAMPUS_LABEL[c]}
-            </MenuItem>
-          ))}
-        </TextField>
-        <TextField select size="small" label="Khoảng thời gian" value={rangeDays} onChange={(e) => setRangeDays(e.target.value)} sx={{ minWidth: 190 }}>
-          {RANGE_DAYS_OPTIONS.map((o) => (
-            <MenuItem key={o.value} value={o.value}>
-              {o.label}
-            </MenuItem>
-          ))}
-        </TextField>
-        <TextField
-          size="small"
-          label="Lý do xem (bắt buộc với Trực ban/Tổ trưởng)"
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-          sx={{ minWidth: 280, flex: 1 }}
-        />
-        <Button variant="outlined" size="small" onClick={load} sx={{ height: 40 }}>
+    <div>
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+        <div className="min-w-50">
+          <Label className="mb-1.5 block">Cơ sở</Label>
+          <Select value={campusId} onValueChange={setCampusId}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {CAMPUS_IDS.map((c) => (
+                <SelectItem key={c} value={c}>
+                  {CAMPUS_LABEL[c]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="min-w-48">
+          <Label className="mb-1.5 block">Khoảng thời gian</Label>
+          <Select value={rangeDays} onValueChange={setRangeDays}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {RANGE_DAYS_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="min-w-70 flex-1">
+          <Label htmlFor="class-stats-reason" className="mb-1.5 block">
+            Lý do xem (bắt buộc với Trực ban/Tổ trưởng)
+          </Label>
+          <Input id="class-stats-reason" value={reason} onChange={(e) => setReason(e.target.value)} />
+        </div>
+        <Button variant="outline" onClick={load}>
           Xem
         </Button>
-      </Stack>
-      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      </div>
+      {error && (
+        <Alert className="mb-3 border-red-200 bg-red-50">
+          <AlertDescription className="text-red-700">{error}</AlertDescription>
+        </Alert>
+      )}
       {data && (
-        <TableContainer component={Paper} sx={{ borderRadius: 2, border: '1px solid #e2e8f0', boxShadow: 'none' }}>
-          <Table size="small">
-            <TableHead>
+        <div className="rounded-lg border border-slate-200">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell>Lớp</TableCell>
-                <TableCell>Số vụ</TableCell>
-                <TableCell>Cảnh báo</TableCell>
+                <TableHead>Lớp</TableHead>
+                <TableHead>Số vụ</TableHead>
+                <TableHead>Cảnh báo</TableHead>
               </TableRow>
-            </TableHead>
+            </TableHeader>
             <TableBody>
               {(data.classes || []).length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={3} align="center" sx={{ color: 'text.secondary' }}>
+                  <TableCell colSpan={3} className="text-center text-slate-500">
                     Không có dữ liệu.
                   </TableCell>
                 </TableRow>
@@ -293,34 +295,42 @@ function ClassStatsPanel() {
                 <TableRow key={c.class_name}>
                   <TableCell>{c.class_name}</TableCell>
                   <TableCell>{c.total_count}</TableCell>
-                  <TableCell>{c.severity_flag && <Chip size="small" label="Cần chú ý" sx={{ bgcolor: '#fef2f2', color: '#dc2626' }} />}</TableCell>
+                  <TableCell>
+                    {c.severity_flag && (
+                      <Badge variant="outline" className="border-transparent bg-red-50 text-red-600">
+                        Cần chú ý
+                      </Badge>
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
-        </TableContainer>
+        </div>
       )}
-    </Box>
+    </div>
   );
 }
 
 export default function AnalyticsPage() {
-  const [tab, setTab] = useState(0);
+  const [tab, setTab] = useState('0');
 
   return (
     <>
-      <PageHeader title="Phân tích & thống kê" icon={<InsightsRoundedIcon />} />
+      <PageHeader title="Phân tích & thống kê" icon={<ChartNoAxesCombined />} />
 
-      <Paper sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none', p: 2.5 }}>
-        <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2 }}>
-          <Tab label="Đề xuất xử lý" />
-          <Tab label="So sánh cơ sở" />
-          <Tab label="Theo lớp học" />
+      <div className="rounded-xl border border-slate-200 p-5">
+        <Tabs value={tab} onValueChange={setTab} className="mb-4">
+          <TabsList>
+            <TabsTrigger value="0">Đề xuất xử lý</TabsTrigger>
+            <TabsTrigger value="1">So sánh cơ sở</TabsTrigger>
+            <TabsTrigger value="2">Theo lớp học</TabsTrigger>
+          </TabsList>
         </Tabs>
-        {tab === 0 && <TrendAlertsPanel />}
-        {tab === 1 && <CampusComparisonPanel />}
-        {tab === 2 && <ClassStatsPanel />}
-      </Paper>
+        {tab === '0' && <TrendAlertsPanel />}
+        {tab === '1' && <CampusComparisonPanel />}
+        {tab === '2' && <ClassStatsPanel />}
+      </div>
     </>
   );
 }
