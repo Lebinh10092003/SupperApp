@@ -1,5 +1,6 @@
-import { Box, Chip, Typography } from '@mui/material';
-import MenuBookIcon from '@mui/icons-material/MenuBookRounded';
+import { BookOpen } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import { ApiTablePage } from '../../components/ApiTablePage';
 
 export default function SubjectAnalyticsPage() {
@@ -12,19 +13,13 @@ export default function SubjectAnalyticsPage() {
           key: 'name',
           label: 'Tên Khóa Học / Bộ Môn',
           render: (val: any, row: any) => (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              <MenuBookIcon sx={{ color: '#2563eb', fontSize: 22 }} />
-              <Box>
-                <Typography variant="body2" fontWeight={700} sx={{ color: '#0f172a' }}>
-                  {val || '—'}
-                </Typography>
-                {row.id && (
-                  <Typography variant="caption" sx={{ color: '#64748b' }}>
-                    ID: {row.id}
-                  </Typography>
-                )}
-              </Box>
-            </Box>
+            <div className="flex items-center gap-2.5">
+              <BookOpen className="size-[22px] text-primary" />
+              <div>
+                <p className="font-bold text-[#0f172a]">{val || '—'}</p>
+                {row.id && <p className="text-xs text-slate-500">ID: {row.id}</p>}
+              </div>
+            </div>
           )
         },
         {
@@ -33,13 +28,11 @@ export default function SubjectAnalyticsPage() {
           render: (val: any, row: any) => {
             const cls = row.className || val;
             return cls ? (
-              <Chip
-                label={cls}
-                size="small"
-                sx={{ bgcolor: '#eff6ff', color: '#1d4ed8', fontWeight: 700 }}
-              />
+              <Badge variant="outline" className="border-transparent bg-secondary font-bold text-[#1d4ed8]">
+                {cls}
+              </Badge>
             ) : (
-              <Typography variant="body2" color="text.secondary">—</Typography>
+              <span className="text-muted-foreground">—</span>
             );
           }
         },
@@ -62,12 +55,9 @@ export default function SubjectAnalyticsPage() {
           render: (val: any, row: any) => {
             const total = val ?? row.contentCoursework ?? row.content?.coursework ?? row.content?.courseWorkTotal ?? 0;
             return (
-              <Chip
-                label={`${total} bài`}
-                size="small"
-                variant="outlined"
-                sx={{ borderColor: '#cbd5e1', fontWeight: 600 }}
-              />
+              <Badge variant="outline" className="font-semibold text-slate-600">
+                {total} bài
+              </Badge>
             );
           }
         },
@@ -75,16 +65,15 @@ export default function SubjectAnalyticsPage() {
           key: 'courseState',
           label: 'Trạng thái',
           render: (val: any) => (
-            <Chip
-              label={val === 'ACTIVE' ? 'Đang hoạt động' : (val || '—')}
-              size="small"
-              color={val === 'ACTIVE' ? 'success' : 'default'}
-              sx={{ fontWeight: 700 }}
-            />
+            <Badge
+              variant="outline"
+              className={cn('border-transparent font-bold', val === 'ACTIVE' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-600')}
+            >
+              {val === 'ACTIVE' ? 'Đang hoạt động' : val || '—'}
+            </Badge>
           )
         }
       ]}
     />
   );
 }
-

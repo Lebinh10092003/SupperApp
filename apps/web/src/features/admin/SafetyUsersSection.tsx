@@ -8,42 +8,29 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Box,
-  Button,
-  Card,
-  CardContent,
-  Typography,
-  TextField,
-  MenuItem,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TableSortLabel,
-  Chip,
-  Avatar,
-  IconButton,
-  Tooltip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Stack,
-  Alert,
-  CircularProgress,
-  Pagination,
-  InputAdornment
-} from '@mui/material';
-import PersonAddIcon from '@mui/icons-material/PersonAddRounded';
-import EditIcon from '@mui/icons-material/EditRounded';
-import LockResetIcon from '@mui/icons-material/LockResetRounded';
-import BlockIcon from '@mui/icons-material/BlockRounded';
-import CheckCircleIcon from '@mui/icons-material/CheckCircleRounded';
-import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded';
-import VisibilityOffRoundedIcon from '@mui/icons-material/VisibilityOffRounded';
+  ArrowDown,
+  ArrowUp,
+  Ban,
+  CheckCircle,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  EyeOff,
+  KeyRound,
+  Pencil,
+  UserPlus
+} from 'lucide-react';
 import { api } from '../../services/api';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
 
 const ROLE_LABEL: Record<string, string> = {
   'R.PRINCIPAL': 'Hiệu trưởng',
@@ -103,6 +90,9 @@ interface SafetyUser {
 }
 
 const PAGE_SIZE = 10;
+
+const ALL_ROLES_VALUE = '__all_roles__';
+const ALL_STATUS_VALUE = '__all_status__';
 
 export function SafetyUsersSection() {
   const [users, setUsers] = useState<SafetyUser[]>([]);
@@ -194,206 +184,223 @@ export function SafetyUsersSection() {
     }
   };
 
+  const SortHeader = ({ col, children }: { col: 'name' | 'email' | 'role'; children: React.ReactNode }) => (
+    <button type="button" onClick={() => toggleSort(col)} className="flex items-center gap-1 font-bold">
+      {children}
+      {sortKey === col && (sortDir === 1 ? <ArrowUp className="size-3.5" /> : <ArrowDown className="size-3.5" />)}
+    </button>
+  );
+
   return (
-    <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px 0 rgba(15,23,42,0.04)', bgcolor: '#ffffff' }}>
-      <CardContent sx={{ p: 3 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5, flexWrap: 'wrap', gap: 1.5 }}>
-          <Box>
-            <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#0f172a', letterSpacing: '-0.01em' }}>
-              Danh sách người dùng
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>
-              1 vai trò dùng chung cho toàn hệ thống (Tổ trưởng/Trực ban/Y tế/Giáo viên...) — áp dụng cho cả module An toàn lẫn Lịch công tác, không cần cấp riêng. Tạo tài khoản mới, reset mật khẩu, khoá/mở khoá tại đây.
-            </Typography>
-          </Box>
-          <Button
-            variant="contained"
-            startIcon={<PersonAddIcon sx={{ fontSize: 18 }} />}
-            onClick={() => setEditing('new')}
-            sx={{ bgcolor: '#2563eb', color: '#fff', '&:hover': { bgcolor: '#1d4ed8' }, fontWeight: 700, fontSize: '0.8125rem', textTransform: 'none', borderRadius: 2 }}
-          >
-            Thêm người dùng
-          </Button>
-        </Box>
+    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-[0_1px_3px_0_rgba(15,23,42,0.04)]">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="font-bold tracking-tight text-[#0f172a]">Danh sách người dùng</p>
+          <p className="text-[0.8125rem] text-slate-500">
+            1 vai trò dùng chung cho toàn hệ thống (Tổ trưởng/Trực ban/Y tế/Giáo viên...) — áp dụng cho cả module An toàn lẫn Lịch công tác, không cần cấp
+            riêng. Tạo tài khoản mới, reset mật khẩu, khoá/mở khoá tại đây.
+          </p>
+        </div>
+        <Button onClick={() => setEditing('new')} className="rounded-lg font-bold">
+          <UserPlus className="size-[18px]" />
+          Thêm người dùng
+        </Button>
+      </div>
 
-        {toast && (
-          <Alert severity={toast.severity} onClose={() => setToast(null)} sx={{ mb: 2, borderRadius: 2 }}>
-            {toast.text}
-          </Alert>
-        )}
+      {toast && (
+        <div
+          className={cn(
+            'mb-4 flex items-start justify-between gap-3 rounded-lg border px-4 py-3 text-sm',
+            toast.severity === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-red-200 bg-red-50 text-red-700'
+          )}
+        >
+          <span>{toast.text}</span>
+          <button type="button" onClick={() => setToast(null)} className="shrink-0 opacity-70 hover:opacity-100" aria-label="Đóng">
+            ✕
+          </button>
+        </div>
+      )}
 
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mb: 2 }}>
-          <TextField
-            size="small"
-            placeholder="Tìm tên hoặc email..."
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-            sx={{ flex: 1 }}
-          />
-          <TextField
-            select
-            size="small"
-            label="Vai trò"
-            value={roleFilter}
-            onChange={(e) => {
-              setRoleFilter(e.target.value);
-              setPage(1);
-            }}
-            sx={{ minWidth: 180 }}
-          >
-            <MenuItem value="">Tất cả vai trò</MenuItem>
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row">
+        <Input
+          placeholder="Tìm tên hoặc email..."
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
+          className="flex-1"
+        />
+        <Select
+          value={roleFilter || ALL_ROLES_VALUE}
+          onValueChange={(v) => {
+            setRoleFilter(v === ALL_ROLES_VALUE ? '' : v);
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="min-w-[180px]">
+            <SelectValue placeholder="Vai trò" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_ROLES_VALUE}>Tất cả vai trò</SelectItem>
             {ASSIGNABLE_ROLES.map((r) => (
-              <MenuItem key={r} value={r}>
+              <SelectItem key={r} value={r}>
                 {ROLE_LABEL[r]}
-              </MenuItem>
+              </SelectItem>
             ))}
-          </TextField>
-          <TextField
-            select
-            size="small"
-            label="Trạng thái"
-            value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value);
-              setPage(1);
-            }}
-            sx={{ minWidth: 160 }}
-          >
-            <MenuItem value="">Tất cả</MenuItem>
-            <MenuItem value="active">Đang hoạt động</MenuItem>
-            <MenuItem value="disabled">Đã khoá</MenuItem>
-            <MenuItem value="unmanaged">Chưa cấp vai trò</MenuItem>
-            <MenuItem value="pending">Chưa đăng nhập</MenuItem>
-          </TextField>
-        </Stack>
+          </SelectContent>
+        </Select>
+        <Select
+          value={statusFilter || ALL_STATUS_VALUE}
+          onValueChange={(v) => {
+            setStatusFilter(v === ALL_STATUS_VALUE ? '' : v);
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="min-w-40">
+            <SelectValue placeholder="Trạng thái" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_STATUS_VALUE}>Tất cả</SelectItem>
+            <SelectItem value="active">Đang hoạt động</SelectItem>
+            <SelectItem value="disabled">Đã khoá</SelectItem>
+            <SelectItem value="unmanaged">Chưa cấp vai trò</SelectItem>
+            <SelectItem value="pending">Chưa đăng nhập</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
 
-        <TableContainer sx={{ maxHeight: 520 }}>
-          <Table size="small" stickyHeader>
-            <TableHead>
-              <TableRow>
-                <TableCell sx={{ fontWeight: 700 }}>
-                  <TableSortLabel active={sortKey === 'name'} direction={sortDir === 1 ? 'asc' : 'desc'} onClick={() => toggleSort('name')}>
-                    Tài khoản
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>
-                  <TableSortLabel active={sortKey === 'role'} direction={sortDir === 1 ? 'asc' : 'desc'} onClick={() => toggleSort('role')}>
-                    Vai trò
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Cơ sở / Tổ</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Trạng thái</TableCell>
-                <TableCell align="right" sx={{ fontWeight: 700 }}>
-                  Hành động
+      <div className="max-h-[520px] overflow-auto rounded-lg border border-slate-200">
+        <Table>
+          <TableHeader className="sticky top-0 bg-white">
+            <TableRow>
+              <TableHead>
+                <SortHeader col="name">Tài khoản</SortHeader>
+              </TableHead>
+              <TableHead>
+                <SortHeader col="role">Vai trò</SortHeader>
+              </TableHead>
+              <TableHead className="font-bold">Cơ sở / Tổ</TableHead>
+              <TableHead className="font-bold">Trạng thái</TableHead>
+              <TableHead className="text-right font-bold">Hành động</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading ? (
+              <TableRow className="hover:bg-transparent">
+                <TableCell colSpan={5} className="py-8 text-center">
+                  <div className="mx-auto size-6 animate-spin rounded-full border-2 border-slate-300 border-t-primary" />
                 </TableCell>
               </TableRow>
-            </TableHead>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={5} sx={{ py: 4, textAlign: 'center' }}>
-                    <CircularProgress size={24} />
+            ) : pageRows.length === 0 ? (
+              <TableRow className="hover:bg-transparent">
+                <TableCell colSpan={5} className="py-8 text-center text-sm text-slate-500">
+                  Không có người dùng khớp bộ lọc.
+                </TableCell>
+              </TableRow>
+            ) : (
+              pageRows.map((u) => (
+                <TableRow key={u.uid || u.perId || u.email}>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Avatar className="size-7 bg-primary text-xs font-bold text-white">
+                        <AvatarFallback className="bg-primary text-xs text-white">{(u.displayName || u.email)?.[0]?.toUpperCase() || 'U'}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-bold text-[#0f172a]">{u.displayName || '(chưa đặt tên)'}</p>
+                        <p className="text-xs text-slate-500">{u.email}</p>
+                      </div>
+                    </div>
                   </TableCell>
-                </TableRow>
-              ) : pageRows.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} sx={{ py: 4, textAlign: 'center' }}>
-                    <Typography variant="body2" color="text.secondary">
-                      Không có người dùng khớp bộ lọc.
-                    </Typography>
+                  <TableCell>
+                    {u.roleId ? (
+                      <Badge variant="outline" className="border-blue-200 bg-secondary text-[0.7rem] font-bold text-[#1d4ed8]">
+                        {ROLE_LABEL[u.roleId] || u.roleId}
+                      </Badge>
+                    ) : (
+                      <span className="text-xs text-slate-500">— chưa cấp</span>
+                    )}
                   </TableCell>
-                </TableRow>
-              ) : (
-                pageRows.map((u) => (
-                  <TableRow key={u.uid || u.perId || u.email} hover>
-                    <TableCell>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
-                        <Avatar sx={{ width: 28, height: 28, fontSize: '0.75rem', bgcolor: '#2563eb', color: '#fff', fontWeight: 700 }}>
-                          {(u.displayName || u.email)?.[0]?.toUpperCase() || 'U'}
-                        </Avatar>
-                        <Box>
-                          <Typography variant="body2" fontWeight={700} sx={{ color: '#0f172a' }}>
-                            {u.displayName || '(chưa đặt tên)'}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {u.email}
-                          </Typography>
-                        </Box>
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      {u.roleId ? (
-                        <Chip label={ROLE_LABEL[u.roleId] || u.roleId} size="small" sx={{ bgcolor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', fontWeight: 700, fontSize: '0.7rem' }} />
-                      ) : (
-                        <Typography variant="caption" color="text.secondary">
-                          — chưa cấp
-                        </Typography>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="caption" color="text.secondary">
-                        {u.campusId ? CAMPUS_LABEL[u.campusId] || u.campusId : '—'}
-                        {u.domain ? ` · ${u.domain}` : ''}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      {!u.loggedInBefore ? (
-                        <Chip
-                          label="Chưa đăng nhập"
-                          size="small"
-                          sx={{ bgcolor: '#fffbeb', color: '#b45309', border: '1px solid #fde68a', fontWeight: 700, fontSize: '0.7rem' }}
-                        />
-                      ) : (
-                        <Chip
-                          label={u.disabled ? 'Đã khoá' : 'Đang hoạt động'}
-                          size="small"
-                          sx={{
-                            bgcolor: u.disabled ? '#f8fafc' : '#ecfdf5',
-                            color: u.disabled ? '#64748b' : '#059669',
-                            border: u.disabled ? '1px solid #e2e8f0' : '1px solid #a7f3d0',
-                            fontWeight: 700,
-                            fontSize: '0.7rem'
-                          }}
-                        />
-                      )}
-                    </TableCell>
-                    <TableCell align="right">
-                      <Tooltip title="Sửa vai trò/cơ sở">
-                        <IconButton size="small" onClick={() => setEditing(u)}>
-                          <EditIcon sx={{ fontSize: 18 }} />
-                        </IconButton>
+                  <TableCell>
+                    <span className="text-xs text-slate-500">
+                      {u.campusId ? CAMPUS_LABEL[u.campusId] || u.campusId : '—'}
+                      {u.domain ? ` · ${u.domain}` : ''}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    {!u.loggedInBefore ? (
+                      <Badge variant="outline" className="border-amber-200 bg-amber-50 text-[0.7rem] font-bold text-amber-700">
+                        Chưa đăng nhập
+                      </Badge>
+                    ) : (
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          'text-[0.7rem] font-bold',
+                          u.disabled ? 'border-slate-200 bg-slate-50 text-slate-500' : 'border-emerald-200 bg-emerald-50 text-emerald-600'
+                        )}
+                      >
+                        {u.disabled ? 'Đã khoá' : 'Đang hoạt động'}
+                      </Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-0.5">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="ghost" size="icon-sm" onClick={() => setEditing(u)}>
+                            <Pencil className="size-[18px]" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Sửa vai trò/cơ sở</TooltipContent>
                       </Tooltip>
                       {u.loggedInBefore && (
                         <>
-                          <Tooltip title="Reset mật khẩu">
-                            <IconButton size="small" onClick={() => setResetTarget(u)}>
-                              <LockResetIcon sx={{ fontSize: 18 }} />
-                            </IconButton>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button variant="ghost" size="icon-sm" onClick={() => setResetTarget(u)}>
+                                <KeyRound className="size-[18px]" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Reset mật khẩu</TooltipContent>
                           </Tooltip>
-                          <Tooltip title={u.disabled ? 'Mở khoá' : 'Khoá tài khoản'}>
-                            <IconButton size="small" onClick={() => handleToggleDisable(u)} sx={{ color: u.disabled ? '#059669' : '#dc2626' }}>
-                              {u.disabled ? <CheckCircleIcon sx={{ fontSize: 18 }} /> : <BlockIcon sx={{ fontSize: 18 }} />}
-                            </IconButton>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                onClick={() => handleToggleDisable(u)}
+                                className={u.disabled ? 'text-emerald-600' : 'text-red-600'}
+                              >
+                                {u.disabled ? <CheckCircle className="size-[18px]" /> : <Ban className="size-[18px]" />}
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>{u.disabled ? 'Mở khoá' : 'Khoá tài khoản'}</TooltipContent>
                           </Tooltip>
                         </>
                       )}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
 
-        {totalPages > 1 && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-            <Pagination count={totalPages} page={page} onChange={(_e, p) => setPage(p)} size="small" />
-          </Box>
-        )}
-      </CardContent>
+      {totalPages > 1 && (
+        <div className="mt-4 flex items-center justify-center gap-3">
+          <Button variant="outline" size="icon-sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+            <ChevronLeft className="size-4" />
+          </Button>
+          <span className="text-sm text-slate-500">
+            Trang {page}/{totalPages}
+          </span>
+          <Button variant="outline" size="icon-sm" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>
+            <ChevronRight className="size-4" />
+          </Button>
+        </div>
+      )}
 
       {editing !== null && (
         <EditUserDialog
@@ -421,9 +428,11 @@ export function SafetyUsersSection() {
           }}
         />
       )}
-    </Card>
+    </div>
   );
 }
+
+const NONE_VALUE = '__none__';
 
 function EditUserDialog({
   user,
@@ -556,123 +565,130 @@ function EditUserDialog({
   };
 
   return (
-    <Dialog open onClose={onClose} maxWidth="xs" fullWidth>
-      <DialogTitle sx={{ fontWeight: 700 }}>{isEdit ? 'Sửa người dùng' : 'Thêm người dùng'}</DialogTitle>
-      <DialogContent dividers sx={{ borderColor: '#e2e8f0' }}>
-        <Stack spacing={2} sx={{ pt: 1 }}>
-          {error && <Alert severity="error">{error}</Alert>}
-          <TextField label="Tên hiển thị" size="small" fullWidth value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
-          <TextField label="Email" size="small" fullWidth value={email} disabled={isEdit} onChange={(e) => setEmail(e.target.value)} />
-          <TextField
-            label="Số điện thoại (tuỳ chọn — để gọi/nhắn khi gấp)"
-            size="small"
-            fullWidth
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-          />
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-xs">
+        <DialogHeader>
+          <DialogTitle>{isEdit ? 'Sửa người dùng' : 'Thêm người dùng'}</DialogTitle>
+        </DialogHeader>
+        <div className="flex flex-col gap-3">
+          {error && <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="su-name">Tên hiển thị</Label>
+            <Input id="su-name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="su-email">Email</Label>
+            <Input id="su-email" value={email} disabled={isEdit} onChange={(e) => setEmail(e.target.value)} />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="su-phone">Số điện thoại (tuỳ chọn — để gọi/nhắn khi gấp)</Label>
+            <Input id="su-phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
+          </div>
           {!isEdit && (
-            <TextField
-              label="Mật khẩu tạm (bỏ trống nếu email đã từng đăng nhập Google)"
-              size="small"
-              fullWidth
-              type={showPassword ? 'text' : 'password'}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              slotProps={{
-                input: {
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton size="small" onClick={() => setShowPassword((v) => !v)} edge="end" tabIndex={-1}>
-                        {showPassword ? <VisibilityOffRoundedIcon fontSize="small" /> : <VisibilityRoundedIcon fontSize="small" />}
-                      </IconButton>
-                    </InputAdornment>
-                  )
-                }
-              }}
-            />
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="su-password">Mật khẩu tạm (bỏ trống nếu email đã từng đăng nhập Google)</Label>
+              <div className="relative">
+                <Input id="su-password" type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} className="pr-9" />
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute inset-y-0 right-2 flex items-center text-slate-400 hover:text-slate-600"
+                >
+                  {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                </button>
+              </div>
+            </div>
           )}
-          <TextField select label="Vai trò" size="small" fullWidth value={roleId} onChange={(e) => setRoleId(e.target.value)}>
-            {ASSIGNABLE_ROLES.map((r) => (
-              <MenuItem key={r} value={r}>
-                {ROLE_LABEL[r]}
-              </MenuItem>
-            ))}
-          </TextField>
-          <TextField select label="Cơ sở" size="small" fullWidth value={campusId} onChange={(e) => setCampusId(e.target.value)}>
-            <MenuItem value="">— Không gắn cơ sở —</MenuItem>
-            {Object.entries(CAMPUS_LABEL).map(([id, label]) => (
-              <MenuItem key={id} value={id}>
-                {label}
-              </MenuItem>
-            ))}
-          </TextField>
+          <div className="flex flex-col gap-1.5">
+            <Label>Vai trò</Label>
+            <Select value={roleId} onValueChange={setRoleId}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {ASSIGNABLE_ROLES.map((r) => (
+                  <SelectItem key={r} value={r}>
+                    {ROLE_LABEL[r]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>Cơ sở</Label>
+            <Select value={campusId || NONE_VALUE} onValueChange={(v) => setCampusId(v === NONE_VALUE ? '' : v)}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NONE_VALUE}>— Không gắn cơ sở —</SelectItem>
+                {Object.entries(CAMPUS_LABEL).map(([id, label]) => (
+                  <SelectItem key={id} value={id}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           {roleId === 'R.DEPT_HEAD' && (
-            <TextField
-              label="Lĩnh vực/Tổ"
-              size="small"
-              fullWidth
-              value={domain}
-              onChange={(e) => setDomain(e.target.value)}
-              placeholder="VD: Tổ Toán, Tổ Văn phòng..."
-              helperText="Các Tổ trưởng cùng tổ phải nhập giống hệt nhau."
-            />
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="su-domain">Lĩnh vực/Tổ</Label>
+              <Input id="su-domain" value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="VD: Tổ Toán, Tổ Văn phòng..." />
+              <p className="text-xs text-muted-foreground">Các Tổ trưởng cùng tổ phải nhập giống hệt nhau.</p>
+            </div>
           )}
           {roleId === 'R.TEACHER' && (
             <>
-              <TextField
-                select
-                label="Lớp chủ nhiệm (GVCN)"
-                size="small"
-                fullWidth
-                value={homeroomClassName}
-                onChange={(e) => setHomeroomClassName(e.target.value)}
-                disabled={homeroomDisabled}
-                helperText={
-                  homeroomDisabled
+              <div className="flex flex-col gap-1.5">
+                <Label>Lớp chủ nhiệm (GVCN)</Label>
+                <Select value={homeroomClassName || NONE_VALUE} onValueChange={(v) => setHomeroomClassName(v === NONE_VALUE ? '' : v)} disabled={homeroomDisabled}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE_VALUE}>— Không chủ nhiệm —</SelectItem>
+                    {classOptions.map((c) => (
+                      <SelectItem key={c.classId} value={c.className}>
+                        {c.className}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  {homeroomDisabled
                     ? 'Cần tài khoản đã có mã định danh (đã đăng nhập lần đầu) mới gán được lớp chủ nhiệm.'
-                    : 'Danh sách lấy từ lớp đã đồng bộ Google Classroom.'
-                }
-              >
-                <MenuItem value="">— Không chủ nhiệm —</MenuItem>
-                {classOptions.map((c) => (
-                  <MenuItem key={c.classId} value={c.className}>
-                    {c.className}
-                  </MenuItem>
-                ))}
-              </TextField>
-              <TextField
-                select
-                label="Khối phụ trách"
-                size="small"
-                fullWidth
-                value={supervisorGrade}
-                onChange={(e) => setSupervisorGrade(e.target.value)}
-                disabled={homeroomDisabled}
-              >
-                <MenuItem value="">— Không phụ trách khối —</MenuItem>
-                {gradeOptions.map((g) => (
-                  <MenuItem key={g} value={String(g)}>
-                    Khối {g}
-                  </MenuItem>
-                ))}
-              </TextField>
+                    : 'Danh sách lấy từ lớp đã đồng bộ Google Classroom.'}
+                </p>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label>Khối phụ trách</Label>
+                <Select value={supervisorGrade || NONE_VALUE} onValueChange={(v) => setSupervisorGrade(v === NONE_VALUE ? '' : v)} disabled={homeroomDisabled}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE_VALUE}>— Không phụ trách khối —</SelectItem>
+                    {gradeOptions.map((g) => (
+                      <SelectItem key={g} value={String(g)}>
+                        Khối {g}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </>
           )}
-        </Stack>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Huỷ
+          </Button>
+          <Button disabled={saving} onClick={handleSave}>
+            {saving ? 'Đang lưu...' : isEdit ? 'Lưu' : 'Tạo tài khoản'}
+          </Button>
+        </DialogFooter>
       </DialogContent>
-      <DialogActions sx={{ p: 2, borderTop: '1px solid #e2e8f0' }}>
-        <Button onClick={onClose} sx={{ textTransform: 'none', color: '#64748b' }}>
-          Huỷ
-        </Button>
-        <Button
-          variant="contained"
-          disabled={saving}
-          onClick={handleSave}
-          sx={{ bgcolor: '#2563eb', color: '#fff', '&:hover': { bgcolor: '#1d4ed8' }, textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
-        >
-          {saving ? 'Đang lưu...' : isEdit ? 'Lưu' : 'Tạo tài khoản'}
-        </Button>
-      </DialogActions>
     </Dialog>
   );
 }
@@ -700,46 +716,44 @@ function ResetPasswordDialog({ user, onClose, onDone }: { user: SafetyUser; onCl
   };
 
   return (
-    <Dialog open onClose={onClose} maxWidth="xs" fullWidth>
-      <DialogTitle sx={{ fontWeight: 700 }}>Reset mật khẩu — {user.displayName}</DialogTitle>
-      <DialogContent dividers sx={{ borderColor: '#e2e8f0' }}>
-        <Stack spacing={2} sx={{ pt: 1 }}>
-          {error && <Alert severity="error">{error}</Alert>}
-          <TextField
-            label="Mật khẩu mới (tối thiểu 6 ký tự)"
-            size="small"
-            fullWidth
-            type={showPassword ? 'text' : 'password'}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoFocus
-            slotProps={{
-              input: {
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton size="small" onClick={() => setShowPassword((v) => !v)} edge="end" tabIndex={-1}>
-                      {showPassword ? <VisibilityOffRoundedIcon fontSize="small" /> : <VisibilityRoundedIcon fontSize="small" />}
-                    </IconButton>
-                  </InputAdornment>
-                )
-              }
-            }}
-          />
-        </Stack>
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-xs">
+        <DialogHeader>
+          <DialogTitle>Reset mật khẩu — {user.displayName}</DialogTitle>
+        </DialogHeader>
+        <div className="flex flex-col gap-3">
+          {error && <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="reset-pwd">Mật khẩu mới (tối thiểu 6 ký tự)</Label>
+            <div className="relative">
+              <Input
+                id="reset-pwd"
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoFocus
+                className="pr-9"
+              />
+              <button
+                type="button"
+                tabIndex={-1}
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute inset-y-0 right-2 flex items-center text-slate-400 hover:text-slate-600"
+              >
+                {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              </button>
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Huỷ
+          </Button>
+          <Button disabled={saving} onClick={handleSave}>
+            {saving ? 'Đang đổi...' : 'Đổi mật khẩu'}
+          </Button>
+        </DialogFooter>
       </DialogContent>
-      <DialogActions sx={{ p: 2, borderTop: '1px solid #e2e8f0' }}>
-        <Button onClick={onClose} sx={{ textTransform: 'none', color: '#64748b' }}>
-          Huỷ
-        </Button>
-        <Button
-          variant="contained"
-          disabled={saving}
-          onClick={handleSave}
-          sx={{ bgcolor: '#2563eb', color: '#fff', '&:hover': { bgcolor: '#1d4ed8' }, textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
-        >
-          {saving ? 'Đang đổi...' : 'Đổi mật khẩu'}
-        </Button>
-      </DialogActions>
     </Dialog>
   );
 }
