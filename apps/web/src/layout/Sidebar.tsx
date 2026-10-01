@@ -55,7 +55,6 @@ export function Sidebar({
   const toggleGroup = (groupTitle: string) => setOpenGroups((prev) => ({ ...prev, [groupTitle]: !prev[groupTitle] }));
 
   if (collapsed) {
-    const flatItems = visibleGroups.flatMap((g) => g.items);
     return (
       <div className="flex h-full flex-col items-center bg-white text-[#0f172a]">
         <div className="flex w-full flex-col items-center gap-2 border-b border-slate-100 p-3">
@@ -91,31 +90,35 @@ export function Sidebar({
           <TooltipContent side="right">Tìm kiếm điều hành (⌘K)</TooltipContent>
         </Tooltip>
 
-        <nav className="flex w-full flex-1 flex-col items-center gap-1 overflow-y-auto px-2 py-3">
-          {flatItems.map((item) => {
-            const isSelected = location.pathname === item.path;
-            return (
-              <Tooltip key={item.path}>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      navigate(item.path);
-                      onNavigate?.();
-                    }}
-                    className={cn(
-                      'relative flex size-10 items-center justify-center rounded-lg transition-colors',
-                      isSelected ? 'bg-secondary text-primary' : 'text-slate-500 hover:bg-slate-100 hover:text-[#0f172a]'
-                    )}
-                  >
-                    {item.icon}
-                    {item.badge && <span className="absolute top-1 right-1 size-1.5 rounded-full bg-primary" />}
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="right">{item.label}</TooltipContent>
-              </Tooltip>
-            );
-          })}
+        <nav className="flex w-full flex-1 flex-col items-center overflow-y-auto px-2 py-3">
+          {visibleGroups.map((group, groupIdx) => (
+            <div key={group.groupTitle} className={cn('flex w-full flex-col items-center gap-1', groupIdx > 0 && 'mt-2 border-t border-slate-100 pt-2')}>
+              {group.items.map((item) => {
+                const isSelected = location.pathname === item.path;
+                return (
+                  <Tooltip key={item.path}>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigate(item.path);
+                          onNavigate?.();
+                        }}
+                        className={cn(
+                          'relative flex size-10 items-center justify-center rounded-lg transition-colors',
+                          isSelected ? 'bg-secondary text-primary' : 'text-slate-500 hover:bg-slate-100 hover:text-[#0f172a]'
+                        )}
+                      >
+                        {item.icon}
+                        {item.badge && <span className="absolute top-1 right-1 size-1.5 rounded-full bg-primary" />}
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">{item.label}</TooltipContent>
+                  </Tooltip>
+                );
+              })}
+            </div>
+          ))}
         </nav>
 
         <div className="w-full border-t border-slate-200 bg-slate-50 p-2.5">
