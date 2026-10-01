@@ -14,6 +14,15 @@
    Once the whole app is migrated (Phase 4 of the migration plan), switch
    back to the plain "@import "tailwindcss";" shorthand and delete the
    ".tw-scope" block entirely. */
+/* Explicit layer order: "base" (our hand-ported .tw-scope resets, added
+   below) must come BEFORE "utilities" or every utility class will lose to
+   it — CSS cascade layers are ordered by first declaration, and an
+   unlayered rule always beats ANY layered one regardless of specificity,
+   so the resets themselves must also live in a layer (not bare CSS) once
+   Tailwind utilities are layered. Learned the hard way: border/bg/etc.
+   utility classes were silently no-op-ing against the unlayered version of
+   this reset. */
+@layer theme, base, utilities;
 @import 'tailwindcss/theme' layer(theme);
 @import 'tailwindcss/utilities' layer(utilities);
 
@@ -128,17 +137,86 @@ body {
   letter-spacing: -0.01em;
 }
 
-/* Minimal, hand-ported Preflight equivalent for shadcn/ui + Radix pieces,
-   scoped (not global — see note at the top of this file). Radix portals
-   (Dialog/DropdownMenu/Popover/etc.) render into document.body, outside
-   #root, so this is applied at the body level rather than just inside
-   #root to make sure portaled content is covered too. */
-.tw-scope,
-.tw-scope *,
-[data-radix-popper-content-wrapper],
-[data-radix-popper-content-wrapper] * {
-  box-sizing: border-box;
-  border-color: hsl(var(--border));
+/* Hand-ported subset of tailwindcss/preflight.css (see that file for the
+   full original + its comments), scoped to ".tw-scope" instead of applied
+   globally — see the note at the top of this file for why. Radix portals
+   (Dialog/DropdownMenu/Sheet/etc.) render into document.body, outside
+   #root, so every rule here also targets
+   "[data-radix-popper-content-wrapper]"/"[role=dialog]" so portaled content
+   is covered too, not just whatever is physically inside .tw-scope's DOM
+   subtree. Covers exactly the resets that bit us migrating AppShell: native
+   <button>/<input> elements (Radix primitives render plain <button>s, e.g.
+   CollapsibleTrigger) were showing the browser's default border/background/
+   padding because Preflight — which normally zeroes those — is off. If a
+   future shadcn component shows unstyled native form-control chrome again,
+   the fix is here, not a one-off className on that component.
+
+   Must live inside @layer base (declared above as the middle layer,
+   between "theme" and "utilities") rather than as bare/unlayered CSS —
+   unlayered rules always beat ANY layered rule in the cascade regardless
+   of specificity, so an unlayered version of this block silently defeated
+   every Tailwind utility class (border-*, bg-*, etc.) that tried to
+   override it. */
+@layer base {
+  .tw-scope,
+  .tw-scope *,
+  .tw-scope ::before,
+  .tw-scope ::after,
+  [data-radix-popper-content-wrapper],
+  [data-radix-popper-content-wrapper] *,
+  [role='dialog'],
+  [role='dialog'] * {
+    box-sizing: border-box;
+    border-width: 0;
+    border-style: solid;
+    border-color: hsl(var(--border));
+  }
+
+  .tw-scope button,
+  .tw-scope input,
+  .tw-scope select,
+  .tw-scope optgroup,
+  .tw-scope textarea,
+  [data-radix-popper-content-wrapper] button,
+  [data-radix-popper-content-wrapper] input,
+  [role='dialog'] button,
+  [role='dialog'] input {
+    margin: 0;
+    padding: 0;
+    font: inherit;
+    letter-spacing: inherit;
+    color: inherit;
+    border-radius: 0;
+    background-color: transparent;
+    opacity: 1;
+  }
+
+  .tw-scope button,
+  .tw-scope select,
+  .tw-scope input:where([type='button'], [type='reset'], [type='submit']),
+  [data-radix-popper-content-wrapper] button,
+  [role='dialog'] button {
+    appearance: button;
+    text-transform: none;
+  }
+
+  .tw-scope ol,
+  .tw-scope ul,
+  .tw-scope menu,
+  [data-radix-popper-content-wrapper] ul,
+  [role='dialog'] ul {
+    list-style: none;
+  }
+
+  .tw-scope h1,
+  .tw-scope h2,
+  .tw-scope h3,
+  .tw-scope h4,
+  .tw-scope h5,
+  .tw-scope h6 {
+    font-size: inherit;
+    font-weight: inherit;
+  }
 }
 
 /* Elegant School Intelligence Scrollbar */
