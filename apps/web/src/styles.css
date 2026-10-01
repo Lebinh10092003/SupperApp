@@ -1,4 +1,76 @@
+/* @import rules must precede all other rules (CSS spec) — font import goes
+   first, Tailwind layers right after. */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
+
+/* Tailwind v4 — imported as separate layers (not the "@import "tailwindcss";"
+   shorthand) so Preflight is deliberately left OUT of the global cascade.
+   See the ".tw-scope" block below for why: this app is mid-migration from
+   MUI/Emotion to Tailwind/shadcn, and MUI's CssBaseline (still mounted in
+   main.tsx) already resets the whole document — a global Tailwind Preflight
+   would re-reset the same elements a second time with different values and
+   silently break every not-yet-migrated MUI page. Preflight-equivalent
+   resets are instead applied narrowly, scoped to ".tw-scope" (see below),
+   which wraps only the parts of the tree already migrated to shadcn/ui.
+   Once the whole app is migrated (Phase 4 of the migration plan), switch
+   back to the plain "@import "tailwindcss";" shorthand and delete the
+   ".tw-scope" block entirely. */
+@import 'tailwindcss/theme' layer(theme);
+@import 'tailwindcss/utilities' layer(utilities);
+
+@theme {
+  /* MUI's default theme.breakpoints.values.md is 900px; Tailwind's default
+     "md" is 768px. AppShell.tsx's mobile/desktop drawer split (and every
+     other MUI sx={{ display: { xs, md } }} breakpoint in the app) relies on
+     900px. Overriding here once means every later Tailwind responsive class
+     (`md:flex`, `hidden md:block`, …) lines up with existing behavior
+     instead of silently shifting each migrated page's mobile/desktop
+     cutover width. */
+  --breakpoint-md: 900px;
+}
+
+@theme inline {
+  /* Map the existing HSL custom properties (below) into Tailwind's theme
+     namespace, so utilities like bg-background/text-foreground/bg-primary
+     etc. become available — reusing this file's pre-existing token set as
+     the single source of truth rather than letting a fresh shadcn init
+     define a second, divergent one. */
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+
+  /* Extended status tokens — shadcn/Tailwind ship no default "success" /
+     "warning" / "info" slots, only "destructive". The MUI theme
+     (apps/web/src/app/theme.ts) uses success/warning/info heavily for
+     Alert and Chip (35 + 34 usages across features/), so these are added
+     as first-class Tailwind colors (bg-success, text-warning, …) aliasing
+     the exact same hex values as their MUI counterparts. */
+  --color-success: hsl(var(--success));
+  --color-success-foreground: hsl(var(--success-foreground));
+  --color-warning: hsl(var(--warning));
+  --color-warning-foreground: hsl(var(--warning-foreground));
+  --color-info: hsl(var(--info));
+  --color-info-foreground: hsl(var(--info-foreground));
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+}
 
 :root {
   /* School Intelligence Fresh Palette */
@@ -22,6 +94,16 @@
   --input: 214 32% 91%;
   --ring: 221 83% 53%;
   --radius: 0.625rem;
+
+  /* Status tokens — same hexes as palette.success/warning/info in
+     apps/web/src/app/theme.ts (#10B981 / #F59E0B / #0284C7), converted to
+     HSL to match this file's existing variable convention. */
+  --success: 160 84% 39%;          /* #10B981 */
+  --success-foreground: 0 0% 100%;
+  --warning: 38 92% 50%;           /* #F59E0B */
+  --warning-foreground: 0 0% 100%;
+  --info: 199 95% 41%;             /* #0284C7 */
+  --info-foreground: 0 0% 100%;
 }
 
 html,
@@ -44,6 +126,19 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   letter-spacing: -0.01em;
+}
+
+/* Minimal, hand-ported Preflight equivalent for shadcn/ui + Radix pieces,
+   scoped (not global — see note at the top of this file). Radix portals
+   (Dialog/DropdownMenu/Popover/etc.) render into document.body, outside
+   #root, so this is applied at the body level rather than just inside
+   #root to make sure portaled content is covered too. */
+.tw-scope,
+.tw-scope *,
+[data-radix-popper-content-wrapper],
+[data-radix-popper-content-wrapper] * {
+  box-sizing: border-box;
+  border-color: hsl(var(--border));
 }
 
 /* Elegant School Intelligence Scrollbar */
