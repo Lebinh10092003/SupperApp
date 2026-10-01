@@ -1,28 +1,5 @@
 import { useMemo, useState } from 'react';
-import {
-  Alert,
-  Box,
-  Button,
-  Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  MenuItem,
-  Paper,
-  Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TableSortLabel,
-  TextField,
-  Typography
-} from '@mui/material';
-import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutlineRounded';
-import AssignmentIcon from '@mui/icons-material/AssignmentRounded';
+import { CirclePlus, ClipboardList, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
 import { useTasks, type WorkTask } from './hooks/useTasks';
@@ -30,19 +7,29 @@ import { useActor } from './hooks/useActor';
 import { PersonPicker, type PersonOption } from '../safety/PersonPicker';
 import { AuditTrailPanel } from './AuditTrailPanel';
 import { CAMPUS_IDS, CAMPUS_LABEL, TASK_STATUS_LABEL, TASK_STATUS_COLOR, PRIORITY_LABEL, abbreviatePersonLabel } from './constants';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
 
 export function TaskStatusChip({ status }: { status: string }) {
   const c = TASK_STATUS_COLOR[status] || { bg: '#f1f5f9', fg: '#334155', border: '#e2e8f0' };
   return (
-    <Chip
-      label={TASK_STATUS_LABEL[status] || status}
-      size="small"
-      sx={{ bgcolor: c.bg, color: c.fg, border: `1px solid ${c.border}`, fontWeight: 700, fontSize: '0.75rem', height: 24 }}
-    />
+    <Badge variant="outline" className="h-6 border font-bold" style={{ backgroundColor: c.bg, color: c.fg, borderColor: c.border }}>
+      {TASK_STATUS_LABEL[status] || status}
+    </Badge>
   );
 }
 
 const STATUS_FILTER_OPTIONS = ['ASSIGNED', 'ACCEPTED', 'IN_PROGRESS', 'PENDING_ACCEPTANCE', 'COMPLETED', 'RETURNED', 'CANCELLED'];
+const ALL_CAMPUS = '__all_campus__';
+const ALL_STATUS = '__all_status__';
 
 type TaskSortKey = 'createdAt' | 'dueAt' | 'title' | 'campusId' | 'assignee' | 'status';
 
@@ -154,125 +141,144 @@ export default function TasksListPage() {
     }
   };
 
+  const SortHeader = ({ sortKeyName, children }: { sortKeyName: TaskSortKey; children: React.ReactNode }) => {
+    const active = sortKey === sortKeyName;
+    const Icon = active ? (sortDir === 'asc' ? ArrowUp : ArrowDown) : ArrowUpDown;
+    return (
+      <button type="button" onClick={() => handleSort(sortKeyName)} className="inline-flex items-center gap-1 font-semibold text-slate-600">
+        {children}
+        <Icon className={cn('size-3.5', active ? 'text-[#0f172a]' : 'text-slate-400')} />
+      </button>
+    );
+  };
+
   return (
     <>
       <PageHeader
         title="Giao việc"
-        icon={<AssignmentIcon />}
+        icon={<ClipboardList />}
         action={
-          <Button
-            variant="contained"
-            startIcon={<AddCircleOutlineIcon />}
-            onClick={() => setCreateOpen(true)}
-            sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' }, textTransform: 'none', fontWeight: 700 }}
-          >
+          <Button onClick={() => setCreateOpen(true)} className="font-bold">
+            <CirclePlus className="size-4" />
             Giao việc
           </Button>
         }
       />
 
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2 }} useFlexGap flexWrap="wrap">
-        <TextField
-          label="Tìm theo tiêu đề"
-          value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
-          sx={{ minWidth: 200 }}
-        />
+      <div className="mb-4 flex flex-wrap items-end gap-3">
+        <div>
+          <Label htmlFor="tasks-search" className="mb-1.5 block">
+            Tìm theo tiêu đề
+          </Label>
+          <Input id="tasks-search" value={searchText} onChange={(e) => setSearchText(e.target.value)} className="min-w-50" />
+        </div>
         <PersonPicker label="Người thực hiện (username)" value={personFilter} onChange={setPersonFilter} />
-        <TextField
-          label="Hạn từ ngày"
-          type="date"
-          value={fromDate}
-          onChange={(e) => setFromDate(e.target.value)}
-          slotProps={{ inputLabel: { shrink: true } }}
-          sx={{ minWidth: 160 }}
-        />
-        <TextField
-          label="Hạn đến ngày"
-          type="date"
-          value={toDate}
-          onChange={(e) => setToDate(e.target.value)}
-          slotProps={{ inputLabel: { shrink: true } }}
-          sx={{ minWidth: 160 }}
-        />
-        <TextField select label="Quan hệ" value={relation} onChange={(e) => setRelation(e.target.value as any)} sx={{ minWidth: 180 }}>
-          <MenuItem value="MINE">Của tôi</MenuItem>
-          <MenuItem value="ASSIGNED_BY_ME">Tôi giao</MenuItem>
-          <MenuItem value="ALL">Tất cả</MenuItem>
-        </TextField>
-        <TextField select label="Cơ sở" value={campusFilter} onChange={(e) => setCampusFilter(e.target.value)} sx={{ minWidth: 180 }}>
-          <MenuItem value="">Tất cả</MenuItem>
-          {CAMPUS_IDS.map((c) => (
-            <MenuItem key={c} value={c}>
-              {CAMPUS_LABEL[c]}
-            </MenuItem>
-          ))}
-        </TextField>
-        <TextField select label="Trạng thái" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} sx={{ minWidth: 200 }}>
-          <MenuItem value="">Tất cả</MenuItem>
-          {STATUS_FILTER_OPTIONS.map((s) => (
-            <MenuItem key={s} value={s}>
-              {TASK_STATUS_LABEL[s]}
-            </MenuItem>
-          ))}
-        </TextField>
-      </Stack>
+        <div>
+          <Label htmlFor="tasks-from-date" className="mb-1.5 block">
+            Hạn từ ngày
+          </Label>
+          <Input id="tasks-from-date" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="min-w-40" />
+        </div>
+        <div>
+          <Label htmlFor="tasks-to-date" className="mb-1.5 block">
+            Hạn đến ngày
+          </Label>
+          <Input id="tasks-to-date" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="min-w-40" />
+        </div>
+        <div>
+          <Label className="mb-1.5 block">Quan hệ</Label>
+          <Select value={relation} onValueChange={(v) => setRelation(v as any)}>
+            <SelectTrigger className="min-w-44">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="MINE">Của tôi</SelectItem>
+              <SelectItem value="ASSIGNED_BY_ME">Tôi giao</SelectItem>
+              <SelectItem value="ALL">Tất cả</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="mb-1.5 block">Cơ sở</Label>
+          <Select value={campusFilter || ALL_CAMPUS} onValueChange={(v) => setCampusFilter(v === ALL_CAMPUS ? '' : v)}>
+            <SelectTrigger className="min-w-44">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_CAMPUS}>Tất cả</SelectItem>
+              {CAMPUS_IDS.map((c) => (
+                <SelectItem key={c} value={c}>
+                  {CAMPUS_LABEL[c]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="mb-1.5 block">Trạng thái</Label>
+          <Select value={statusFilter || ALL_STATUS} onValueChange={(v) => setStatusFilter(v === ALL_STATUS ? '' : v)}>
+            <SelectTrigger className="min-w-48">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_STATUS}>Tất cả</SelectItem>
+              {STATUS_FILTER_OPTIONS.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {TASK_STATUS_LABEL[s]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
 
-      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      {error && (
+        <Alert className="mb-4 border-red-200 bg-red-50">
+          <AlertDescription className="text-red-700">{error}</AlertDescription>
+        </Alert>
+      )}
       {toast && (
-        <Alert severity={toast.severity} onClose={() => setToast(null)} sx={{ mb: 2 }}>
-          {toast.message}
+        <Alert className={cn('mb-4', toast.severity === 'error' ? 'border-red-200 bg-red-50' : 'border-emerald-200 bg-emerald-50')}>
+          <AlertDescription className={toast.severity === 'error' ? 'text-red-700' : 'text-emerald-700'}>{toast.message}</AlertDescription>
         </Alert>
       )}
 
-      <TableContainer component={Paper} sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none' }}>
+      <div className="rounded-xl border border-slate-200">
         <Table>
-          <TableHead>
+          <TableHeader>
             <TableRow>
               {/* Cột ngày đưa lên ĐẦU bảng — Sin yêu cầu 2026-09-21 (giữ cả
                   Ngày giao lẫn Hạn, đúng thứ tự đã thêm trước đó). */}
-              <TableCell>
-                <TableSortLabel active={sortKey === 'createdAt'} direction={sortKey === 'createdAt' ? sortDir : 'desc'} onClick={() => handleSort('createdAt')}>
-                  Ngày giao
-                </TableSortLabel>
-              </TableCell>
-              <TableCell>
-                <TableSortLabel active={sortKey === 'dueAt'} direction={sortKey === 'dueAt' ? sortDir : 'asc'} onClick={() => handleSort('dueAt')}>
-                  Hạn
-                </TableSortLabel>
-              </TableCell>
-              <TableCell>
-                <TableSortLabel active={sortKey === 'title'} direction={sortKey === 'title' ? sortDir : 'asc'} onClick={() => handleSort('title')}>
-                  Công việc
-                </TableSortLabel>
-              </TableCell>
-              <TableCell>
-                <TableSortLabel active={sortKey === 'campusId'} direction={sortKey === 'campusId' ? sortDir : 'asc'} onClick={() => handleSort('campusId')}>
-                  Cơ sở
-                </TableSortLabel>
-              </TableCell>
-              <TableCell>
-                <TableSortLabel active={sortKey === 'assignee'} direction={sortKey === 'assignee' ? sortDir : 'asc'} onClick={() => handleSort('assignee')}>
-                  Phụ trách
-                </TableSortLabel>
-              </TableCell>
-              <TableCell>
-                <TableSortLabel active={sortKey === 'status'} direction={sortKey === 'status' ? sortDir : 'asc'} onClick={() => handleSort('status')}>
-                  Trạng thái
-                </TableSortLabel>
-              </TableCell>
+              <TableHead>
+                <SortHeader sortKeyName="createdAt">Ngày giao</SortHeader>
+              </TableHead>
+              <TableHead>
+                <SortHeader sortKeyName="dueAt">Hạn</SortHeader>
+              </TableHead>
+              <TableHead>
+                <SortHeader sortKeyName="title">Công việc</SortHeader>
+              </TableHead>
+              <TableHead>
+                <SortHeader sortKeyName="campusId">Cơ sở</SortHeader>
+              </TableHead>
+              <TableHead>
+                <SortHeader sortKeyName="assignee">Phụ trách</SortHeader>
+              </TableHead>
+              <TableHead>
+                <SortHeader sortKeyName="status">Trạng thái</SortHeader>
+              </TableHead>
             </TableRow>
-          </TableHead>
+          </TableHeader>
           <TableBody>
             {!loading && filteredItems.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                <TableCell colSpan={6} className="py-8 text-center text-slate-500">
                   Không có công việc nào.
                 </TableCell>
               </TableRow>
             )}
             {filteredItems.map((t) => (
-              <TableRow key={t.id} hover sx={{ cursor: 'pointer' }} onClick={() => setDetail(t)}>
+              <TableRow key={t.id} className="cursor-pointer" onClick={() => setDetail(t)}>
                 <TableCell>{new Date(t.createdAt).toLocaleString('vi-VN')}</TableCell>
                 <TableCell>{new Date(t.dueAt).toLocaleString('vi-VN')}</TableCell>
                 <TableCell>{t.title}</TableCell>
@@ -287,46 +293,78 @@ export default function TasksListPage() {
             ))}
           </TableBody>
         </Table>
-      </TableContainer>
+      </div>
 
-      <Dialog open={createOpen} onClose={() => setCreateOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700 }}>Giao việc mới</DialogTitle>
-        <DialogContent dividers>
-          <Stack spacing={2} sx={{ pt: 1 }}>
-            {createError && <Alert severity="error">{createError}</Alert>}
-            <TextField label="Tiêu đề *" value={title} onChange={(e) => setTitle(e.target.value)} fullWidth />
-            <TextField select label="Cơ sở *" value={campusId} onChange={(e) => setCampusId(e.target.value)} fullWidth>
-              {CAMPUS_IDS.map((c) => (
-                <MenuItem key={c} value={c}>
-                  {CAMPUS_LABEL[c]}
-                </MenuItem>
-              ))}
-            </TextField>
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Giao việc mới</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-3">
+            {createError && (
+              <Alert className="border-red-200 bg-red-50">
+                <AlertDescription className="text-red-700">{createError}</AlertDescription>
+              </Alert>
+            )}
+            <div>
+              <Label htmlFor="create-task-title" className="mb-1.5 block">
+                Tiêu đề *
+              </Label>
+              <Input id="create-task-title" value={title} onChange={(e) => setTitle(e.target.value)} />
+            </div>
+            <div>
+              <Label className="mb-1.5 block">Cơ sở *</Label>
+              <Select value={campusId} onValueChange={setCampusId}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Chọn cơ sở" />
+                </SelectTrigger>
+                <SelectContent>
+                  {CAMPUS_IDS.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {CAMPUS_LABEL[c]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <PersonPicker label="Người được giao *" value={assignee} onChange={setAssignee} />
-            <TextField
-              label="Hạn hoàn thành *"
-              type="datetime-local"
-              value={dueAt}
-              onChange={(e) => setDueAt(e.target.value)}
-              slotProps={{ inputLabel: { shrink: true } }}
-              fullWidth
-            />
-            <TextField select label="Mức ưu tiên" value={priority} onChange={(e) => setPriority(e.target.value)} fullWidth>
-              {Object.entries(PRIORITY_LABEL).map(([k, v]) => (
-                <MenuItem key={k} value={k}>
-                  {v}
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField label="Mô tả" value={description} onChange={(e) => setDescription(e.target.value)} multiline rows={3} fullWidth />
-          </Stack>
+            <div>
+              <Label htmlFor="create-task-due" className="mb-1.5 block">
+                Hạn hoàn thành *
+              </Label>
+              <Input id="create-task-due" type="datetime-local" value={dueAt} onChange={(e) => setDueAt(e.target.value)} />
+            </div>
+            <div>
+              <Label className="mb-1.5 block">Mức ưu tiên</Label>
+              <Select value={priority} onValueChange={setPriority}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(PRIORITY_LABEL).map(([k, v]) => (
+                    <SelectItem key={k} value={k}>
+                      {v}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="create-task-desc" className="mb-1.5 block">
+                Mô tả
+              </Label>
+              <Textarea id="create-task-desc" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setCreateOpen(false)}>
+              Hủy
+            </Button>
+            <Button onClick={handleCreate} disabled={submitting}>
+              Lưu
+            </Button>
+          </DialogFooter>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setCreateOpen(false)}>Hủy</Button>
-          <Button variant="contained" onClick={handleCreate} disabled={submitting}>
-            Lưu
-          </Button>
-        </DialogActions>
       </Dialog>
 
       <TaskDetailDialog
@@ -430,109 +468,143 @@ export function TaskDetailDialog({
   };
 
   return (
-    <Dialog open onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ fontWeight: 700 }}>{task.title}</DialogTitle>
-      <DialogContent dividers>
-        <Stack spacing={2}>
-          {actionError && <Alert severity="error">{actionError}</Alert>}
+    <Dialog open onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{task.title}</DialogTitle>
+        </DialogHeader>
+        <div className="flex flex-col gap-4">
+          {actionError && (
+            <Alert className="border-red-200 bg-red-50">
+              <AlertDescription className="text-red-700">{actionError}</AlertDescription>
+            </Alert>
+          )}
           <TaskStatusChip status={task.status} />
           {/* Luôn hiện đủ tên trường dù trống (Mr Tiến phản hồi 2026-09-21). */}
-          <Stack spacing={0.5}>
-            <Typography variant="body2">Cơ sở: <strong>{CAMPUS_LABEL[task.campusId] || task.campusId}</strong></Typography>
-            <Typography variant="body2">Người giao: {task.createdByLabel || task.createdByName || task.createdByPerId} — Người thực hiện: {task.assigneeLabel || task.assigneeName || task.assigneePerId}</Typography>
-            <Typography variant="body2">Ngày giao: {new Date(task.createdAt).toLocaleString('vi-VN')}</Typography>
-            <Typography variant="body2">Hạn: {new Date(task.dueAt).toLocaleString('vi-VN')}</Typography>
-            <Typography variant="body2" color="text.secondary">Nội dung: {task.description || '—'}</Typography>
-          </Stack>
-          {task.status === 'RETURNED' && task.acceptanceNote && <Alert severity="warning">Lý do trả lại: {task.acceptanceNote}</Alert>}
-          {task.status === 'CANCELLED' && task.cancellationReason && <Alert severity="info">Lý do hủy: {task.cancellationReason}</Alert>}
-          {task.status === 'COMPLETED' && task.acceptanceNote && <Alert severity="success">Ghi chú nghiệm thu: {task.acceptanceNote}</Alert>}
+          <div className="flex flex-col gap-1">
+            <p className="text-sm">
+              Cơ sở: <strong>{CAMPUS_LABEL[task.campusId] || task.campusId}</strong>
+            </p>
+            <p className="text-sm">
+              Người giao: {task.createdByLabel || task.createdByName || task.createdByPerId} — Người thực hiện:{' '}
+              {task.assigneeLabel || task.assigneeName || task.assigneePerId}
+            </p>
+            <p className="text-sm">Ngày giao: {new Date(task.createdAt).toLocaleString('vi-VN')}</p>
+            <p className="text-sm">Hạn: {new Date(task.dueAt).toLocaleString('vi-VN')}</p>
+            <p className="text-sm text-slate-500">Nội dung: {task.description || '—'}</p>
+          </div>
+          {task.status === 'RETURNED' && task.acceptanceNote && (
+            <Alert className="border-amber-200 bg-amber-50">
+              <AlertDescription className="text-amber-800">Lý do trả lại: {task.acceptanceNote}</AlertDescription>
+            </Alert>
+          )}
+          {task.status === 'CANCELLED' && task.cancellationReason && (
+            <Alert className="border-blue-200 bg-secondary">
+              <AlertDescription className="text-blue-800">Lý do hủy: {task.cancellationReason}</AlertDescription>
+            </Alert>
+          )}
+          {task.status === 'COMPLETED' && task.acceptanceNote && (
+            <Alert className="border-emerald-200 bg-emerald-50">
+              <AlertDescription className="text-emerald-700">Ghi chú nghiệm thu: {task.acceptanceNote}</AlertDescription>
+            </Alert>
+          )}
 
           <AuditTrailPanel entityType="task" entityId={task.id} refreshKey={historyVersion} />
-        </Stack>
+        </div>
+        <DialogFooter className="flex-wrap gap-1.5 sm:justify-start">
+          {task.status === 'ASSIGNED' && isAssignee && (
+            <Button disabled={busy} onClick={() => changeStatus('ACCEPTED')}>
+              Nhận việc
+            </Button>
+          )}
+          {task.status === 'ACCEPTED' && isAssignee && (
+            <Button disabled={busy} onClick={() => changeStatus('IN_PROGRESS')}>
+              Bắt đầu
+            </Button>
+          )}
+          {task.status === 'IN_PROGRESS' && isAssignee && (
+            <Button disabled={busy} onClick={openEvidenceDialog}>
+              Trình nghiệm thu
+            </Button>
+          )}
+          {task.status === 'PENDING_ACCEPTANCE' && isCreator && (
+            <>
+              <Button disabled={busy} onClick={() => acceptOrReturn('COMPLETED')} className="bg-green-600 hover:bg-green-700">
+                Nghiệm thu
+              </Button>
+              <Button variant="ghost" disabled={busy} onClick={() => openReasonDialog('RETURNED')} className="text-amber-700">
+                Trả lại
+              </Button>
+            </>
+          )}
+          {task.status === 'RETURNED' && isAssignee && (
+            <Button disabled={busy} onClick={() => changeStatus('IN_PROGRESS')}>
+              Tiếp tục thực hiện
+            </Button>
+          )}
+          {(task.status === 'ASSIGNED' || task.status === 'RETURNED') && isCreator && (
+            <Button variant="ghost" disabled={busy} onClick={() => openReasonDialog('CANCELLED')} className="text-red-600">
+              Hủy công việc
+            </Button>
+          )}
+          <Button variant="ghost" onClick={onClose} className="ml-auto text-slate-500">
+            Đóng
+          </Button>
+        </DialogFooter>
+
+        <Dialog open={!!reasonOpen} onOpenChange={(v) => !v && setReasonOpen(null)}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>{reasonOpen === 'CANCELLED' ? 'Lý do hủy công việc' : 'Lý do trả lại'}</DialogTitle>
+            </DialogHeader>
+            <div>
+              <Label htmlFor="task-reason" className="mb-1.5 block">
+                Lý do (bắt buộc) *
+              </Label>
+              <Textarea id="task-reason" autoFocus rows={3} value={reason} onChange={(e) => setReason(e.target.value)} />
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setReasonOpen(null)}>
+                Hủy
+              </Button>
+              <Button onClick={submitReason} disabled={!reason.trim() || busy}>
+                Xác nhận
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={evidenceOpen} onOpenChange={setEvidenceOpen}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Trình nghiệm thu</DialogTitle>
+            </DialogHeader>
+            <div>
+              <Label htmlFor="task-evidence-url" className="mb-1.5 block">
+                Link minh chứng (Google Sheet/Docs/Drive...) *
+              </Label>
+              <Input
+                id="task-evidence-url"
+                autoFocus
+                placeholder="https://docs.google.com/..."
+                value={evidenceUrl}
+                onChange={(e) => setEvidenceUrl(e.target.value)}
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                Bắt buộc — dán link tài liệu/minh chứng đã hoàn thành để người giao xem trước khi nghiệm thu.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setEvidenceOpen(false)}>
+                Hủy
+              </Button>
+              <Button onClick={submitEvidence} disabled={!evidenceUrl.trim() || busy}>
+                Trình nghiệm thu
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </DialogContent>
-      <DialogActions sx={{ flexWrap: 'wrap', gap: 1 }}>
-        {task.status === 'ASSIGNED' && isAssignee && (
-          <Button variant="contained" disabled={busy} onClick={() => changeStatus('ACCEPTED')}>
-            Nhận việc
-          </Button>
-        )}
-        {task.status === 'ACCEPTED' && isAssignee && (
-          <Button variant="contained" disabled={busy} onClick={() => changeStatus('IN_PROGRESS')}>
-            Bắt đầu
-          </Button>
-        )}
-        {task.status === 'IN_PROGRESS' && isAssignee && (
-          <Button variant="contained" disabled={busy} onClick={openEvidenceDialog}>
-            Trình nghiệm thu
-          </Button>
-        )}
-        {task.status === 'PENDING_ACCEPTANCE' && isCreator && (
-          <>
-            <Button variant="contained" color="success" disabled={busy} onClick={() => acceptOrReturn('COMPLETED')}>
-              Nghiệm thu
-            </Button>
-            <Button color="warning" disabled={busy} onClick={() => openReasonDialog('RETURNED')}>
-              Trả lại
-            </Button>
-          </>
-        )}
-        {task.status === 'RETURNED' && isAssignee && (
-          <Button variant="contained" disabled={busy} onClick={() => changeStatus('IN_PROGRESS')}>
-            Tiếp tục thực hiện
-          </Button>
-        )}
-        {(task.status === 'ASSIGNED' || task.status === 'RETURNED') && isCreator && (
-          <Button color="error" disabled={busy} onClick={() => openReasonDialog('CANCELLED')}>
-            Hủy công việc
-          </Button>
-        )}
-        <Button onClick={onClose}>Đóng</Button>
-      </DialogActions>
-
-      <Dialog open={!!reasonOpen} onClose={() => setReasonOpen(null)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700 }}>{reasonOpen === 'CANCELLED' ? 'Lý do hủy công việc' : 'Lý do trả lại'}</DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            label="Lý do (bắt buộc) *"
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            multiline
-            rows={3}
-            fullWidth
-            sx={{ mt: 1 }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setReasonOpen(null)}>Hủy</Button>
-          <Button variant="contained" onClick={submitReason} disabled={!reason.trim() || busy}>
-            Xác nhận
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Dialog open={evidenceOpen} onClose={() => setEvidenceOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700 }}>Trình nghiệm thu</DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            label="Link minh chứng (Google Sheet/Docs/Drive...) *"
-            placeholder="https://docs.google.com/..."
-            value={evidenceUrl}
-            onChange={(e) => setEvidenceUrl(e.target.value)}
-            fullWidth
-            sx={{ mt: 1 }}
-            helperText="Bắt buộc — dán link tài liệu/minh chứng đã hoàn thành để người giao xem trước khi nghiệm thu."
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setEvidenceOpen(false)}>Hủy</Button>
-          <Button variant="contained" onClick={submitEvidence} disabled={!evidenceUrl.trim() || busy}>
-            Trình nghiệm thu
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Dialog>
   );
 }
