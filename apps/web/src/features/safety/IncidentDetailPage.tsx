@@ -9,33 +9,7 @@
  */
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import {
-  Alert,
-  Box,
-  Button,
-  Card,
-  CardContent,
-  CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Divider,
-  Link as MuiLink,
-  MenuItem,
-  Snackbar,
-  Stack,
-  TextField,
-  Typography
-} from '@mui/material';
-import ArrowBackIcon from '@mui/icons-material/ArrowBackRounded';
-import SyncAltIcon from '@mui/icons-material/SyncAltRounded';
-import PriorityHighIcon from '@mui/icons-material/PriorityHighRounded';
-import RestartAltIcon from '@mui/icons-material/RestartAltRounded';
-import PersonAddAlt1Icon from '@mui/icons-material/PersonAddAlt1Rounded';
-import GroupAddIcon from '@mui/icons-material/GroupAddRounded';
-import HowToRegIcon from '@mui/icons-material/HowToRegRounded';
-import EditIcon from '@mui/icons-material/EditRounded';
+import { ArrowLeft, ArrowLeftRight, TriangleAlert, RotateCcw, UserPlus, UsersRound, UserCheck, Pencil, Loader2 } from 'lucide-react';
 
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
@@ -52,6 +26,13 @@ import { ContactInfoButton } from './components/ContactInfoButton';
 import { CorrectClassificationDialog, type CorrectClassificationTarget } from './dialogs/CorrectClassificationDialog';
 import { CAMPUS_LABEL, SLA_CLOCK_LABEL, SLA_STATUS_LABEL } from './constants';
 import { useActor } from './hooks/useActor';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
+import { Toast, type ToastState } from '../../components/Toast';
 
 interface EvidenceSummary {
   evidenceId: string;
@@ -125,7 +106,7 @@ export default function IncidentDetailPage() {
   const [incident, setIncident] = useState<IncidentDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [toast, setToast] = useState<{ message: string; severity: 'success' | 'error' } | null>(null);
+  const [toast, setToast] = useState<ToastState | null>(null);
 
   const [statusTarget, setStatusTarget] = useState<ChangeStatusTarget | null>(null);
   const [priorityTarget, setPriorityTarget] = useState<ChangePriorityTarget | null>(null);
@@ -214,20 +195,23 @@ export default function IncidentDetailPage() {
 
   if (loading) {
     return (
-      <Box sx={{ p: 4, display: 'grid', placeItems: 'center', minHeight: '50vh' }}>
-        <CircularProgress />
-      </Box>
+      <div className="grid min-h-[50vh] place-items-center p-8">
+        <Loader2 className="size-8 animate-spin text-primary" />
+      </div>
     );
   }
 
   if (error) {
     return (
-      <Box sx={{ p: { xs: 2, md: 3 } }}>
-        <Alert severity="error">{error}</Alert>
-        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)} sx={{ mt: 2, textTransform: 'none' }}>
+      <div className="p-4 md:p-6">
+        <Alert className="border-red-200 bg-red-50">
+          <AlertDescription className="text-red-700">{error}</AlertDescription>
+        </Alert>
+        <Button variant="ghost" onClick={() => navigate(-1)} className="mt-4 text-slate-500">
+          <ArrowLeft className="size-4" />
           Quay lại
         </Button>
-      </Box>
+      </div>
     );
   }
 
@@ -249,220 +233,187 @@ export default function IncidentDetailPage() {
         title={`Hồ sơ sự cố ${incident.incidentId}`}
         subtitle={incident.categoryLabel || incident.categoryCode || undefined}
         action={
-          <Button component={Link} to="/safety/incidents" startIcon={<ArrowBackIcon />} sx={{ textTransform: 'none', color: '#64748b' }}>
-            Quay lại danh sách
+          <Button asChild variant="ghost" className="text-slate-500">
+            <Link to="/safety/incidents">
+              <ArrowLeft className="size-4" />
+              Quay lại danh sách
+            </Link>
           </Button>
         }
       />
 
-      <Snackbar
-        open={!!toast}
-        autoHideDuration={5000}
-        onClose={() => setToast(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        {toast ? (
-          <Alert severity={toast.severity} onClose={() => setToast(null)} sx={{ borderRadius: 2 }}>
-            {toast.message}
-          </Alert>
-        ) : undefined}
-      </Snackbar>
+      <Toast toast={toast} onClose={() => setToast(null)} />
 
-      <Stack direction="row" spacing={1} sx={{ mb: 2.5, flexWrap: 'wrap' }}>
+      <div className="mb-5 flex flex-wrap gap-1.5">
         <StatusChip state={incident.state} />
         <PriorityChip priority={incident.priority} />
-      </Stack>
+      </div>
 
       {incident.cancelRequestedAt && (
-        <Alert
-          severity="warning"
-          sx={{ mb: 2.5, borderRadius: 2 }}
-          action={
-            isSeniorRole(actor) ? (
-              <Stack direction="row" spacing={1}>
-                <Button size="small" variant="contained" color="success" disabled={decidingCancel} onClick={() => decideCancelAcknowledgment(true)} sx={{ textTransform: 'none' }}>
-                  Duyệt huỷ
-                </Button>
-                <Button size="small" variant="outlined" color="error" disabled={decidingCancel} onClick={() => decideCancelAcknowledgment(false)} sx={{ textTransform: 'none' }}>
-                  Từ chối
-                </Button>
-              </Stack>
-            ) : undefined
-          }
-        >
-          Đang chờ duyệt huỷ tiếp nhận — {incident.commanderName || incident.cancelRequestedBy} xin huỷ, lý do: {incident.cancelRequestReason}
+        <Alert className="mb-5 flex items-center justify-between border-amber-200 bg-amber-50">
+          <AlertDescription className="text-amber-900">
+            Đang chờ duyệt huỷ tiếp nhận — {incident.commanderName || incident.cancelRequestedBy} xin huỷ, lý do: {incident.cancelRequestReason}
+          </AlertDescription>
+          {isSeniorRole(actor) && (
+            <div className="flex shrink-0 gap-2">
+              <Button size="sm" disabled={decidingCancel} onClick={() => decideCancelAcknowledgment(true)} className="bg-emerald-600 hover:bg-emerald-700">
+                Duyệt huỷ
+              </Button>
+              <Button size="sm" variant="outline" disabled={decidingCancel} onClick={() => decideCancelAcknowledgment(false)} className="border-red-300 text-red-600 hover:bg-red-50">
+                Từ chối
+              </Button>
+            </div>
+          )}
         </Alert>
       )}
 
-      <Stack spacing={2.5}>
-          <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none' }}>
-            <CardContent>
-              <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1.5 }}>
-                Thông tin chung
-              </Typography>
-              <Stack spacing={1}>
-                <Typography variant="body2">
-                  Cơ sở: <strong>{CAMPUS_LABEL[incident.campusId] || incident.campusId}</strong>
-                </Typography>
-                {incident.className && (
-                  <Typography variant="body2">
-                    Lớp liên quan: <strong>{incident.className}</strong>
-                  </Typography>
-                )}
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
-                  <Typography variant="body2">
-                    Chỉ huy: <strong>{incident.commanderName || 'Chưa có ai tiếp nhận'}</strong>
-                  </Typography>
-                  {incident.commanderPerId && <ContactInfoButton perId={incident.commanderPerId} name={incident.commanderName || incident.commanderPerId} />}
-                </Box>
-                {incident.participantPerIds && incident.participantPerIds.length > 0 && (
-                  <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5, flexWrap: 'wrap' }}>
-                    <Typography variant="body2">Người tham gia xử lý khác:</Typography>
-                    {incident.participantPerIds.map((p) => (
-                      <Box key={p} sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.25 }}>
-                        <Typography variant="body2" fontWeight={700}>
-                          {incident.participantLabels?.[p] || p}
-                        </Typography>
-                        <ContactInfoButton perId={p} name={incident.participantLabels?.[p] || p} />
-                      </Box>
-                    ))}
-                  </Box>
-                )}
-                {incident.lastNote && <Typography variant="body2">Ghi chú gần nhất: {incident.lastNote}</Typography>}
-                {incident.reopenReason && <Typography variant="body2">Lý do mở lại: {incident.reopenReason}</Typography>}
-                <Typography variant="caption" color="text.secondary">
-                  Tạo lúc {formatDateTime(incident.createdAt)} — cập nhật {formatDateTime(incident.updatedAt)}
-                </Typography>
-              </Stack>
-            </CardContent>
-          </Card>
+      <div className="flex flex-col gap-5">
+        <div className="rounded-xl border border-slate-200 p-5">
+          <p className="mb-3 text-sm font-bold">Thông tin chung</p>
+          <div className="flex flex-col gap-2">
+            <p className="text-sm">
+              Cơ sở: <strong>{CAMPUS_LABEL[incident.campusId] || incident.campusId}</strong>
+            </p>
+            {incident.className && (
+              <p className="text-sm">
+                Lớp liên quan: <strong>{incident.className}</strong>
+              </p>
+            )}
+            <div className="flex flex-wrap items-center gap-1">
+              <p className="text-sm">
+                Chỉ huy: <strong>{incident.commanderName || 'Chưa có ai tiếp nhận'}</strong>
+              </p>
+              {incident.commanderPerId && <ContactInfoButton perId={incident.commanderPerId} name={incident.commanderName || incident.commanderPerId} />}
+            </div>
+            {incident.participantPerIds && incident.participantPerIds.length > 0 && (
+              <div className="flex flex-wrap items-start gap-1">
+                <p className="text-sm">Người tham gia xử lý khác:</p>
+                {incident.participantPerIds.map((p) => (
+                  <div key={p} className="inline-flex items-center gap-0.5">
+                    <p className="text-sm font-bold">{incident.participantLabels?.[p] || p}</p>
+                    <ContactInfoButton perId={p} name={incident.participantLabels?.[p] || p} />
+                  </div>
+                ))}
+              </div>
+            )}
+            {incident.lastNote && <p className="text-sm">Ghi chú gần nhất: {incident.lastNote}</p>}
+            {incident.reopenReason && <p className="text-sm">Lý do mở lại: {incident.reopenReason}</p>}
+            <p className="text-xs text-slate-500">
+              Tạo lúc {formatDateTime(incident.createdAt)} — cập nhật {formatDateTime(incident.updatedAt)}
+            </p>
+          </div>
+        </div>
 
-          {(isCommander || isSenior) && incident.pendingJoinRequests && incident.pendingJoinRequests.length > 0 && (
-            <Card sx={{ borderRadius: 3, border: '1px solid #fde68a', bgcolor: '#fffbeb', boxShadow: 'none' }}>
-              <CardContent>
-                <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1.5 }}>
-                  Yêu cầu tham gia đang chờ duyệt ({incident.pendingJoinRequests.length})
-                </Typography>
-                <Stack spacing={1.5} divider={<Divider />}>
-                  {incident.pendingJoinRequests.map((r) => (
-                    <Box key={r.perId} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap' }}>
-                      <Box>
-                        <Typography variant="body2" fontWeight={700}>
-                          {incident.pendingJoinRequestLabels?.[r.perId] || r.perId}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          Lý do: {r.reason} — {formatDateTime(r.requestedAt)}
-                        </Typography>
-                      </Box>
-                      <Stack direction="row" spacing={1}>
-                        <Button
-                          size="small"
-                          variant="contained"
-                          onClick={async () => {
-                            await api.post(`/api/safety/incidents/${incident.incidentId}/join-requests/${r.perId}/approve`, {});
-                            load();
-                            setToast({ message: `Đã duyệt cho ${incident.pendingJoinRequestLabels?.[r.perId] || r.perId} tham gia.`, severity: 'success' });
-                          }}
-                          sx={{ bgcolor: '#16a34a', '&:hover': { bgcolor: '#15803d' }, textTransform: 'none', fontWeight: 600 }}
-                        >
-                          Duyệt
-                        </Button>
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          color="error"
-                          onClick={async () => {
-                            await api.post(`/api/safety/incidents/${incident.incidentId}/join-requests/${r.perId}/reject`, {});
-                            load();
-                            setToast({ message: `Đã từ chối yêu cầu của ${incident.pendingJoinRequestLabels?.[r.perId] || r.perId}.`, severity: 'success' });
-                          }}
-                          sx={{ textTransform: 'none', fontWeight: 600 }}
-                        >
-                          Từ chối
-                        </Button>
-                      </Stack>
-                    </Box>
-                  ))}
-                </Stack>
-              </CardContent>
-            </Card>
-          )}
+        {(isCommander || isSenior) && incident.pendingJoinRequests && incident.pendingJoinRequests.length > 0 && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-5">
+            <p className="mb-3 text-sm font-bold">Yêu cầu tham gia đang chờ duyệt ({incident.pendingJoinRequests.length})</p>
+            <div className="flex flex-col divide-y divide-amber-200">
+              {incident.pendingJoinRequests.map((r) => (
+                <div key={r.perId} className="flex flex-wrap items-center justify-between gap-2 py-3 first:pt-0 last:pb-0">
+                  <div>
+                    <p className="text-sm font-bold">{incident.pendingJoinRequestLabels?.[r.perId] || r.perId}</p>
+                    <p className="text-xs text-slate-500">
+                      Lý do: {r.reason} — {formatDateTime(r.requestedAt)}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      onClick={async () => {
+                        await api.post(`/api/safety/incidents/${incident.incidentId}/join-requests/${r.perId}/approve`, {});
+                        load();
+                        setToast({ message: `Đã duyệt cho ${incident.pendingJoinRequestLabels?.[r.perId] || r.perId} tham gia.`, severity: 'success' });
+                      }}
+                      className="bg-green-600 font-semibold hover:bg-green-700"
+                    >
+                      Duyệt
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={async () => {
+                        await api.post(`/api/safety/incidents/${incident.incidentId}/join-requests/${r.perId}/reject`, {});
+                        load();
+                        setToast({ message: `Đã từ chối yêu cầu của ${incident.pendingJoinRequestLabels?.[r.perId] || r.perId}.`, severity: 'success' });
+                      }}
+                      className="border-red-300 font-semibold text-red-600 hover:bg-red-50"
+                    >
+                      Từ chối
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
-          {incident.slaClocks && Object.keys(incident.slaClocks).length > 0 && (
-            <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none' }}>
-              <CardContent>
-                <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1.5 }}>
-                  Đồng hồ SLA
-                </Typography>
-                <Stack spacing={1}>
-                  {Object.entries(incident.slaClocks).map(([label, clock]) => (
-                    <Typography key={label} variant="body2">
-                      {SLA_CLOCK_LABEL[label] || label}: hạn {formatDateTime(clock.deadlineAt)} — {SLA_STATUS_LABEL[clock.status] || clock.status}
-                      {clock.paused ? ' (đang tạm dừng)' : ''}
-                    </Typography>
-                  ))}
-                </Stack>
-              </CardContent>
-            </Card>
-          )}
+        {incident.slaClocks && Object.keys(incident.slaClocks).length > 0 && (
+          <div className="rounded-xl border border-slate-200 p-5">
+            <p className="mb-3 text-sm font-bold">Đồng hồ SLA</p>
+            <div className="flex flex-col gap-1.5">
+              {Object.entries(incident.slaClocks).map(([label, clock]) => (
+                <p key={label} className="text-sm">
+                  {SLA_CLOCK_LABEL[label] || label}: hạn {formatDateTime(clock.deadlineAt)} — {SLA_STATUS_LABEL[clock.status] || clock.status}
+                  {clock.paused ? ' (đang tạm dừng)' : ''}
+                </p>
+              ))}
+            </div>
+          </div>
+        )}
 
-          {incident.reportSubmissions && incident.reportSubmissions.length > 0 && (
-            <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none' }}>
-              <CardContent>
-                <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1.5 }}>
-                  Nội dung tin báo gốc{incident.reportSubmissions.length > 1 ? ` (${incident.reportSubmissions.length} lượt gửi)` : ''}
-                </Typography>
-                <Stack spacing={1.5} divider={<Divider />}>
-                  {incident.reportSubmissions.map((r) => (
-                    <Box key={r.reportId}>
-                      <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-                        {r.content || <em>(không có nội dung)</em>}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {formatDateTime(r.occurredAt)}
-                        {r.stillDangerous ? ' — còn nguy hiểm lúc gửi' : ''}
-                      </Typography>
-                      {(r.contactName || r.email || r.phone) && (
-                        <Typography variant="body2" sx={{ mt: 0.5 }}>
-                          Liên hệ người báo tin
-                          {r.contactName ? ' (' + r.contactName + ')' : ''}:{' '}
-                          {r.email && <MuiLink href={`mailto:${r.email}`}>{r.email}</MuiLink>}
-                          {r.email && r.phone ? ' · ' : ''}
-                          {r.phone && <MuiLink href={`tel:${r.phone}`}>{r.phone}</MuiLink>}
-                        </Typography>
+        {incident.reportSubmissions && incident.reportSubmissions.length > 0 && (
+          <div className="rounded-xl border border-slate-200 p-5">
+            <p className="mb-3 text-sm font-bold">
+              Nội dung tin báo gốc{incident.reportSubmissions.length > 1 ? ` (${incident.reportSubmissions.length} lượt gửi)` : ''}
+            </p>
+            <div className="flex flex-col divide-y divide-slate-200">
+              {incident.reportSubmissions.map((r) => (
+                <div key={r.reportId} className="py-3 first:pt-0 last:pb-0">
+                  <p className="text-sm whitespace-pre-wrap">{r.content || <em>(không có nội dung)</em>}</p>
+                  <p className="text-xs text-slate-500">
+                    {formatDateTime(r.occurredAt)}
+                    {r.stillDangerous ? ' — còn nguy hiểm lúc gửi' : ''}
+                  </p>
+                  {(r.contactName || r.email || r.phone) && (
+                    <p className="mt-1 text-sm">
+                      Liên hệ người báo tin
+                      {r.contactName ? ' (' + r.contactName + ')' : ''}:{' '}
+                      {r.email && (
+                        <a href={`mailto:${r.email}`} className="text-primary hover:underline">
+                          {r.email}
+                        </a>
                       )}
-                    </Box>
-                  ))}
-                </Stack>
-              </CardContent>
-            </Card>
-          )}
+                      {r.email && r.phone ? ' · ' : ''}
+                      {r.phone && (
+                        <a href={`tel:${r.phone}`} className="text-primary hover:underline">
+                          {r.phone}
+                        </a>
+                      )}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
-          <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none' }}>
-            <CardContent>
-              <EvidenceGallery evidenceList={incident.evidenceList || []} canView={Boolean(incident.canViewEvidence)} />
-            </CardContent>
-          </Card>
-        </Stack>
+        <div className="rounded-xl border border-slate-200 p-5">
+          <EvidenceGallery evidenceList={incident.evidenceList || []} canView={Boolean(incident.canViewEvidence)} />
+        </div>
+      </div>
 
-      <Divider sx={{ my: 3 }} />
+      <Separator className="my-6" />
 
-      <Stack direction="row" spacing={1.5} sx={{ flexWrap: 'wrap' }}>
+      <div className="flex flex-wrap gap-2.5">
         {!incident.commanderPerId && (
-          <Button
-            variant="contained"
-            startIcon={<HowToRegIcon />}
-            onClick={() => setAckChoiceOpen(true)}
-            disabled={acknowledging}
-            sx={{ bgcolor: '#16a34a', '&:hover': { bgcolor: '#15803d' }, textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
-          >
+          <Button onClick={() => setAckChoiceOpen(true)} disabled={acknowledging} className="bg-green-600 font-bold hover:bg-green-700">
+            {acknowledging ? <Loader2 className="size-4 animate-spin" /> : <UserCheck className="size-4" />}
             {acknowledging ? 'Đang tiếp nhận...' : 'Tiếp nhận xử lý'}
           </Button>
         )}
         {actor?.perId && (incident.commanderPerId === actor.perId || isSenior) && (
           <Button
-            variant="outlined"
-            startIcon={<GroupAddIcon />}
+            variant="outline"
             onClick={() =>
               setAddParticipantTarget({
                 incidentId: incident.incidentId,
@@ -473,13 +424,14 @@ export default function IncidentDetailPage() {
                 ]
               })
             }
-            sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
+            className="font-semibold"
           >
+            <UsersRound className="size-4" />
             Thêm người xử lý
           </Button>
         )}
         {actor?.perId && incident.commanderPerId === actor.perId && !incident.cancelRequestedAt && (
-          <Button variant="outlined" color="error" onClick={() => setCancelAckDialogOpen(true)} sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}>
+          <Button variant="outline" onClick={() => setCancelAckDialogOpen(true)} className="border-red-300 font-semibold text-red-600 hover:bg-red-50">
             Huỷ tiếp nhận
           </Button>
         )}
@@ -488,48 +440,40 @@ export default function IncidentDetailPage() {
           incident.commanderPerId !== actor.perId &&
           !(incident.participantPerIds || []).includes(actor.perId) &&
           !(incident.pendingJoinRequests || []).some((r) => r.perId === actor.perId) && (
-            <Button variant="outlined" startIcon={<GroupAddIcon />} onClick={() => setJoinDialogOpen(true)} sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}>
+            <Button variant="outline" onClick={() => setJoinDialogOpen(true)} className="font-semibold">
+              <UsersRound className="size-4" />
               Tham gia sự vụ
             </Button>
           )}
         {actor?.perId && (incident.pendingJoinRequests || []).some((r) => r.perId === actor.perId) && (
-          <Button variant="outlined" disabled sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}>
+          <Button variant="outline" disabled className="font-semibold">
             Đang chờ chỉ huy duyệt tham gia
           </Button>
         )}
         {actor?.perId && incident.commanderPerId !== actor.perId && (incident.participantPerIds || []).includes(actor.perId) && (
-          <Button variant="outlined" color="error" onClick={() => setLeaveDialogOpen(true)} sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}>
+          <Button variant="outline" onClick={() => setLeaveDialogOpen(true)} className="border-red-300 font-semibold text-red-600 hover:bg-red-50">
             Rời khỏi sự vụ
           </Button>
         )}
         {canEdit && (
-          <Button
-            variant="outlined"
-            startIcon={<SyncAltIcon />}
-            onClick={() => setStatusTarget({ incidentId: incident.incidentId, state: incident.state })}
-            sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
-          >
+          <Button variant="outline" onClick={() => setStatusTarget({ incidentId: incident.incidentId, state: incident.state })} className="font-semibold">
+            <ArrowLeftRight className="size-4" />
             Đổi trạng thái
           </Button>
         )}
         {canEditPriority && (
-          <Button
-            variant="outlined"
-            startIcon={<PriorityHighIcon />}
-            onClick={() => setPriorityTarget({ incidentId: incident.incidentId, priority: incident.priority })}
-            sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
-          >
+          <Button variant="outline" onClick={() => setPriorityTarget({ incidentId: incident.incidentId, priority: incident.priority })} className="font-semibold">
+            <TriangleAlert className="size-4" />
             Đổi ưu tiên
           </Button>
         )}
         {incident.state === STATE_CLOSED && (
           <Button
-            variant="outlined"
-            color="error"
-            startIcon={<RestartAltIcon />}
+            variant="outline"
             onClick={() => setReopenTarget({ incidentId: incident.incidentId })}
-            sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
+            className="border-red-300 font-semibold text-red-600 hover:bg-red-50"
           >
+            <RotateCcw className="size-4" />
             Mở lại hồ sơ
           </Button>
         )}
@@ -539,8 +483,7 @@ export default function IncidentDetailPage() {
             giữ cả 2 là thừa. */}
         {isSenior && incident.commanderPerId && (
           <Button
-            variant="outlined"
-            startIcon={<PersonAddAlt1Icon />}
+            variant="outline"
             onClick={() =>
               setCommanderTarget({
                 incidentId: incident.incidentId,
@@ -548,22 +491,23 @@ export default function IncidentDetailPage() {
                 commanderName: incident.commanderName
               })
             }
-            sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
+            className="font-semibold"
           >
+            <UserPlus className="size-4" />
             Đổi chỉ huy
           </Button>
         )}
         {canEdit && (
           <Button
-            variant="outlined"
-            startIcon={<EditIcon />}
+            variant="outline"
             onClick={() => setClassificationTarget({ incidentId: incident.incidentId, currentClassName: incident.className || null })}
-            sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
+            className="font-semibold"
           >
+            <Pencil className="size-4" />
             Sửa lớp liên quan
           </Button>
         )}
-      </Stack>
+      </div>
 
       <ChangeStatusDialog
         target={statusTarget}
@@ -639,73 +583,80 @@ export default function IncidentDetailPage() {
           setToast({ message: 'Đã rời khỏi sự vụ.', severity: 'success' });
         }}
       />
-      <Dialog open={ackChoiceOpen} onClose={() => setAckChoiceOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700 }}>Tiếp nhận xử lý hồ sơ</DialogTitle>
-        <DialogContent dividers sx={{ borderColor: '#e2e8f0' }}>
-          <Typography variant="body2" color="text.secondary">
-            Bạn sắp trở thành <strong>chỉ huy</strong> của hồ sơ {incident.incidentId} — chịu trách nhiệm phân công, đổi trạng thái, đổi mức ưu tiên cho đến khi bàn giao/huỷ tiếp nhận.
+      <Dialog open={ackChoiceOpen} onOpenChange={setAckChoiceOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Tiếp nhận xử lý hồ sơ</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-slate-500">
+            Bạn sắp trở thành <strong>chỉ huy</strong> của hồ sơ {incident.incidentId} — chịu trách nhiệm phân công, đổi trạng thái, đổi mức ưu
+            tiên cho đến khi bàn giao/huỷ tiếp nhận.
             {isSenior ? ' Bạn cũng có thể chỉ định người khác làm chỉ huy thay vì tự tiếp nhận.' : ''}
-          </Typography>
-        </DialogContent>
-        <DialogActions sx={{ p: 2, borderTop: '1px solid #e2e8f0', flexWrap: 'wrap', gap: 1 }}>
-          <Button onClick={() => setAckChoiceOpen(false)} sx={{ textTransform: 'none', color: '#64748b' }}>
-            Huỷ
-          </Button>
-          {isSenior && (
-            <Button
-              variant="outlined"
-              startIcon={<PersonAddAlt1Icon />}
-              onClick={() => {
-                setAckChoiceOpen(false);
-                setCommanderTarget({ incidentId: incident.incidentId, commanderPerId: incident.commanderPerId, commanderName: incident.commanderName });
-              }}
-              sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
-            >
-              Chỉ định người khác
+          </p>
+          <DialogFooter className="flex-wrap gap-2 sm:justify-between">
+            <Button variant="ghost" onClick={() => setAckChoiceOpen(false)} className="text-slate-500">
+              Huỷ
             </Button>
-          )}
-          <Button
-            variant="contained"
-            startIcon={<HowToRegIcon />}
-            onClick={() => {
-              setAckChoiceOpen(false);
-              handleAcknowledge();
-            }}
-            sx={{ bgcolor: '#16a34a', '&:hover': { bgcolor: '#15803d' }, textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
-          >
-            Xác nhận tiếp nhận
-          </Button>
-        </DialogActions>
-      </Dialog>
-      <Dialog open={ackDialogOpen} onClose={() => setAckDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700 }}>Chọn mức ưu tiên để tiếp nhận</DialogTitle>
-        <DialogContent dividers sx={{ borderColor: '#e2e8f0' }}>
-          <Stack spacing={2} sx={{ pt: 1 }}>
-            <Typography variant="body2" color="text.secondary">
-              Hồ sơ {incident.incidentId} chưa được phân loại mức ưu tiên — bắt buộc chọn trước khi tiếp nhận xử lý.
-              {incident.suggestedPriority && ` Gợi ý theo nhóm sự cố: ${incident.suggestedPriority}.`}
-            </Typography>
-            <TextField select autoFocus label="Mức ưu tiên" value={ackPriority} onChange={(e) => setAckPriority(e.target.value)} fullWidth>
-              <MenuItem value="P0">P0 — Khẩn cấp (nguy hiểm tức thời tính mạng/sức khỏe)</MenuItem>
-              <MenuItem value="P1">P1 — Nghiêm trọng (nguy cơ nghiêm trọng / leo thang nhanh)</MenuItem>
-              <MenuItem value="P2">P2 — Cần xử lý (cần phối hợp, không nguy hiểm tức thời)</MenuItem>
-              <MenuItem value="P3">P3 — Thông thường (nguy cơ thông thường / phòng ngừa)</MenuItem>
-            </TextField>
-          </Stack>
+            <div className="flex flex-wrap gap-2">
+              {isSenior && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setAckChoiceOpen(false);
+                    setCommanderTarget({ incidentId: incident.incidentId, commanderPerId: incident.commanderPerId, commanderName: incident.commanderName });
+                  }}
+                  className="font-semibold"
+                >
+                  <UserPlus className="size-4" />
+                  Chỉ định người khác
+                </Button>
+              )}
+              <Button
+                onClick={() => {
+                  setAckChoiceOpen(false);
+                  handleAcknowledge();
+                }}
+                className="bg-green-600 font-bold hover:bg-green-700"
+              >
+                <UserCheck className="size-4" />
+                Xác nhận tiếp nhận
+              </Button>
+            </div>
+          </DialogFooter>
         </DialogContent>
-        <DialogActions sx={{ p: 2, borderTop: '1px solid #e2e8f0' }}>
-          <Button onClick={() => setAckDialogOpen(false)} sx={{ textTransform: 'none', color: '#64748b' }}>
-            Hủy
-          </Button>
-          <Button
-            variant="contained"
-            disabled={!ackPriority || acknowledging}
-            onClick={handleAcknowledgeWithPriority}
-            sx={{ bgcolor: '#16a34a', color: '#fff', '&:hover': { bgcolor: '#15803d' }, textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
-          >
-            {acknowledging ? 'Đang tiếp nhận...' : 'Tiếp nhận với mức này'}
-          </Button>
-        </DialogActions>
+      </Dialog>
+      <Dialog open={ackDialogOpen} onOpenChange={setAckDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Chọn mức ưu tiên để tiếp nhận</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-slate-500">
+            Hồ sơ {incident.incidentId} chưa được phân loại mức ưu tiên — bắt buộc chọn trước khi tiếp nhận xử lý.
+            {incident.suggestedPriority && ` Gợi ý theo nhóm sự cố: ${incident.suggestedPriority}.`}
+          </p>
+          <div>
+            <Label className="mb-1.5 block">Mức ưu tiên</Label>
+            <Select value={ackPriority} onValueChange={setAckPriority}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Chọn mức ưu tiên" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="P0">P0 — Khẩn cấp (nguy hiểm tức thời tính mạng/sức khỏe)</SelectItem>
+                <SelectItem value="P1">P1 — Nghiêm trọng (nguy cơ nghiêm trọng / leo thang nhanh)</SelectItem>
+                <SelectItem value="P2">P2 — Cần xử lý (cần phối hợp, không nguy hiểm tức thời)</SelectItem>
+                <SelectItem value="P3">P3 — Thông thường (nguy cơ thông thường / phòng ngừa)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setAckDialogOpen(false)} className="text-slate-500">
+              Hủy
+            </Button>
+            <Button disabled={!ackPriority || acknowledging} onClick={handleAcknowledgeWithPriority} className="bg-green-600 font-bold hover:bg-green-700">
+              {acknowledging ? 'Đang tiếp nhận...' : 'Tiếp nhận với mức này'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
       </Dialog>
       <ReasonPromptDialog
         open={cancelAckDialogOpen}
