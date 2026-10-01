@@ -1,29 +1,42 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { signInWithPopup, signOut, type User } from 'firebase/auth';
-import {
-  Alert,
-  Box,
-  Button,
-  Card,
-  CardContent,
-  Checkbox,
-  Chip,
-  CircularProgress,
-  FormControlLabel,
-  MenuItem,
-  Stack,
-  TextField,
-  Typography
-} from '@mui/material';
-import UploadFileIcon from '@mui/icons-material/UploadFileRounded';
-import ContentCopyIcon from '@mui/icons-material/ContentCopyRounded';
-import CheckIcon from '@mui/icons-material/CheckRounded';
-import GoogleIcon from '@mui/icons-material/Google';
+import { Upload, Copy, Check, Loader2 } from 'lucide-react';
 import { PublicLayout } from './PublicLayout';
 import { CAMPUS_IDS, CAMPUS_LABEL, REPORTER_ROLE_OPTIONS } from './constants';
 import { env } from '../../config/env';
 import { auth, googleProvider } from '../../config/firebase';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+
+function GoogleLogo() {
+  return (
+    <svg viewBox="0 0 48 48" className="size-[18px]">
+      <path
+        fill="#FFC107"
+        d="M43.6 20.5H42V20.4H24v7.2h11.3c-1.6 4.5-5.9 7.6-11.3 7.6-6.8 0-12.3-5.5-12.3-12.3s5.5-12.3 12.3-12.3c3.1 0 5.9 1.2 8.1 3.1l5.4-5.4C34.6 5.1 29.6 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21c10.5 0 20.1-7.6 20.1-21 0-1.2-.1-2.4-.5-3.5z"
+      />
+      <path
+        fill="#FF3D00"
+        d="m6.3 14.7 5.9 4.3C13.9 15.2 18.6 12 24 12c3.1 0 5.9 1.2 8.1 3.1l5.4-5.4C34.6 6.1 29.6 4 24 4 16.3 4 9.6 8.3 6.3 14.7z"
+      />
+      <path
+        fill="#4CAF50"
+        d="M24 44c5.5 0 10.4-2.1 14.2-5.5l-6.5-5.5C29.7 34.8 27 35.8 24 35.8c-5.3 0-9.8-3.3-11.3-8l-6.1 4.7C9.6 39.6 16.3 44 24 44z"
+      />
+      <path
+        fill="#1976D2"
+        d="M43.6 20.5H42V20.4H24v7.2h11.3c-.8 2.2-2.2 4-3.9 5.3l6.5 5.5C40.5 36.3 44 30.7 44 24c0-1.2-.1-2.4-.4-3.5z"
+      />
+    </svg>
+  );
+}
 
 interface CategoryOption {
   code: string;
@@ -168,247 +181,234 @@ export default function PublicReportPage() {
   if (publicCode) {
     return (
       <PublicLayout title="Đã gửi tin báo thành công">
-        <Card sx={{ borderRadius: 3, border: '1px solid #bbf7d0', bgcolor: '#f0fdf4' }}>
-          <CardContent sx={{ p: 4, textAlign: 'center' }}>
-            <Typography variant="h6" fontWeight={700} color="#166534" gutterBottom>
-              Cảm ơn bạn đã gửi tin báo
-            </Typography>
-            <Typography variant="body2" color="#166534" sx={{ mb: 2 }}>
-              Vui lòng lưu lại mã tra cứu dưới đây để theo dõi tiến độ xử lý:
-            </Typography>
-            <Stack direction="row" spacing={1} justifyContent="center" alignItems="center">
-              <Chip
-                label={publicCode}
-                sx={{ fontSize: '1.1rem', fontWeight: 800, height: 44, px: 2, bgcolor: '#ffffff', border: '1px solid #86efac', color: '#166534' }}
-              />
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50">
+          <div className="p-8 text-center">
+            <p className="mb-1 text-lg font-bold text-emerald-800">Cảm ơn bạn đã gửi tin báo</p>
+            <p className="mb-4 text-sm text-emerald-800">Vui lòng lưu lại mã tra cứu dưới đây để theo dõi tiến độ xử lý:</p>
+            <div className="flex items-center justify-center gap-2">
+              <Badge variant="outline" className="h-11 border-emerald-300 bg-white px-4 text-[1.1rem] font-extrabold text-emerald-800">
+                {publicCode}
+              </Badge>
               <Button
                 onClick={copyPublicCode}
-                startIcon={codeCopied ? <CheckIcon fontSize="small" /> : <ContentCopyIcon fontSize="small" />}
-                sx={{
-                  height: 44,
-                  borderRadius: 2,
-                  textTransform: 'none',
-                  fontWeight: 700,
-                  color: '#166534',
-                  border: '1px solid #86efac',
-                  bgcolor: '#ffffff',
-                  '&:hover': { bgcolor: '#f0fdf4', borderColor: '#4ade80' }
-                }}
+                variant="outline"
+                className="h-11 border-emerald-300 bg-white font-bold text-emerald-800 hover:border-emerald-400 hover:bg-emerald-50"
               >
+                {codeCopied ? <Check className="size-4" /> : <Copy className="size-4" />}
                 {codeCopied ? 'Đã sao chép' : 'Sao chép mã'}
               </Button>
-            </Stack>
-            <Typography variant="caption" display="block" sx={{ mt: 2, color: '#166534' }}>
-              Lưu lại mã này để theo dõi tình trạng xử lý.
-            </Typography>
+            </div>
+            <p className="mt-4 text-xs text-emerald-800">Lưu lại mã này để theo dõi tình trạng xử lý.</p>
 
             {/* Trước đây chỉ có dòng chữ nhắc "xem tab Tra cứu" (không bấm
                 được, không nổi bật) — Sin phản hồi 2026-09-11: "nút điều
                 hướng đang hơi khó để ý". Thêm 2 nút bấm được, cùng mức nổi
                 bật, đưa thẳng sang tra cứu (tự điền sẵn mã) hoặc gửi tiếp. */}
-            <Stack spacing={1.25} sx={{ mt: 3 }}>
+            <div className="mt-6 flex flex-col gap-2.5">
               <Button
-                variant="contained"
-                size="large"
+                size="lg"
                 onClick={() => navigate(`/safety/lookup?code=${encodeURIComponent(publicCode)}`)}
-                sx={{ bgcolor: '#166534', '&:hover': { bgcolor: '#14532d' }, fontWeight: 700, borderRadius: 2, py: 1.1 }}
+                className="bg-emerald-800 font-bold hover:bg-emerald-900"
               >
                 Tra cứu / bổ sung tin báo này
               </Button>
               <Button
-                variant="outlined"
-                size="large"
+                size="lg"
+                variant="outline"
                 onClick={() => setPublicCode('')}
-                sx={{ borderColor: '#86efac', color: '#166534', fontWeight: 700, borderRadius: 2, py: 1.1, '&:hover': { borderColor: '#4ade80', bgcolor: '#f0fdf4' } }}
+                className="border-emerald-300 font-bold text-emerald-800 hover:border-emerald-400 hover:bg-emerald-50"
               >
                 Gửi tin báo khác
               </Button>
-            </Stack>
-          </CardContent>
-        </Card>
+            </div>
+          </div>
+        </div>
       </PublicLayout>
     );
   }
 
   return (
     <PublicLayout title="Cảnh báo an toàn và xử lý sự cố">
-      <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: '0 4px 15px -1px rgba(15, 23, 42, 0.06)' }}>
-        <CardContent sx={{ p: { xs: 1.5, sm: 2 } }}>
-          <Stack spacing={1.25}>
-            {error && <Alert severity="error">{error}</Alert>}
-
-            <TextField select size="small" label="Cơ sở xảy ra sự việc *" value={campusId} onChange={(e) => setCampusId(e.target.value)} fullWidth>
-              {CAMPUS_IDS.map((c) => (
-                <MenuItem key={c} value={c}>
-                  {CAMPUS_LABEL[c]}
-                </MenuItem>
-              ))}
-            </TextField>
-
-            <TextField select size="small" label="Nhóm sự cố *" value={categoryCode} onChange={(e) => setCategoryCode(e.target.value)} fullWidth>
-              {categories.map((c) => (
-                <MenuItem key={c.code} value={c.code}>
-                  {c.label}
-                </MenuItem>
-              ))}
-            </TextField>
-
-            <FormControlLabel
-              sx={{ ml: 0 }}
-              control={<Checkbox size="small" checked={stillDangerous} onChange={(e) => setStillDangerous(e.target.checked)} color="error" />}
-              label={<Typography variant="body2">Sự việc vẫn đang tiếp diễn / nguy hiểm ngay lúc này</Typography>}
-            />
-
-            <TextField
-              size="small"
-              label="Nội dung sự việc *"
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              multiline
-              rows={3}
-              fullWidth
-              placeholder="Mô tả những gì đã xảy ra, thời gian, những ai liên quan..."
-            />
-
-            {signInError && <Alert severity="warning">{signInError}</Alert>}
-            {!googleUser ? (
-              <Stack spacing={0.5}>
-                <Button
-                  variant="outlined"
-                  startIcon={signingIn ? <CircularProgress size={16} /> : <GoogleIcon />}
-                  onClick={handleGoogleSignIn}
-                  disabled={signingIn}
-                  sx={{ alignSelf: 'flex-start', textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
-                >
-                  {signingIn ? 'Đang đăng nhập...' : 'Đăng nhập nhanh bằng Google'}
-                </Button>
-                <Typography variant="caption" color="text.secondary">
-                  Cần đăng nhập bằng 1 tài khoản Google thật để nhà trường liên hệ lại khi cần xác nhận — không cần dùng email/tài khoản của trường.
-                </Typography>
-              </Stack>
-            ) : (
-              <Stack direction="row" spacing={1} alignItems="center" sx={{ bgcolor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 2, px: 1.5, py: 1 }}>
-                <CheckIcon fontSize="small" sx={{ color: '#166534' }} />
-                <Typography variant="body2" sx={{ color: '#166534', flex: 1 }}>
-                  Đã đăng nhập: <strong>{googleUser.email}</strong>
-                </Typography>
-                <Button size="small" onClick={handleGoogleSignOut} sx={{ textTransform: 'none', color: '#64748b' }}>
-                  Đổi tài khoản
-                </Button>
-              </Stack>
+      <div className="rounded-xl border border-slate-200 shadow-[0_4px_15px_-1px_rgba(15,23,42,0.06)]">
+        <div className="p-3 sm:p-4">
+          <div className="flex flex-col gap-3">
+            {error && (
+              <Alert className="border-red-200 bg-red-50">
+                <AlertDescription className="text-red-700">{error}</AlertDescription>
+              </Alert>
             )}
 
-            <Button variant="text" size="small" onClick={() => setShowMore((v) => !v)} sx={{ alignSelf: 'flex-start', textTransform: 'none' }}>
+            <div>
+              <Label className="mb-1.5 block">Cơ sở xảy ra sự việc *</Label>
+              <Select value={campusId} onValueChange={setCampusId}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Chọn cơ sở" />
+                </SelectTrigger>
+                <SelectContent>
+                  {CAMPUS_IDS.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {CAMPUS_LABEL[c]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label className="mb-1.5 block">Nhóm sự cố *</Label>
+              <Select value={categoryCode} onValueChange={setCategoryCode}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Chọn nhóm sự cố" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((c) => (
+                    <SelectItem key={c.code} value={c.code}>
+                      {c.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <label className="flex items-center gap-2">
+              <Checkbox checked={stillDangerous} onCheckedChange={(v) => setStillDangerous(v === true)} />
+              <span className="text-sm">Sự việc vẫn đang tiếp diễn / nguy hiểm ngay lúc này</span>
+            </label>
+
+            <div>
+              <Label htmlFor="report-content" className="mb-1.5 block">
+                Nội dung sự việc *
+              </Label>
+              <Textarea
+                id="report-content"
+                rows={3}
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                placeholder="Mô tả những gì đã xảy ra, thời gian, những ai liên quan..."
+              />
+            </div>
+
+            {signInError && (
+              <Alert className="border-amber-200 bg-amber-50">
+                <AlertDescription className="text-amber-800">{signInError}</AlertDescription>
+              </Alert>
+            )}
+            {!googleUser ? (
+              <div className="flex flex-col gap-1">
+                <Button variant="outline" onClick={handleGoogleSignIn} disabled={signingIn} className="w-fit font-bold">
+                  {signingIn ? <Loader2 className="size-4 animate-spin" /> : <GoogleLogo />}
+                  {signingIn ? 'Đang đăng nhập...' : 'Đăng nhập nhanh bằng Google'}
+                </Button>
+                <p className="text-xs text-slate-500">
+                  Cần đăng nhập bằng 1 tài khoản Google thật để nhà trường liên hệ lại khi cần xác nhận — không cần dùng email/tài khoản của trường.
+                </p>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
+                <Check className="size-4 shrink-0 text-emerald-800" />
+                <p className="flex-1 text-sm text-emerald-800">
+                  Đã đăng nhập: <strong>{googleUser.email}</strong>
+                </p>
+                <Button size="sm" variant="ghost" onClick={handleGoogleSignOut} className="text-slate-500">
+                  Đổi tài khoản
+                </Button>
+              </div>
+            )}
+
+            <Button variant="ghost" onClick={() => setShowMore((v) => !v)} className="w-fit text-primary">
               {showMore ? '− Thu gọn' : '+ Thêm chi tiết (lớp, thời gian, minh chứng)'}
             </Button>
             {showMore && (
-              <Stack spacing={1.25}>
-                <TextField size="small" label="Lớp liên quan (nếu có)" value={className} onChange={(e) => setClassName(e.target.value)} placeholder="VD: 8A3" fullWidth />
+              <div className="flex flex-col gap-3">
+                <div>
+                  <Label htmlFor="report-class" className="mb-1.5 block">
+                    Lớp liên quan (nếu có)
+                  </Label>
+                  <Input id="report-class" value={className} onChange={(e) => setClassName(e.target.value)} placeholder="VD: 8A3" />
+                </div>
 
-                <TextField select size="small" label="Bạn là ai trong sự việc này" value={reporterRole} onChange={(e) => setReporterRole(e.target.value)} fullWidth>
-                  {REPORTER_ROLE_OPTIONS.map((r) => (
-                    <MenuItem key={r.value} value={r.value}>
-                      {r.label}
-                    </MenuItem>
-                  ))}
-                </TextField>
+                <div>
+                  <Label className="mb-1.5 block">Bạn là ai trong sự việc này</Label>
+                  <Select value={reporterRole} onValueChange={setReporterRole}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Chọn vai trò" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {REPORTER_ROLE_OPTIONS.map((r) => (
+                        <SelectItem key={r.value} value={r.value}>
+                          {r.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25}>
-                  <TextField
-                    size="small"
-                    label="Xảy ra từ"
-                    type="datetime-local"
-                    value={occurredFrom}
-                    onChange={(e) => setOccurredFrom(e.target.value)}
-                    slotProps={{ inputLabel: { shrink: true } }}
-                    fullWidth
-                  />
-                  <TextField
-                    size="small"
-                    label="Đến"
-                    type="datetime-local"
-                    value={occurredTo}
-                    onChange={(e) => setOccurredTo(e.target.value)}
-                    slotProps={{ inputLabel: { shrink: true } }}
-                    fullWidth
-                  />
-                </Stack>
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <div className="flex-1">
+                    <Label htmlFor="report-from" className="mb-1.5 block">
+                      Xảy ra từ
+                    </Label>
+                    <Input id="report-from" type="datetime-local" value={occurredFrom} onChange={(e) => setOccurredFrom(e.target.value)} />
+                  </div>
+                  <div className="flex-1">
+                    <Label htmlFor="report-to" className="mb-1.5 block">
+                      Đến
+                    </Label>
+                    <Input id="report-to" type="datetime-local" value={occurredTo} onChange={(e) => setOccurredTo(e.target.value)} />
+                  </div>
+                </div>
 
-                <Stack spacing={0.75}>
-                  <Button
-                    component="label"
-                    variant="outlined"
-                    size="small"
-                    startIcon={<UploadFileIcon />}
-                    disabled={files.length >= MAX_EVIDENCE_FILES}
-                    sx={{ alignSelf: 'flex-start', textTransform: 'none' }}
-                  >
-                    {files.length === 0
-                      ? 'Đính kèm ảnh/video minh chứng (tuỳ chọn)'
-                      : `Thêm file (${files.length}/${MAX_EVIDENCE_FILES})`}
-                    <input
-                      type="file"
-                      hidden
-                      multiple
-                      accept="image/*,video/*,audio/*"
-                      onChange={(e) => {
-                        const picked = Array.from(e.target.files || []);
-                        setFiles((prev) => [...prev, ...picked].slice(0, MAX_EVIDENCE_FILES));
-                        e.target.value = '';
-                      }}
-                    />
+                <div className="flex flex-col gap-1.5">
+                  <Button asChild variant="outline" className="relative w-fit font-semibold">
+                    <label aria-disabled={files.length >= MAX_EVIDENCE_FILES}>
+                      <Upload className="size-4" />
+                      {files.length === 0 ? 'Đính kèm ảnh/video minh chứng (tuỳ chọn)' : `Thêm file (${files.length}/${MAX_EVIDENCE_FILES})`}
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*,video/*,audio/*"
+                        disabled={files.length >= MAX_EVIDENCE_FILES}
+                        className="absolute inset-0 cursor-pointer opacity-0 disabled:cursor-not-allowed"
+                        onChange={(e) => {
+                          const picked = Array.from(e.target.files || []);
+                          setFiles((prev) => [...prev, ...picked].slice(0, MAX_EVIDENCE_FILES));
+                          e.target.value = '';
+                        }}
+                      />
+                    </label>
                   </Button>
                   {files.length > 0 && (
-                    <Stack spacing={0.5}>
+                    <div className="flex flex-col gap-1">
                       {files.map((f, i) => (
-                        <Stack key={`${f.name}-${f.lastModified}-${i}`} direction="row" spacing={1} alignItems="center">
-                          <Typography variant="body2" sx={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {f.name}
-                          </Typography>
-                          <Button size="small" onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))} sx={{ textTransform: 'none', color: '#64748b' }}>
+                        <div key={`${f.name}-${f.lastModified}-${i}`} className="flex items-center gap-2">
+                          <p className="flex-1 truncate text-sm">{f.name}</p>
+                          <Button size="sm" variant="ghost" onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))} className="text-slate-500">
                             Bỏ
                           </Button>
-                        </Stack>
+                        </div>
                       ))}
-                    </Stack>
+                    </div>
                   )}
-                  {files.length >= MAX_EVIDENCE_FILES && (
-                    <Typography variant="caption" color="text.secondary">
-                      Tối đa {MAX_EVIDENCE_FILES} file mỗi tin báo.
-                    </Typography>
-                  )}
-                </Stack>
-              </Stack>
+                  {files.length >= MAX_EVIDENCE_FILES && <p className="text-xs text-slate-500">Tối đa {MAX_EVIDENCE_FILES} file mỗi tin báo.</p>}
+                </div>
+              </div>
             )}
 
-            <Button
-              variant="contained"
-              onClick={handleSubmit}
-              disabled={submitting || !googleUser}
-              sx={{
-                bgcolor: '#dc2626',
-                '&:hover': { bgcolor: '#b91c1c' },
-                fontWeight: 700,
-                borderRadius: 2,
-                py: 0.85,
-                position: { xs: 'sticky', sm: 'static' },
-                bottom: { xs: 0 }
-              }}
-            >
-              {submitting ? <CircularProgress size={20} sx={{ color: '#fff' }} /> : 'Gửi tin báo'}
+            <Button onClick={handleSubmit} disabled={submitting || !googleUser} variant="destructive" className="sticky bottom-0 font-bold sm:static">
+              {submitting ? <Loader2 className="size-5 animate-spin" /> : 'Gửi tin báo'}
             </Button>
 
-            <Box sx={{ textAlign: 'center' }}>
-              <Typography variant="caption" color="text.secondary">
+            <div className="text-center">
+              <p className="text-xs text-slate-500">
                 Đã gửi tin báo trước đó?{' '}
-                <a href="/safety/lookup" style={{ color: '#2563eb', fontWeight: 600 }}>
+                <a href="/safety/lookup" className="font-semibold text-primary">
                   Tra cứu trạng thái
                 </a>
-              </Typography>
-            </Box>
-          </Stack>
-        </CardContent>
-      </Card>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
     </PublicLayout>
   );
 }
