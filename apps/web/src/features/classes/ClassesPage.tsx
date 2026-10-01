@@ -1,56 +1,39 @@
 import { useEffect, useState, useMemo } from 'react';
 import {
-  Box,
-  Button,
-  Card,
-  Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  IconButton,
-  InputAdornment,
-  MenuItem,
-  Pagination,
-  Select,
-  Skeleton,
-  Snackbar,
-  Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TextField,
-  Tooltip,
-  Typography,
-  Alert,
-  CircularProgress,
-  FormControl,
-  FormControlLabel,
-  Checkbox,
-  InputLabel,
-  Grid
-} from '@mui/material';
-import SchoolIcon from '@mui/icons-material/SchoolRounded';
-import AddIcon from '@mui/icons-material/AddRounded';
-import EditIcon from '@mui/icons-material/EditRounded';
-import DeleteIcon from '@mui/icons-material/DeleteOutlineRounded';
-import SearchIcon from '@mui/icons-material/SearchRounded';
-import RefreshIcon from '@mui/icons-material/RefreshRounded';
-import CloudSyncIcon from '@mui/icons-material/CloudSyncRounded';
-import PersonOutlineIcon from '@mui/icons-material/PersonOutlineRounded';
-import MeetingRoomIcon from '@mui/icons-material/MeetingRoomRounded';
-import GroupIcon from '@mui/icons-material/GroupRounded';
-import MenuBookIcon from '@mui/icons-material/MenuBookRounded';
-import CampaignIcon from '@mui/icons-material/CampaignRounded';
-import ChatIcon from '@mui/icons-material/ChatRounded';
-import ContentCopyIcon from '@mui/icons-material/ContentCopyRounded';
-import SyncIcon from '@mui/icons-material/SyncRounded';
-import CheckIcon from '@mui/icons-material/CheckRounded';
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  CloudCog,
+  Copy,
+  DoorOpen,
+  Loader2,
+  MessageCircle,
+  Pencil,
+  Plus,
+  RefreshCw,
+  School,
+  Search,
+  Trash2,
+  User,
+  Users,
+  BookOpen,
+  Megaphone,
+  RotateCw
+} from 'lucide-react';
 import { PageHeader } from '../../components/PageHeader';
+import { Toast, type ToastState } from '../../components/Toast';
 import { api } from '../../services/api';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 
 export interface ClassItem {
   id: string;
@@ -88,6 +71,16 @@ const GRADES = [
   { value: '12', label: 'Khối 12' }
 ];
 
+function KpiCard({ label, value, valueClassName, caption }: { label: string; value: string; valueClassName?: string; caption: string }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+      <p className="text-xs font-semibold tracking-wider text-slate-500 uppercase">{label}</p>
+      <p className={cn('my-1 text-[1.75rem] font-extrabold text-[#0f172a]', valueClassName)}>{value}</p>
+      <p className="text-xs text-slate-500">{caption}</p>
+    </div>
+  );
+}
+
 export default function ClassesPage() {
   const [items, setItems] = useState<ClassItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -114,7 +107,7 @@ export default function ClassesPage() {
   const [formError, setFormError] = useState('');
 
   // Toast State
-  const [toast, setToast] = useState<{ message: string; severity: 'success' | 'error' | 'info' } | null>(null);
+  const [toast, setToast] = useState<ToastState | null>(null);
 
   // Nudge Center State
   const [openNudgeDialog, setOpenNudgeDialog] = useState(false);
@@ -203,6 +196,7 @@ export default function ClassesPage() {
 
   useEffect(() => {
     loadClasses();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedGrade]);
 
   const filteredItems = useMemo(() => {
@@ -364,817 +358,545 @@ export default function ClassesPage() {
   }, [items]);
 
   return (
-    <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1440, mx: 'auto' }}>
+    <div className="mx-auto max-w-[1440px] p-4 md:p-6">
       <PageHeader
         title="Quản lý Lớp học & Sĩ số"
         subtitle="Danh sách các lớp học toàn trường từ Google Classroom và lớp tạo thủ công, quản lý phân công GVCN và sĩ số."
         action={
-          <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap">
+          <div className="flex flex-wrap items-center gap-2.5">
             <Button
-              variant="outlined"
-              color="warning"
-              startIcon={<CampaignIcon />}
+              variant="outline"
               onClick={() => {
                 setNudgeTargetClass('all');
                 setOpenNudgeDialog(true);
               }}
-              sx={{ fontWeight: 600, textTransform: 'none', borderRadius: 2 }}
+              className="border-amber-300 font-semibold text-amber-700 hover:bg-amber-50"
             >
+              <Megaphone className="size-4" />
               Đôn đốc nộp bài
             </Button>
-            <Button
-              variant="outlined"
-              startIcon={syncingMetrics ? <CircularProgress size={16} color="inherit" /> : <SyncIcon />}
-              onClick={handleSyncMetrics}
-              disabled={syncingMetrics}
-              sx={{ fontWeight: 600, textTransform: 'none', borderRadius: 2 }}
-            >
+            <Button variant="outline" onClick={handleSyncMetrics} disabled={syncingMetrics} className="font-semibold">
+              {syncingMetrics ? <Loader2 className="size-4 animate-spin" /> : <RotateCw className="size-4" />}
               {syncingMetrics ? 'Đang đối soát...' : 'Đối soát số liệu'}
             </Button>
-            <Tooltip title="Làm mới dữ liệu">
-              <IconButton onClick={loadClasses} sx={{ bgcolor: '#fff', border: '1px solid #e2e8f0' }} size="small">
-                <RefreshIcon fontSize="small" />
-              </IconButton>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="icon" onClick={loadClasses}>
+                  <RefreshCw className="size-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Làm mới dữ liệu</TooltipContent>
             </Tooltip>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={handleOpenCreate}
-              sx={{
-                bgcolor: '#2563eb',
-                '&:hover': { bgcolor: '#1d4ed8' },
-                fontWeight: 600,
-                textTransform: 'none',
-                borderRadius: 2,
-                px: 2.5
-              }}
-            >
+            <Button onClick={handleOpenCreate} className="rounded-lg px-5 font-semibold">
+              <Plus className="size-4" />
               Thêm lớp học
             </Button>
-          </Stack>
+          </div>
         }
       />
 
       {/* Thẻ KPI tổng hợp đối soát với Google Classroom */}
-      <Grid container spacing={2.5} sx={{ mb: 3 }}>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', bgcolor: '#ffffff' }}>
-            <Box sx={{ p: 2.5 }}>
-              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Tổng số Lớp học
-              </Typography>
-              <Typography sx={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', my: 0.5 }}>
-                {items.length} lớp
-              </Typography>
-              <Typography variant="caption" sx={{ color: '#64748b' }}>
-                {items.filter((c) => c.source === 'CLASSROOM_SYNC').length} từ Classroom • {items.filter((c) => c.source === 'MANUAL').length} thủ công
-              </Typography>
-            </Box>
-          </Card>
-        </Grid>
-
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', bgcolor: '#ffffff' }}>
-            <Box sx={{ p: 2.5 }}>
-              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Sĩ số HS Thực tế (Classroom)
-              </Typography>
-              <Typography sx={{ fontSize: '1.75rem', fontWeight: 800, color: '#2563eb', my: 0.5 }}>
-                {totalActualStudents.toLocaleString('vi-VN')} HS
-              </Typography>
-              <Typography variant="caption" sx={{ color: '#64748b' }}>
-                Đồng bộ trực tiếp từ danh sách học sinh
-              </Typography>
-            </Box>
-          </Card>
-        </Grid>
-
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', bgcolor: '#ffffff' }}>
-            <Box sx={{ p: 2.5 }}>
-              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Khóa học liên kết
-              </Typography>
-              <Typography sx={{ fontSize: '1.75rem', fontWeight: 800, color: '#7c3aed', my: 0.5 }}>
-                {totalLinkedCourses} khóa
-              </Typography>
-              <Typography variant="caption" sx={{ color: '#64748b' }}>
-                {items.filter((c) => c.courseCount > 0).length}/{items.length} lớp đã liên kết khóa học
-              </Typography>
-            </Box>
-          </Card>
-        </Grid>
-
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', bgcolor: '#ffffff' }}>
-            <Box sx={{ p: 2.5 }}>
-              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Tỷ lệ nộp bài trung bình
-              </Typography>
-              <Typography sx={{ fontSize: '1.75rem', fontWeight: 800, color: '#059669', my: 0.5 }}>
-                {overallAvgCompletion}%
-              </Typography>
-              <Typography variant="caption" sx={{ color: '#64748b' }}>
-                Dựa trên tất cả bài nộp học sinh toàn trường
-              </Typography>
-            </Box>
-          </Card>
-        </Grid>
-      </Grid>
+      <div className="mb-6 grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-4">
+        <KpiCard
+          label="Tổng số Lớp học"
+          value={`${items.length} lớp`}
+          caption={`${items.filter((c) => c.source === 'CLASSROOM_SYNC').length} từ Classroom • ${items.filter((c) => c.source === 'MANUAL').length} thủ công`}
+        />
+        <KpiCard
+          label="Sĩ số HS Thực tế (Classroom)"
+          value={`${totalActualStudents.toLocaleString('vi-VN')} HS`}
+          valueClassName="text-primary"
+          caption="Đồng bộ trực tiếp từ danh sách học sinh"
+        />
+        <KpiCard
+          label="Khóa học liên kết"
+          value={`${totalLinkedCourses} khóa`}
+          valueClassName="text-violet-600"
+          caption={`${items.filter((c) => c.courseCount > 0).length}/${items.length} lớp đã liên kết khóa học`}
+        />
+        <KpiCard
+          label="Tỷ lệ nộp bài trung bình"
+          value={`${overallAvgCompletion}%`}
+          valueClassName="text-emerald-600"
+          caption="Dựa trên tất cả bài nộp học sinh toàn trường"
+        />
+      </div>
 
       {/* Bộ lọc & Tìm kiếm */}
-      <Card
-        sx={{
-          p: 2,
-          mb: 3,
-          borderRadius: 3,
-          border: '1px solid #e2e8f0',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: 2,
-          alignItems: 'center',
-          justifyContent: 'space-between'
-        }}
-      >
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ flex: 1, minWidth: { xs: '100%', sm: 320 } }}>
-          <TextField
-            size="small"
-            placeholder="Tìm theo tên lớp, GVCN, phòng học..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon sx={{ color: '#94a3b8', fontSize: 20 }} />
-                </InputAdornment>
-              )
-            }}
-            sx={{ flex: 1, minWidth: 240 }}
-          />
-
-          <Select
-            size="small"
-            value={selectedGrade}
-            onChange={(e) => setSelectedGrade(e.target.value)}
-            sx={{ minWidth: 160 }}
-          >
-            {GRADES.map((g) => (
-              <MenuItem key={g.value} value={g.value}>
-                {g.label}
-              </MenuItem>
-            ))}
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+        <div className="flex min-w-[320px] flex-1 flex-col gap-3 sm:flex-row">
+          <div className="relative min-w-60 flex-1">
+            <Search className="absolute top-1/2 left-3 size-5 -translate-y-1/2 text-slate-400" />
+            <Input placeholder="Tìm theo tên lớp, GVCN, phòng học..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
+          </div>
+          <Select value={selectedGrade} onValueChange={setSelectedGrade}>
+            <SelectTrigger className="min-w-40">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {GRADES.map((g) => (
+                <SelectItem key={g.value} value={g.value}>
+                  {g.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
           </Select>
-        </Stack>
-
-        <Typography variant="body2" sx={{ color: '#64748b', fontWeight: 500 }}>
-          Tìm thấy <strong style={{ color: '#0f172a' }}>{filteredItems.length}</strong> lớp học
-        </Typography>
-      </Card>
+        </div>
+        <p className="text-sm font-medium text-slate-500">
+          Tìm thấy <strong className="text-[#0f172a]">{filteredItems.length}</strong> lớp học
+        </p>
+      </div>
 
       {/* Bảng danh sách lớp */}
-      <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
-        <TableContainer>
-          <Table sx={{ minWidth: 850 }}>
-            <TableHead sx={{ bgcolor: '#f8fafc' }}>
-              <TableRow>
-                <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.85rem' }}>Tên Lớp</TableCell>
-                <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.85rem' }}>Khối</TableCell>
-                <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.85rem' }}>Nguồn dữ liệu</TableCell>
-                <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.85rem' }}>Sĩ số</TableCell>
-                <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.85rem' }}>Giáo viên Chủ nhiệm</TableCell>
-                <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.85rem' }}>Phòng học</TableCell>
-                <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.85rem' }}>Khóa học Classroom</TableCell>
-                <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.85rem' }}>Tỷ lệ nộp bài</TableCell>
-                <TableCell align="right" sx={{ fontWeight: 700, color: '#475569', fontSize: '0.85rem' }}>Thao tác</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {loading ? (
-                Array.from({ length: 5 }).map((_, idx) => (
-                  <TableRow key={idx}>
-                    <TableCell colSpan={9} sx={{ py: 2 }}>
-                      <Skeleton variant="text" width="100%" height={28} />
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : pagedItems.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={9} sx={{ py: 6, textAlign: 'center' }}>
-                    <Box sx={{ display: 'inline-flex', p: 2, borderRadius: '50%', bgcolor: '#f1f5f9', mb: 1.5 }}>
-                      <SchoolIcon sx={{ fontSize: 36, color: '#94a3b8' }} />
-                    </Box>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#334155' }}>
-                      Không có lớp học nào phù hợp
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: '#64748b', mt: 0.5 }}>
-                      Thử thay đổi bộ lọc khối hoặc từ khoá tìm kiếm, hoặc bấm "+ Thêm lớp học" để tạo mới.
-                    </Typography>
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+        <Table className="min-w-[850px]">
+          <TableHeader className="bg-slate-50">
+            <TableRow className="hover:bg-slate-50">
+              <TableHead className="text-[0.85rem] font-bold text-slate-600">Tên Lớp</TableHead>
+              <TableHead className="text-[0.85rem] font-bold text-slate-600">Khối</TableHead>
+              <TableHead className="text-[0.85rem] font-bold text-slate-600">Nguồn dữ liệu</TableHead>
+              <TableHead className="text-[0.85rem] font-bold text-slate-600">Sĩ số</TableHead>
+              <TableHead className="text-[0.85rem] font-bold text-slate-600">Giáo viên Chủ nhiệm</TableHead>
+              <TableHead className="text-[0.85rem] font-bold text-slate-600">Phòng học</TableHead>
+              <TableHead className="text-[0.85rem] font-bold text-slate-600">Khóa học Classroom</TableHead>
+              <TableHead className="text-[0.85rem] font-bold text-slate-600">Tỷ lệ nộp bài</TableHead>
+              <TableHead className="text-right text-[0.85rem] font-bold text-slate-600">Thao tác</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading ? (
+              Array.from({ length: 5 }).map((_, idx) => (
+                <TableRow key={idx} className="hover:bg-transparent">
+                  <TableCell colSpan={9} className="py-3">
+                    <Skeleton className="h-7 w-full" />
                   </TableCell>
                 </TableRow>
-              ) : (
-                pagedItems.map((cls) => {
-                  const isManual = cls.source === 'MANUAL';
-                  return (
-                    <TableRow
-                      key={cls.classId}
-                      hover
-                      sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
-                    >
-                      {/* Tên Lớp */}
-                      <TableCell>
-                        <Stack direction="row" spacing={1.5} alignItems="center">
-                          <Box
-                            sx={{
-                              width: 36,
-                              height: 36,
-                              borderRadius: 2,
-                              bgcolor: isManual ? '#f5f3ff' : '#eff6ff',
-                              color: isManual ? '#7c3aed' : '#2563eb',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center'
-                            }}
-                          >
-                            <SchoolIcon fontSize="small" />
-                          </Box>
-                          <Box>
-                            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#0f172a' }}>
-                              {cls.className}
-                            </Typography>
-                            <Typography variant="caption" sx={{ color: '#64748b' }}>
-                              Mã: {cls.classId}
-                            </Typography>
-                          </Box>
-                        </Stack>
-                      </TableCell>
+              ))
+            ) : pagedItems.length === 0 ? (
+              <TableRow className="hover:bg-transparent">
+                <TableCell colSpan={9} className="py-10 text-center">
+                  <div className="mb-3 inline-flex rounded-full bg-slate-100 p-3.5">
+                    <School className="size-9 text-slate-400" />
+                  </div>
+                  <p className="font-semibold text-slate-700">Không có lớp học nào phù hợp</p>
+                  <p className="mt-1 text-sm text-slate-500">Thử thay đổi bộ lọc khối hoặc từ khoá tìm kiếm, hoặc bấm "+ Thêm lớp học" để tạo mới.</p>
+                </TableCell>
+              </TableRow>
+            ) : (
+              pagedItems.map((cls) => {
+                const isManual = cls.source === 'MANUAL';
+                return (
+                  <TableRow key={cls.classId}>
+                    {/* Tên Lớp */}
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className={cn('flex size-9 items-center justify-center rounded-lg', isManual ? 'bg-violet-50 text-violet-600' : 'bg-secondary text-primary')}>
+                          <School className="size-4" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-[#0f172a]">{cls.className}</p>
+                          <p className="text-xs text-slate-500">Mã: {cls.classId}</p>
+                        </div>
+                      </div>
+                    </TableCell>
 
-                      {/* Khối */}
-                      <TableCell>
-                        <Chip
-                          label={cls.grade ? `Khối ${cls.grade}` : 'Chưa phân khối'}
-                          size="small"
-                          sx={{
-                            bgcolor: '#f1f5f9',
-                            color: '#334155',
-                            fontWeight: 600,
-                            borderRadius: 1.5
-                          }}
-                        />
-                      </TableCell>
+                    {/* Khối */}
+                    <TableCell>
+                      <Badge variant="outline" className="rounded-md border-transparent bg-slate-100 font-semibold text-slate-700">
+                        {cls.grade ? `Khối ${cls.grade}` : 'Chưa phân khối'}
+                      </Badge>
+                    </TableCell>
 
-                      {/* Nguồn */}
-                      <TableCell>
-                        {isManual ? (
-                          <Chip
-                            icon={<PersonOutlineIcon sx={{ fontSize: '14px !important' }} />}
-                            label="Thủ công"
-                            size="small"
-                            sx={{
-                              bgcolor: '#faf5ff',
-                              color: '#7e22ce',
-                              border: '1px solid #e9d5ff',
-                              fontWeight: 600,
-                              borderRadius: 1.5
-                            }}
-                          />
-                        ) : (
-                          <Chip
-                            icon={<CloudSyncIcon sx={{ fontSize: '14px !important' }} />}
-                            label="Tự động"
-                            size="small"
-                            sx={{
-                              bgcolor: '#ecfdf5',
-                              color: '#047857',
-                              border: '1px solid #a7f3d0',
-                              fontWeight: 600,
-                              borderRadius: 1.5
-                            }}
-                          />
-                        )}
-                      </TableCell>
+                    {/* Nguồn */}
+                    <TableCell>
+                      {isManual ? (
+                        <Badge variant="outline" className="gap-1 rounded-md border-violet-200 bg-violet-50 font-semibold text-violet-700">
+                          <User className="size-3.5" />
+                          Thủ công
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="gap-1 rounded-md border-emerald-200 bg-emerald-50 font-semibold text-emerald-700">
+                          <CloudCog className="size-3.5" />
+                          Tự động
+                        </Badge>
+                      )}
+                    </TableCell>
 
-                      {/* Sĩ số */}
-                      <TableCell>
-                        <Stack direction="row" spacing={0.5} alignItems="center">
-                          <GroupIcon sx={{ fontSize: 16, color: '#64748b' }} />
-                          <Typography variant="body2" sx={{ fontWeight: 600, color: '#1e293b' }}>
-                            {cls.studentCount > 0 ? `${cls.studentCount} HS` : (cls.expectedStudents ? `${cls.expectedStudents} HS (Định mức)` : '0 HS')}
-                          </Typography>
-                        </Stack>
-                        {cls.studentCount > 0 && cls.expectedStudents && cls.expectedStudents !== cls.studentCount ? (
-                          <Typography variant="caption" sx={{ color: '#64748b', display: 'block', fontSize: '0.7rem' }}>
-                            Định mức: {cls.expectedStudents} HS
-                          </Typography>
-                        ) : null}
-                      </TableCell>
+                    {/* Sĩ số */}
+                    <TableCell>
+                      <div className="flex items-center gap-1.5">
+                        <Users className="size-4 text-slate-500" />
+                        <span className="font-semibold text-slate-800">
+                          {cls.studentCount > 0 ? `${cls.studentCount} HS` : cls.expectedStudents ? `${cls.expectedStudents} HS (Định mức)` : '0 HS'}
+                        </span>
+                      </div>
+                      {cls.studentCount > 0 && cls.expectedStudents && cls.expectedStudents !== cls.studentCount ? (
+                        <p className="text-[0.7rem] text-slate-500">Định mức: {cls.expectedStudents} HS</p>
+                      ) : null}
+                    </TableCell>
 
-                      {/* GVCN */}
-                      <TableCell>
-                        <Typography variant="body2" sx={{ fontWeight: 600, color: '#1e293b' }}>
-                          {cls.homeroomTeacher || 'Chưa phân công'}
-                        </Typography>
-                        {cls.teacherEmail && (
-                          <Typography variant="caption" sx={{ color: '#64748b', display: 'block' }}>
-                            {cls.teacherEmail}
-                          </Typography>
-                        )}
-                      </TableCell>
+                    {/* GVCN */}
+                    <TableCell>
+                      <p className="font-semibold text-slate-800">{cls.homeroomTeacher || 'Chưa phân công'}</p>
+                      {cls.teacherEmail && <p className="text-xs text-slate-500">{cls.teacherEmail}</p>}
+                    </TableCell>
 
-                      {/* Phòng */}
-                      <TableCell>
-                        <Typography variant="body2" sx={{ color: cls.room ? '#1e293b' : '#94a3b8' }}>
-                          {cls.room || '—'}
-                        </Typography>
-                      </TableCell>
+                    {/* Phòng */}
+                    <TableCell>
+                      <span className={cls.room ? 'text-slate-800' : 'text-slate-400'}>{cls.room || '—'}</span>
+                    </TableCell>
 
-                      {/* Khóa học */}
-                      <TableCell>
-                        <Stack direction="row" spacing={0.5} alignItems="center">
-                          <MenuBookIcon sx={{ fontSize: 16, color: '#64748b' }} />
-                          <Typography variant="body2" sx={{ color: '#1e293b' }}>
-                            {cls.courseCount || 0} khóa
-                          </Typography>
-                        </Stack>
-                      </TableCell>
+                    {/* Khóa học */}
+                    <TableCell>
+                      <div className="flex items-center gap-1.5">
+                        <BookOpen className="size-4 text-slate-500" />
+                        <span className="text-slate-800">{cls.courseCount || 0} khóa</span>
+                      </div>
+                    </TableCell>
 
-                      {/* Tỷ lệ nộp bài */}
-                      <TableCell>
-                        {cls.completionRate ? (
-                          <Chip
-                            label={`${cls.completionRate}%`}
-                            size="small"
-                            sx={{
-                              bgcolor: cls.completionRate >= 70 ? '#f0fdf4' : cls.completionRate >= 50 ? '#fefce8' : '#fef2f2',
-                              color: cls.completionRate >= 70 ? '#15803d' : cls.completionRate >= 50 ? '#a16207' : '#b91c1c',
-                              fontWeight: 700,
-                              fontSize: '0.75rem',
-                              borderRadius: 1.5
-                            }}
-                          />
-                        ) : (
-                          <Typography variant="caption" sx={{ color: '#94a3b8' }}>
-                            Chưa có dữ liệu
-                          </Typography>
-                        )}
-                      </TableCell>
+                    {/* Tỷ lệ nộp bài */}
+                    <TableCell>
+                      {cls.completionRate ? (
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            'rounded-md border-transparent font-bold',
+                            cls.completionRate >= 70 ? 'bg-green-50 text-green-700' : cls.completionRate >= 50 ? 'bg-yellow-50 text-yellow-700' : 'bg-red-50 text-red-700'
+                          )}
+                        >
+                          {cls.completionRate}%
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-slate-400">Chưa có dữ liệu</span>
+                      )}
+                    </TableCell>
 
-                      {/* Thao tác */}
-                      <TableCell align="right">
-                        <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                          <Tooltip title="Mẫu tin nhắn gửi Phụ huynh (Zalo/SMS)">
-                            <IconButton
-                              size="small"
-                              onClick={() => handleOpenParentNudge(cls)}
-                              sx={{ color: '#0284c7', '&:hover': { color: '#0369a1', bgcolor: '#f0f9ff' } }}
-                            >
-                              <ChatIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Chỉnh sửa thông tin">
-                            <IconButton
-                              size="small"
-                              onClick={() => handleOpenEdit(cls)}
-                              sx={{ color: '#475569', '&:hover': { color: '#2563eb', bgcolor: '#eff6ff' } }}
-                            >
-                              <EditIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Xoá lớp học">
-                            <IconButton
-                              size="small"
-                              onClick={() => handleOpenDelete(cls)}
-                              sx={{ color: '#94a3b8', '&:hover': { color: '#dc2626', bgcolor: '#fef2f2' } }}
-                            >
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                        </Stack>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+                    {/* Thao tác */}
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-0.5">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon-sm" onClick={() => handleOpenParentNudge(cls)} className="text-sky-600 hover:bg-sky-50 hover:text-sky-700">
+                              <MessageCircle className="size-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Mẫu tin nhắn gửi Phụ huynh (Zalo/SMS)</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon-sm" onClick={() => handleOpenEdit(cls)} className="text-slate-600 hover:bg-secondary hover:text-primary">
+                              <Pencil className="size-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Chỉnh sửa thông tin</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon-sm" onClick={() => handleOpenDelete(cls)} className="text-slate-400 hover:bg-red-50 hover:text-red-600">
+                              <Trash2 className="size-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Xoá lớp học</TooltipContent>
+                        </Tooltip>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            )}
+          </TableBody>
+        </Table>
 
         {/* Phân trang */}
         {filteredItems.length > rowsPerPage && (
-          <Box sx={{ p: 2, display: 'flex', justifyContent: 'center', borderTop: '1px solid #e2e8f0' }}>
-            <Pagination
-              count={totalPages}
-              page={page}
-              onChange={(_, val) => setPage(val)}
-              color="primary"
-              shape="rounded"
-            />
-          </Box>
+          <div className="flex items-center justify-center gap-3 border-t border-slate-200 p-4">
+            <Button variant="outline" size="icon-sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+              <ChevronLeft className="size-4" />
+            </Button>
+            <span className="text-sm text-slate-500">
+              Trang {page}/{totalPages}
+            </span>
+            <Button variant="outline" size="icon-sm" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>
+              <ChevronRight className="size-4" />
+            </Button>
+          </div>
         )}
-      </Card>
+      </div>
 
       {/* DIALOG: Thêm mới lớp học */}
-      <Dialog open={openCreateDialog} onClose={() => !formSubmitting && setOpenCreateDialog(false)} maxWidth="sm" fullWidth>
-        <form onSubmit={handleCreateSubmit}>
-          <DialogTitle sx={{ fontWeight: 700, color: '#0f172a' }}>Thêm lớp học thủ công</DialogTitle>
-          <DialogContent dividers>
-            {formError && (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {formError}
-              </Alert>
-            )}
-            <Stack spacing={2} sx={{ mt: 0.5 }}>
-              <TextField
-                label="Tên Lớp học *"
-                placeholder="VD: 12A1, 6A, 10 Chuyên Tin"
-                value={formClassName}
-                onChange={(e) => setFormClassName(e.target.value)}
-                required
-                autoFocus
-                fullWidth
-                size="small"
-              />
-
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                <TextField
-                  label="Mã Lớp (tùy chọn)"
-                  placeholder="Tự động nếu để trống"
-                  value={formClassId}
-                  onChange={(e) => setFormClassId(e.target.value)}
-                  fullWidth
-                  size="small"
-                  helperText="Mã duy nhất phân biệt lớp"
-                />
-
-                <TextField
-                  select
-                  label="Khối học"
-                  value={formGrade}
-                  onChange={(e) => setFormGrade(e.target.value === '' ? '' : Number(e.target.value))}
-                  fullWidth
-                  size="small"
-                >
-                  <MenuItem value="">Không phân khối</MenuItem>
-                  {[6, 7, 8, 9, 10, 11, 12].map((g) => (
-                    <MenuItem key={g} value={g}>
-                      Khối {g}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </Stack>
-
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                <TextField
-                  label="Giáo viên Chủ nhiệm"
-                  placeholder="Họ và tên GVCN"
-                  value={formTeacher}
-                  onChange={(e) => setFormTeacher(e.target.value)}
-                  fullWidth
-                  size="small"
-                />
-
-                <TextField
-                  label="Email GVCN"
-                  type="email"
-                  placeholder="gv@thcs-giangvo.edu.vn"
-                  value={formEmail}
-                  onChange={(e) => setFormEmail(e.target.value)}
-                  fullWidth
-                  size="small"
-                />
-              </Stack>
-
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                <TextField
-                  label="Sĩ số học sinh dự kiến"
-                  type="number"
-                  value={formStudents}
-                  onChange={(e) => setFormStudents(e.target.value === '' ? '' : Number(e.target.value))}
-                  fullWidth
-                  size="small"
-                  inputProps={{ min: 1, max: 100 }}
-                />
-
-                <TextField
-                  label="Phòng học"
-                  placeholder="VD: Phòng 201, Nhà A"
-                  value={formRoom}
-                  onChange={(e) => setFormRoom(e.target.value)}
-                  fullWidth
-                  size="small"
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <MeetingRoomIcon sx={{ color: '#94a3b8', fontSize: 18 }} />
-                      </InputAdornment>
-                    )
-                  }}
-                />
-              </Stack>
-            </Stack>
-          </DialogContent>
-          <DialogActions sx={{ px: 3, py: 2 }}>
-            <Button onClick={() => setOpenCreateDialog(false)} disabled={formSubmitting} sx={{ textTransform: 'none' }}>
-              Hủy
-            </Button>
-            <Button
-              type="submit"
-              variant="contained"
-              disabled={formSubmitting}
-              sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' }, textTransform: 'none', px: 3 }}
-            >
-              {formSubmitting ? <CircularProgress size={22} color="inherit" /> : 'Tạo lớp học'}
-            </Button>
-          </DialogActions>
-        </form>
+      <Dialog open={openCreateDialog} onOpenChange={(open) => !formSubmitting && setOpenCreateDialog(open)}>
+        <DialogContent className="sm:max-w-md">
+          <form onSubmit={handleCreateSubmit}>
+            <DialogHeader>
+              <DialogTitle>Thêm lớp học thủ công</DialogTitle>
+            </DialogHeader>
+            {formError && <p className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">{formError}</p>}
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="c-name">Tên Lớp học *</Label>
+                <Input id="c-name" placeholder="VD: 12A1, 6A, 10 Chuyên Tin" value={formClassName} onChange={(e) => setFormClassName(e.target.value)} required autoFocus />
+              </div>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="flex flex-1 flex-col gap-1.5">
+                  <Label htmlFor="c-classid">Mã Lớp (tùy chọn)</Label>
+                  <Input id="c-classid" placeholder="Tự động nếu để trống" value={formClassId} onChange={(e) => setFormClassId(e.target.value)} />
+                  <p className="text-xs text-muted-foreground">Mã duy nhất phân biệt lớp</p>
+                </div>
+                <div className="flex flex-1 flex-col gap-1.5">
+                  <Label>Khối học</Label>
+                  <Select value={formGrade === '' ? '__none__' : String(formGrade)} onValueChange={(v) => setFormGrade(v === '__none__' ? '' : Number(v))}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Không phân khối</SelectItem>
+                      {[6, 7, 8, 9, 10, 11, 12].map((g) => (
+                        <SelectItem key={g} value={String(g)}>
+                          Khối {g}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="flex flex-1 flex-col gap-1.5">
+                  <Label htmlFor="c-teacher">Giáo viên Chủ nhiệm</Label>
+                  <Input id="c-teacher" placeholder="Họ và tên GVCN" value={formTeacher} onChange={(e) => setFormTeacher(e.target.value)} />
+                </div>
+                <div className="flex flex-1 flex-col gap-1.5">
+                  <Label htmlFor="c-email">Email GVCN</Label>
+                  <Input id="c-email" type="email" placeholder="gv@thcs-giangvo.edu.vn" value={formEmail} onChange={(e) => setFormEmail(e.target.value)} />
+                </div>
+              </div>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="flex flex-1 flex-col gap-1.5">
+                  <Label htmlFor="c-students">Sĩ số học sinh dự kiến</Label>
+                  <Input
+                    id="c-students"
+                    type="number"
+                    min={1}
+                    max={100}
+                    value={formStudents}
+                    onChange={(e) => setFormStudents(e.target.value === '' ? '' : Number(e.target.value))}
+                  />
+                </div>
+                <div className="flex flex-1 flex-col gap-1.5">
+                  <Label htmlFor="c-room">Phòng học</Label>
+                  <div className="relative">
+                    <DoorOpen className="absolute top-1/2 left-3 size-[18px] -translate-y-1/2 text-slate-400" />
+                    <Input id="c-room" placeholder="VD: Phòng 201, Nhà A" value={formRoom} onChange={(e) => setFormRoom(e.target.value)} className="pl-9" />
+                  </div>
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setOpenCreateDialog(false)} disabled={formSubmitting}>
+                Hủy
+              </Button>
+              <Button type="submit" disabled={formSubmitting}>
+                {formSubmitting ? <Loader2 className="size-4 animate-spin" /> : 'Tạo lớp học'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
       </Dialog>
 
       {/* DIALOG: Chỉnh sửa lớp học */}
-      <Dialog open={openEditDialog} onClose={() => !formSubmitting && setOpenEditDialog(false)} maxWidth="sm" fullWidth>
-        <form onSubmit={handleEditSubmit}>
-          <DialogTitle sx={{ fontWeight: 700, color: '#0f172a' }}>
-            Chỉnh sửa lớp {selectedClass?.className}
-          </DialogTitle>
-          <DialogContent dividers>
-            {formError && (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {formError}
-              </Alert>
-            )}
-            <Stack spacing={2} sx={{ mt: 0.5 }}>
-              <TextField
-                label="Tên Lớp học *"
-                value={formClassName}
-                onChange={(e) => setFormClassName(e.target.value)}
-                required
-                fullWidth
-                size="small"
-              />
-
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                <TextField
-                  label="Mã Lớp"
-                  value={formClassId}
-                  disabled
-                  fullWidth
-                  size="small"
-                  helperText="Mã lớp không thể thay đổi sau khi tạo"
-                />
-
-                <TextField
-                  select
-                  label="Khối học"
-                  value={formGrade}
-                  onChange={(e) => setFormGrade(e.target.value === '' ? '' : Number(e.target.value))}
-                  fullWidth
-                  size="small"
-                >
-                  <MenuItem value="">Không phân khối</MenuItem>
-                  {[6, 7, 8, 9, 10, 11, 12].map((g) => (
-                    <MenuItem key={g} value={g}>
-                      Khối {g}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </Stack>
-
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                <TextField
-                  label="Giáo viên Chủ nhiệm"
-                  placeholder="Họ và tên GVCN"
-                  value={formTeacher}
-                  onChange={(e) => setFormTeacher(e.target.value)}
-                  fullWidth
-                  size="small"
-                />
-
-                <TextField
-                  label="Email GVCN"
-                  type="email"
-                  placeholder="gv@thcs-giangvo.edu.vn"
-                  value={formEmail}
-                  onChange={(e) => setFormEmail(e.target.value)}
-                  fullWidth
-                  size="small"
-                />
-              </Stack>
-
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                <TextField
-                  label="Sĩ số học sinh dự kiến"
-                  type="number"
-                  value={formStudents}
-                  onChange={(e) => setFormStudents(e.target.value === '' ? '' : Number(e.target.value))}
-                  fullWidth
-                  size="small"
-                  inputProps={{ min: 1, max: 100 }}
-                />
-
-                <TextField
-                  label="Phòng học"
-                  placeholder="VD: Phòng 201, Nhà A"
-                  value={formRoom}
-                  onChange={(e) => setFormRoom(e.target.value)}
-                  fullWidth
-                  size="small"
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <MeetingRoomIcon sx={{ color: '#94a3b8', fontSize: 18 }} />
-                      </InputAdornment>
-                    )
-                  }}
-                />
-              </Stack>
-            </Stack>
-          </DialogContent>
-          <DialogActions sx={{ px: 3, py: 2 }}>
-            <Button onClick={() => setOpenEditDialog(false)} disabled={formSubmitting} sx={{ textTransform: 'none' }}>
-              Hủy
-            </Button>
-            <Button
-              type="submit"
-              variant="contained"
-              disabled={formSubmitting}
-              sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' }, textTransform: 'none', px: 3 }}
-            >
-              {formSubmitting ? <CircularProgress size={22} color="inherit" /> : 'Lưu thay đổi'}
-            </Button>
-          </DialogActions>
-        </form>
+      <Dialog open={openEditDialog} onOpenChange={(open) => !formSubmitting && setOpenEditDialog(open)}>
+        <DialogContent className="sm:max-w-md">
+          <form onSubmit={handleEditSubmit}>
+            <DialogHeader>
+              <DialogTitle>Chỉnh sửa lớp {selectedClass?.className}</DialogTitle>
+            </DialogHeader>
+            {formError && <p className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">{formError}</p>}
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="e-name">Tên Lớp học *</Label>
+                <Input id="e-name" value={formClassName} onChange={(e) => setFormClassName(e.target.value)} required />
+              </div>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="flex flex-1 flex-col gap-1.5">
+                  <Label htmlFor="e-classid">Mã Lớp</Label>
+                  <Input id="e-classid" value={formClassId} disabled />
+                  <p className="text-xs text-muted-foreground">Mã lớp không thể thay đổi sau khi tạo</p>
+                </div>
+                <div className="flex flex-1 flex-col gap-1.5">
+                  <Label>Khối học</Label>
+                  <Select value={formGrade === '' ? '__none__' : String(formGrade)} onValueChange={(v) => setFormGrade(v === '__none__' ? '' : Number(v))}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Không phân khối</SelectItem>
+                      {[6, 7, 8, 9, 10, 11, 12].map((g) => (
+                        <SelectItem key={g} value={String(g)}>
+                          Khối {g}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="flex flex-1 flex-col gap-1.5">
+                  <Label htmlFor="e-teacher">Giáo viên Chủ nhiệm</Label>
+                  <Input id="e-teacher" placeholder="Họ và tên GVCN" value={formTeacher} onChange={(e) => setFormTeacher(e.target.value)} />
+                </div>
+                <div className="flex flex-1 flex-col gap-1.5">
+                  <Label htmlFor="e-email">Email GVCN</Label>
+                  <Input id="e-email" type="email" placeholder="gv@thcs-giangvo.edu.vn" value={formEmail} onChange={(e) => setFormEmail(e.target.value)} />
+                </div>
+              </div>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="flex flex-1 flex-col gap-1.5">
+                  <Label htmlFor="e-students">Sĩ số học sinh dự kiến</Label>
+                  <Input
+                    id="e-students"
+                    type="number"
+                    min={1}
+                    max={100}
+                    value={formStudents}
+                    onChange={(e) => setFormStudents(e.target.value === '' ? '' : Number(e.target.value))}
+                  />
+                </div>
+                <div className="flex flex-1 flex-col gap-1.5">
+                  <Label htmlFor="e-room">Phòng học</Label>
+                  <div className="relative">
+                    <DoorOpen className="absolute top-1/2 left-3 size-[18px] -translate-y-1/2 text-slate-400" />
+                    <Input id="e-room" placeholder="VD: Phòng 201, Nhà A" value={formRoom} onChange={(e) => setFormRoom(e.target.value)} className="pl-9" />
+                  </div>
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setOpenEditDialog(false)} disabled={formSubmitting}>
+                Hủy
+              </Button>
+              <Button type="submit" disabled={formSubmitting}>
+                {formSubmitting ? <Loader2 className="size-4 animate-spin" /> : 'Lưu thay đổi'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
       </Dialog>
 
       {/* DIALOG: Xác nhận xoá lớp */}
-      <Dialog open={openDeleteDialog} onClose={() => !formSubmitting && setOpenDeleteDialog(false)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700, color: '#dc2626' }}>Xác nhận xoá lớp học</DialogTitle>
-        <DialogContent dividers>
-          {formError && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {formError}
-            </Alert>
-          )}
-          <Stack spacing={2}>
-            <Typography variant="body2" sx={{ color: '#334155' }}>
+      <Dialog open={openDeleteDialog} onOpenChange={(open) => !formSubmitting && setOpenDeleteDialog(open)}>
+        <DialogContent className="sm:max-w-xs">
+          <DialogHeader>
+            <DialogTitle className="text-red-600">Xác nhận xoá lớp học</DialogTitle>
+          </DialogHeader>
+          {formError && <p className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">{formError}</p>}
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-slate-700">
               Bạn có chắc chắn muốn xoá lớp <strong>{selectedClass?.className}</strong> ({selectedClass?.classId}) không?
-            </Typography>
-
+            </p>
             {selectedClass && (selectedClass.courseCount || 0) > 0 && (
-              <Box sx={{ p: 1.5, bgcolor: '#fef2f2', border: '1px solid #fecaca', borderRadius: 2 }}>
-                <Typography variant="caption" sx={{ color: '#991b1b', fontWeight: 600, display: 'block', mb: 1 }}>
-                  Lớp này hiện đang có {selectedClass.courseCount} khóa học Google Classroom liên kết.
-                </Typography>
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={unlinkLinkedCourses}
-                      onChange={(e) => setUnlinkLinkedCourses(e.target.checked)}
-                      size="small"
-                      color="error"
-                    />
-                  }
-                  label={
-                    <Typography variant="body2" sx={{ color: '#1e293b', fontSize: '0.8125rem', fontWeight: 600 }}>
-                      Tự động gỡ liên kết {selectedClass.courseCount} khóa học Classroom thuộc lớp này và xóa lớp
-                    </Typography>
-                  }
-                />
-              </Box>
+              <div className="rounded-lg border border-red-200 bg-red-50 p-3">
+                <p className="mb-2 text-xs font-semibold text-red-800">Lớp này hiện đang có {selectedClass.courseCount} khóa học Google Classroom liên kết.</p>
+                <label className="flex items-start gap-2 text-sm">
+                  <Checkbox checked={unlinkLinkedCourses} onCheckedChange={(v) => setUnlinkLinkedCourses(v === true)} className="mt-0.5" />
+                  <span className="text-[0.8125rem] font-semibold text-slate-800">
+                    Tự động gỡ liên kết {selectedClass.courseCount} khóa học Classroom thuộc lớp này và xóa lớp
+                  </span>
+                </label>
+              </div>
             )}
-          </Stack>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenDeleteDialog(false)} disabled={formSubmitting}>
+              Hủy
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteSubmit} disabled={formSubmitting}>
+              {formSubmitting ? <Loader2 className="size-4 animate-spin" /> : 'Xác nhận xoá'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={() => setOpenDeleteDialog(false)} disabled={formSubmitting} sx={{ textTransform: 'none' }}>
-            Hủy
-          </Button>
-          <Button
-            variant="contained"
-            color="error"
-            onClick={handleDeleteSubmit}
-            disabled={formSubmitting}
-            sx={{ textTransform: 'none' }}
-          >
-            {formSubmitting ? <CircularProgress size={20} color="inherit" /> : 'Xác nhận xoá'}
-          </Button>
-        </DialogActions>
       </Dialog>
 
       {/* DIALOG: Đôn đốc nộp bài 1-Click */}
-      <Dialog open={openNudgeDialog} onClose={() => !nudgeSubmitting && setOpenNudgeDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 1 }}>
-          <CampaignIcon sx={{ color: '#d97706' }} />
-          Đôn đốc nộp bài tập số 1-Click (Student Nudge Center)
-        </DialogTitle>
-        <DialogContent dividers>
-          <Typography variant="body2" sx={{ color: '#475569', mb: 2 }}>
-            Hệ thống sẽ phát chỉ đạo từ Ban Giám hiệu tới Giáo viên Chủ nhiệm và bộ môn, đồng thời kích hoạt cảnh báo học vụ để đôn đốc học sinh hoàn thành các bài tập Google Classroom quá hạn.
-          </Typography>
-          <FormControl fullWidth size="small">
-            <InputLabel id="nudge-target-label">Phạm vi đôn đốc</InputLabel>
-            <Select
-              labelId="nudge-target-label"
-              label="Phạm vi đôn đốc"
-              value={nudgeTargetClass}
-              onChange={(e) => setNudgeTargetClass(e.target.value)}
-            >
-              <MenuItem value="all">Toàn bộ tất cả các lớp trong trường</MenuItem>
-              {items.map((c) => (
-                <MenuItem key={c.classId} value={c.classId}>
-                  {c.className} (Tỷ lệ nộp: {c.completionRate}%)
-                </MenuItem>
-              ))}
+      <Dialog open={openNudgeDialog} onOpenChange={(open) => !nudgeSubmitting && setOpenNudgeDialog(open)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Megaphone className="size-5 text-amber-600" />
+              Đôn đốc nộp bài tập số 1-Click (Student Nudge Center)
+            </DialogTitle>
+          </DialogHeader>
+          <p className="mb-3 text-sm text-slate-600">
+            Hệ thống sẽ phát chỉ đạo từ Ban Giám hiệu tới Giáo viên Chủ nhiệm và bộ môn, đồng thời kích hoạt cảnh báo học vụ để đôn đốc học sinh hoàn thành
+            các bài tập Google Classroom quá hạn.
+          </p>
+          <div className="flex flex-col gap-1.5">
+            <Label>Phạm vi đôn đốc</Label>
+            <Select value={nudgeTargetClass} onValueChange={setNudgeTargetClass}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toàn bộ tất cả các lớp trong trường</SelectItem>
+                {items.map((c) => (
+                  <SelectItem key={c.classId} value={c.classId}>
+                    {c.className} (Tỷ lệ nộp: {c.completionRate}%)
+                  </SelectItem>
+                ))}
+              </SelectContent>
             </Select>
-          </FormControl>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenNudgeDialog(false)} disabled={nudgeSubmitting}>
+              Hủy
+            </Button>
+            <Button onClick={handleNudgeSubmit} disabled={nudgeSubmitting} className="bg-amber-600 font-bold hover:bg-amber-700">
+              {nudgeSubmitting ? <Loader2 className="size-4 animate-spin" /> : 'Phát lệnh đôn đốc ngay'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={() => setOpenNudgeDialog(false)} disabled={nudgeSubmitting} sx={{ textTransform: 'none' }}>
-            Hủy
-          </Button>
-          <Button
-            variant="contained"
-            color="warning"
-            onClick={handleNudgeSubmit}
-            disabled={nudgeSubmitting}
-            sx={{ fontWeight: 700, textTransform: 'none', px: 3 }}
-          >
-            {nudgeSubmitting ? <CircularProgress size={20} color="inherit" /> : 'Phát lệnh đôn đốc ngay'}
-          </Button>
-        </DialogActions>
       </Dialog>
 
       {/* DIALOG: Mẫu tin nhắn gửi Phụ huynh (Zalo / SMS) */}
-      <Dialog open={openParentDialog} onClose={() => setOpenParentDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 1 }}>
-          <ChatIcon sx={{ color: '#0284c7' }} />
-          Mẫu tin nhắn gửi Phụ huynh — {parentTargetClass?.className}
-        </DialogTitle>
-        <DialogContent dividers>
+      <Dialog open={openParentDialog} onOpenChange={setOpenParentDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageCircle className="size-5 text-sky-600" />
+              Mẫu tin nhắn gửi Phụ huynh — {parentTargetClass?.className}
+            </DialogTitle>
+          </DialogHeader>
           {parentLoading ? (
-            <Box sx={{ p: 4, textAlign: 'center' }}>
-              <CircularProgress size={28} />
-              <Typography variant="caption" sx={{ display: 'block', mt: 1, color: '#64748b' }}>
-                Đang tạo nội dung thông báo...
-              </Typography>
-            </Box>
+            <div className="py-10 text-center">
+              <Loader2 className="mx-auto size-7 animate-spin text-primary" />
+              <p className="mt-2 text-xs text-slate-500">Đang tạo nội dung thông báo...</p>
+            </div>
           ) : (
             <>
-              <Typography variant="caption" sx={{ color: '#64748b', display: 'block', mb: 1 }}>
-                Nội dung đã được chuẩn hóa theo số liệu nộp bài thực tế của lớp và danh tính GVCN. Bạn có thể sao chép để gửi vào nhóm Zalo hoặc tin nhắn SMS phụ huynh:
-              </Typography>
-              <Box
-                sx={{
-                  p: 2,
-                  bgcolor: '#f8fafc',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: 2,
-                  whiteSpace: 'pre-wrap',
-                  fontFamily: 'monospace',
-                  fontSize: '0.85rem',
-                  color: '#1e293b',
-                  lineHeight: 1.6,
-                  maxHeight: 280,
-                  overflowY: 'auto'
-                }}
-              >
+              <p className="mb-2 text-xs text-slate-500">
+                Nội dung đã được chuẩn hóa theo số liệu nộp bài thực tế của lớp và danh tính GVCN. Bạn có thể sao chép để gửi vào nhóm Zalo hoặc tin nhắn SMS
+                phụ huynh:
+              </p>
+              <div className="max-h-[280px] overflow-y-auto rounded-lg border border-slate-200 bg-slate-50 p-4 font-mono text-[0.85rem] leading-relaxed whitespace-pre-wrap text-slate-800">
                 {parentTemplate}
-              </Box>
+              </div>
             </>
           )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenParentDialog(false)}>
+              Đóng
+            </Button>
+            <Button
+              onClick={handleCopyTemplate}
+              disabled={parentLoading || !parentTemplate}
+              className={cn('font-bold', copied && 'bg-emerald-600 hover:bg-emerald-700')}
+            >
+              {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+              {copied ? 'Đã sao chép!' : 'Sao chép tin nhắn'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={() => setOpenParentDialog(false)} sx={{ textTransform: 'none' }}>
-            Đóng
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={copied ? <CheckIcon /> : <ContentCopyIcon />}
-            onClick={handleCopyTemplate}
-            disabled={parentLoading || !parentTemplate}
-            sx={{
-              bgcolor: copied ? '#059669' : '#0284c7',
-              '&:hover': { bgcolor: copied ? '#047857' : '#0369a1' },
-              textTransform: 'none',
-              fontWeight: 700,
-              px: 2.5
-            }}
-          >
-            {copied ? 'Đã sao chép!' : 'Sao chép tin nhắn'}
-          </Button>
-        </DialogActions>
       </Dialog>
 
-      {/* Thông báo Toast */}
-      <Snackbar
-        open={Boolean(toast)}
-        autoHideDuration={4000}
-        onClose={() => setToast(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        {toast ? (
-          <Alert onClose={() => setToast(null)} severity={toast.severity} sx={{ width: '100%', boxShadow: 3 }}>
-            {toast.message}
-          </Alert>
-        ) : undefined}
-      </Snackbar>
-    </Box>
+      <Toast toast={toast} onClose={() => setToast(null)} />
+    </div>
   );
 }
