@@ -15,45 +15,30 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Box,
-  Card,
-  CardContent,
-  Chip,
-  Grid,
-  MenuItem,
-  Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TablePagination,
-  TableRow,
-  TableSortLabel,
-  TextField,
-  Typography
-} from '@mui/material';
+import { ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import { useIncidents, type IncidentListItem } from '../hooks/useIncidents';
 import { useActor } from '../hooks/useActor';
 import { PriorityChip } from './PriorityChip';
 import { StatusChip } from './StatusChip';
 import { TERMINAL_STATES } from '../constants';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { cn } from '@/lib/utils';
 
 type SortKey = 'updatedAt' | 'priority' | 'state';
 
-function StatCard({ label, value, color }: { label: string; value: number | string; color: string }) {
+const ALL_PRIORITY = '__all_priority__';
+const ALL_STATE = '__all_state__';
+
+function StatCard({ label, value, className }: { label: string; value: number | string; className: string }) {
   return (
-    <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none' }}>
-      <CardContent>
-        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-          {label}
-        </Typography>
-        <Typography variant="h3" fontWeight={800} sx={{ color, mt: 0.5 }}>
-          {value}
-        </Typography>
-      </CardContent>
-    </Card>
+    <div className="rounded-xl border border-slate-200 p-4">
+      <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">{label}</p>
+      <p className={cn('mt-1 text-3xl font-extrabold', className)}>{value}</p>
+    </div>
   );
 }
 
@@ -113,6 +98,7 @@ export function MyIncidentsSection() {
   }, [filtered, sortKey, sortDir]);
 
   const paged = useMemo(() => sorted.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage), [sorted, page, rowsPerPage]);
+  const pageCount = Math.max(1, Math.ceil(sorted.length / rowsPerPage));
 
   useEffect(() => {
     setPage(0);
@@ -132,103 +118,91 @@ export function MyIncidentsSection() {
     return 'Tham gia';
   };
 
+  const SortHeader = ({ sortKeyName, children }: { sortKeyName: SortKey; children: React.ReactNode }) => {
+    const active = sortKey === sortKeyName;
+    const Icon = active ? (sortDir === 'asc' ? ArrowUp : ArrowDown) : ArrowUpDown;
+    return (
+      <button type="button" onClick={() => handleSort(sortKeyName)} className="inline-flex items-center gap-1 font-semibold text-slate-600">
+        {children}
+        <Icon className={cn('size-3.5', active ? 'text-[#0f172a]' : 'text-slate-400')} />
+      </button>
+    );
+  };
+
   return (
-    <Box sx={{ mt: 3 }}>
-      <Typography variant="h6" fontWeight={700} sx={{ mb: 1.5 }}>
-        Sự vụ của tôi
-      </Typography>
+    <div className="mt-6">
+      <p className="mb-3 text-lg font-bold">Sự vụ của tôi</p>
 
-      <Grid container spacing={2} sx={{ mb: 2 }}>
-        <Grid size={{ xs: 6, sm: 3 }}>
-          <StatCard label="Đang mở (của tôi)" value={loading ? '—' : openCount} color="#2563eb" />
-        </Grid>
-        <Grid size={{ xs: 6, sm: 3 }}>
-          <StatCard label="Tổng số đã/đang làm" value={loading ? '—' : totalCount} color="#15803d" />
-        </Grid>
-      </Grid>
+      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatCard label="Đang mở (của tôi)" value={loading ? '—' : openCount} className="text-primary" />
+        <StatCard label="Tổng số đã/đang làm" value={loading ? '—' : totalCount} className="text-green-700" />
+      </div>
 
-      <Stack direction="row" spacing={1.5} sx={{ mb: 1.5, flexWrap: 'wrap' }}>
-        <TextField
-          select
-          size="small"
-          label="Mức ưu tiên"
-          value={priorityFilter}
-          onChange={(e) => setPriorityFilter(e.target.value)}
-          sx={{ minWidth: 140 }}
-        >
-          <MenuItem value="">Tất cả</MenuItem>
-          <MenuItem value="P0">P0</MenuItem>
-          <MenuItem value="P1">P1</MenuItem>
-          <MenuItem value="P2">P2</MenuItem>
-          <MenuItem value="P3">P3</MenuItem>
-        </TextField>
-        <TextField
-          select
-          size="small"
-          label="Trạng thái"
-          value={stateFilter}
-          onChange={(e) => setStateFilter(e.target.value)}
-          sx={{ minWidth: 180 }}
-        >
-          <MenuItem value="">Tất cả</MenuItem>
-          {Array.from(new Set(items.map((it) => it.state))).map((s) => (
-            <MenuItem key={s} value={s}>
-              {s}
-            </MenuItem>
-          ))}
-        </TextField>
-        <TextField
-          size="small"
-          label="Tìm mã hồ sơ / lớp / nhóm sự cố"
+      <div className="mb-3 flex flex-wrap gap-3">
+        <Select value={priorityFilter || ALL_PRIORITY} onValueChange={(v) => setPriorityFilter(v === ALL_PRIORITY ? '' : v)}>
+          <SelectTrigger className="min-w-36">
+            <SelectValue placeholder="Mức ưu tiên" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_PRIORITY}>Tất cả</SelectItem>
+            <SelectItem value="P0">P0</SelectItem>
+            <SelectItem value="P1">P1</SelectItem>
+            <SelectItem value="P2">P2</SelectItem>
+            <SelectItem value="P3">P3</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={stateFilter || ALL_STATE} onValueChange={(v) => setStateFilter(v === ALL_STATE ? '' : v)}>
+          <SelectTrigger className="min-w-44">
+            <SelectValue placeholder="Trạng thái" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_STATE}>Tất cả</SelectItem>
+            {Array.from(new Set(items.map((it) => it.state))).map((s) => (
+              <SelectItem key={s} value={s}>
+                {s}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Input
+          placeholder="Tìm mã hồ sơ / lớp / nhóm sự cố"
           value={searchText}
           onChange={(e) => setSearchText(e.target.value)}
-          sx={{ minWidth: 240, flexGrow: 1 }}
+          className="min-w-60 flex-1"
         />
-      </Stack>
+      </div>
 
-      {error && (
-        <Typography variant="body2" color="error" sx={{ mb: 1.5 }}>
-          {error}
-        </Typography>
-      )}
+      {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
 
-      <TableContainer sx={{ border: '1px solid #e2e8f0', borderRadius: 3 }}>
-        <Table size="small">
-          <TableHead>
-            <TableRow sx={{ bgcolor: '#f8fafc' }}>
-              <TableCell>Mã hồ sơ</TableCell>
-              <TableCell>Nhóm sự cố</TableCell>
-              <TableCell sortDirection={sortKey === 'priority' ? sortDir : false}>
-                <TableSortLabel active={sortKey === 'priority'} direction={sortKey === 'priority' ? sortDir : 'asc'} onClick={() => handleSort('priority')}>
-                  Mức ưu tiên
-                </TableSortLabel>
-              </TableCell>
-              <TableCell sortDirection={sortKey === 'state' ? sortDir : false}>
-                <TableSortLabel active={sortKey === 'state'} direction={sortKey === 'state' ? sortDir : 'asc'} onClick={() => handleSort('state')}>
-                  Trạng thái
-                </TableSortLabel>
-              </TableCell>
-              <TableCell>Vai trò của tôi</TableCell>
-              <TableCell sortDirection={sortKey === 'updatedAt' ? sortDir : false}>
-                <TableSortLabel active={sortKey === 'updatedAt'} direction={sortKey === 'updatedAt' ? sortDir : 'desc'} onClick={() => handleSort('updatedAt')}>
-                  Cập nhật lúc
-                </TableSortLabel>
-              </TableCell>
+      <div className="rounded-xl border border-slate-200">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-slate-50 hover:bg-slate-50">
+              <TableHead>Mã hồ sơ</TableHead>
+              <TableHead>Nhóm sự cố</TableHead>
+              <TableHead>
+                <SortHeader sortKeyName="priority">Mức ưu tiên</SortHeader>
+              </TableHead>
+              <TableHead>
+                <SortHeader sortKeyName="state">Trạng thái</SortHeader>
+              </TableHead>
+              <TableHead>Vai trò của tôi</TableHead>
+              <TableHead>
+                <SortHeader sortKeyName="updatedAt">Cập nhật lúc</SortHeader>
+              </TableHead>
             </TableRow>
-          </TableHead>
+          </TableHeader>
           <TableBody>
             {!loading && sorted.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6}>
-                  <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
-                    Bạn chưa từng tiếp nhận hoặc tham gia sự vụ nào khớp bộ lọc này.
-                  </Typography>
+                <TableCell colSpan={6} className="py-6 text-center text-sm text-slate-500">
+                  Bạn chưa từng tiếp nhận hoặc tham gia sự vụ nào khớp bộ lọc này.
                 </TableCell>
               </TableRow>
             )}
             {paged.map((it) => (
-              <TableRow key={it.incidentId} hover sx={{ cursor: 'pointer' }} onClick={() => navigate(`/safety/incidents/${it.incidentId}`)}>
-                <TableCell sx={{ fontWeight: 600 }}>{it.incidentId}</TableCell>
+              <TableRow key={it.incidentId} className="cursor-pointer" onClick={() => navigate(`/safety/incidents/${it.incidentId}`)}>
+                <TableCell className="font-semibold">{it.incidentId}</TableCell>
                 <TableCell>{it.categoryLabel || it.categoryCode || '—'}</TableCell>
                 <TableCell>
                   <PriorityChip priority={it.priority} compact />
@@ -237,38 +211,54 @@ export function MyIncidentsSection() {
                   <StatusChip state={it.state} />
                 </TableCell>
                 <TableCell>
-                  <Chip
-                    size="small"
-                    label={roleLabel(it)}
-                    sx={{
-                      fontWeight: 700,
-                      height: 24,
-                      bgcolor: roleLabel(it) === 'Chỉ huy' ? '#eff6ff' : '#f8fafc',
-                      color: roleLabel(it) === 'Chỉ huy' ? '#2563eb' : '#475569',
-                      border: '1px solid #e2e8f0'
-                    }}
-                  />
+                  <Badge
+                    variant="outline"
+                    className={cn('h-6 font-bold', roleLabel(it) === 'Chỉ huy' ? 'border-blue-200 bg-secondary text-primary' : 'border-slate-200 bg-slate-50 text-slate-600')}
+                  >
+                    {roleLabel(it)}
+                  </Badge>
                 </TableCell>
                 <TableCell>{formatDateTime(it.updatedAt)}</TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
-        <TablePagination
-          component="div"
-          count={sorted.length}
-          page={page}
-          onPageChange={(_, p) => setPage(p)}
-          rowsPerPage={rowsPerPage}
-          onRowsPerPageChange={(e) => {
-            setRowsPerPage(Number(e.target.value));
-            setPage(0);
-          }}
-          rowsPerPageOptions={[10, 25, 50]}
-          labelRowsPerPage="Số dòng/trang"
-          labelDisplayedRows={({ from, to, count }) => `${from}–${to} / ${count}`}
-        />
-      </TableContainer>
-    </Box>
+
+        <div className="flex flex-wrap items-center justify-end gap-3 border-t border-slate-200 p-3 text-sm text-slate-500">
+          <div className="flex items-center gap-2">
+            <span>Số dòng/trang</span>
+            <Select
+              value={String(rowsPerPage)}
+              onValueChange={(v) => {
+                setRowsPerPage(Number(v));
+                setPage(0);
+              }}
+            >
+              <SelectTrigger className="w-20">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[10, 25, 50].map((n) => (
+                  <SelectItem key={n} value={String(n)}>
+                    {n}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <span>
+            {sorted.length === 0 ? 0 : page * rowsPerPage + 1}–{Math.min(sorted.length, (page + 1) * rowsPerPage)} / {sorted.length}
+          </span>
+          <div className="flex gap-1">
+            <Button variant="ghost" size="sm" disabled={page === 0} onClick={() => setPage((p) => Math.max(0, p - 1))}>
+              Trước
+            </Button>
+            <Button variant="ghost" size="sm" disabled={page >= pageCount - 1} onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}>
+              Sau
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

@@ -6,12 +6,20 @@
  * 30 giây, khớp đúng hành vi bản gốc ghi trong CLAUDE.md dự án.
  */
 import { useEffect, useState } from 'react';
-import { Badge, Box, IconButton, Menu, MenuItem, Typography, Divider, CircularProgress, Button, Alert } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import NotificationsRoundedIcon from '@mui/icons-material/NotificationsRounded';
-import NotificationsActiveRoundedIcon from '@mui/icons-material/NotificationsActiveRounded';
+import { Bell, BellRing, Loader2 } from 'lucide-react';
 import { api } from '../../../services/api';
 import { isPushSupported, getNotificationPermission, isPushSubscribedOnThisDevice, enablePushNotifications } from '../push-subscribe';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu';
+import { cn } from '@/lib/utils';
 
 interface AdminNotification {
   notificationId: string;
@@ -27,7 +35,7 @@ export function NotificationBell() {
   const navigate = useNavigate();
   const [items, setItems] = useState<AdminNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+  const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   // Trạng thái thông báo đẩy CỦA CHÍNH THIẾT BỊ/TRÌNH DUYỆT này (bổ sung
   // 2026-09-24) — không phải trạng thái tài khoản (1 người có thể bật trên
@@ -72,11 +80,13 @@ export function NotificationBell() {
     return () => clearInterval(interval);
   }, []);
 
-  const handleOpen = (e: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(e.currentTarget);
-    setLoading(true);
-    load();
-    setTimeout(() => setLoading(false), 300);
+  const handleOpenChange = (next: boolean) => {
+    setOpen(next);
+    if (next) {
+      setLoading(true);
+      load();
+      setTimeout(() => setLoading(false), 300);
+    }
   };
 
   const handleItemClick = async (n: AdminNotification) => {
@@ -89,7 +99,7 @@ export function NotificationBell() {
         // im lặng — không chặn điều hướng nếu đánh dấu đã đọc thất bại
       }
     }
-    setAnchorEl(null);
+    setOpen(false);
     if (n.objectId && n.objectId.startsWith('SC.')) {
       navigate(`/safety/incidents/${n.objectId}`);
     } else if (n.objectId && n.objectId.startsWith('TB.')) {
@@ -111,35 +121,26 @@ export function NotificationBell() {
   };
 
   return (
-    <>
-      <IconButton onClick={handleOpen} size="small" sx={{ color: '#64748b' }}>
-        <Badge badgeContent={unreadCount} color="error" max={99}>
-          <NotificationsRoundedIcon sx={{ fontSize: 20 }} />
-        </Badge>
-      </IconButton>
-      <Menu
-        anchorEl={anchorEl}
-        open={!!anchorEl}
-        onClose={() => setAnchorEl(null)}
-        slotProps={{ paper: { sx: { width: 360, maxHeight: 440 } } }}
-      >
-        <Box sx={{ px: 2, py: 1.25 }}>
-          <Typography variant="subtitle2" fontWeight={700}>
-            Thông báo
-          </Typography>
-        </Box>
+    <DropdownMenu open={open} onOpenChange={handleOpenChange}>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="relative text-slate-500">
+          <Bell className="size-5" />
+          {unreadCount > 0 && (
+            <span className="absolute top-0.5 right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[0.65rem] font-bold text-white">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-90 max-h-[440px] overflow-y-auto">
+        <div className="px-2 py-1.5">
+          <p className="text-sm font-bold">Thông báo</p>
+        </div>
         {isPushSupported() && getNotificationPermission() !== 'denied' && (
-          <Box sx={{ px: 2, pb: 1.25 }}>
+          <div className="px-2 pb-1.5">
             {!pushSubscribed ? (
-              <Button
-                size="small"
-                variant="outlined"
-                fullWidth
-                startIcon={<NotificationsActiveRoundedIcon sx={{ fontSize: 16 }} />}
-                disabled={pushEnabling}
-                onClick={handleEnablePush}
-                sx={{ textTransform: 'none', fontWeight: 600 }}
-              >
+              <Button variant="outline" size="sm" disabled={pushEnabling} onClick={handleEnablePush} className="w-full font-semibold">
+                <BellRing className="size-4" />
                 {pushEnabling ? 'Đang bật...' : 'Bật thông báo đẩy trên thiết bị này'}
               </Button>
             ) : (
@@ -148,64 +149,41 @@ export function NotificationBell() {
               // người vừa đăng nhập, có thể vẫn đang gắn với tài khoản
               // trước đó trên CHÍNH thiết bị này (Sin phát hiện 2026-09-24).
               // Bấm lại nút này để gán lại đúng tài khoản đang đăng nhập.
-              <Button
-                size="small"
-                variant="text"
-                fullWidth
-                disabled={pushEnabling}
-                onClick={handleEnablePush}
-                sx={{ textTransform: 'none', fontWeight: 500, fontSize: '0.75rem', color: '#64748b' }}
-              >
+              <Button variant="ghost" size="sm" disabled={pushEnabling} onClick={handleEnablePush} className="w-full text-xs text-slate-500">
                 {pushEnabling ? 'Đang đồng bộ...' : 'Đồng bộ lại thông báo đẩy cho tài khoản này'}
               </Button>
             )}
             {pushError && (
-              <Alert severity="warning" sx={{ mt: 1, fontSize: '0.75rem', py: 0 }}>
-                {pushError}
+              <Alert className="mt-1.5 border-amber-200 bg-amber-50 py-1.5">
+                <AlertDescription className="text-xs text-amber-800">{pushError}</AlertDescription>
               </Alert>
             )}
-          </Box>
+          </div>
         )}
-        <Divider />
+        <DropdownMenuSeparator />
         {loading && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
-            <CircularProgress size={20} />
-          </Box>
+          <div className="flex justify-center py-6">
+            <Loader2 className="size-5 animate-spin text-slate-400" />
+          </div>
         )}
         {!loading && items.length === 0 && (
-          <Box sx={{ py: 3, textAlign: 'center' }}>
-            <Typography variant="body2" color="text.secondary">
-              Không có thông báo nào.
-            </Typography>
-          </Box>
+          <div className="py-6 text-center">
+            <p className="text-sm text-slate-500">Không có thông báo nào.</p>
+          </div>
         )}
         {!loading &&
           items.map((n) => (
-            <MenuItem
+            <DropdownMenuItem
               key={n.notificationId}
               onClick={() => handleItemClick(n)}
-              sx={{
-                whiteSpace: 'normal',
-                alignItems: 'flex-start',
-                py: 1.25,
-                bgcolor: n.read ? 'transparent' : '#eff6ff',
-                borderLeft: n.read ? '3px solid transparent' : '3px solid #2563eb'
-              }}
+              className={cn('flex-col items-start gap-0.5 border-l-[3px] py-2.5 whitespace-normal', n.read ? 'border-l-transparent' : 'border-l-primary bg-secondary')}
             >
-              <Box>
-                <Typography variant="body2" fontWeight={n.read ? 500 : 700} sx={{ color: '#0f172a' }}>
-                  {n.title}
-                </Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                  {n.message}
-                </Typography>
-                <Typography variant="caption" sx={{ color: '#94a3b8' }}>
-                  {new Date(n.createdAt).toLocaleString('vi-VN')}
-                </Typography>
-              </Box>
-            </MenuItem>
+              <p className={cn('text-sm text-[#0f172a]', n.read ? 'font-medium' : 'font-bold')}>{n.title}</p>
+              <p className="block text-xs text-slate-500">{n.message}</p>
+              <p className="text-xs text-slate-400">{new Date(n.createdAt).toLocaleString('vi-VN')}</p>
+            </DropdownMenuItem>
           ))}
-      </Menu>
-    </>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
