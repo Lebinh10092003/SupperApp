@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { CirclePlus, CalendarDays, Download, ArrowUp, ArrowDown, ArrowUpDown, Check } from 'lucide-react';
+import { CirclePlus, CalendarDays, Download, ArrowUp, ArrowDown, ArrowUpDown, Check, ListFilter, Search } from 'lucide-react';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
 import { env } from '../../config/env';
@@ -24,6 +24,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
@@ -33,7 +34,7 @@ import { cn } from '@/lib/utils';
 export function EventStatusChip({ status }: { status: string }) {
   const c = EVENT_STATUS_COLOR[status] || { bg: '#f1f5f9', fg: '#334155', border: '#e2e8f0' };
   return (
-    <Badge variant="outline" className="border-transparent font-medium" style={{ backgroundColor: c.bg, color: c.fg }}>
+    <Badge variant="outline" className="font-medium" style={{ backgroundColor: c.bg, color: c.fg, borderColor: c.border }}>
       {EVENT_STATUS_LABEL[status] || status}
     </Badge>
   );
@@ -98,6 +99,7 @@ export default function EventsListPage() {
   const [personFilter, setPersonFilter] = useState<PersonOption | null>(null);
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
+  const eventsActiveFilterCount = [personFilter, fromDate, toDate, campusFilter, statusFilter].filter(Boolean).length;
   const { items, loading, error, refetch } = useEvents({
     campusId: campusFilter || undefined,
     statuses: statusFilter ? [statusFilter] : undefined
@@ -266,58 +268,100 @@ export default function EventsListPage() {
         }
       />
 
-      <div className="mb-4 flex flex-wrap items-end gap-3">
-        <div>
-          <Label htmlFor="events-search" className="mb-1.5 block">
-            Tìm theo tiêu đề
-          </Label>
-          <Input id="events-search" value={searchText} onChange={(e) => setSearchText(e.target.value)} className="min-w-50" />
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="relative min-w-56 flex-1">
+          <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
+          <Input
+            id="events-search"
+            placeholder="Tìm theo tiêu đề"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            className="pl-9"
+          />
         </div>
-        <PersonPicker label="Người tham gia (username)" value={personFilter} onChange={setPersonFilter} />
-        <div>
-          <Label htmlFor="events-from-date" className="mb-1.5 block">
-            Từ ngày
-          </Label>
-          <Input id="events-from-date" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="min-w-40" />
-        </div>
-        <div>
-          <Label htmlFor="events-to-date" className="mb-1.5 block">
-            Đến ngày
-          </Label>
-          <Input id="events-to-date" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="min-w-40" />
-        </div>
-        <div>
-          <Label className="mb-1.5 block">Cơ sở</Label>
-          <Select value={campusFilter || ALL_CAMPUS} onValueChange={(v) => setCampusFilter(v === ALL_CAMPUS ? '' : v)}>
-            <SelectTrigger className="min-w-44">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL_CAMPUS}>Tất cả</SelectItem>
-              {CAMPUS_IDS.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {CAMPUS_LABEL[c]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label className="mb-1.5 block">Trạng thái</Label>
-          <Select value={statusFilter || ALL_STATUS} onValueChange={(v) => setStatusFilter(v === ALL_STATUS ? '' : v)}>
-            <SelectTrigger className="min-w-44">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL_STATUS}>Tất cả</SelectItem>
-              {STATUS_FILTER_OPTIONS.map((s) => (
-                <SelectItem key={s} value={s}>
-                  {EVENT_STATUS_LABEL[s]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline">
+              <ListFilter className="size-4" />
+              Bộ lọc
+              {eventsActiveFilterCount > 0 && (
+                <Badge variant="outline" className="h-5 min-w-5 justify-center bg-secondary px-1 text-[#1d4ed8]">
+                  {eventsActiveFilterCount}
+                </Badge>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-[340px]">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-[#0f172a]">Bộ lọc</p>
+              {eventsActiveFilterCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPersonFilter(null);
+                    setFromDate('');
+                    setToDate('');
+                    setCampusFilter('');
+                    setStatusFilter('');
+                  }}
+                  className="text-xs font-medium text-primary hover:underline"
+                >
+                  Xóa tất cả
+                </button>
+              )}
+            </div>
+            <div className="mt-3 flex flex-col gap-3">
+              <PersonPicker label="Người tham gia (username)" value={personFilter} onChange={setPersonFilter} />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="events-from-date" className="mb-1.5 block">
+                    Từ ngày
+                  </Label>
+                  <Input id="events-from-date" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+                </div>
+                <div>
+                  <Label htmlFor="events-to-date" className="mb-1.5 block">
+                    Đến ngày
+                  </Label>
+                  <Input id="events-to-date" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+                </div>
+                <div>
+                  <Label className="mb-1.5 block">Cơ sở</Label>
+                  <Select value={campusFilter || ALL_CAMPUS} onValueChange={(v) => setCampusFilter(v === ALL_CAMPUS ? '' : v)}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={ALL_CAMPUS}>Tất cả</SelectItem>
+                      {CAMPUS_IDS.map((c) => (
+                        <SelectItem key={c} value={c}>
+                          {CAMPUS_LABEL[c]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="mb-1.5 block">Trạng thái</Label>
+                  <Select value={statusFilter || ALL_STATUS} onValueChange={(v) => setStatusFilter(v === ALL_STATUS ? '' : v)}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={ALL_STATUS}>Tất cả</SelectItem>
+                      {STATUS_FILTER_OPTIONS.map((s) => (
+                        <SelectItem key={s} value={s}>
+                          {EVENT_STATUS_LABEL[s]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
 
       {error && (

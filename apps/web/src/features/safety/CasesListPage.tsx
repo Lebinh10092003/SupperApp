@@ -13,7 +13,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { CirclePlus, ListChecks, BookmarkPlus, X, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+import { CirclePlus, ListChecks, BookmarkPlus, ListFilter, Search, X, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
 import { useIncidents, type IncidentListItem } from './hooks/useIncidents';
@@ -26,6 +26,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
@@ -97,6 +98,17 @@ export default function CasesListPage() {
     toDate: toDate || undefined,
     limit: 500
   });
+
+  const activeFilterCount = [campusFilter, priorityFilter, stateFilter, categoryFilter, ownerFilter, fromDate, toDate].filter(Boolean).length;
+  const clearFilters = () => {
+    setCampusFilter('');
+    setPriorityFilter('');
+    setStateFilter('');
+    setCategoryFilter('');
+    setOwnerFilter('');
+    setFromDate('');
+    setToDate('');
+  };
 
   const filteredByOwner = useMemo(() => {
     if (!ownerFilter) return items;
@@ -251,106 +263,137 @@ export default function CasesListPage() {
         </div>
       )}
 
-      <div className="mb-4 flex flex-wrap items-end gap-3">
-        <div>
-          <Label htmlFor="cases-search" className="mb-1.5 block">
-            Tìm theo nội dung/mã sự vụ
-          </Label>
-          <Input id="cases-search" value={searchText} onChange={(e) => setSearchText(e.target.value)} className="min-w-56" />
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="relative min-w-56 flex-1">
+          <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
+          <Input
+            id="cases-search"
+            placeholder="Tìm theo nội dung/mã sự vụ"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            className="pl-9"
+          />
         </div>
-        <div>
-          <Label className="mb-1.5 block">Cơ sở</Label>
-          <Select value={campusFilter || ALL_CAMPUS} onValueChange={(v) => setCampusFilter(v === ALL_CAMPUS ? '' : v)}>
-            <SelectTrigger className="min-w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL_CAMPUS}>Tất cả</SelectItem>
-              {CAMPUS_IDS.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {CAMPUS_LABEL[c]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label className="mb-1.5 block">Mức ưu tiên</Label>
-          <Select value={priorityFilter || ALL_PRIORITY} onValueChange={(v) => setPriorityFilter(v === ALL_PRIORITY ? '' : v)}>
-            <SelectTrigger className="min-w-32">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL_PRIORITY}>Tất cả</SelectItem>
-              {PRIORITY_OPTIONS.map((p) => (
-                <SelectItem key={p} value={p}>
-                  {p}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label className="mb-1.5 block">Trạng thái</Label>
-          <Select value={stateFilter || ALL_STATE} onValueChange={(v) => setStateFilter(v === ALL_STATE ? '' : v)}>
-            <SelectTrigger className="min-w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL_STATE}>Tất cả</SelectItem>
-              {STATE_OPTIONS.map((s) => (
-                <SelectItem key={s} value={s}>
-                  {s}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label className="mb-1.5 block">Nhóm sự cố</Label>
-          <Select value={categoryFilter || ALL_CATEGORY} onValueChange={(v) => setCategoryFilter(v === ALL_CATEGORY ? '' : v)}>
-            <SelectTrigger className="min-w-44">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL_CATEGORY}>Tất cả</SelectItem>
-              {categories.map((c) => (
-                <SelectItem key={c.code} value={c.code}>
-                  {c.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label className="mb-1.5 block">Người phụ trách</Label>
-          <Select value={ownerFilter || ALL_OWNER} onValueChange={(v) => setOwnerFilter(v === ALL_OWNER ? '' : (v as OwnerFilter))}>
-            <SelectTrigger className="min-w-44">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL_OWNER}>Tất cả</SelectItem>
-              <SelectItem value="unclaimed">Chưa có người phụ trách</SelectItem>
-              <SelectItem value="claimed">Đã có người phụ trách</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label htmlFor="cases-from-date" className="mb-1.5 block">
-            Từ ngày
-          </Label>
-          <Input id="cases-from-date" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="min-w-36" />
-        </div>
-        <div>
-          <Label htmlFor="cases-to-date" className="mb-1.5 block">
-            Đến ngày
-          </Label>
-          <Input id="cases-to-date" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="min-w-36" />
-        </div>
+
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline">
+              <ListFilter className="size-4" />
+              Bộ lọc
+              {activeFilterCount > 0 && (
+                <Badge variant="outline" className="h-5 min-w-5 justify-center bg-secondary px-1 text-[#1d4ed8]">
+                  {activeFilterCount}
+                </Badge>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-[340px]">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-[#0f172a]">Bộ lọc</p>
+              {activeFilterCount > 0 && (
+                <button type="button" onClick={clearFilters} className="text-xs font-medium text-primary hover:underline">
+                  Xóa tất cả
+                </button>
+              )}
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <div>
+                <Label className="mb-1.5 block">Cơ sở</Label>
+                <Select value={campusFilter || ALL_CAMPUS} onValueChange={(v) => setCampusFilter(v === ALL_CAMPUS ? '' : v)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={ALL_CAMPUS}>Tất cả</SelectItem>
+                    {CAMPUS_IDS.map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {CAMPUS_LABEL[c]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="mb-1.5 block">Mức ưu tiên</Label>
+                <Select value={priorityFilter || ALL_PRIORITY} onValueChange={(v) => setPriorityFilter(v === ALL_PRIORITY ? '' : v)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={ALL_PRIORITY}>Tất cả</SelectItem>
+                    {PRIORITY_OPTIONS.map((p) => (
+                      <SelectItem key={p} value={p}>
+                        {p}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="mb-1.5 block">Trạng thái</Label>
+                <Select value={stateFilter || ALL_STATE} onValueChange={(v) => setStateFilter(v === ALL_STATE ? '' : v)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={ALL_STATE}>Tất cả</SelectItem>
+                    {STATE_OPTIONS.map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {s}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="mb-1.5 block">Nhóm sự cố</Label>
+                <Select value={categoryFilter || ALL_CATEGORY} onValueChange={(v) => setCategoryFilter(v === ALL_CATEGORY ? '' : v)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={ALL_CATEGORY}>Tất cả</SelectItem>
+                    {categories.map((c) => (
+                      <SelectItem key={c.code} value={c.code}>
+                        {c.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="col-span-2">
+                <Label className="mb-1.5 block">Người phụ trách</Label>
+                <Select value={ownerFilter || ALL_OWNER} onValueChange={(v) => setOwnerFilter(v === ALL_OWNER ? '' : (v as OwnerFilter))}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={ALL_OWNER}>Tất cả</SelectItem>
+                    <SelectItem value="unclaimed">Chưa có người phụ trách</SelectItem>
+                    <SelectItem value="claimed">Đã có người phụ trách</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="cases-from-date" className="mb-1.5 block">
+                  Từ ngày
+                </Label>
+                <Input id="cases-from-date" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+              </div>
+              <div>
+                <Label htmlFor="cases-to-date" className="mb-1.5 block">
+                  Đến ngày
+                </Label>
+                <Input id="cases-to-date" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
+
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" onClick={() => setSaveDialogOpen(true)} className="text-primary">
-              <BookmarkPlus />
+            <Button variant="outline" size="icon" onClick={() => setSaveDialogOpen(true)}>
+              <BookmarkPlus className="size-4" />
             </Button>
           </TooltipTrigger>
           <TooltipContent>Lưu bộ lọc hiện tại</TooltipContent>
@@ -391,26 +434,26 @@ export default function CasesListPage() {
             )}
             {paged.map((it: IncidentListItem) => (
               <TableRow key={it.incidentId} className="cursor-pointer" onClick={() => navigate(`/safety/incidents/${it.incidentId}`)}>
-                <TableCell>{it.updatedAt ? new Date(it.updatedAt).toLocaleString('vi-VN') : '—'}</TableCell>
-                <TableCell>{it.incidentId}</TableCell>
-                <TableCell>{CAMPUS_LABEL[it.campusId] || it.campusId}</TableCell>
-                <TableCell className="max-w-45">
+                <TableCell className="py-3">{it.updatedAt ? new Date(it.updatedAt).toLocaleString('vi-VN') : '—'}</TableCell>
+                <TableCell className="py-3 font-medium">{it.incidentId}</TableCell>
+                <TableCell className="py-3">{CAMPUS_LABEL[it.campusId] || it.campusId}</TableCell>
+                <TableCell className="max-w-45 py-3">
                   <p className="truncate text-sm" title={it.categoryLabel || it.categoryCode || ''}>
                     {it.categoryLabel || it.categoryCode}
                   </p>
                 </TableCell>
-                <TableCell className="max-w-65">
+                <TableCell className="max-w-65 py-3">
                   <p className="truncate text-sm" title={it.contentPreview || ''}>
                     {it.contentPreview || <em>(không có nội dung)</em>}
                   </p>
                 </TableCell>
-                <TableCell>
+                <TableCell className="py-3">
                   <PriorityChip priority={it.priority} compact />
                 </TableCell>
-                <TableCell>
+                <TableCell className="py-3">
                   <StatusChip state={it.state} />
                 </TableCell>
-                <TableCell>
+                <TableCell className="py-3">
                   {it.commanderName || (
                     <Badge variant="outline" className="border-transparent bg-amber-100 text-amber-800">
                       Chưa tiếp nhận
