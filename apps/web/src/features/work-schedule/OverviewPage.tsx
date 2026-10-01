@@ -14,9 +14,8 @@
  *   - Việc: dueAt rơi trong cùng khoảng 7 ngày, VÀ actor là assigneePerId.
  */
 import { useMemo, useState } from 'react';
-import { Alert, Button, Card, CardContent, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import DashboardIcon from '@mui/icons-material/DashboardRounded';
+import { LayoutDashboard } from 'lucide-react';
 import { PageHeader } from '../../components/PageHeader';
 import { useEvents, type WorkEvent } from './hooks/useEvents';
 import { useTasks, type WorkTask } from './hooks/useTasks';
@@ -24,6 +23,10 @@ import { useActor } from './hooks/useActor';
 import { EventDetailDialog, EventStatusChip } from './EventsListPage';
 import { TaskDetailDialog, TaskStatusChip } from './TasksListPage';
 import { CAMPUS_LABEL, abbreviatePersonLabel } from './constants';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { cn } from '@/lib/utils';
 
 const VN_OFFSET_MS = 7 * 60 * 60 * 1000;
 
@@ -77,113 +80,103 @@ export default function OverviewPage() {
 
   return (
     <>
-      <PageHeader title="Tổng quan" icon={<DashboardIcon />} />
+      <PageHeader title="Tổng quan" icon={<LayoutDashboard />} />
 
       {toast && (
-        <Alert severity={toast.severity} onClose={() => setToast(null)} sx={{ mb: 2 }}>
-          {toast.message}
+        <Alert className={cn('mb-4', toast.severity === 'error' ? 'border-red-200 bg-red-50' : 'border-emerald-200 bg-emerald-50')}>
+          <AlertDescription className={toast.severity === 'error' ? 'text-red-700' : 'text-emerald-700'}>{toast.message}</AlertDescription>
         </Alert>
       )}
 
-      <Stack spacing={3}>
-        <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none' }}>
-          <CardContent>
-            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
-              <Typography variant="subtitle1" fontWeight={700}>
-                Lịch công tác 7 ngày tới
-              </Typography>
-              <Button size="small" onClick={() => navigate('/work-schedule')}>
-                Xem toàn bộ
-              </Button>
-            </Stack>
-            {upcomingEvents.length === 0 ? (
-              <Typography variant="body2" color="text.secondary">
-                Không có lịch trong 7 ngày tới — chưa có lịch do bạn chủ trì, được mời tham dự hoặc áp dụng cho toàn trường.
-              </Typography>
-            ) : (
-              <TableContainer>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Ngày</TableCell>
-                      <TableCell>Nội dung</TableCell>
-                      <TableCell>Cơ sở</TableCell>
-                      <TableCell>Chủ trì</TableCell>
-                      <TableCell>Thành phần</TableCell>
-                      <TableCell>Trạng thái</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {upcomingEvents.map((ev) => {
-                      const fullParticipants = ev.participantLabels && ev.participantLabels.length > 0 ? ev.participantLabels : ev.participantPerIds;
-                      const participantFull = ev.scope === 'SCHOOL_WIDE' ? 'Toàn trường' : fullParticipants.join(', ') || '—';
-                      const participantAbbrev =
-                        ev.scope === 'SCHOOL_WIDE' ? 'Toàn trường' : fullParticipants.map(abbreviatePersonLabel).join(', ') || '—';
-                      return (
-                      <TableRow key={ev.id} hover sx={{ cursor: 'pointer' }} onClick={() => setEventDetail(ev)}>
+      <div className="flex flex-col gap-6">
+        <div className="rounded-xl border border-slate-200 p-5">
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-sm font-bold">Lịch công tác 7 ngày tới</p>
+            <Button variant="ghost" size="sm" onClick={() => navigate('/work-schedule')}>
+              Xem toàn bộ
+            </Button>
+          </div>
+          {upcomingEvents.length === 0 ? (
+            <p className="text-sm text-slate-500">
+              Không có lịch trong 7 ngày tới — chưa có lịch do bạn chủ trì, được mời tham dự hoặc áp dụng cho toàn trường.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Ngày</TableHead>
+                    <TableHead>Nội dung</TableHead>
+                    <TableHead>Cơ sở</TableHead>
+                    <TableHead>Chủ trì</TableHead>
+                    <TableHead>Thành phần</TableHead>
+                    <TableHead>Trạng thái</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {upcomingEvents.map((ev) => {
+                    const fullParticipants = ev.participantLabels && ev.participantLabels.length > 0 ? ev.participantLabels : ev.participantPerIds;
+                    const participantFull = ev.scope === 'SCHOOL_WIDE' ? 'Toàn trường' : fullParticipants.join(', ') || '—';
+                    const participantAbbrev =
+                      ev.scope === 'SCHOOL_WIDE' ? 'Toàn trường' : fullParticipants.map(abbreviatePersonLabel).join(', ') || '—';
+                    return (
+                      <TableRow key={ev.id} className="cursor-pointer" onClick={() => setEventDetail(ev)}>
                         <TableCell>{new Date(ev.startAt).toLocaleString('vi-VN')}</TableCell>
                         <TableCell>{ev.title}</TableCell>
                         <TableCell>{ev.scope === 'SCHOOL_WIDE' ? 'Toàn trường' : CAMPUS_LABEL[ev.campusId] || ev.campusId}</TableCell>
                         <TableCell title={ev.chairLabel || ev.chairPerId}>{abbreviatePersonLabel(ev.chairLabel || ev.chairPerId)}</TableCell>
-                        <TableCell sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={participantFull}>
+                        <TableCell className="max-w-50 truncate" title={participantFull}>
                           {participantAbbrev}
                         </TableCell>
                         <TableCell>
                           <EventStatusChip status={ev.status} />
                         </TableCell>
                       </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            )}
-          </CardContent>
-        </Card>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </div>
 
-        <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none' }}>
-          <CardContent>
-            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
-              <Typography variant="subtitle1" fontWeight={700}>
-                Công việc 7 ngày tới
-              </Typography>
-              <Button size="small" onClick={() => navigate('/work-schedule/tasks')}>
-                Xem bảng việc
-              </Button>
-            </Stack>
-            {upcomingTasks.length === 0 ? (
-              <Typography variant="body2" color="text.secondary">
-                Không có công việc nào đến hạn trong khoảng thời gian này.
-              </Typography>
-            ) : (
-              <TableContainer>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Hạn</TableCell>
-                      <TableCell>Công việc</TableCell>
-                      <TableCell>Cơ sở</TableCell>
-                      <TableCell>Trạng thái</TableCell>
+        <div className="rounded-xl border border-slate-200 p-5">
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-sm font-bold">Công việc 7 ngày tới</p>
+            <Button variant="ghost" size="sm" onClick={() => navigate('/work-schedule/tasks')}>
+              Xem bảng việc
+            </Button>
+          </div>
+          {upcomingTasks.length === 0 ? (
+            <p className="text-sm text-slate-500">Không có công việc nào đến hạn trong khoảng thời gian này.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Hạn</TableHead>
+                    <TableHead>Công việc</TableHead>
+                    <TableHead>Cơ sở</TableHead>
+                    <TableHead>Trạng thái</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {upcomingTasks.map((t) => (
+                    <TableRow key={t.id} className="cursor-pointer" onClick={() => setTaskDetail(t)}>
+                      <TableCell>{new Date(t.dueAt).toLocaleString('vi-VN')}</TableCell>
+                      <TableCell>{t.title}</TableCell>
+                      <TableCell>{CAMPUS_LABEL[t.campusId] || t.campusId}</TableCell>
+                      <TableCell>
+                        <TaskStatusChip status={t.status} />
+                      </TableCell>
                     </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {upcomingTasks.map((t) => (
-                      <TableRow key={t.id} hover sx={{ cursor: 'pointer' }} onClick={() => setTaskDetail(t)}>
-                        <TableCell>{new Date(t.dueAt).toLocaleString('vi-VN')}</TableCell>
-                        <TableCell>{t.title}</TableCell>
-                        <TableCell>{CAMPUS_LABEL[t.campusId] || t.campusId}</TableCell>
-                        <TableCell>
-                          <TaskStatusChip status={t.status} />
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            )}
-          </CardContent>
-        </Card>
-      </Stack>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </div>
+      </div>
 
       <EventDetailDialog
         event={eventDetail}

@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Alert, Box, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material';
-import FactCheckIcon from '@mui/icons-material/FactCheckRounded';
+import { ClipboardCheck } from 'lucide-react';
 import { PageHeader } from '../../components/PageHeader';
 import { useEvents, type WorkEvent } from './hooks/useEvents';
 import { useTasks, type WorkTask } from './hooks/useTasks';
@@ -8,6 +7,9 @@ import { useActor } from './hooks/useActor';
 import { EventDetailDialog, canApproveClientSide, EventStatusChip } from './EventsListPage';
 import { TaskDetailDialog } from './TasksListPage';
 import { CAMPUS_LABEL, abbreviatePersonLabel } from './constants';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { cn } from '@/lib/utils';
 
 /**
  * Trung tâm phê duyệt — theo đúng mẫu bản gốc Mr Tiến (ApprovalView): 2
@@ -41,76 +43,82 @@ export default function ApprovalCenterPage() {
 
   return (
     <>
-      <PageHeader title="Trung tâm phê duyệt" icon={<FactCheckIcon />} />
+      <PageHeader title="Trung tâm phê duyệt" icon={<ClipboardCheck />} />
 
-      {eventsError && <Alert severity="error" sx={{ mb: 2 }}>{eventsError}</Alert>}
-      {tasksError && <Alert severity="error" sx={{ mb: 2 }}>{tasksError}</Alert>}
+      {eventsError && (
+        <Alert className="mb-4 border-red-200 bg-red-50">
+          <AlertDescription className="text-red-700">{eventsError}</AlertDescription>
+        </Alert>
+      )}
+      {tasksError && (
+        <Alert className="mb-4 border-red-200 bg-red-50">
+          <AlertDescription className="text-red-700">{tasksError}</AlertDescription>
+        </Alert>
+      )}
       {toast && (
-        <Alert severity={toast.severity} onClose={() => setToast(null)} sx={{ mb: 2 }}>
-          {toast.message}
+        <Alert className={cn('mb-4', toast.severity === 'error' ? 'border-red-200 bg-red-50' : 'border-emerald-200 bg-emerald-50')}>
+          <AlertDescription className={toast.severity === 'error' ? 'text-red-700' : 'text-emerald-700'}>{toast.message}</AlertDescription>
         </Alert>
       )}
 
-      <Stack spacing={3}>
-        <Box>
-          <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1 }}>
-            Lịch cần xử lý ({myEvents.length})
-          </Typography>
-          <TableContainer component={Paper} sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none' }}>
+      <div className="flex flex-col gap-6">
+        <div>
+          <p className="mb-2 text-sm font-bold">Lịch cần xử lý ({myEvents.length})</p>
+          <div className="rounded-xl border border-slate-200">
             <Table>
-              <TableHead>
+              <TableHeader>
                 <TableRow>
-                  <TableCell>Thời gian</TableCell>
-                  <TableCell>Tiêu đề</TableCell>
-                  <TableCell>Cơ sở</TableCell>
-                  <TableCell>Trạng thái</TableCell>
+                  <TableHead>Thời gian</TableHead>
+                  <TableHead>Tiêu đề</TableHead>
+                  <TableHead>Cơ sở</TableHead>
+                  <TableHead>Trạng thái</TableHead>
                 </TableRow>
-              </TableHead>
+              </TableHeader>
               <TableBody>
                 {myEvents.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={4} align="center" sx={{ py: 3, color: 'text.secondary' }}>
+                    <TableCell colSpan={4} className="py-6 text-center text-slate-500">
                       Không có lịch nào cần xử lý.
                     </TableCell>
                   </TableRow>
                 )}
                 {myEvents.map((ev) => (
-                  <TableRow key={ev.id} hover sx={{ cursor: 'pointer' }} onClick={() => setEventDetail(ev)}>
+                  <TableRow key={ev.id} className="cursor-pointer" onClick={() => setEventDetail(ev)}>
                     <TableCell>{new Date(ev.startAt).toLocaleString('vi-VN')}</TableCell>
                     <TableCell>{ev.title}</TableCell>
                     <TableCell>{CAMPUS_LABEL[ev.campusId] || ev.campusId}</TableCell>
-                    <TableCell><EventStatusChip status={ev.status} /></TableCell>
+                    <TableCell>
+                      <EventStatusChip status={ev.status} />
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
-          </TableContainer>
-        </Box>
+          </div>
+        </div>
 
-        <Box>
-          <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1 }}>
-            Công việc chờ nghiệm thu ({myPendingAcceptanceTasks.length})
-          </Typography>
-          <TableContainer component={Paper} sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none' }}>
+        <div>
+          <p className="mb-2 text-sm font-bold">Công việc chờ nghiệm thu ({myPendingAcceptanceTasks.length})</p>
+          <div className="rounded-xl border border-slate-200">
             <Table>
-              <TableHead>
+              <TableHeader>
                 <TableRow>
-                  <TableCell>Hạn</TableCell>
-                  <TableCell>Công việc</TableCell>
-                  <TableCell>Cơ sở</TableCell>
-                  <TableCell>Người thực hiện</TableCell>
+                  <TableHead>Hạn</TableHead>
+                  <TableHead>Công việc</TableHead>
+                  <TableHead>Cơ sở</TableHead>
+                  <TableHead>Người thực hiện</TableHead>
                 </TableRow>
-              </TableHead>
+              </TableHeader>
               <TableBody>
                 {myPendingAcceptanceTasks.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={4} align="center" sx={{ py: 3, color: 'text.secondary' }}>
+                    <TableCell colSpan={4} className="py-6 text-center text-slate-500">
                       Không có công việc nào chờ nghiệm thu.
                     </TableCell>
                   </TableRow>
                 )}
                 {myPendingAcceptanceTasks.map((t) => (
-                  <TableRow key={t.id} hover sx={{ cursor: 'pointer' }} onClick={() => setTaskDetail(t)}>
+                  <TableRow key={t.id} className="cursor-pointer" onClick={() => setTaskDetail(t)}>
                     <TableCell>{new Date(t.dueAt).toLocaleString('vi-VN')}</TableCell>
                     <TableCell>{t.title}</TableCell>
                     <TableCell>{CAMPUS_LABEL[t.campusId] || t.campusId}</TableCell>
@@ -121,9 +129,9 @@ export default function ApprovalCenterPage() {
                 ))}
               </TableBody>
             </Table>
-          </TableContainer>
-        </Box>
-      </Stack>
+          </div>
+        </div>
+      </div>
 
       <EventDetailDialog
         event={eventDetail}
