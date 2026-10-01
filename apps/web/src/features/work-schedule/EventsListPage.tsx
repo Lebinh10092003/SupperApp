@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { CirclePlus, CalendarDays, Download, ArrowUp, ArrowDown, ArrowUpDown, Check, ListFilter, Search } from 'lucide-react';
+import { CirclePlus, CalendarDays, Download, ArrowUp, ArrowDown, ArrowUpDown, Check, ListFilter, MoreHorizontal, Search } from 'lucide-react';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
 import { env } from '../../config/env';
@@ -18,10 +18,12 @@ import {
   abbreviatePersonLabel
 } from './constants';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -396,12 +398,13 @@ export default function EventsListPage() {
               <TableHead>
                 <SortHeader sortKeyName="status">Trạng thái</SortHeader>
               </TableHead>
+              <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {!loading && filteredItems.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} className="py-8 text-center text-slate-500">
+                <TableCell colSpan={7} className="py-8 text-center text-slate-500">
                   Không có lịch nào khớp bộ lọc.
                 </TableCell>
               </TableRow>
@@ -417,7 +420,16 @@ export default function EventsListPage() {
               return (
                 <TableRow key={ev.id} className="cursor-pointer" onClick={() => setDetail(ev)}>
                   <TableCell>{new Date(ev.startAt).toLocaleString('vi-VN')}</TableCell>
-                  <TableCell>{ev.title}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2.5">
+                      <Avatar size="sm" className="shrink-0 bg-slate-100">
+                        <AvatarFallback className="bg-slate-100 text-slate-500">
+                          <CalendarDays className="size-3.5" />
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="truncate">{ev.title}</span>
+                    </div>
+                  </TableCell>
                   {/* Bỏ cột "Phạm vi" riêng — Sin yêu cầu 2026-09-21 gộp vào
                       thẳng cột Cơ sở (khớp việc đã gộp ô "Phạm vi" vào ô "Cơ
                       sở" khi tạo/sửa lịch): lịch toàn trường hiện "Toàn
@@ -444,6 +456,18 @@ export default function EventsListPage() {
                         </Tooltip>
                       )}
                     </div>
+                  </TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="size-8">
+                          <MoreHorizontal className="size-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => setDetail(ev)}>Xem chi tiết</DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               );

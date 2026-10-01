@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { CirclePlus, ClipboardList, ArrowUp, ArrowDown, ArrowUpDown, ListFilter, Search } from 'lucide-react';
+import { CirclePlus, ClipboardList, ArrowUp, ArrowDown, ArrowUpDown, ListFilter, MoreHorizontal, Search } from 'lucide-react';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
 import { useTasks, type WorkTask } from './hooks/useTasks';
@@ -8,9 +8,11 @@ import { PersonPicker, type PersonOption } from '../safety/PersonPicker';
 import { AuditTrailPanel } from './AuditTrailPanel';
 import { CAMPUS_IDS, CAMPUS_LABEL, TASK_STATUS_LABEL, TASK_STATUS_COLOR, PRIORITY_LABEL, abbreviatePersonLabel } from './constants';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -318,12 +320,13 @@ export default function TasksListPage() {
               <TableHead>
                 <SortHeader sortKeyName="status">Trạng thái</SortHeader>
               </TableHead>
+              <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {!loading && filteredItems.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} className="py-8 text-center text-slate-500">
+                <TableCell colSpan={7} className="py-8 text-center text-slate-500">
                   Không có công việc nào.
                 </TableCell>
               </TableRow>
@@ -332,13 +335,34 @@ export default function TasksListPage() {
               <TableRow key={t.id} className="cursor-pointer" onClick={() => setDetail(t)}>
                 <TableCell>{new Date(t.createdAt).toLocaleString('vi-VN')}</TableCell>
                 <TableCell>{new Date(t.dueAt).toLocaleString('vi-VN')}</TableCell>
-                <TableCell>{t.title}</TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2.5">
+                    <Avatar size="sm" className="shrink-0 bg-slate-100">
+                      <AvatarFallback className="bg-slate-100 text-slate-500">
+                        <ClipboardList className="size-3.5" />
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="truncate">{t.title}</span>
+                  </div>
+                </TableCell>
                 <TableCell>{CAMPUS_LABEL[t.campusId] || t.campusId}</TableCell>
                 <TableCell title={t.assigneeLabel || t.assigneeName || t.assigneePerId}>
                   {abbreviatePersonLabel(t.assigneeLabel || t.assigneeName || t.assigneePerId)}
                 </TableCell>
                 <TableCell>
                   <TaskStatusChip status={t.status} />
+                </TableCell>
+                <TableCell onClick={(e) => e.stopPropagation()}>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="size-8">
+                        <MoreHorizontal className="size-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => setDetail(t)}>Xem chi tiết</DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </TableCell>
               </TableRow>
             ))}

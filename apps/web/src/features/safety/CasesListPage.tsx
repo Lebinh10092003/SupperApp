@@ -13,7 +13,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { CirclePlus, ListChecks, BookmarkPlus, ListFilter, Search, X, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+import { CirclePlus, ListChecks, BookmarkPlus, ListFilter, Search, MoreHorizontal, X, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
 import { useIncidents, type IncidentListItem } from './hooks/useIncidents';
@@ -21,9 +21,11 @@ import { StatusChip } from './components/StatusChip';
 import { PriorityChip } from './components/PriorityChip';
 import { CAMPUS_IDS, CAMPUS_LABEL, STATE_OPTIONS } from './constants';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -422,12 +424,13 @@ export default function CasesListPage() {
                 <SortHeader sortKeyName="state">Trạng thái</SortHeader>
               </TableHead>
               <TableHead>Người phụ trách</TableHead>
+              <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {!loading && paged.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} className="py-8 text-center text-slate-500">
+                <TableCell colSpan={9} className="py-8 text-center text-slate-500">
                   Không có sự vụ nào.
                 </TableCell>
               </TableRow>
@@ -443,9 +446,16 @@ export default function CasesListPage() {
                   </p>
                 </TableCell>
                 <TableCell className="max-w-65 py-3">
-                  <p className="truncate text-sm" title={it.contentPreview || ''}>
-                    {it.contentPreview || <em>(không có nội dung)</em>}
-                  </p>
+                  <div className="flex items-center gap-2.5">
+                    <Avatar size="sm" className="shrink-0 bg-slate-100">
+                      <AvatarFallback className="bg-slate-100 text-xs font-semibold text-slate-500">
+                        {(it.categoryLabel || it.categoryCode || '?').slice(0, 1).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <p className="truncate text-sm" title={it.contentPreview || ''}>
+                      {it.contentPreview || <em>(không có nội dung)</em>}
+                    </p>
+                  </div>
                 </TableCell>
                 <TableCell className="py-3">
                   <PriorityChip priority={it.priority} compact />
@@ -459,6 +469,18 @@ export default function CasesListPage() {
                       Chưa tiếp nhận
                     </Badge>
                   )}
+                </TableCell>
+                <TableCell className="py-3" onClick={(e) => e.stopPropagation()}>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="size-8">
+                        <MoreHorizontal className="size-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => navigate(`/safety/incidents/${it.incidentId}`)}>Xem chi tiết</DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </TableCell>
               </TableRow>
             ))}
