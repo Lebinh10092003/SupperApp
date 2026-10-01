@@ -1,35 +1,5 @@
 import { useMemo, useState } from 'react';
-import {
-  Alert,
-  Box,
-  Button,
-  Chip,
-  Checkbox,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  FormControlLabel,
-  MenuItem,
-  Paper,
-  Stack,
-  Step,
-  StepLabel,
-  Stepper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TableSortLabel,
-  TextField,
-  Tooltip,
-  Typography
-} from '@mui/material';
-import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutlineRounded';
-import EventIcon from '@mui/icons-material/EventRounded';
-import FileDownloadIcon from '@mui/icons-material/FileDownloadRounded';
+import { CirclePlus, CalendarDays, Download, ArrowUp, ArrowDown, ArrowUpDown, Check } from 'lucide-react';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
 import { env } from '../../config/env';
@@ -47,15 +17,25 @@ import {
   PRIORITY_LABEL,
   abbreviatePersonLabel
 } from './constants';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Textarea } from '@/components/ui/textarea';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
 
 export function EventStatusChip({ status }: { status: string }) {
   const c = EVENT_STATUS_COLOR[status] || { bg: '#f1f5f9', fg: '#334155', border: '#e2e8f0' };
   return (
-    <Chip
-      label={EVENT_STATUS_LABEL[status] || status}
-      size="small"
-      sx={{ bgcolor: c.bg, color: c.fg, border: `1px solid ${c.border}`, fontWeight: 700, fontSize: '0.75rem', height: 24 }}
-    />
+    <Badge variant="outline" className="h-6 border font-bold" style={{ backgroundColor: c.bg, color: c.fg, borderColor: c.border }}>
+      {EVENT_STATUS_LABEL[status] || status}
+    </Badge>
   );
 }
 
@@ -76,8 +56,40 @@ function toLocalInput(d: Date): string {
 }
 
 const STATUS_FILTER_OPTIONS = ['DRAFT', 'PENDING_APPROVAL', 'PUBLISHED', 'REVISION_REQUIRED', 'CANCELLED'];
+const ALL_CAMPUS = '__all_campus__';
+const ALL_STATUS = '__all_status__';
+const SCHOOL_WIDE = 'SCHOOL_WIDE';
 
 type EventSortKey = 'startAt' | 'title' | 'campusId' | 'chair' | 'status';
+
+function MiniStepper({ steps, activeIndex }: { steps: readonly string[]; activeIndex: number }) {
+  return (
+    <div className="flex items-center">
+      {steps.map((s, i) => (
+        <div key={s} className="flex flex-1 items-center">
+          <div className="flex flex-col items-center gap-1">
+            <div
+              className={cn(
+                'grid size-7 place-items-center rounded-full border-2 text-xs font-bold',
+                i < activeIndex
+                  ? 'border-primary bg-primary text-primary-foreground'
+                  : i === activeIndex
+                    ? 'border-primary text-primary'
+                    : 'border-slate-300 text-slate-400'
+              )}
+            >
+              {i < activeIndex ? <Check className="size-4" /> : i + 1}
+            </div>
+            <p className={cn('text-center text-[0.7rem]', i <= activeIndex ? 'font-semibold text-[#0f172a]' : 'text-slate-400')}>
+              {EVENT_STATUS_LABEL[s] || s}
+            </p>
+          </div>
+          {i < steps.length - 1 && <div className={cn('mx-1 h-0.5 flex-1', i < activeIndex ? 'bg-primary' : 'bg-slate-200')} />}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function EventsListPage() {
   const [campusFilter, setCampusFilter] = useState('');
@@ -146,7 +158,7 @@ export default function EventsListPage() {
   // ngay cả với lịch toàn trường — dùng MAIN_CAMPUS làm cơ sở tổ chức mặc
   // định) + `scope`.
   const [campusId, setCampusId] = useState('');
-  const scope: 'CAMPUS' | 'SCHOOL_WIDE' = campusId === 'SCHOOL_WIDE' ? 'SCHOOL_WIDE' : 'CAMPUS';
+  const scope: 'CAMPUS' | 'SCHOOL_WIDE' = campusId === SCHOOL_WIDE ? 'SCHOOL_WIDE' : 'CAMPUS';
   const [priority, setPriority] = useState('NORMAL');
   const [startAt, setStartAt] = useState('');
   const [endAt, setEndAt] = useState('');
@@ -218,122 +230,134 @@ export default function EventsListPage() {
     }
   };
 
+  const SortHeader = ({ sortKeyName, children }: { sortKeyName: EventSortKey; children: React.ReactNode }) => {
+    const active = sortKey === sortKeyName;
+    const Icon = active ? (sortDir === 'asc' ? ArrowUp : ArrowDown) : ArrowUpDown;
+    return (
+      <button type="button" onClick={() => handleSort(sortKeyName)} className="inline-flex items-center gap-1 font-semibold text-slate-600">
+        {children}
+        <Icon className={cn('size-3.5', active ? 'text-[#0f172a]' : 'text-slate-400')} />
+      </button>
+    );
+  };
+
   return (
     <>
       <PageHeader
         title="Lịch công tác"
-        icon={<EventIcon />}
+        icon={<CalendarDays />}
         action={
-          <Stack direction="row" spacing={1}>
-            <Button
-              variant="outlined"
-              startIcon={<FileDownloadIcon />}
-              component="a"
-              href={`${(env.VITE_API_BASE_URL || '').replace(/\/+$/, '')}/api/work-schedule/calendar.ics${campusFilter ? `?campusId=${campusFilter}` : ''}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              sx={{ textTransform: 'none', fontWeight: 600 }}
-            >
-              Xuất .ics
+          <div className="flex gap-2">
+            <Button variant="outline" asChild className="font-semibold">
+              <a
+                href={`${(env.VITE_API_BASE_URL || '').replace(/\/+$/, '')}/api/work-schedule/calendar.ics${campusFilter ? `?campusId=${campusFilter}` : ''}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Download className="size-4" />
+                Xuất .ics
+              </a>
             </Button>
-            <Button
-              variant="contained"
-              startIcon={<AddCircleOutlineIcon />}
-              onClick={() => setCreateOpen(true)}
-              sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' }, textTransform: 'none', fontWeight: 700 }}
-            >
+            <Button onClick={() => setCreateOpen(true)} className="font-bold">
+              <CirclePlus className="size-4" />
               Tạo lịch
             </Button>
-          </Stack>
+          </div>
         }
       />
 
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2 }} useFlexGap flexWrap="wrap">
-        <TextField
-          label="Tìm theo tiêu đề"
-          value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
-          sx={{ minWidth: 200 }}
-        />
+      <div className="mb-4 flex flex-wrap items-end gap-3">
+        <div>
+          <Label htmlFor="events-search" className="mb-1.5 block">
+            Tìm theo tiêu đề
+          </Label>
+          <Input id="events-search" value={searchText} onChange={(e) => setSearchText(e.target.value)} className="min-w-50" />
+        </div>
         <PersonPicker label="Người tham gia (username)" value={personFilter} onChange={setPersonFilter} />
-        <TextField
-          label="Từ ngày"
-          type="date"
-          value={fromDate}
-          onChange={(e) => setFromDate(e.target.value)}
-          slotProps={{ inputLabel: { shrink: true } }}
-          sx={{ minWidth: 160 }}
-        />
-        <TextField
-          label="Đến ngày"
-          type="date"
-          value={toDate}
-          onChange={(e) => setToDate(e.target.value)}
-          slotProps={{ inputLabel: { shrink: true } }}
-          sx={{ minWidth: 160 }}
-        />
-        <TextField select label="Cơ sở" value={campusFilter} onChange={(e) => setCampusFilter(e.target.value)} sx={{ minWidth: 180 }}>
-          <MenuItem value="">Tất cả</MenuItem>
-          {CAMPUS_IDS.map((c) => (
-            <MenuItem key={c} value={c}>
-              {CAMPUS_LABEL[c]}
-            </MenuItem>
-          ))}
-        </TextField>
-        <TextField select label="Trạng thái" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} sx={{ minWidth: 180 }}>
-          <MenuItem value="">Tất cả</MenuItem>
-          {STATUS_FILTER_OPTIONS.map((s) => (
-            <MenuItem key={s} value={s}>
-              {EVENT_STATUS_LABEL[s]}
-            </MenuItem>
-          ))}
-        </TextField>
-      </Stack>
+        <div>
+          <Label htmlFor="events-from-date" className="mb-1.5 block">
+            Từ ngày
+          </Label>
+          <Input id="events-from-date" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="min-w-40" />
+        </div>
+        <div>
+          <Label htmlFor="events-to-date" className="mb-1.5 block">
+            Đến ngày
+          </Label>
+          <Input id="events-to-date" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="min-w-40" />
+        </div>
+        <div>
+          <Label className="mb-1.5 block">Cơ sở</Label>
+          <Select value={campusFilter || ALL_CAMPUS} onValueChange={(v) => setCampusFilter(v === ALL_CAMPUS ? '' : v)}>
+            <SelectTrigger className="min-w-44">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_CAMPUS}>Tất cả</SelectItem>
+              {CAMPUS_IDS.map((c) => (
+                <SelectItem key={c} value={c}>
+                  {CAMPUS_LABEL[c]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="mb-1.5 block">Trạng thái</Label>
+          <Select value={statusFilter || ALL_STATUS} onValueChange={(v) => setStatusFilter(v === ALL_STATUS ? '' : v)}>
+            <SelectTrigger className="min-w-44">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_STATUS}>Tất cả</SelectItem>
+              {STATUS_FILTER_OPTIONS.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {EVENT_STATUS_LABEL[s]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
 
-      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      {error && (
+        <Alert className="mb-4 border-red-200 bg-red-50">
+          <AlertDescription className="text-red-700">{error}</AlertDescription>
+        </Alert>
+      )}
       {toast && (
-        <Alert severity={toast.severity} onClose={() => setToast(null)} sx={{ mb: 2 }}>
-          {toast.message}
+        <Alert className={cn('mb-4', toast.severity === 'error' ? 'border-red-200 bg-red-50' : 'border-emerald-200 bg-emerald-50')}>
+          <AlertDescription className={toast.severity === 'error' ? 'text-red-700' : 'text-emerald-700'}>{toast.message}</AlertDescription>
         </Alert>
       )}
 
-      <TableContainer component={Paper} sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none' }}>
+      <div className="rounded-xl border border-slate-200">
         <Table>
-          <TableHead>
+          <TableHeader>
             <TableRow>
               {/* Cột ngày/giờ đưa lên ĐẦU bảng — Sin yêu cầu 2026-09-21. */}
-              <TableCell>
-                <TableSortLabel active={sortKey === 'startAt'} direction={sortKey === 'startAt' ? sortDir : 'asc'} onClick={() => handleSort('startAt')}>
-                  Thời gian
-                </TableSortLabel>
-              </TableCell>
-              <TableCell>
-                <TableSortLabel active={sortKey === 'title'} direction={sortKey === 'title' ? sortDir : 'asc'} onClick={() => handleSort('title')}>
-                  Tiêu đề
-                </TableSortLabel>
-              </TableCell>
-              <TableCell>
-                <TableSortLabel active={sortKey === 'campusId'} direction={sortKey === 'campusId' ? sortDir : 'asc'} onClick={() => handleSort('campusId')}>
-                  Cơ sở
-                </TableSortLabel>
-              </TableCell>
-              <TableCell>
-                <TableSortLabel active={sortKey === 'chair'} direction={sortKey === 'chair' ? sortDir : 'asc'} onClick={() => handleSort('chair')}>
-                  Chủ trì
-                </TableSortLabel>
-              </TableCell>
-              <TableCell>Thành phần</TableCell>
-              <TableCell>
-                <TableSortLabel active={sortKey === 'status'} direction={sortKey === 'status' ? sortDir : 'asc'} onClick={() => handleSort('status')}>
-                  Trạng thái
-                </TableSortLabel>
-              </TableCell>
+              <TableHead>
+                <SortHeader sortKeyName="startAt">Thời gian</SortHeader>
+              </TableHead>
+              <TableHead>
+                <SortHeader sortKeyName="title">Tiêu đề</SortHeader>
+              </TableHead>
+              <TableHead>
+                <SortHeader sortKeyName="campusId">Cơ sở</SortHeader>
+              </TableHead>
+              <TableHead>
+                <SortHeader sortKeyName="chair">Chủ trì</SortHeader>
+              </TableHead>
+              <TableHead>Thành phần</TableHead>
+              <TableHead>
+                <SortHeader sortKeyName="status">Trạng thái</SortHeader>
+              </TableHead>
             </TableRow>
-          </TableHead>
+          </TableHeader>
           <TableBody>
             {!loading && filteredItems.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                <TableCell colSpan={6} className="py-8 text-center text-slate-500">
                   Không có lịch nào khớp bộ lọc.
                 </TableCell>
               </TableRow>
@@ -347,100 +371,133 @@ export default function EventsListPage() {
               // module Lịch công tác, không riêng bảng này).
               const participantText = ev.scope === 'SCHOOL_WIDE' ? 'Toàn trường' : fullParticipants.map(abbreviatePersonLabel).join(', ') || '—';
               return (
-              <TableRow key={ev.id} hover sx={{ cursor: 'pointer' }} onClick={() => setDetail(ev)}>
-                <TableCell>{new Date(ev.startAt).toLocaleString('vi-VN')}</TableCell>
-                <TableCell>{ev.title}</TableCell>
-                {/* Bỏ cột "Phạm vi" riêng — Sin yêu cầu 2026-09-21 gộp vào
-                    thẳng cột Cơ sở (khớp việc đã gộp ô "Phạm vi" vào ô "Cơ
-                    sở" khi tạo/sửa lịch): lịch toàn trường hiện "Toàn
-                    trường" ở đây thay vì vẫn hiện "Điểm trường chính" (cơ sở
-                    tổ chức mặc định phía server) kèm cột Phạm vi thừa. */}
-                <TableCell>{ev.scope === 'SCHOOL_WIDE' ? 'Toàn trường' : CAMPUS_LABEL[ev.campusId] || ev.campusId}</TableCell>
-                <TableCell sx={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={ev.chairLabel || ev.chairPerId}>
-                  {abbreviatePersonLabel(ev.chairLabel || ev.chairPerId)}
-                </TableCell>
-                <TableCell sx={{ maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={participantFull}>
-                  {participantText}
-                </TableCell>
-                <TableCell>
-                  <EventStatusChip status={ev.status} />
-                  {ev.conflictNote && (
-                    <Tooltip title={ev.conflictNote}>
-                      <Chip size="small" label="Trùng lịch" sx={{ ml: 1, bgcolor: '#fef2f2', color: '#dc2626', fontWeight: 700 }} />
-                    </Tooltip>
-                  )}
-                </TableCell>
-              </TableRow>
+                <TableRow key={ev.id} className="cursor-pointer" onClick={() => setDetail(ev)}>
+                  <TableCell>{new Date(ev.startAt).toLocaleString('vi-VN')}</TableCell>
+                  <TableCell>{ev.title}</TableCell>
+                  {/* Bỏ cột "Phạm vi" riêng — Sin yêu cầu 2026-09-21 gộp vào
+                      thẳng cột Cơ sở (khớp việc đã gộp ô "Phạm vi" vào ô "Cơ
+                      sở" khi tạo/sửa lịch): lịch toàn trường hiện "Toàn
+                      trường" ở đây thay vì vẫn hiện "Điểm trường chính" (cơ sở
+                      tổ chức mặc định phía server) kèm cột Phạm vi thừa. */}
+                  <TableCell>{ev.scope === 'SCHOOL_WIDE' ? 'Toàn trường' : CAMPUS_LABEL[ev.campusId] || ev.campusId}</TableCell>
+                  <TableCell className="max-w-40 truncate" title={ev.chairLabel || ev.chairPerId}>
+                    {abbreviatePersonLabel(ev.chairLabel || ev.chairPerId)}
+                  </TableCell>
+                  <TableCell className="max-w-55 truncate" title={participantFull}>
+                    {participantText}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <EventStatusChip status={ev.status} />
+                      {ev.conflictNote && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Badge variant="outline" className="border-transparent bg-red-50 font-bold text-red-600">
+                              Trùng lịch
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent>{ev.conflictNote}</TooltipContent>
+                        </Tooltip>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
               );
             })}
           </TableBody>
         </Table>
-      </TableContainer>
+      </div>
 
       {/* Dialog tạo mới */}
-      <Dialog open={createOpen} onClose={() => setCreateOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700 }}>Tạo lịch công tác</DialogTitle>
-        <DialogContent dividers>
-          <Stack spacing={2} sx={{ pt: 1 }}>
-            {createError && <Alert severity="error">{createError}</Alert>}
-            <TextField label="Tiêu đề *" value={title} onChange={(e) => setTitle(e.target.value)} fullWidth />
-            <TextField select label="Cơ sở *" value={campusId} onChange={(e) => setCampusId(e.target.value)} fullWidth>
-              {CAMPUS_IDS.map((c) => (
-                <MenuItem key={c} value={c}>
-                  {CAMPUS_LABEL[c]}
-                </MenuItem>
-              ))}
-              <MenuItem value="SCHOOL_WIDE">Toàn trường (cần duyệt 2 bước: Hiệu phó rồi Hiệu trưởng)</MenuItem>
-            </TextField>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-              <TextField
-                label="Bắt đầu *"
-                type="datetime-local"
-                value={startAt}
-                onChange={(e) => handleStartAtChange(e.target.value)}
-                slotProps={{ inputLabel: { shrink: true } }}
-                fullWidth
-              />
-              <TextField
-                label="Kết thúc *"
-                type="datetime-local"
-                value={endAt}
-                onChange={(e) => setEndAt(e.target.value)}
-                slotProps={{ inputLabel: { shrink: true }, htmlInput: { min: startAt || undefined } }}
-                fullWidth
-              />
-            </Stack>
-            <TextField label="Địa điểm" value={location} onChange={(e) => setLocation(e.target.value)} fullWidth />
-            {scope === 'CAMPUS' && (
-              <PeopleMultiPicker label="Thành phần tham dự (tuỳ chọn)" value={participants} onChange={setParticipants} />
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Tạo lịch công tác</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-3">
+            {createError && (
+              <Alert className="border-red-200 bg-red-50">
+                <AlertDescription className="text-red-700">{createError}</AlertDescription>
+              </Alert>
             )}
-            <TextField select label="Mức ưu tiên" value={priority} onChange={(e) => setPriority(e.target.value)} fullWidth>
-              {Object.entries(PRIORITY_LABEL).map(([k, v]) => (
-                <MenuItem key={k} value={k}>
-                  {v}
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField
-              label="Nội dung"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              multiline
-              rows={3}
-              fullWidth
-            />
-            <FormControlLabel
-              control={<Checkbox checked={submitForApproval} onChange={(e) => setSubmitForApproval(e.target.checked)} />}
-              label="Trình lãnh đạo phê duyệt ngay sau khi lưu"
-            />
-          </Stack>
+            <div>
+              <Label htmlFor="create-event-title" className="mb-1.5 block">
+                Tiêu đề *
+              </Label>
+              <Input id="create-event-title" value={title} onChange={(e) => setTitle(e.target.value)} />
+            </div>
+            <div>
+              <Label className="mb-1.5 block">Cơ sở *</Label>
+              <Select value={campusId} onValueChange={setCampusId}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Chọn cơ sở" />
+                </SelectTrigger>
+                <SelectContent>
+                  {CAMPUS_IDS.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {CAMPUS_LABEL[c]}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value={SCHOOL_WIDE}>Toàn trường (cần duyệt 2 bước: Hiệu phó rồi Hiệu trưởng)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <div className="flex-1">
+                <Label htmlFor="create-event-start" className="mb-1.5 block">
+                  Bắt đầu *
+                </Label>
+                <Input id="create-event-start" type="datetime-local" value={startAt} onChange={(e) => handleStartAtChange(e.target.value)} />
+              </div>
+              <div className="flex-1">
+                <Label htmlFor="create-event-end" className="mb-1.5 block">
+                  Kết thúc *
+                </Label>
+                <Input id="create-event-end" type="datetime-local" value={endAt} min={startAt || undefined} onChange={(e) => setEndAt(e.target.value)} />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="create-event-location" className="mb-1.5 block">
+                Địa điểm
+              </Label>
+              <Input id="create-event-location" value={location} onChange={(e) => setLocation(e.target.value)} />
+            </div>
+            {scope === 'CAMPUS' && <PeopleMultiPicker label="Thành phần tham dự (tuỳ chọn)" value={participants} onChange={setParticipants} />}
+            <div>
+              <Label className="mb-1.5 block">Mức ưu tiên</Label>
+              <Select value={priority} onValueChange={setPriority}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(PRIORITY_LABEL).map(([k, v]) => (
+                    <SelectItem key={k} value={k}>
+                      {v}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="create-event-desc" className="mb-1.5 block">
+                Nội dung
+              </Label>
+              <Textarea id="create-event-desc" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} />
+            </div>
+            <label className="flex items-center gap-2">
+              <Checkbox checked={submitForApproval} onCheckedChange={(v) => setSubmitForApproval(v === true)} />
+              <span className="text-sm">Trình lãnh đạo phê duyệt ngay sau khi lưu</span>
+            </label>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setCreateOpen(false)}>
+              Hủy
+            </Button>
+            <Button onClick={handleCreate} disabled={submitting}>
+              Lưu
+            </Button>
+          </DialogFooter>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setCreateOpen(false)}>Hủy</Button>
-          <Button variant="contained" onClick={handleCreate} disabled={submitting}>
-            Lưu
-          </Button>
-        </DialogActions>
       </Dialog>
 
       {/* Dialog chi tiết */}
@@ -555,7 +612,7 @@ export function EventDetailDialog({
   const openEdit = () => {
     setEditTitle(event.title);
     setEditDescription(event.description || '');
-    setEditCampusId(event.scope === 'SCHOOL_WIDE' ? 'SCHOOL_WIDE' : event.campusId);
+    setEditCampusId(event.scope === 'SCHOOL_WIDE' ? SCHOOL_WIDE : event.campusId);
     setEditPriority(event.priority);
     setEditStartAt(toLocalInput(new Date(event.startAt)));
     setEditEndAt(toLocalInput(new Date(event.endAt)));
@@ -573,7 +630,7 @@ export function EventDetailDialog({
     setEditOpen(true);
   };
 
-  const editScope: 'CAMPUS' | 'SCHOOL_WIDE' = editCampusId === 'SCHOOL_WIDE' ? 'SCHOOL_WIDE' : 'CAMPUS';
+  const editScope: 'CAMPUS' | 'SCHOOL_WIDE' = editCampusId === SCHOOL_WIDE ? 'SCHOOL_WIDE' : 'CAMPUS';
 
   const saveEdit = async () => {
     setEditError('');
@@ -605,20 +662,20 @@ export function EventDetailDialog({
   };
 
   return (
-    <Dialog open onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ fontWeight: 700 }}>{event.title}</DialogTitle>
-      <DialogContent dividers>
-        <Stack spacing={2}>
-          {actionError && <Alert severity="error">{actionError}</Alert>}
+    <Dialog open onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{event.title}</DialogTitle>
+        </DialogHeader>
+        <div className="flex flex-col gap-4">
+          {actionError && (
+            <Alert className="border-red-200 bg-red-50">
+              <AlertDescription className="text-red-700">{actionError}</AlertDescription>
+            </Alert>
+          )}
 
           {!isException ? (
-            <Stepper activeStep={Math.max(activeStep, 0)} alternativeLabel>
-              {EVENT_STATUS_STEPS.map((s) => (
-                <Step key={s}>
-                  <StepLabel>{EVENT_STATUS_LABEL[s]}</StepLabel>
-                </Step>
-              ))}
-            </Stepper>
+            <MiniStepper steps={EVENT_STATUS_STEPS} activeIndex={Math.max(activeStep, 0)} />
           ) : (
             <EventStatusChip status={event.status} />
           )}
@@ -627,173 +684,215 @@ export function EventDetailDialog({
               — Mr Tiến phản hồi 2026-09-21: trước đây thiếu dữ liệu thì mất
               luôn cả nhãn trường, không phân biệt được "trống thật" với
               "chưa tải xong". */}
-          <Stack spacing={0.5}>
-            <Typography variant="body2">
+          <div className="flex flex-col gap-1">
+            <p className="text-sm">
               Cơ sở: <strong>{event.scope === 'SCHOOL_WIDE' ? 'Toàn trường' : CAMPUS_LABEL[event.campusId] || event.campusId}</strong>
-            </Typography>
-            <Typography variant="body2">
+            </p>
+            <p className="text-sm">
               Thời gian: {new Date(event.startAt).toLocaleString('vi-VN')} → {new Date(event.endAt).toLocaleString('vi-VN')}
-            </Typography>
-            <Typography variant="body2">Địa điểm: {event.location || '—'}</Typography>
-            <Typography variant="body2">Chủ trì: {event.chairLabel || event.chairPerId}</Typography>
-            <Typography variant="body2">
+            </p>
+            <p className="text-sm">Địa điểm: {event.location || '—'}</p>
+            <p className="text-sm">Chủ trì: {event.chairLabel || event.chairPerId}</p>
+            <p className="text-sm">
               Thành phần:{' '}
               {event.participantPerIds.length > 0
                 ? (event.participantLabels && event.participantLabels.length > 0 ? event.participantLabels : event.participantPerIds).join(', ')
                 : '—'}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Nội dung: {event.description || '—'}
-            </Typography>
-          </Stack>
+            </p>
+            <p className="text-sm text-slate-500">Nội dung: {event.description || '—'}</p>
+          </div>
 
-          {event.conflictNote && <Alert severity="warning">Trùng lịch: {event.conflictNote}</Alert>}
+          {event.conflictNote && (
+            <Alert className="border-amber-200 bg-amber-50">
+              <AlertDescription className="text-amber-800">Trùng lịch: {event.conflictNote}</AlertDescription>
+            </Alert>
+          )}
           {event.status === 'REVISION_REQUIRED' && event.revisionNote && (
-            <Alert severity="error">Lý do cần sửa lại: {event.revisionNote}</Alert>
+            <Alert className="border-red-200 bg-red-50">
+              <AlertDescription className="text-red-700">Lý do cần sửa lại: {event.revisionNote}</AlertDescription>
+            </Alert>
           )}
           {event.status === 'CANCELLED' && event.cancellationNote && (
-            <Alert severity="info">Lý do hủy: {event.cancellationNote}</Alert>
+            <Alert className="border-blue-200 bg-secondary">
+              <AlertDescription className="text-blue-800">Lý do hủy: {event.cancellationNote}</AlertDescription>
+            </Alert>
           )}
           {event.scope === 'SCHOOL_WIDE' && event.approvals.length > 0 && (
-            <Alert severity="info">
-              Đã duyệt: {event.approvals.map((a) => `${a.role === 'R.VICE_PRINCIPAL' ? 'Hiệu phó' : 'Hiệu trưởng'}`).join(', ')}
+            <Alert className="border-blue-200 bg-secondary">
+              <AlertDescription className="text-blue-800">
+                Đã duyệt: {event.approvals.map((a) => `${a.role === 'R.VICE_PRINCIPAL' ? 'Hiệu phó' : 'Hiệu trưởng'}`).join(', ')}
+              </AlertDescription>
             </Alert>
           )}
 
           <AuditTrailPanel entityType="event" entityId={event.id} refreshKey={historyVersion} />
-        </Stack>
+        </div>
+        <DialogFooter className="flex-wrap gap-1.5 sm:justify-start">
+          {event.status === 'DRAFT' && isCreator && (
+            <>
+              <Button variant="ghost" disabled={busy} onClick={openEdit}>
+                Chỉnh sửa
+              </Button>
+              <Button disabled={busy} onClick={() => changeStatus('PENDING_APPROVAL')}>
+                Gửi lãnh đạo duyệt
+              </Button>
+            </>
+          )}
+          {event.status === 'REVISION_REQUIRED' && isCreator && (
+            <>
+              <Button variant="ghost" disabled={busy} onClick={openEdit}>
+                Chỉnh sửa
+              </Button>
+              <Button disabled={busy} onClick={() => changeStatus('PENDING_APPROVAL')}>
+                Gửi duyệt lại
+              </Button>
+            </>
+          )}
+          {event.status === 'PENDING_APPROVAL' && isCreator && (
+            <Button variant="ghost" disabled={busy} onClick={() => changeStatus('DRAFT')}>
+              Thu hồi về dự thảo
+            </Button>
+          )}
+          {event.status === 'PENDING_APPROVAL' && canApprove && (
+            <>
+              <Button disabled={busy} onClick={approve} className="bg-green-600 hover:bg-green-700">
+                Duyệt
+              </Button>
+              <Button variant="ghost" disabled={busy} onClick={() => openReasonDialog('REVISION_REQUIRED')} className="text-amber-700">
+                Yêu cầu sửa lại
+              </Button>
+              <Button variant="ghost" disabled={busy} onClick={() => openReasonDialog('CANCELLED')} className="text-red-600">
+                Hủy
+              </Button>
+            </>
+          )}
+          {event.status === 'PUBLISHED' && (canApprove || isPrincipal) && (
+            <Button variant="ghost" disabled={busy} onClick={() => openReasonDialog('CANCELLED')} className="text-red-600">
+              Hủy lịch công tác
+            </Button>
+          )}
+          <Button variant="ghost" onClick={onClose} className="ml-auto text-slate-500">
+            Đóng
+          </Button>
+        </DialogFooter>
+
+        <Dialog open={!!reasonOpen} onOpenChange={(v) => !v && setReasonOpen(null)}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>{reasonOpen === 'CANCELLED' ? 'Lý do hủy lịch' : 'Lý do yêu cầu sửa lại'}</DialogTitle>
+            </DialogHeader>
+            <div>
+              <Label htmlFor="event-reason" className="mb-1.5 block">
+                Lý do (bắt buộc) *
+              </Label>
+              <Textarea id="event-reason" autoFocus rows={3} value={reason} onChange={(e) => setReason(e.target.value)} />
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setReasonOpen(null)}>
+                Hủy
+              </Button>
+              <Button onClick={submitReason} disabled={!reason.trim() || busy}>
+                Xác nhận
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={editOpen} onOpenChange={setEditOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Chỉnh sửa lịch công tác</DialogTitle>
+            </DialogHeader>
+            <div className="flex flex-col gap-3">
+              {editError && (
+                <Alert className="border-red-200 bg-red-50">
+                  <AlertDescription className="text-red-700">{editError}</AlertDescription>
+                </Alert>
+              )}
+              <div>
+                <Label htmlFor="edit-event-title" className="mb-1.5 block">
+                  Tiêu đề *
+                </Label>
+                <Input id="edit-event-title" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} />
+              </div>
+              <div>
+                <Label className="mb-1.5 block">Cơ sở *</Label>
+                <Select value={editCampusId} onValueChange={setEditCampusId}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Chọn cơ sở" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CAMPUS_IDS.map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {CAMPUS_LABEL[c]}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value={SCHOOL_WIDE}>Toàn trường (cần duyệt 2 bước: Hiệu phó rồi Hiệu trưởng)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="flex-1">
+                  <Label htmlFor="edit-event-start" className="mb-1.5 block">
+                    Bắt đầu *
+                  </Label>
+                  <Input id="edit-event-start" type="datetime-local" value={editStartAt} onChange={(e) => setEditStartAt(e.target.value)} />
+                </div>
+                <div className="flex-1">
+                  <Label htmlFor="edit-event-end" className="mb-1.5 block">
+                    Kết thúc *
+                  </Label>
+                  <Input
+                    id="edit-event-end"
+                    type="datetime-local"
+                    value={editEndAt}
+                    min={editStartAt || undefined}
+                    onChange={(e) => setEditEndAt(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="edit-event-location" className="mb-1.5 block">
+                  Địa điểm
+                </Label>
+                <Input id="edit-event-location" value={editLocation} onChange={(e) => setEditLocation(e.target.value)} />
+              </div>
+              {editScope === 'CAMPUS' && (
+                <PeopleMultiPicker label="Thành phần tham dự (tuỳ chọn)" value={editParticipants} onChange={setEditParticipants} />
+              )}
+              <div>
+                <Label className="mb-1.5 block">Mức ưu tiên</Label>
+                <Select value={editPriority} onValueChange={setEditPriority}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(PRIORITY_LABEL).map(([k, v]) => (
+                      <SelectItem key={k} value={k}>
+                        {v}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="edit-event-desc" className="mb-1.5 block">
+                  Nội dung
+                </Label>
+                <Textarea id="edit-event-desc" rows={3} value={editDescription} onChange={(e) => setEditDescription(e.target.value)} />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setEditOpen(false)}>
+                Hủy
+              </Button>
+              <Button onClick={saveEdit} disabled={editSubmitting}>
+                Lưu
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </DialogContent>
-      <DialogActions sx={{ flexWrap: 'wrap', gap: 1 }}>
-        {event.status === 'DRAFT' && isCreator && (
-          <>
-            <Button disabled={busy} onClick={openEdit}>
-              Chỉnh sửa
-            </Button>
-            <Button variant="contained" disabled={busy} onClick={() => changeStatus('PENDING_APPROVAL')}>
-              Gửi lãnh đạo duyệt
-            </Button>
-          </>
-        )}
-        {event.status === 'REVISION_REQUIRED' && isCreator && (
-          <>
-            <Button disabled={busy} onClick={openEdit}>
-              Chỉnh sửa
-            </Button>
-            <Button variant="contained" disabled={busy} onClick={() => changeStatus('PENDING_APPROVAL')}>
-              Gửi duyệt lại
-            </Button>
-          </>
-        )}
-        {event.status === 'PENDING_APPROVAL' && isCreator && (
-          <Button disabled={busy} onClick={() => changeStatus('DRAFT')}>
-            Thu hồi về dự thảo
-          </Button>
-        )}
-        {event.status === 'PENDING_APPROVAL' && canApprove && (
-          <>
-            <Button variant="contained" color="success" disabled={busy} onClick={approve}>
-              Duyệt
-            </Button>
-            <Button color="warning" disabled={busy} onClick={() => openReasonDialog('REVISION_REQUIRED')}>
-              Yêu cầu sửa lại
-            </Button>
-            <Button color="error" disabled={busy} onClick={() => openReasonDialog('CANCELLED')}>
-              Hủy
-            </Button>
-          </>
-        )}
-        {event.status === 'PUBLISHED' && (canApprove || isPrincipal) && (
-          <Button color="error" disabled={busy} onClick={() => openReasonDialog('CANCELLED')}>
-            Hủy lịch công tác
-          </Button>
-        )}
-        <Button onClick={onClose}>Đóng</Button>
-      </DialogActions>
-
-      <Dialog open={!!reasonOpen} onClose={() => setReasonOpen(null)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700 }}>
-          {reasonOpen === 'CANCELLED' ? 'Lý do hủy lịch' : 'Lý do yêu cầu sửa lại'}
-        </DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            label="Lý do (bắt buộc) *"
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            multiline
-            rows={3}
-            fullWidth
-            sx={{ mt: 1 }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setReasonOpen(null)}>Hủy</Button>
-          <Button variant="contained" onClick={submitReason} disabled={!reason.trim() || busy}>
-            Xác nhận
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Dialog open={editOpen} onClose={() => setEditOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700 }}>Chỉnh sửa lịch công tác</DialogTitle>
-        <DialogContent dividers>
-          <Stack spacing={2} sx={{ pt: 1 }}>
-            {editError && <Alert severity="error">{editError}</Alert>}
-            <TextField label="Tiêu đề *" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} fullWidth />
-            <TextField select label="Cơ sở *" value={editCampusId} onChange={(e) => setEditCampusId(e.target.value)} fullWidth>
-              {CAMPUS_IDS.map((c) => (
-                <MenuItem key={c} value={c}>
-                  {CAMPUS_LABEL[c]}
-                </MenuItem>
-              ))}
-              <MenuItem value="SCHOOL_WIDE">Toàn trường (cần duyệt 2 bước: Hiệu phó rồi Hiệu trưởng)</MenuItem>
-            </TextField>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-              <TextField
-                label="Bắt đầu *"
-                type="datetime-local"
-                value={editStartAt}
-                onChange={(e) => setEditStartAt(e.target.value)}
-                slotProps={{ inputLabel: { shrink: true } }}
-                fullWidth
-              />
-              <TextField
-                label="Kết thúc *"
-                type="datetime-local"
-                value={editEndAt}
-                onChange={(e) => setEditEndAt(e.target.value)}
-                slotProps={{ inputLabel: { shrink: true }, htmlInput: { min: editStartAt || undefined } }}
-                fullWidth
-              />
-            </Stack>
-            <TextField label="Địa điểm" value={editLocation} onChange={(e) => setEditLocation(e.target.value)} fullWidth />
-            {editScope === 'CAMPUS' && (
-              <PeopleMultiPicker label="Thành phần tham dự (tuỳ chọn)" value={editParticipants} onChange={setEditParticipants} />
-            )}
-            <TextField select label="Mức ưu tiên" value={editPriority} onChange={(e) => setEditPriority(e.target.value)} fullWidth>
-              {Object.entries(PRIORITY_LABEL).map(([k, v]) => (
-                <MenuItem key={k} value={k}>
-                  {v}
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField
-              label="Nội dung"
-              value={editDescription}
-              onChange={(e) => setEditDescription(e.target.value)}
-              multiline
-              rows={3}
-              fullWidth
-            />
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setEditOpen(false)}>Hủy</Button>
-          <Button variant="contained" onClick={saveEdit} disabled={editSubmitting}>
-            Lưu
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Dialog>
   );
 }
