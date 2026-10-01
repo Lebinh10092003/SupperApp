@@ -8,8 +8,7 @@
  * riêng — cùng cách RemindersPage bản gốc làm.
  */
 import { useMemo, useState } from 'react';
-import { Alert, Card, CardContent, Chip, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material';
-import NotificationsActiveIcon from '@mui/icons-material/NotificationsActiveRounded';
+import { BellRing } from 'lucide-react';
 import { PageHeader } from '../../components/PageHeader';
 import { useEvents, type WorkEvent } from './hooks/useEvents';
 import { useTasks, type WorkTask } from './hooks/useTasks';
@@ -17,6 +16,10 @@ import { EventDetailDialog, EventStatusChip, canApproveClientSide } from './Even
 import { TaskDetailDialog, TaskStatusChip } from './TasksListPage';
 import { useActor } from './hooks/useActor';
 import { CAMPUS_LABEL, abbreviatePersonLabel } from './constants';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { cn } from '@/lib/utils';
 
 const NON_TERMINAL_TASK_STATUSES = ['ASSIGNED', 'ACCEPTED', 'IN_PROGRESS', 'PENDING_ACCEPTANCE', 'RETURNED'];
 
@@ -83,159 +86,144 @@ export default function RemindersPage() {
 
   return (
     <>
-      <PageHeader
-        title="Nhắc nhở"
-        icon={<NotificationsActiveIcon />}
-      />
+      <PageHeader title="Nhắc nhở" icon={<BellRing />} />
 
       {toast && (
-        <Alert severity={toast.severity} onClose={() => setToast(null)} sx={{ mb: 2 }}>
-          {toast.message}
+        <Alert className={cn('mb-4', toast.severity === 'error' ? 'border-red-200 bg-red-50' : 'border-emerald-200 bg-emerald-50')}>
+          <AlertDescription className={toast.severity === 'error' ? 'text-red-700' : 'text-emerald-700'}>{toast.message}</AlertDescription>
         </Alert>
       )}
 
-      <Stack spacing={3}>
-        <Card sx={{ borderRadius: 3, border: '1px solid #2563eb', boxShadow: 'none' }}>
-          <CardContent>
-            <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1.5 }}>
-              Cần bạn xử lý ({actionEvents.length + actionTasks.length})
-            </Typography>
-            {actionEvents.length === 0 && actionTasks.length === 0 ? (
-              <Typography variant="body2" color="text.secondary">
-                Không có lịch/việc nào đang cần bạn hành động.
-              </Typography>
-            ) : (
-              <TableContainer>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Loại</TableCell>
-                      <TableCell>Tiêu đề</TableCell>
-                      <TableCell>Cơ sở</TableCell>
-                      <TableCell>Lý do</TableCell>
-                      <TableCell>Trạng thái</TableCell>
+      <div className="flex flex-col gap-6">
+        <div className="rounded-xl border-2 border-primary p-5">
+          <p className="mb-3 text-sm font-bold">Cần bạn xử lý ({actionEvents.length + actionTasks.length})</p>
+          {actionEvents.length === 0 && actionTasks.length === 0 ? (
+            <p className="text-sm text-slate-500">Không có lịch/việc nào đang cần bạn hành động.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Loại</TableHead>
+                    <TableHead>Tiêu đề</TableHead>
+                    <TableHead>Cơ sở</TableHead>
+                    <TableHead>Lý do</TableHead>
+                    <TableHead>Trạng thái</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {actionEvents.map(({ event: ev, reason }) => (
+                    <TableRow key={`event-${ev.id}`} className="cursor-pointer" onClick={() => setEventDetail(ev)}>
+                      <TableCell>Lịch</TableCell>
+                      <TableCell>{ev.title}</TableCell>
+                      <TableCell>{ev.scope === 'SCHOOL_WIDE' ? 'Toàn trường' : CAMPUS_LABEL[ev.campusId] || ev.campusId}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            'border-transparent font-semibold',
+                            reason === 'PENDING_AWAITING_LEADER' ? 'bg-slate-100 text-slate-600' : 'bg-secondary text-[#1d4ed8]'
+                          )}
+                        >
+                          {EVENT_REASON_LABEL[reason]}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <EventStatusChip status={ev.status} />
+                      </TableCell>
                     </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {actionEvents.map(({ event: ev, reason }) => (
-                      <TableRow key={`event-${ev.id}`} hover sx={{ cursor: 'pointer' }} onClick={() => setEventDetail(ev)}>
-                        <TableCell>Lịch</TableCell>
-                        <TableCell>{ev.title}</TableCell>
-                        <TableCell>{ev.scope === 'SCHOOL_WIDE' ? 'Toàn trường' : CAMPUS_LABEL[ev.campusId] || ev.campusId}</TableCell>
-                        <TableCell>
-                          <Chip
-                            size="small"
-                            label={EVENT_REASON_LABEL[reason]}
-                            sx={{
-                              bgcolor: reason === 'PENDING_AWAITING_LEADER' ? '#f1f5f9' : '#eff6ff',
-                              color: reason === 'PENDING_AWAITING_LEADER' ? '#475569' : '#1d4ed8',
-                              fontWeight: 600
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <EventStatusChip status={ev.status} />
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    {actionTasks.map(({ task: t, reason }) => (
-                      <TableRow key={`task-${t.id}`} hover sx={{ cursor: 'pointer' }} onClick={() => setTaskDetail(t)}>
-                        <TableCell>Việc</TableCell>
-                        <TableCell>{t.title}</TableCell>
-                        <TableCell>{CAMPUS_LABEL[t.campusId] || t.campusId}</TableCell>
-                        <TableCell>
-                          <Chip size="small" label={TASK_REASON_LABEL[reason]} sx={{ bgcolor: '#eff6ff', color: '#1d4ed8', fontWeight: 600 }} />
-                        </TableCell>
-                        <TableCell>
-                          <TaskStatusChip status={t.status} />
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            )}
-          </CardContent>
-        </Card>
+                  ))}
+                  {actionTasks.map(({ task: t, reason }) => (
+                    <TableRow key={`task-${t.id}`} className="cursor-pointer" onClick={() => setTaskDetail(t)}>
+                      <TableCell>Việc</TableCell>
+                      <TableCell>{t.title}</TableCell>
+                      <TableCell>{CAMPUS_LABEL[t.campusId] || t.campusId}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="border-transparent bg-secondary font-semibold text-[#1d4ed8]">
+                          {TASK_REASON_LABEL[reason]}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <TaskStatusChip status={t.status} />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </div>
 
-        <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none' }}>
-          <CardContent>
-            <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1.5 }}>
-              Lịch trùng ({conflictingEvents.length})
-            </Typography>
-            {conflictingEvents.length === 0 ? (
-              <Typography variant="body2" color="text.secondary">
-                Không có lịch nào đang trùng.
-              </Typography>
-            ) : (
-              <TableContainer>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Thời gian</TableCell>
-                      <TableCell>Tiêu đề</TableCell>
-                      <TableCell>Cơ sở</TableCell>
-                      <TableCell>Ghi chú trùng</TableCell>
+        <div className="rounded-xl border border-slate-200 p-5">
+          <p className="mb-3 text-sm font-bold">Lịch trùng ({conflictingEvents.length})</p>
+          {conflictingEvents.length === 0 ? (
+            <p className="text-sm text-slate-500">Không có lịch nào đang trùng.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Thời gian</TableHead>
+                    <TableHead>Tiêu đề</TableHead>
+                    <TableHead>Cơ sở</TableHead>
+                    <TableHead>Ghi chú trùng</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {conflictingEvents.map((ev) => (
+                    <TableRow key={ev.id} className="cursor-pointer" onClick={() => setEventDetail(ev)}>
+                      <TableCell>{new Date(ev.startAt).toLocaleString('vi-VN')}</TableCell>
+                      <TableCell>{ev.title}</TableCell>
+                      <TableCell>{CAMPUS_LABEL[ev.campusId] || ev.campusId}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="border-transparent bg-red-50 font-semibold text-red-600">
+                          {ev.conflictNote}
+                        </Badge>
+                      </TableCell>
                     </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {conflictingEvents.map((ev) => (
-                      <TableRow key={ev.id} hover sx={{ cursor: 'pointer' }} onClick={() => setEventDetail(ev)}>
-                        <TableCell>{new Date(ev.startAt).toLocaleString('vi-VN')}</TableCell>
-                        <TableCell>{ev.title}</TableCell>
-                        <TableCell>{CAMPUS_LABEL[ev.campusId] || ev.campusId}</TableCell>
-                        <TableCell>
-                          <Chip size="small" label={ev.conflictNote} sx={{ bgcolor: '#fef2f2', color: '#dc2626', fontWeight: 600 }} />
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            )}
-          </CardContent>
-        </Card>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </div>
 
-        <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none' }}>
-          <CardContent>
-            <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1.5 }}>
-              Công việc quá hạn ({overdueTasks.length})
-            </Typography>
-            {overdueTasks.length === 0 ? (
-              <Typography variant="body2" color="text.secondary">
-                Không có công việc nào quá hạn.
-              </Typography>
-            ) : (
-              <TableContainer>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Hạn (đã quá)</TableCell>
-                      <TableCell>Công việc</TableCell>
-                      <TableCell>Cơ sở</TableCell>
-                      <TableCell>Phụ trách</TableCell>
+        <div className="rounded-xl border border-slate-200 p-5">
+          <p className="mb-3 text-sm font-bold">Công việc quá hạn ({overdueTasks.length})</p>
+          {overdueTasks.length === 0 ? (
+            <p className="text-sm text-slate-500">Không có công việc nào quá hạn.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Hạn (đã quá)</TableHead>
+                    <TableHead>Công việc</TableHead>
+                    <TableHead>Cơ sở</TableHead>
+                    <TableHead>Phụ trách</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {overdueTasks.map((t) => (
+                    <TableRow key={t.id} className="cursor-pointer" onClick={() => setTaskDetail(t)}>
+                      <TableCell>
+                        <Badge variant="outline" className="border-transparent bg-orange-50 font-semibold text-orange-700">
+                          {new Date(t.dueAt).toLocaleString('vi-VN')}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{t.title}</TableCell>
+                      <TableCell>{CAMPUS_LABEL[t.campusId] || t.campusId}</TableCell>
+                      <TableCell title={t.assigneeLabel || t.assigneeName || t.assigneePerId}>
+                        {abbreviatePersonLabel(t.assigneeLabel || t.assigneeName || t.assigneePerId)}
+                      </TableCell>
                     </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {overdueTasks.map((t) => (
-                      <TableRow key={t.id} hover sx={{ cursor: 'pointer' }} onClick={() => setTaskDetail(t)}>
-                        <TableCell>
-                          <Chip size="small" label={new Date(t.dueAt).toLocaleString('vi-VN')} sx={{ bgcolor: '#fff7ed', color: '#c2410c', fontWeight: 600 }} />
-                        </TableCell>
-                        <TableCell>{t.title}</TableCell>
-                        <TableCell>{CAMPUS_LABEL[t.campusId] || t.campusId}</TableCell>
-                        <TableCell title={t.assigneeLabel || t.assigneeName || t.assigneePerId}>
-                          {abbreviatePersonLabel(t.assigneeLabel || t.assigneeName || t.assigneePerId)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            )}
-          </CardContent>
-        </Card>
-      </Stack>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </div>
+      </div>
 
       <EventDetailDialog
         event={eventDetail}
