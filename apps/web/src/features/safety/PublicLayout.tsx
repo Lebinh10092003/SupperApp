@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
-import { Box, Typography } from '@mui/material';
 import { Link } from 'react-router-dom';
+import { cn } from '@/lib/utils';
 
 const EMERGENCY_NUMBERS = [
   { num: '112', label: 'Khẩn cấp' },
@@ -16,48 +16,24 @@ const EMERGENCY_NUMBERS = [
  * thông tin rút gọn để biết số nào số nào chứ không phải để mỗi số". */
 function EmergencyFab() {
   return (
-    <Box
-      role="navigation"
+    <nav
       aria-label="Số điện thoại khẩn cấp"
-      sx={{
-        position: 'fixed',
-        right: 0,
-        top: '60%',
-        transform: 'translateY(-50%)',
-        zIndex: 40,
-        display: 'flex',
-        flexDirection: 'column',
-        background: 'linear-gradient(180deg,#ef4444,#b91c1c)',
-        borderRadius: '14px 0 0 14px',
-        boxShadow: '-3px 4px 16px rgba(0,0,0,.28)',
-        overflow: 'hidden'
-      }}
+      className="fixed top-[60%] right-0 z-40 flex -translate-y-1/2 flex-col overflow-hidden rounded-l-[14px] bg-gradient-to-b from-red-500 to-red-700 shadow-[-3px_4px_16px_rgba(0,0,0,0.28)]"
     >
       {EMERGENCY_NUMBERS.map((e, i) => (
-        <Box
+        <a
           key={e.num}
-          component="a"
           href={`tel:${e.num}`}
-          sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            minWidth: 54,
-            minHeight: 44,
-            px: 1,
-            py: 0.75,
-            color: '#fff',
-            textDecoration: 'none',
-            borderBottom: i < EMERGENCY_NUMBERS.length - 1 ? '1px solid rgba(255,255,255,.22)' : 'none',
-            '&:active': { bgcolor: 'rgba(255,255,255,.18)' }
-          }}
+          className={cn(
+            'flex min-h-11 min-w-[54px] flex-col items-center justify-center px-2 py-1.5 text-white no-underline active:bg-white/20',
+            i < EMERGENCY_NUMBERS.length - 1 && 'border-b border-white/20'
+          )}
         >
-          <Typography sx={{ fontSize: '1rem', fontWeight: 800, lineHeight: 1.15 }}>{e.num}</Typography>
-          <Typography sx={{ fontSize: '.56rem', fontWeight: 600, lineHeight: 1.15, opacity: 0.95 }}>{e.label}</Typography>
-        </Box>
+          <span className="text-base leading-tight font-extrabold">{e.num}</span>
+          <span className="text-[0.56rem] leading-tight font-semibold opacity-95">{e.label}</span>
+        </a>
       ))}
-    </Box>
+    </nav>
   );
 }
 
@@ -67,48 +43,22 @@ function EmergencyFab() {
  */
 export function PublicLayout({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
   return (
-    <Box
-      sx={{
-        minHeight: '100vh',
-        background: 'radial-gradient(ellipse at 50% -10%, #dbeafe 0%, #eff6ff 40%, #f8fafc 100%)',
-        py: { xs: 1.25, md: 2 },
-        px: 2,
-        position: 'relative'
-      }}
-    >
+    <div className="relative min-h-screen bg-[radial-gradient(ellipse_at_50%_-10%,#dbeafe_0%,#eff6ff_40%,#f8fafc_100%)] px-4 py-5 md:py-8">
       <EmergencyFab />
-      <Box sx={{ position: 'absolute', top: { xs: 10, md: 14 }, right: { xs: 12, md: 24 } }}>
-        <Typography
-          component={Link}
-          to="/login"
-          variant="caption"
-          sx={{ color: '#64748b', fontWeight: 600, textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
-        >
+      <div className="absolute top-2.5 right-3 md:top-3.5 md:right-6">
+        <Link to="/login" className="text-xs font-semibold text-slate-500 no-underline hover:underline">
           Đăng nhập nội bộ →
-        </Typography>
-      </Box>
-      <Box sx={{ maxWidth: 720, mx: 'auto' }}>
-        <Box sx={{ textAlign: 'center', mb: 1.25 }}>
-          <Box
-            component="img"
-            src="/logo-truong-transparent.png"
-            alt="Logo trường"
-            sx={{ display: 'inline-block', width: 'auto', height: 44, objectFit: 'contain', mb: 0.75 }}
-          />
-          <Typography variant="h6" sx={{ fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em', lineHeight: 1.2 }}>
-            Trường THCS Giảng Võ
-          </Typography>
-          <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#dc2626', mt: 0.25, fontSize: '0.9rem' }}>
-            {title}
-          </Typography>
-          {subtitle && (
-            <Typography variant="caption" sx={{ color: '#64748b', mt: 0.25, display: 'block' }}>
-              {subtitle}
-            </Typography>
-          )}
-        </Box>
+        </Link>
+      </div>
+      <div className="mx-auto max-w-[720px]">
+        <div className="mb-3 text-center">
+          <img src="/logo-truong-transparent.png" alt="Logo trường" className="mb-2 inline-block h-11 w-auto object-contain" />
+          <h1 className="text-lg leading-tight font-extrabold tracking-tight text-[#0f172a]">Trường THCS Giảng Võ</h1>
+          <p className="mt-0.5 text-[0.9rem] font-bold text-red-600">{title}</p>
+          {subtitle && <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>}
+        </div>
         {children}
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 }

@@ -10,14 +10,16 @@
  */
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Alert, Box, Card, CardContent, Chip, CircularProgress, Stack, Typography } from '@mui/material';
-import WarningAmberIcon from '@mui/icons-material/WarningAmberRounded';
+import { TriangleAlert, Loader2 } from 'lucide-react';
 
 import { PageHeader } from '../../components/PageHeader';
 import { StatusChip } from './components/StatusChip';
 import { PriorityChip } from './components/PriorityChip';
 import { useIncidents } from './hooks/useIncidents';
 import { CAMPUS_LABEL, SLA_CLOCK_LABEL } from './constants';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 function formatDateTime(iso?: string) {
   if (!iso) return '—';
@@ -42,70 +44,56 @@ export default function EmergencyCockpitPage() {
 
   return (
     <>
-      <PageHeader
-        title="Cockpit khẩn cấp"
-        icon={<WarningAmberIcon />}
-      />
+      <PageHeader title="Cockpit khẩn cấp" icon={<TriangleAlert />} />
 
       {error && (
-        <Alert severity="error" sx={{ mb: 2.5, borderRadius: 2 }}>
-          {error}
+        <Alert className="mb-5 border-red-200 bg-red-50">
+          <AlertDescription className="text-red-700">{error}</AlertDescription>
         </Alert>
       )}
 
       {loading ? (
-        <Box sx={{ p: 4, display: 'grid', placeItems: 'center' }}>
-          <CircularProgress />
-        </Box>
+        <div className="grid p-8 place-items-center">
+          <Loader2 className="size-8 animate-spin text-primary" />
+        </div>
       ) : open.length === 0 ? (
-        <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none' }}>
-          <CardContent sx={{ py: 6, textAlign: 'center' }}>
-            <Typography variant="h6" fontWeight={700} sx={{ color: '#0f172a' }}>
-              Không có hồ sơ P0/P1 nào đang mở
-            </Typography>
-          </CardContent>
-        </Card>
+        <div className="rounded-xl border border-slate-200 py-12 text-center">
+          <p className="font-bold text-[#0f172a]">Không có hồ sơ P0/P1 nào đang mở</p>
+        </div>
       ) : (
-        <Stack spacing={2}>
+        <div className="flex flex-col gap-4">
           {open.map((it) => (
-            <Card
+            <Link
               key={it.incidentId}
-              component={Link}
               to={`/safety/incidents/${it.incidentId}`}
-              sx={{
-                display: 'block',
-                textDecoration: 'none',
-                borderLeft: `4px solid ${it.priority === 'P0' ? '#dc2626' : '#ea580c'}`,
-                borderRadius: 3,
-                border: '1px solid #e2e8f0',
-                boxShadow: 'none',
-                bgcolor: it.priority === 'P0' ? '#fef2f2' : '#fff7ed',
-                '&:hover': { boxShadow: '0 1px 3px 0 rgba(15, 23, 42, 0.08)' }
-              }}
+              className={cn(
+                'block rounded-xl border border-slate-200 border-l-4 p-5 no-underline transition-shadow hover:shadow-[0_1px_3px_rgba(15,23,42,0.08)]',
+                it.priority === 'P0' ? 'border-l-red-600 bg-red-50' : 'border-l-orange-600 bg-orange-50'
+              )}
             >
-              <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
-                <Stack direction="row" spacing={1} sx={{ mb: 1, flexWrap: 'wrap' }}>
-                  <PriorityChip priority={it.priority} compact />
-                  <StatusChip state={it.state} />
-                  <Chip size="small" label={CAMPUS_LABEL[it.campusId] || it.campusId} sx={{ bgcolor: '#f8fafc', color: '#334155', fontWeight: 600, height: 24 }} />
-                </Stack>
-                <Typography variant="subtitle2" fontWeight={700} color="#0f172a">
-                  {it.incidentId} {it.categoryLabel ? `— ${it.categoryLabel}` : ''}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {it.className ? `Lớp ${it.className} — ` : ''}Chỉ huy: {it.commanderName || 'Chưa chỉ định'}
-                </Typography>
-                {it.slaClocks && Object.keys(it.slaClocks).length > 0 && (
-                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                    {Object.entries(it.slaClocks)
-                      .map(([label, c]) => `${SLA_CLOCK_LABEL[label] || label}: hạn ${formatDateTime(c.deadlineAt)}`)
-                      .join(' · ')}
-                  </Typography>
-                )}
-              </CardContent>
-            </Card>
+              <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                <PriorityChip priority={it.priority} compact />
+                <StatusChip state={it.state} />
+                <Badge variant="outline" className="h-6 border-transparent bg-slate-50 font-semibold text-slate-700">
+                  {CAMPUS_LABEL[it.campusId] || it.campusId}
+                </Badge>
+              </div>
+              <p className="font-bold text-[#0f172a]">
+                {it.incidentId} {it.categoryLabel ? `— ${it.categoryLabel}` : ''}
+              </p>
+              <p className="text-sm text-slate-500">
+                {it.className ? `Lớp ${it.className} — ` : ''}Chỉ huy: {it.commanderName || 'Chưa chỉ định'}
+              </p>
+              {it.slaClocks && Object.keys(it.slaClocks).length > 0 && (
+                <p className="mt-1 text-xs text-slate-500">
+                  {Object.entries(it.slaClocks)
+                    .map(([label, c]) => `${SLA_CLOCK_LABEL[label] || label}: hạn ${formatDateTime(c.deadlineAt)}`)
+                    .join(' · ')}
+                </p>
+              )}
+            </Link>
           ))}
-        </Stack>
+        </div>
       )}
     </>
   );

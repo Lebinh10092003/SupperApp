@@ -1,8 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Alert, Box, Button, Card, CardContent, CircularProgress, Stack, TextField, Typography } from '@mui/material';
+import { Loader2 } from 'lucide-react';
 import { PublicLayout } from './PublicLayout';
 import { env } from '../../config/env';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 
 interface LookupResult {
   publicCode: string;
@@ -95,83 +100,85 @@ export default function PublicLookupPage() {
 
   return (
     <PublicLayout title="Tra cứu trạng thái tin báo">
-      <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: '0 4px 15px -1px rgba(15, 23, 42, 0.06)' }}>
-        <CardContent sx={{ p: { xs: 2.5, sm: 3.5 } }}>
-          <Stack spacing={2.5}>
-            {error && <Alert severity="error" onClose={() => setError('')}>{error}</Alert>}
-            {toast && <Alert severity="success" onClose={() => setToast('')}>{toast}</Alert>}
+      <div className="rounded-xl border border-slate-200 shadow-[0_4px_15px_-1px_rgba(15,23,42,0.06)]">
+        <div className="p-5 sm:p-7">
+          <div className="flex flex-col gap-4">
+            {error && (
+              <Alert className="border-red-200 bg-red-50">
+                <AlertDescription className="text-red-700">{error}</AlertDescription>
+              </Alert>
+            )}
+            {toast && (
+              <Alert className="border-emerald-200 bg-emerald-50">
+                <AlertDescription className="text-emerald-700">{toast}</AlertDescription>
+              </Alert>
+            )}
 
-            <Stack direction="row" spacing={1.5}>
-              <TextField
-                label="Mã tra cứu"
-                value={codeInput}
-                onChange={(e) => setCodeInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleLookup()}
-                fullWidth
-                placeholder="VD: GV.2609.0001"
-              />
-              <Button variant="contained" onClick={handleLookup} disabled={loading} sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' }, whiteSpace: 'nowrap' }}>
-                {loading ? <CircularProgress size={20} sx={{ color: '#fff' }} /> : 'Tra cứu'}
+            <div className="flex items-end gap-3">
+              <div className="flex-1">
+                <Label htmlFor="lookup-code" className="mb-1.5 block">
+                  Mã tra cứu
+                </Label>
+                <Input
+                  id="lookup-code"
+                  value={codeInput}
+                  onChange={(e) => setCodeInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleLookup()}
+                  placeholder="VD: GV.2609.0001"
+                />
+              </div>
+              <Button onClick={handleLookup} disabled={loading} className="whitespace-nowrap font-bold">
+                {loading ? <Loader2 className="size-4 animate-spin" /> : 'Tra cứu'}
               </Button>
-            </Stack>
+            </div>
 
             {result && (
-              <Box sx={{ p: 2.5, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0' }}>
-                <Typography variant="caption" color="text.secondary">
-                  Mã: {result.publicCode}
-                </Typography>
-                <Typography variant="h6" fontWeight={700} color="#0f172a" sx={{ mt: 0.5 }}>
-                  {result.state}
-                </Typography>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-5">
+                <p className="text-xs text-slate-500">Mã: {result.publicCode}</p>
+                <p className="mt-1 text-lg font-bold text-[#0f172a]">{result.state}</p>
 
                 {result.canConfirmClose && (
-                  <Box sx={{ mt: 2 }}>
-                    <Typography variant="body2" sx={{ mb: 1 }}>
-                      Nhà trường đề nghị đóng hồ sơ này. Bạn xác nhận đã được xử lý thoả đáng?
-                    </Typography>
-                    <Button variant="contained" color="success" onClick={handleConfirmClose} disabled={confirmSubmitting}>
+                  <div className="mt-4">
+                    <p className="mb-2 text-sm">Nhà trường đề nghị đóng hồ sơ này. Bạn xác nhận đã được xử lý thoả đáng?</p>
+                    <Button onClick={handleConfirmClose} disabled={confirmSubmitting} className="bg-emerald-600 hover:bg-emerald-700">
                       Xác nhận đóng hồ sơ
                     </Button>
-                  </Box>
+                  </div>
                 )}
 
-                <Box sx={{ mt: 2.5 }}>
-                  <TextField
-                    label="Bổ sung thông tin"
+                <div className="mt-5">
+                  <Label htmlFor="lookup-supplement" className="mb-1.5 block">
+                    Bổ sung thông tin
+                  </Label>
+                  <Textarea
+                    id="lookup-supplement"
+                    rows={2}
                     value={supplementText}
                     onChange={(e) => setSupplementText(e.target.value)}
-                    multiline
-                    rows={2}
-                    fullWidth
                     placeholder="Có thêm chi tiết gì muốn báo thêm cho nhà trường?"
                   />
-                  <Button
-                    variant="outlined"
-                    onClick={handleSupplement}
-                    disabled={supplementSubmitting || !supplementText.trim()}
-                    sx={{ mt: 1 }}
-                  >
+                  <Button variant="outline" onClick={handleSupplement} disabled={supplementSubmitting || !supplementText.trim()} className="mt-2">
                     Gửi bổ sung
                   </Button>
-                </Box>
-              </Box>
+                </div>
+              </div>
             )}
 
             {/* Trước đây trang này KHÔNG có đường nào quay lại trang gửi
                 tin báo — chỉ có 1 chiều (PublicReportPage -> đây), không có
                 chiều ngược lại (Sin phản hồi 2026-09-11: "bấm vào tra cứu
                 tin báo thì nó không back về được trang đăng tin báo"). */}
-            <Box sx={{ textAlign: 'center' }}>
-              <Typography variant="caption" color="text.secondary">
+            <div className="text-center">
+              <p className="text-xs text-slate-500">
                 Cần báo sự việc khác?{' '}
-                <a href="/safety/report" style={{ color: '#2563eb', fontWeight: 600 }}>
+                <a href="/safety/report" className="font-semibold text-primary">
                   Gửi tin báo mới
                 </a>
-              </Typography>
-            </Box>
-          </Stack>
-        </CardContent>
-      </Card>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
     </PublicLayout>
   );
 }

@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Box, Card, CardContent, Grid, Typography, Button, Stack } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined';
-import ListAltIcon from '@mui/icons-material/ListAltRounded';
-import WarningAmberIcon from '@mui/icons-material/WarningAmberRounded';
+import { ShieldAlert, ListChecks, TriangleAlert } from 'lucide-react';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
 import { MyIncidentsSection } from './components/MyIncidentsSection';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 interface IncidentStats {
   scope: string;
@@ -16,18 +15,12 @@ interface IncidentStats {
   overdue: unknown[];
 }
 
-function StatCard({ label, value, color }: { label: string; value: number | string; color: string }) {
+function StatCard({ label, value, className }: { label: string; value: number | string; className: string }) {
   return (
-    <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none' }}>
-      <CardContent>
-        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-          {label}
-        </Typography>
-        <Typography variant="h3" fontWeight={800} sx={{ color, mt: 0.5 }}>
-          {value}
-        </Typography>
-      </CardContent>
-    </Card>
+    <div className="rounded-xl border border-slate-200 p-4">
+      <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">{label}</p>
+      <p className={cn('mt-1 text-3xl font-extrabold', className)}>{value}</p>
+    </div>
   );
 }
 
@@ -44,56 +37,43 @@ export default function SafetyDashboardPage() {
 
   return (
     <>
-      <PageHeader
-        title="Cảnh báo an toàn và xử lý sự cố"
-        icon={<ShieldOutlinedIcon />}
-      />
+      <PageHeader title="Cảnh báo an toàn và xử lý sự cố" icon={<ShieldAlert />} />
 
-      <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid size={{ xs: 6, sm: 3 }}>
-          <StatCard label="P0 - Khẩn cấp" value={stats?.byPriority.P0 ?? '—'} color="#dc2626" />
-        </Grid>
-        <Grid size={{ xs: 6, sm: 3 }}>
-          <StatCard label="P1 - Cao" value={stats?.byPriority.P1 ?? '—'} color="#c2410c" />
-        </Grid>
-        <Grid size={{ xs: 6, sm: 3 }}>
-          <StatCard label="Đang mở" value={stats?.openCount ?? '—'} color="#2563eb" />
-        </Grid>
-        <Grid size={{ xs: 6, sm: 3 }}>
-          <StatCard label="Đã đóng (30 ngày)" value={stats?.closedLast30d ?? '—'} color="#15803d" />
-        </Grid>
-      </Grid>
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatCard label="P0 - Khẩn cấp" value={stats?.byPriority.P0 ?? '—'} className="text-red-600" />
+        <StatCard label="P1 - Cao" value={stats?.byPriority.P1 ?? '—'} className="text-orange-700" />
+        <StatCard label="Đang mở" value={stats?.openCount ?? '—'} className="text-primary" />
+        <StatCard label="Đã đóng (30 ngày)" value={stats?.closedLast30d ?? '—'} className="text-green-700" />
+      </div>
 
-      <Grid container spacing={2}>
-        <Grid size={{ xs: 12, sm: 4 }}>
-          <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none', cursor: 'pointer' }} onClick={() => navigate('/safety/cases')}>
-            <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <ListAltIcon sx={{ color: '#2563eb' }} />
-              <Stack>
-                <Typography fontWeight={700}>Sự vụ</Typography>
-                <Typography variant="caption" color="text.secondary">Toàn bộ sự vụ — mới gửi, đang xử lý, đã xử lý xong</Typography>
-              </Stack>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid size={{ xs: 12, sm: 4 }}>
-          <Card sx={{ borderRadius: 3, border: '1px solid #fecaca', bgcolor: '#fef2f2', boxShadow: 'none', cursor: 'pointer' }} onClick={() => navigate('/safety/cockpit')}>
-            <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <WarningAmberIcon sx={{ color: '#dc2626' }} />
-              <Stack>
-                <Typography fontWeight={700} color="#991b1b">Cần xử lý ngay</Typography>
-                <Typography variant="caption" color="#991b1b">Hồ sơ mức P0/P1 đang mở</Typography>
-              </Stack>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div
+          onClick={() => navigate('/safety/cases')}
+          className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 p-4"
+        >
+          <ListChecks className="size-5 text-primary" />
+          <div>
+            <p className="font-bold">Sự vụ</p>
+            <p className="text-xs text-slate-500">Toàn bộ sự vụ — mới gửi, đang xử lý, đã xử lý xong</p>
+          </div>
+        </div>
+        <div
+          onClick={() => navigate('/safety/cockpit')}
+          className="flex cursor-pointer items-center gap-3 rounded-xl border border-red-200 bg-red-50 p-4"
+        >
+          <TriangleAlert className="size-5 text-red-600" />
+          <div>
+            <p className="font-bold text-red-900">Cần xử lý ngay</p>
+            <p className="text-xs text-red-900">Hồ sơ mức P0/P1 đang mở</p>
+          </div>
+        </div>
+      </div>
 
-      <Box sx={{ mb: 3 }}>
-        <Button variant="outlined" onClick={() => window.open('/safety/report', '_blank')}>
+      <div className="my-6">
+        <Button variant="outline" onClick={() => window.open('/safety/report', '_blank')}>
           Xem trang báo cáo công khai
         </Button>
-      </Box>
+      </div>
 
       <MyIncidentsSection />
     </>
