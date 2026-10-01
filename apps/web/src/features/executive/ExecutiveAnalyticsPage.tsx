@@ -1,33 +1,15 @@
 import { useEffect, useState } from 'react';
-import {
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  Grid,
-  Chip,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  TableContainer,
-  Button,
-  Stack,
-  Alert,
-  Skeleton,
-  LinearProgress
-} from '@mui/material';
-import AssignmentTurnedInIcon from '@mui/icons-material/AssignmentTurnedInRounded';
-import SchoolIcon from '@mui/icons-material/SchoolRounded';
-import WarningAmberIcon from '@mui/icons-material/WarningAmberRounded';
-import AutoStoriesIcon from '@mui/icons-material/AutoStoriesRounded';
-import CloudSyncIcon from '@mui/icons-material/CloudSyncRounded';
-import DownloadIcon from '@mui/icons-material/DownloadRounded';
-import RefreshIcon from '@mui/icons-material/RefreshRounded';
 import { useNavigate } from 'react-router-dom';
+import { ClipboardCheck, GraduationCap, TriangleAlert, BookOpenCheck, RotateCw, Download, RefreshCw } from 'lucide-react';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { cn } from '@/lib/utils';
 
 export default function ExecutiveAnalyticsPage() {
   const navigate = useNavigate();
@@ -61,33 +43,33 @@ export default function ExecutiveAnalyticsPage() {
       title: 'Tỷ lệ Hoàn thành Bài tập',
       value: k?.completionRate?.value != null ? `${k.completionRate.value}%` : '0%',
       delta: k?.completionRate?.delta || 'Từ Google Classroom',
-      icon: <AssignmentTurnedInIcon sx={{ fontSize: 22 }} />,
-      color: '#10b981',
-      bg: '#ecfdf5'
+      icon: <ClipboardCheck className="size-[22px]" />,
+      color: 'text-emerald-500',
+      bg: 'bg-emerald-50'
     },
     {
       title: 'Tỷ lệ Nộp Đúng Hạn',
       value: k?.onTimeRate?.value != null ? `${k.onTimeRate.value}%` : '0%',
       delta: k?.onTimeRate?.delta || 'Nộp trước hạn chót',
-      icon: <AutoStoriesIcon sx={{ fontSize: 22 }} />,
-      color: '#2563eb',
-      bg: '#eff6ff'
+      icon: <BookOpenCheck className="size-[22px]" />,
+      color: 'text-primary',
+      bg: 'bg-secondary'
     },
     {
       title: 'Điểm Trung Bình (GPA)',
       value: k?.schoolGpa?.value != null && Number(k.schoolGpa.value) > 0 ? `${k.schoolGpa.value}/10` : '—',
       delta: k?.schoolGpa?.delta || 'Thang điểm 10 quy chuẩn',
-      icon: <SchoolIcon sx={{ fontSize: 22 }} />,
-      color: '#f59e0b',
-      bg: '#fffbeb'
+      icon: <GraduationCap className="size-[22px]" />,
+      color: 'text-amber-500',
+      bg: 'bg-amber-50'
     },
     {
       title: 'Cảnh báo Đang Mở',
       value: `${k?.openAlerts?.value ?? 0}`,
       delta: k?.openAlerts?.delta || 'Chưa phát hiện vấn đề',
-      icon: <WarningAmberIcon sx={{ fontSize: 22 }} />,
-      color: '#ef4444',
-      bg: '#fef2f2'
+      icon: <TriangleAlert className="size-[22px]" />,
+      color: 'text-red-500',
+      bg: 'bg-red-50'
     }
   ];
 
@@ -96,216 +78,135 @@ export default function ExecutiveAnalyticsPage() {
       <PageHeader
         title="Báo cáo điều hành & phân tích chiến lược"
         action={
-          <Stack direction="row" spacing={1.5}>
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<DownloadIcon sx={{ fontSize: 16 }} />}
-              component="a"
-              href="/api/reports/classroom.csv"
-              download="bao-cao-google-classroom.csv"
-              sx={{ fontWeight: 600, fontSize: '0.8125rem', textTransform: 'none', borderRadius: 2, borderColor: '#cbd5e1', color: '#334155', '&:hover': { bgcolor: '#eff6ff', borderColor: '#bfdbfe' } }}
-            >
-              Xuất CSV Lớp Học
+          <div className="flex gap-2.5">
+            <Button variant="outline" size="sm" asChild className="font-semibold">
+              <a href="/api/reports/classroom.csv" download="bao-cao-google-classroom.csv">
+                <Download className="size-4" />
+                Xuất CSV Lớp Học
+              </a>
             </Button>
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<RefreshIcon sx={{ fontSize: 16 }} />}
-              onClick={loadData}
-              sx={{ fontWeight: 600, fontSize: '0.8125rem', textTransform: 'none', borderRadius: 2, borderColor: '#cbd5e1', color: '#334155', '&:hover': { bgcolor: '#f8fafc' } }}
-            >
+            <Button variant="outline" size="sm" onClick={loadData} className="font-semibold">
+              <RefreshCw className="size-4" />
               Làm mới
             </Button>
-          </Stack>
+          </div>
         }
       />
 
       {!isSynced && !loading && (
-        <Alert
-          severity="info"
-          sx={{ mb: 3, borderRadius: 2, border: '1px solid #bfdbfe', bgcolor: '#eff6ff', color: '#1e40af' }}
-          action={
-            <Button
-              variant="contained"
-              size="small"
-              onClick={() => navigate('/connections')}
-              sx={{ bgcolor: '#2563eb', color: '#ffffff', '&:hover': { bgcolor: '#1d4ed8' }, textTransform: 'none', fontWeight: 700, fontSize: '0.8125rem', borderRadius: 2 }}
-            >
-              Kết Nối Google Classroom
-            </Button>
-          }
-        >
-          <strong>Dữ liệu thực tế:</strong> Báo cáo BI được tạo hoàn toàn từ dữ liệu Google Classroom thực của trường. Hiện chưa có khóa học nào được đồng bộ.
+        <Alert className="mb-6 flex items-center justify-between border-blue-200 bg-secondary">
+          <AlertDescription className="text-blue-900">
+            <strong>Dữ liệu thực tế:</strong> Báo cáo BI được tạo hoàn toàn từ dữ liệu Google Classroom thực của trường. Hiện chưa có khóa học nào
+            được đồng bộ.
+          </AlertDescription>
+          <Button size="sm" onClick={() => navigate('/connections')} className="shrink-0 font-bold">
+            Kết Nối Google Classroom
+          </Button>
         </Alert>
       )}
 
       {/* KPI Cards */}
-      <Grid container spacing={2.5} sx={{ mb: 3 }}>
+      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
         {kpis.map((kpi, idx) => (
-          <Grid key={idx} size={{ xs: 12, sm: 6, md: 3 }}>
-            <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px 0 rgba(15,23,42,0.04)', bgcolor: '#ffffff' }}>
-              <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-                  <Typography sx={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    {kpi.title}
-                  </Typography>
-                  <Box sx={{ width: 36, height: 36, borderRadius: 2, bgcolor: kpi.bg, color: kpi.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {kpi.icon}
-                  </Box>
-                </Box>
-                {loading ? (
-                  <Skeleton variant="text" width="50%" height={40} />
-                ) : (
-                  <Typography sx={{ fontSize: '1.85rem', fontWeight: 800, color: '#0f172a', my: 0.5, letterSpacing: '-0.03em' }}>
-                    {kpi.value}
-                  </Typography>
-                )}
-                <Chip
-                  label={kpi.delta}
-                  size="small"
-                  sx={{
-                    fontWeight: 600,
-                    fontSize: '0.72rem',
-                    height: 22,
-                    bgcolor: '#f8fafc',
-                    color: '#64748b',
-                    border: '1px solid #e2e8f0'
-                  }}
-                />
-              </CardContent>
-            </Card>
-          </Grid>
+          <div key={idx} className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-[0.72rem] font-bold tracking-wide text-slate-500 uppercase">{kpi.title}</p>
+              <div className={cn('grid size-9 place-items-center rounded-lg', kpi.bg, kpi.color)}>{kpi.icon}</div>
+            </div>
+            {loading ? (
+              <Skeleton className="h-10 w-1/2" />
+            ) : (
+              <p className="my-1 text-[1.85rem] font-extrabold tracking-tight text-[#0f172a]">{kpi.value}</p>
+            )}
+            <Badge variant="outline" className="h-[22px] border-slate-200 bg-slate-50 font-semibold text-slate-500">
+              {kpi.delta}
+            </Badge>
+          </div>
         ))}
-      </Grid>
+      </div>
 
       {/* Bảng Xếp Hạng & So Sánh Lớp Học Thực Tế */}
-      <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 3px 0 rgba(15,23,42,0.04)', bgcolor: '#ffffff' }}>
-        <Box sx={{ p: 2.5, borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Box>
-            <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#0f172a', letterSpacing: '-0.01em' }}>
-              So Sánh Tiến Độ Học Tập Theo Lớp Hành Chính
-            </Typography>
-            <Typography variant="body2" sx={{ color: '#64748b', fontSize: '0.8125rem' }}>
-              Tổng hợp từ tất cả các khóa học Google Classroom đã liên kết với từng lớp
-            </Typography>
-          </Box>
-          <Chip
-            label={`${classComparison.length} lớp học`}
-            size="small"
-            sx={{
-              bgcolor: '#eff6ff',
-              color: '#1d4ed8',
-              border: '1px solid #bfdbfe',
-              fontWeight: 700,
-              fontSize: '0.75rem',
-              px: 0.5
-            }}
-          />
-        </Box>
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
+        <div className="flex items-center justify-between border-b border-slate-200 p-4">
+          <div>
+            <p className="font-bold tracking-tight text-[#0f172a]">So Sánh Tiến Độ Học Tập Theo Lớp Hành Chính</p>
+            <p className="text-[0.8125rem] text-slate-500">Tổng hợp từ tất cả các khóa học Google Classroom đã liên kết với từng lớp</p>
+          </div>
+          <Badge variant="outline" className="border-blue-200 bg-secondary font-bold text-[#1d4ed8]">
+            {classComparison.length} lớp học
+          </Badge>
+        </div>
 
-        <TableContainer>
+        <div className="w-full overflow-x-auto">
           <Table>
-            <TableHead sx={{ bgcolor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-              <TableRow>
-                <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Lớp</TableCell>
-                <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Khối</TableCell>
-                <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Sĩ số</TableCell>
-                <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Số khóa học</TableCell>
-                <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Bài tập đã giao</TableCell>
-                <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Tỷ lệ nộp bài</TableCell>
-                <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Nộp đúng hạn</TableCell>
-                <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Điểm trung bình</TableCell>
+            <TableHeader className="bg-slate-50">
+              <TableRow className="hover:bg-slate-50">
+                <TableHead className="text-xs font-bold tracking-wide text-slate-600 uppercase">Lớp</TableHead>
+                <TableHead className="text-xs font-bold tracking-wide text-slate-600 uppercase">Khối</TableHead>
+                <TableHead className="text-xs font-bold tracking-wide text-slate-600 uppercase">Sĩ số</TableHead>
+                <TableHead className="text-xs font-bold tracking-wide text-slate-600 uppercase">Số khóa học</TableHead>
+                <TableHead className="text-xs font-bold tracking-wide text-slate-600 uppercase">Bài tập đã giao</TableHead>
+                <TableHead className="text-xs font-bold tracking-wide text-slate-600 uppercase">Tỷ lệ nộp bài</TableHead>
+                <TableHead className="text-xs font-bold tracking-wide text-slate-600 uppercase">Nộp đúng hạn</TableHead>
+                <TableHead className="text-xs font-bold tracking-wide text-slate-600 uppercase">Điểm trung bình</TableHead>
               </TableRow>
-            </TableHead>
+            </TableHeader>
             <TableBody>
               {loading ? (
                 Array.from({ length: 4 }).map((_, i) => (
                   <TableRow key={i}>
                     {Array.from({ length: 8 }).map((_, j) => (
                       <TableCell key={j}>
-                        <Skeleton variant="text" />
+                        <Skeleton className="h-4 w-full" />
                       </TableCell>
                     ))}
                   </TableRow>
                 ))
               ) : classComparison.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} sx={{ py: 8, textAlign: 'center', bgcolor: '#f8fafc' }}>
-                    <Box
-                      sx={{
-                        width: 52,
-                        height: 52,
-                        borderRadius: 2.5,
-                        border: '1px solid #bfdbfe',
-                        background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
-                        color: '#2563eb',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        mb: 2,
-                        boxShadow: '0 4px 10px rgba(37, 99, 235, 0.12)'
-                      }}
-                    >
-                      <SchoolIcon sx={{ fontSize: 26 }} />
-                    </Box>
-                    <Typography variant="subtitle1" fontWeight={700} color="#0f172a" sx={{ mb: 0.5 }}>
-                      Chưa có dữ liệu lớp học để so sánh
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: '#64748b', maxWidth: 460, mx: 'auto', mb: 2.5 }}>
+                  <TableCell colSpan={8} className="bg-slate-50 py-16 text-center">
+                    <div className="mx-auto mb-4 inline-flex size-[52px] items-center justify-center rounded-xl border border-blue-200 bg-gradient-to-br from-secondary to-blue-100 text-primary shadow-[0_4px_10px_rgba(37,99,235,0.12)]">
+                      <GraduationCap className="size-[26px]" />
+                    </div>
+                    <p className="mb-1 font-bold text-[#0f172a]">Chưa có dữ liệu lớp học để so sánh</p>
+                    <p className="mx-auto mb-5 max-w-[460px] text-sm text-slate-500">
                       Khi bạn đồng bộ Google Classroom, hệ thống sẽ tự động gộp các khóa học theo mã lớp thực tế và xếp hạng tiến độ nộp bài.
-                    </Typography>
-                    <Button
-                      variant="contained"
-                      startIcon={<CloudSyncIcon sx={{ fontSize: 18 }} />}
-                      onClick={() => navigate('/connections')}
-                      sx={{ bgcolor: '#2563eb', color: '#ffffff', '&:hover': { bgcolor: '#1d4ed8' }, fontWeight: 700, fontSize: '0.84rem', textTransform: 'none', borderRadius: 2 }}
-                    >
+                    </p>
+                    <Button onClick={() => navigate('/connections')} className="font-bold">
+                      <RotateCw className="size-[18px]" />
                       Kết Nối & Đồng Bộ Ngay
                     </Button>
                   </TableCell>
                 </TableRow>
               ) : (
                 classComparison.map((item) => (
-                  <TableRow key={item.id} hover sx={{ '&:hover': { bgcolor: 'rgba(239, 246, 255, 0.6) !important' } }}>
-                    <TableCell sx={{ fontWeight: 700, color: '#0f172a' }}>{item.className}</TableCell>
-                    <TableCell sx={{ color: '#64748b' }}>Khối {item.grade || '—'}</TableCell>
-                    <TableCell sx={{ color: '#64748b' }}>{item.activeStudents || '—'}</TableCell>
-                    <TableCell sx={{ color: '#64748b' }}>{item.courseCount || 0} khóa</TableCell>
-                    <TableCell sx={{ color: '#64748b' }}>{item.totalCoursework || 0}</TableCell>
-                    <TableCell sx={{ minWidth: 160 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                        <LinearProgress
-                          variant="determinate"
+                  <TableRow key={item.id}>
+                    <TableCell className="font-bold text-[#0f172a]">{item.className}</TableCell>
+                    <TableCell className="text-slate-500">Khối {item.grade || '—'}</TableCell>
+                    <TableCell className="text-slate-500">{item.activeStudents || '—'}</TableCell>
+                    <TableCell className="text-slate-500">{item.courseCount || 0} khóa</TableCell>
+                    <TableCell className="text-slate-500">{item.totalCoursework || 0}</TableCell>
+                    <TableCell className="min-w-40">
+                      <div className="flex items-center gap-2.5">
+                        <Progress
                           value={item.completionRate || 0}
-                          sx={{
-                            flex: 1,
-                            height: 7,
-                            borderRadius: 3,
-                            bgcolor: '#e2e8f0',
-                            '& .MuiLinearProgress-bar': {
-                              bgcolor: (item.completionRate || 0) >= 80 ? '#10b981' : '#f59e0b'
-                            }
-                          }}
+                          className="h-1.5 flex-1 bg-slate-200"
+                          indicatorClassName={(item.completionRate || 0) >= 80 ? 'bg-emerald-500' : 'bg-amber-500'}
                         />
-                        <Typography variant="caption" fontWeight={700} sx={{ color: '#0f172a' }}>
-                          {item.completionRate || 0}%
-                        </Typography>
-                      </Box>
+                        <span className="text-xs font-bold text-[#0f172a]">{item.completionRate || 0}%</span>
+                      </div>
                     </TableCell>
-                    <TableCell sx={{ fontWeight: 700, color: (item.onTimeRate || 0) >= 80 ? '#10b981' : '#f59e0b' }}>
+                    <TableCell className={cn('font-bold', (item.onTimeRate || 0) >= 80 ? 'text-emerald-500' : 'text-amber-500')}>
                       {item.onTimeRate ? `${item.onTimeRate}%` : '—'}
                     </TableCell>
-                    <TableCell sx={{ fontWeight: 700, color: '#0f172a' }}>
-                      {item.avgScore != null ? `${item.avgScore}/10` : '—'}
-                    </TableCell>
+                    <TableCell className="font-bold text-[#0f172a]">{item.avgScore != null ? `${item.avgScore}/10` : '—'}</TableCell>
                   </TableRow>
                 ))
               )}
             </TableBody>
           </Table>
-        </TableContainer>
-      </Card>
+        </div>
+      </div>
     </>
   );
 }

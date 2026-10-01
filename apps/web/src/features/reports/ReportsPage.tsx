@@ -1,25 +1,12 @@
-﻿import { useState } from 'react';
-import {
-  Button,
-  Card,
-  CardContent,
-  Grid,
-  Typography,
-  Box,
-  Stack,
-  Chip,
-  Alert,
-  MenuItem,
-  TextField,
-  CircularProgress
-} from '@mui/material';
-import AssessmentIcon from '@mui/icons-material/AssessmentRounded';
-import DownloadIcon from '@mui/icons-material/DownloadRounded';
-import FactCheckIcon from '@mui/icons-material/FactCheckRounded';
-import AutoStoriesIcon from '@mui/icons-material/AutoStoriesRounded';
-import VideocamIcon from '@mui/icons-material/VideocamRounded';
+import { useState } from 'react';
+import { ClipboardList, Download, FileCheck2, BookOpenCheck, Video, Loader2 } from 'lucide-react';
 import { PageHeader } from '../../components/PageHeader';
 import { download } from '../../services/api';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 
 const reportTemplates = [
   {
@@ -28,8 +15,9 @@ const reportTemplates = [
     desc: 'Tổng hợp số tiết học, số lượt có mặt, đi muộn, vắng mặt và tỷ lệ chuyên cần theo từng lớp trong 30 ngày.',
     path: '/api/reports/summary.csv?days=30',
     filename: 'bao-cao-chuyen-can-thcs-giang-vo.csv',
-    icon: <FactCheckIcon sx={{ color: '#2563eb' }} />,
-    tag: 'Định kỳ'
+    icon: <FileCheck2 className="size-5 text-primary" />,
+    tag: 'Định kỳ',
+    theme: 'bg-secondary text-[#1d4ed8] border-blue-200'
   },
   {
     id: 'rep-classroom',
@@ -37,8 +25,9 @@ const reportTemplates = [
     desc: 'Thống kê tình hình nộp bài tập, số bài đã giao, tỷ lệ hoàn thành đúng hạn của học sinh theo từng bộ môn.',
     path: '/api/reports/classroom.csv',
     filename: 'bao-cao-google-classroom.csv',
-    icon: <AutoStoriesIcon sx={{ color: '#10b981' }} />,
-    tag: 'Google Classroom'
+    icon: <BookOpenCheck className="size-5 text-emerald-500" />,
+    tag: 'Google Classroom',
+    theme: 'bg-emerald-50 text-emerald-600 border-emerald-200'
   },
   {
     id: 'rep-meet',
@@ -46,8 +35,9 @@ const reportTemplates = [
     desc: 'Ghi nhận thời gian bắt đầu, kết thúc, số lượng học sinh tham gia và thời lượng trung bình của các phiên Meet.',
     path: '/api/reports/meet.csv',
     filename: 'bao-cao-phien-hoc-google-meet.csv',
-    icon: <VideocamIcon sx={{ color: '#8b5cf6' }} />,
-    tag: 'Google Meet'
+    icon: <Video className="size-5 text-violet-500" />,
+    tag: 'Google Meet',
+    theme: 'bg-violet-50 text-violet-600 border-violet-200'
   }
 ];
 
@@ -56,7 +46,7 @@ export default function ReportsPage() {
   const [period, setPeriod] = useState('30');
   const [toast, setToast] = useState<{ text: string; severity: 'success' | 'error' } | null>(null);
 
-  const handleDownload = async (rep: any) => {
+  const handleDownload = async (rep: (typeof reportTemplates)[number]) => {
     setDownloading(rep.id);
     const downloadPath = rep.id === 'rep-summary' ? `/api/reports/summary.csv?days=${period}` : rep.path;
     try {
@@ -74,119 +64,66 @@ export default function ReportsPage() {
 
   return (
     <>
-      <PageHeader
-        title="Trung tâm báo cáo & xuất số liệu"
-        icon={<AssessmentIcon />}
-      />
+      <PageHeader title="Trung tâm báo cáo & xuất số liệu" icon={<ClipboardList />} />
 
       {toast && (
-        <Alert severity={toast.severity} onClose={() => setToast(null)} sx={{ mb: 2.5, borderRadius: '6px' }}>
-          {toast.text}
+        <Alert className={cn('mb-5', toast.severity === 'error' ? 'border-red-200 bg-red-50' : 'border-emerald-200 bg-emerald-50')}>
+          <AlertDescription className={toast.severity === 'error' ? 'text-red-700' : 'text-emerald-700'}>{toast.text}</AlertDescription>
         </Alert>
       )}
 
       {/* Filter Card */}
-      <Card sx={{ mb: 3, borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', bgcolor: '#ffffff' }}>
-        <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center">
-            <TextField
-              select
-              size="small"
-              label="Khoảng thời gian báo cáo"
-              value={period}
-              onChange={(e) => setPeriod(e.target.value)}
-              sx={{ minWidth: 240 }}
-            >
-              <MenuItem value="7">7 ngày gần nhất</MenuItem>
-              <MenuItem value="30">30 ngày gần nhất (1 tháng)</MenuItem>
-              <MenuItem value="90">Học kỳ II (90 ngày)</MenuItem>
-              <MenuItem value="180">Cả năm học 2025–2026</MenuItem>
-            </TextField>
+      <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+          <Select value={period} onValueChange={setPeriod}>
+            <SelectTrigger className="min-w-60">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="7">7 ngày gần nhất</SelectItem>
+              <SelectItem value="30">30 ngày gần nhất (1 tháng)</SelectItem>
+              <SelectItem value="90">Học kỳ II (90 ngày)</SelectItem>
+              <SelectItem value="180">Cả năm học 2025–2026</SelectItem>
+            </SelectContent>
+          </Select>
 
-            <Typography variant="body2" color="#64748b" sx={{ fontSize: '0.8125rem' }}>
-              Định dạng xuất chuẩn: <strong style={{ color: '#0f172a' }}>CSV (UTF-8 có BOM tiếng Việt)</strong> tương thích hoàn toàn với Microsoft Excel và Google Sheets.
-            </Typography>
-          </Stack>
-        </CardContent>
-      </Card>
+          <p className="text-[0.8125rem] text-slate-500">
+            Định dạng xuất chuẩn: <strong className="text-[#0f172a]">CSV (UTF-8 có BOM tiếng Việt)</strong> tương thích hoàn toàn với Microsoft Excel
+            và Google Sheets.
+          </p>
+        </div>
+      </div>
 
       {/* Report Cards Grid */}
-      <Grid container spacing={2.5}>
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
         {reportTemplates.map((rep) => (
-          <Grid key={rep.id} size={{ xs: 12, md: 4 }}>
-            <Card
-              sx={{
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                borderRadius: '12px',
-                border: '1px solid #e2e8f0',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                bgcolor: '#ffffff',
-                transition: 'all 0.2s ease',
-                '&:hover': {
-                  boxShadow: '0 4px 12px rgba(37, 99, 235, 0.08)',
-                  borderColor: '#bfdbfe'
-                }
-              }}
-            >
-              <CardContent sx={{ p: 3, flex: 1 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                  <Box sx={{
-                    p: 1.25,
-                    bgcolor: rep.id === 'rep-summary' ? '#eff6ff' : rep.id === 'rep-classroom' ? '#ecfdf5' : '#f5f3ff',
-                    borderRadius: '10px',
-                    display: 'grid',
-                    placeItems: 'center'
-                  }}>
-                    {rep.icon}
-                  </Box>
-                  <Chip
-                    label={rep.tag}
-                    size="small"
-                    sx={{
-                      bgcolor: rep.id === 'rep-summary' ? '#eff6ff' : rep.id === 'rep-classroom' ? '#ecfdf5' : '#f5f3ff',
-                      color: rep.id === 'rep-summary' ? '#1d4ed8' : rep.id === 'rep-classroom' ? '#059669' : '#7c3aed',
-                      border: '1px solid',
-                      borderColor: rep.id === 'rep-summary' ? '#bfdbfe' : rep.id === 'rep-classroom' ? '#a7f3d0' : '#ddd6fe',
-                      fontWeight: 600,
-                      fontSize: '0.75rem'
-                    }}
-                  />
-                </Box>
-                <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#0f172a', mb: 1, letterSpacing: '-0.01em' }}>
-                  {rep.title}
-                </Typography>
-                <Typography variant="body2" sx={{ color: '#64748b', mb: 3, fontSize: '0.8125rem', lineHeight: 1.5 }}>
-                  {rep.desc}
-                </Typography>
-              </CardContent>
-              <Box sx={{ p: 2.5, pt: 0 }}>
-                <Button
-                  fullWidth
-                  variant="contained"
-                  startIcon={downloading === rep.id ? <CircularProgress size={16} color="inherit" /> : <DownloadIcon sx={{ fontSize: 16 }} />}
-                  disabled={downloading === rep.id}
-                  onClick={() => handleDownload(rep)}
-                  sx={{
-                    bgcolor: '#2563eb',
-                    color: '#ffffff',
-                    '&:hover': { bgcolor: '#1d4ed8' },
-                    py: 1.1,
-                    fontWeight: 600,
-                    fontSize: '0.8125rem',
-                    textTransform: 'none',
-                    borderRadius: '8px',
-                    boxShadow: '0 2px 6px rgba(37, 99, 235, 0.2)'
-                  }}
-                >
-                  {downloading === rep.id ? 'Đang kết xuất CSV...' : 'Tải báo cáo CSV'}
-                </Button>
-              </Box>
-            </Card>
-          </Grid>
+          <div
+            key={rep.id}
+            className="flex h-full flex-col rounded-xl border border-slate-200 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.05)] transition-all hover:border-blue-200 hover:shadow-[0_4px_12px_rgba(37,99,235,0.08)]"
+          >
+            <div className="flex-1 p-6">
+              <div className="mb-3 flex items-start justify-between">
+                <div className="grid place-items-center rounded-[10px] bg-secondary p-2.5">{rep.icon}</div>
+                <Badge variant="outline" className={cn('font-semibold', rep.theme)}>
+                  {rep.tag}
+                </Badge>
+              </div>
+              <p className="mb-1.5 font-bold tracking-tight text-[#0f172a]">{rep.title}</p>
+              <p className="text-[0.8125rem] leading-relaxed text-slate-500">{rep.desc}</p>
+            </div>
+            <div className="p-4 pt-0">
+              <Button
+                className="w-full font-semibold shadow-[0_2px_6px_rgba(37,99,235,0.2)]"
+                disabled={downloading === rep.id}
+                onClick={() => handleDownload(rep)}
+              >
+                {downloading === rep.id ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
+                {downloading === rep.id ? 'Đang kết xuất CSV...' : 'Tải báo cáo CSV'}
+              </Button>
+            </div>
+          </div>
         ))}
-      </Grid>
+      </div>
     </>
   );
 }
