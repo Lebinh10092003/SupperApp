@@ -4,10 +4,15 @@
  * `PersonPicker` để chọn đúng `perId` thay vì gõ tay (tránh gõ sai mã).
  */
 import { useState } from 'react';
-import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField, Typography } from '@mui/material';
 import { api } from '../../../services/api';
 import { PersonPicker, type PersonOption } from '../PersonPicker';
 import { isApprovalRequiredMessage } from './dialog-utils';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 
 export interface AssignCommanderTarget {
   incidentId: string;
@@ -69,12 +74,14 @@ export function AssignCommanderDialog({
   };
 
   return (
-    <Dialog open={Boolean(target)} onClose={handleClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ fontWeight: 700 }}>Chỉ định chỉ huy hồ sơ</DialogTitle>
-      <DialogContent dividers sx={{ borderColor: '#e2e8f0' }}>
+    <Dialog open={Boolean(target)} onOpenChange={(v) => !v && handleClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Chỉ định chỉ huy hồ sơ</DialogTitle>
+        </DialogHeader>
         {target && (
-          <Stack spacing={2} sx={{ pt: 1 }}>
-            <Typography variant="body2" color="text.secondary">
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-slate-500">
               Hồ sơ <strong>{target.incidentId}</strong>
               {target.commanderName ? (
                 <>
@@ -84,7 +91,7 @@ export function AssignCommanderDialog({
               ) : (
                 ' — chưa có chỉ huy.'
               )}
-            </Typography>
+            </p>
             <PersonPicker label="Chỉ huy mới" value={commander} onChange={setCommander} />
             {/* Trước đây ghi "(tuỳ chọn)" nhưng backend bắt buộc theo vai
                 trò (`PERMISSION_MATRIX['incident.assign_commander']`:
@@ -92,40 +99,36 @@ export function AssignCommanderDialog({
                 trưởng = X → không bắt buộc) — nhãn cũ sai, gây bấm Xác nhận
                 bị chặn bất ngờ (Sin phản hồi 2026-09-11; Tổ trưởng thêm
                 2026-09-22). */}
-            <TextField
-              label="Lý do (bắt buộc với Hiệu trưởng/Tổ trưởng)"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              multiline
-              rows={2}
-              fullWidth
-            />
+            <div>
+              <Label htmlFor="assign-commander-reason" className="mb-1.5 block">
+                Lý do (bắt buộc với Hiệu trưởng/Tổ trưởng)
+              </Label>
+              <Textarea id="assign-commander-reason" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} />
+            </div>
             {needsApproval && (
-              <TextField
-                label="Mã người phê duyệt (perId của cấp trên)"
-                value={approvedBy}
-                onChange={(e) => setApprovedBy(e.target.value)}
-                fullWidth
-                autoFocus
-              />
+              <div>
+                <Label htmlFor="assign-commander-approved-by" className="mb-1.5 block">
+                  Mã người phê duyệt (perId của cấp trên)
+                </Label>
+                <Input id="assign-commander-approved-by" value={approvedBy} onChange={(e) => setApprovedBy(e.target.value)} autoFocus />
+              </div>
             )}
-            {error && <Alert severity="error">{error}</Alert>}
-          </Stack>
+            {error && (
+              <Alert className="border-red-200 bg-red-50">
+                <AlertDescription className="text-red-700">{error}</AlertDescription>
+              </Alert>
+            )}
+          </div>
         )}
+        <DialogFooter>
+          <Button variant="ghost" onClick={handleClose} className="text-slate-500">
+            Hủy
+          </Button>
+          <Button disabled={!commander || submitting} onClick={handleSubmit} className="font-bold">
+            {submitting ? 'Đang lưu...' : 'Xác nhận chỉ định'}
+          </Button>
+        </DialogFooter>
       </DialogContent>
-      <DialogActions sx={{ p: 2, borderTop: '1px solid #e2e8f0' }}>
-        <Button onClick={handleClose} sx={{ textTransform: 'none', color: '#64748b' }}>
-          Hủy
-        </Button>
-        <Button
-          variant="contained"
-          disabled={!commander || submitting}
-          onClick={handleSubmit}
-          sx={{ bgcolor: '#2563eb', color: '#fff', '&:hover': { bgcolor: '#1d4ed8' }, textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
-        >
-          {submitting ? 'Đang lưu...' : 'Xác nhận chỉ định'}
-        </Button>
-      </DialogActions>
     </Dialog>
   );
 }

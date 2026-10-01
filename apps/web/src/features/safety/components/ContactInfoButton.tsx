@@ -8,9 +8,11 @@
  * email khi TÌM theo tên, ở đây là XEM chi tiết 1 người đã biết trước).
  */
 import { useState } from 'react';
-import { IconButton, Popover, Stack, Typography, Link as MuiLink, CircularProgress, Tooltip } from '@mui/material';
-import ContactPhoneRoundedIcon from '@mui/icons-material/ContactPhoneRounded';
+import { Contact, Loader2 } from 'lucide-react';
 import { api } from '../../../services/api';
+import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface ContactInfo {
   perId: string;
@@ -20,14 +22,14 @@ interface ContactInfo {
 }
 
 export function ContactInfoButton({ perId, name }: { perId: string; name: string }) {
-  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+  const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [contact, setContact] = useState<ContactInfo | null>(null);
   const [error, setError] = useState('');
 
-  const handleOpen = (e: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(e.currentTarget);
-    if (!contact && !loading) {
+  const handleOpenChange = (next: boolean) => {
+    setOpen(next);
+    if (next && !contact && !loading) {
       setLoading(true);
       setError('');
       api
@@ -39,50 +41,48 @@ export function ContactInfoButton({ perId, name }: { perId: string; name: string
   };
 
   return (
-    <>
-      <Tooltip title={`Xem liên hệ của ${name}`}>
-        <IconButton size="small" onClick={handleOpen} sx={{ color: '#64748b', p: 0.25 }}>
-          <ContactPhoneRoundedIcon sx={{ fontSize: 17 }} />
-        </IconButton>
+    <Popover open={open} onOpenChange={handleOpenChange}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <PopoverTrigger asChild>
+            <Button size="icon-xs" variant="ghost" className="text-slate-500">
+              <Contact className="size-[17px]" />
+            </Button>
+          </PopoverTrigger>
+        </TooltipTrigger>
+        <TooltipContent>Xem liên hệ của {name}</TooltipContent>
       </Tooltip>
-      <Popover
-        open={!!anchorEl}
-        anchorEl={anchorEl}
-        onClose={() => setAnchorEl(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-      >
-        <Stack spacing={0.75} sx={{ p: 2, minWidth: 220 }}>
-          <Typography variant="subtitle2" fontWeight={700}>
-            {name}
-          </Typography>
-          {loading && <CircularProgress size={16} />}
-          {error && (
-            <Typography variant="body2" color="error">
-              {error}
-            </Typography>
-          )}
+      <PopoverContent align="start" className="w-56">
+        <div className="flex flex-col gap-1.5">
+          <p className="text-sm font-bold">{name}</p>
+          {loading && <Loader2 className="size-4 animate-spin text-slate-500" />}
+          {error && <p className="text-sm text-red-600">{error}</p>}
           {contact && (
             <>
-              <Typography variant="body2">
+              <p className="text-sm">
                 Email:{' '}
                 {contact.email ? (
-                  <MuiLink href={`mailto:${contact.email}`}>{contact.email}</MuiLink>
+                  <a href={`mailto:${contact.email}`} className="text-primary hover:underline">
+                    {contact.email}
+                  </a>
                 ) : (
-                  <span style={{ color: '#94a3b8' }}>Chưa có</span>
+                  <span className="text-slate-400">Chưa có</span>
                 )}
-              </Typography>
-              <Typography variant="body2">
+              </p>
+              <p className="text-sm">
                 SĐT:{' '}
                 {contact.phone ? (
-                  <MuiLink href={`tel:${contact.phone}`}>{contact.phone}</MuiLink>
+                  <a href={`tel:${contact.phone}`} className="text-primary hover:underline">
+                    {contact.phone}
+                  </a>
                 ) : (
-                  <span style={{ color: '#94a3b8' }}>Chưa có — liên hệ Quản trị viên để bổ sung</span>
+                  <span className="text-slate-400">Chưa có — liên hệ Quản trị viên để bổ sung</span>
                 )}
-              </Typography>
+              </p>
             </>
           )}
-        </Stack>
-      </Popover>
-    </>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }

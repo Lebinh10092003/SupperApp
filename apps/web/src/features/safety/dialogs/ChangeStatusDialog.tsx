@@ -5,10 +5,16 @@
  * STATE.*), không phải mã — gửi thẳng chuỗi lên server.
  */
 import { useState } from 'react';
-import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import { api } from '../../../services/api';
 import { isApprovalRequiredMessage } from './dialog-utils';
 import { ALLOWED_STATE_TRANSITIONS, STATE_OPTIONS } from '../constants';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 
 export interface ChangeStatusTarget {
   incidentId: string;
@@ -70,59 +76,71 @@ export function ChangeStatusDialog({
   };
 
   return (
-    <Dialog open={Boolean(target)} onClose={handleClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ fontWeight: 700 }}>Đổi trạng thái hồ sơ</DialogTitle>
-      <DialogContent dividers sx={{ borderColor: '#e2e8f0' }}>
+    <Dialog open={Boolean(target)} onOpenChange={(v) => !v && handleClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Đổi trạng thái hồ sơ</DialogTitle>
+        </DialogHeader>
         {target && (
-          <Stack spacing={2} sx={{ pt: 1 }}>
-            <Typography variant="body2" color="text.secondary">
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-slate-500">
               Hồ sơ <strong>{target.incidentId}</strong> — trạng thái hiện tại: <strong>{target.state}</strong>
-            </Typography>
-            <TextField
-              select
-              label="Trạng thái mới"
-              value={toState}
-              onChange={(e) => setToState(e.target.value)}
-              fullWidth
-              helperText="Chỉ những trạng thái chuyển được hợp lệ từ trạng thái hiện tại mới bấm được."
-            >
-              {STATE_OPTIONS.map((s) => {
-                const allowed = (ALLOWED_STATE_TRANSITIONS[target.state] || []).includes(s);
-                return (
-                  <MenuItem key={s} value={s} disabled={s === target.state || !allowed}>
-                    {s}
-                  </MenuItem>
-                );
-              })}
-            </TextField>
-            <TextField label="Ghi chú (tuỳ chọn)" value={note} onChange={(e) => setNote(e.target.value)} multiline rows={2} fullWidth />
-            <TextField label="Lý do (bắt buộc với 1 số vai trò)" value={reason} onChange={(e) => setReason(e.target.value)} multiline rows={2} fullWidth />
+            </p>
+            <div>
+              <Label className="mb-1.5 block">Trạng thái mới</Label>
+              <Select value={toState} onValueChange={setToState}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Chọn trạng thái" />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATE_OPTIONS.map((s) => {
+                    const allowed = (ALLOWED_STATE_TRANSITIONS[target.state] || []).includes(s);
+                    return (
+                      <SelectItem key={s} value={s} disabled={s === target.state || !allowed}>
+                        {s}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+              <p className="mt-1 text-xs text-slate-500">Chỉ những trạng thái chuyển được hợp lệ từ trạng thái hiện tại mới bấm được.</p>
+            </div>
+            <div>
+              <Label htmlFor="change-status-note" className="mb-1.5 block">
+                Ghi chú (tuỳ chọn)
+              </Label>
+              <Textarea id="change-status-note" rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
+            </div>
+            <div>
+              <Label htmlFor="change-status-reason" className="mb-1.5 block">
+                Lý do (bắt buộc với 1 số vai trò)
+              </Label>
+              <Textarea id="change-status-reason" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} />
+            </div>
             {needsApproval && (
-              <TextField
-                label="Mã người phê duyệt (perId của Hiệu trưởng/cấp trên)"
-                value={approvedBy}
-                onChange={(e) => setApprovedBy(e.target.value)}
-                fullWidth
-                autoFocus
-              />
+              <div>
+                <Label htmlFor="change-status-approved-by" className="mb-1.5 block">
+                  Mã người phê duyệt (perId của Hiệu trưởng/cấp trên)
+                </Label>
+                <Input id="change-status-approved-by" value={approvedBy} onChange={(e) => setApprovedBy(e.target.value)} autoFocus />
+              </div>
             )}
-            {error && <Alert severity="error">{error}</Alert>}
-          </Stack>
+            {error && (
+              <Alert className="border-red-200 bg-red-50">
+                <AlertDescription className="text-red-700">{error}</AlertDescription>
+              </Alert>
+            )}
+          </div>
         )}
+        <DialogFooter>
+          <Button variant="ghost" onClick={handleClose} className="text-slate-500">
+            Hủy
+          </Button>
+          <Button disabled={!toState || submitting} onClick={handleSubmit} className="font-bold">
+            {submitting ? 'Đang lưu...' : 'Xác nhận đổi trạng thái'}
+          </Button>
+        </DialogFooter>
       </DialogContent>
-      <DialogActions sx={{ p: 2, borderTop: '1px solid #e2e8f0' }}>
-        <Button onClick={handleClose} sx={{ textTransform: 'none', color: '#64748b' }}>
-          Hủy
-        </Button>
-        <Button
-          variant="contained"
-          disabled={!toState || submitting}
-          onClick={handleSubmit}
-          sx={{ bgcolor: '#2563eb', color: '#fff', '&:hover': { bgcolor: '#1d4ed8' }, textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
-        >
-          {submitting ? 'Đang lưu...' : 'Xác nhận đổi trạng thái'}
-        </Button>
-      </DialogActions>
     </Dialog>
   );
 }

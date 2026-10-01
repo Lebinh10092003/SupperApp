@@ -3,9 +3,15 @@
  * `PATCH /api/safety/incidents/:id/priority` (`changeIncidentPriority`).
  */
 import { useState } from 'react';
-import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import { api } from '../../../services/api';
 import { isApprovalRequiredMessage } from './dialog-utils';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 
 const PRIORITY_OPTIONS = [
   { value: 'P0', label: 'P0 — Khẩn cấp (nguy hiểm tức thời tính mạng/sức khỏe)' },
@@ -69,48 +75,61 @@ export function ChangePriorityDialog({
   };
 
   return (
-    <Dialog open={Boolean(target)} onClose={handleClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ fontWeight: 700 }}>Đổi mức ưu tiên hồ sơ</DialogTitle>
-      <DialogContent dividers sx={{ borderColor: '#e2e8f0' }}>
+    <Dialog open={Boolean(target)} onOpenChange={(v) => !v && handleClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Đổi mức ưu tiên hồ sơ</DialogTitle>
+        </DialogHeader>
         {target && (
-          <Stack spacing={2} sx={{ pt: 1 }}>
-            <Typography variant="body2" color="text.secondary">
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-slate-500">
               Hồ sơ <strong>{target.incidentId}</strong> — ưu tiên hiện tại: <strong>{target.priority || 'Chưa phân loại'}</strong>
-            </Typography>
-            <TextField select label="Mức ưu tiên mới" value={toPriority} onChange={(e) => setToPriority(e.target.value)} fullWidth>
-              {PRIORITY_OPTIONS.map((p) => (
-                <MenuItem key={p.value} value={p.value} disabled={p.value === target.priority}>
-                  {p.label}
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField label="Lý do (bắt buộc với 1 số vai trò)" value={reason} onChange={(e) => setReason(e.target.value)} multiline rows={2} fullWidth />
+            </p>
+            <div>
+              <Label className="mb-1.5 block">Mức ưu tiên mới</Label>
+              <Select value={toPriority} onValueChange={setToPriority}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Chọn mức ưu tiên" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PRIORITY_OPTIONS.map((p) => (
+                    <SelectItem key={p.value} value={p.value} disabled={p.value === target.priority}>
+                      {p.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="change-priority-reason" className="mb-1.5 block">
+                Lý do (bắt buộc với 1 số vai trò)
+              </Label>
+              <Textarea id="change-priority-reason" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} />
+            </div>
             {needsApproval && (
-              <TextField
-                label="Mã người phê duyệt (perId của Hiệu trưởng/cấp trên)"
-                value={approvedBy}
-                onChange={(e) => setApprovedBy(e.target.value)}
-                fullWidth
-                autoFocus
-              />
+              <div>
+                <Label htmlFor="change-priority-approved-by" className="mb-1.5 block">
+                  Mã người phê duyệt (perId của Hiệu trưởng/cấp trên)
+                </Label>
+                <Input id="change-priority-approved-by" value={approvedBy} onChange={(e) => setApprovedBy(e.target.value)} autoFocus />
+              </div>
             )}
-            {error && <Alert severity="error">{error}</Alert>}
-          </Stack>
+            {error && (
+              <Alert className="border-red-200 bg-red-50">
+                <AlertDescription className="text-red-700">{error}</AlertDescription>
+              </Alert>
+            )}
+          </div>
         )}
+        <DialogFooter>
+          <Button variant="ghost" onClick={handleClose} className="text-slate-500">
+            Hủy
+          </Button>
+          <Button disabled={!toPriority || submitting} onClick={handleSubmit} className="font-bold">
+            {submitting ? 'Đang lưu...' : 'Xác nhận đổi ưu tiên'}
+          </Button>
+        </DialogFooter>
       </DialogContent>
-      <DialogActions sx={{ p: 2, borderTop: '1px solid #e2e8f0' }}>
-        <Button onClick={handleClose} sx={{ textTransform: 'none', color: '#64748b' }}>
-          Hủy
-        </Button>
-        <Button
-          variant="contained"
-          disabled={!toPriority || submitting}
-          onClick={handleSubmit}
-          sx={{ bgcolor: '#2563eb', color: '#fff', '&:hover': { bgcolor: '#1d4ed8' }, textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
-        >
-          {submitting ? 'Đang lưu...' : 'Xác nhận đổi ưu tiên'}
-        </Button>
-      </DialogActions>
     </Dialog>
   );
 }

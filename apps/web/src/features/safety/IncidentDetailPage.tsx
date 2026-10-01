@@ -614,7 +614,7 @@ export default function IncidentDetailPage() {
             : `Bạn sẽ tự thêm mình vào danh sách người tham gia xử lý ${incident.incidentId}.`
         }
         confirmLabel="Tham gia"
-        confirmColor="#2563eb"
+        confirmVariant="default"
         onClose={() => setJoinDialogOpen(false)}
         onSubmit={async (reason) => {
           const result = await api.post<{ status: 'joined' | 'pending_approval' }>(`/api/safety/incidents/${incident.incidentId}/join`, { reason });
@@ -631,7 +631,7 @@ export default function IncidentDetailPage() {
         title="Rời khỏi sự vụ"
         description={`Bạn sẽ rời khỏi danh sách người tham gia xử lý ${incident.incidentId}.`}
         confirmLabel="Rời sự vụ"
-        confirmColor="#dc2626"
+        confirmVariant="destructive"
         onClose={() => setLeaveDialogOpen(false)}
         onSubmit={async (reason) => {
           await api.post(`/api/safety/incidents/${incident.incidentId}/leave`, { reason });
@@ -712,7 +712,7 @@ export default function IncidentDetailPage() {
         title="Huỷ tiếp nhận"
         description={`Yêu cầu sẽ gửi tới cấp trên (Tổ trưởng/Phó Hiệu trưởng/Hiệu trưởng) duyệt trước khi ${incident.incidentId} thực sự về trạng thái chưa ai tiếp nhận.`}
         confirmLabel="Gửi yêu cầu huỷ"
-        confirmColor="#dc2626"
+        confirmVariant="destructive"
         onClose={() => setCancelAckDialogOpen(false)}
         onSubmit={async (reason) => {
           await api.post(`/api/safety/incidents/${incident.incidentId}/cancel-acknowledgment/request`, { reason });

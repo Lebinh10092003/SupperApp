@@ -7,8 +7,13 @@
  * không phụ thuộc vai trò) — khác 4 dialog khác trong thư mục này.
  */
 import { useEffect, useState } from 'react';
-import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField, Typography } from '@mui/material';
 import { api } from '../../../services/api';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 
 export interface CorrectClassificationTarget {
   incidentId: string;
@@ -65,28 +70,44 @@ export function CorrectClassificationDialog({
   };
 
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ fontWeight: 700 }}>Sửa lớp liên quan</DialogTitle>
-      <DialogContent dividers sx={{ borderColor: '#e2e8f0' }}>
+    <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Sửa lớp liên quan</DialogTitle>
+        </DialogHeader>
         {target && (
-          <Stack spacing={2} sx={{ pt: 1 }}>
-            <Typography variant="body2" color="text.secondary">
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-slate-500">
               Hồ sơ <strong>{target.incidentId}</strong> — lớp hiện tại: <strong>{target.currentClassName || 'Chưa gắn lớp'}</strong>
-            </Typography>
-            <TextField label="Lớp liên quan (VD: 8A2)" value={className} onChange={(e) => setClassName(e.target.value)} fullWidth />
-            <TextField label="Lý do sửa (bắt buộc)" value={reason} onChange={(e) => setReason(e.target.value)} multiline rows={2} fullWidth required />
-            {error && <Alert severity="error">{error}</Alert>}
-          </Stack>
+            </p>
+            <div>
+              <Label htmlFor="correct-class-name" className="mb-1.5 block">
+                Lớp liên quan (VD: 8A2)
+              </Label>
+              <Input id="correct-class-name" value={className} onChange={(e) => setClassName(e.target.value)} />
+            </div>
+            <div>
+              <Label htmlFor="correct-class-reason" className="mb-1.5 block">
+                Lý do sửa (bắt buộc)
+              </Label>
+              <Textarea id="correct-class-reason" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} required />
+            </div>
+            {error && (
+              <Alert className="border-red-200 bg-red-50">
+                <AlertDescription className="text-red-700">{error}</AlertDescription>
+              </Alert>
+            )}
+          </div>
         )}
+        <DialogFooter>
+          <Button variant="ghost" onClick={handleClose} className="text-slate-500">
+            Hủy
+          </Button>
+          <Button disabled={!reason.trim() || submitting} onClick={handleSubmit} className="font-bold">
+            {submitting ? 'Đang lưu...' : 'Lưu thay đổi'}
+          </Button>
+        </DialogFooter>
       </DialogContent>
-      <DialogActions sx={{ p: 2, borderTop: '1px solid #e2e8f0' }}>
-        <Button onClick={handleClose} sx={{ textTransform: 'none', color: '#64748b' }}>
-          Hủy
-        </Button>
-        <Button variant="contained" disabled={!reason.trim() || submitting} onClick={handleSubmit} sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2 }}>
-          {submitting ? 'Đang lưu...' : 'Lưu thay đổi'}
-        </Button>
-      </DialogActions>
     </Dialog>
   );
 }

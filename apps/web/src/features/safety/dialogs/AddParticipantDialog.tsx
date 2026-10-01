@@ -6,9 +6,12 @@
  * `IncidentDetailPage.tsx`) — server cũng tự kiểm tra lại, KHÔNG tin client.
  */
 import { useState } from 'react';
-import { Alert, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Stack, Typography } from '@mui/material';
 import { api } from '../../../services/api';
 import { PersonPicker, type PersonOption } from '../PersonPicker';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 export interface AddParticipantTarget {
   incidentId: string;
@@ -54,61 +57,59 @@ export function AddParticipantDialog({
   };
 
   return (
-    <Dialog open={Boolean(target)} onClose={handleClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ fontWeight: 700 }}>Thêm người cùng xử lý</DialogTitle>
-      <DialogContent dividers sx={{ borderColor: '#e2e8f0' }}>
+    <Dialog open={Boolean(target)} onOpenChange={(v) => !v && handleClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Thêm người cùng xử lý</DialogTitle>
+        </DialogHeader>
         {target && (
-          <Stack spacing={2} sx={{ pt: 1 }}>
-            <Typography variant="body2" color="text.secondary">
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-slate-500">
               Hồ sơ <strong>{target.incidentId}</strong> — người được thêm sẽ xem được toàn bộ hồ sơ và nhận thông báo ngay.
-            </Typography>
+            </p>
             {target.current && target.current.length > 0 && (
-              <Stack spacing={0.75}>
-                <Typography variant="caption" color="text.secondary">
-                  Đang tham gia xử lý hồ sơ này:
-                </Typography>
-                <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }} useFlexGap>
+              <div className="flex flex-col gap-1.5">
+                <p className="text-xs text-slate-500">Đang tham gia xử lý hồ sơ này:</p>
+                <div className="flex flex-wrap gap-1.5">
                   {target.current.map((c) => (
-                    <Chip key={c.perId} label={c.label} size="small" variant="outlined" sx={{ borderColor: '#cbd5e1', color: '#475569' }} />
+                    <Badge key={c.perId} variant="outline" className="border-slate-300 text-slate-600">
+                      {c.label}
+                    </Badge>
                   ))}
-                </Stack>
-              </Stack>
+                </div>
+              </div>
             )}
             {target.suggested && target.suggested.length > 0 && (
-              <Stack spacing={0.75}>
-                <Typography variant="caption" color="text.secondary">
-                  Gợi ý theo lớp/nhóm sự cố này:
-                </Typography>
-                <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }} useFlexGap>
+              <div className="flex flex-col gap-1.5">
+                <p className="text-xs text-slate-500">Gợi ý theo lớp/nhóm sự cố này:</p>
+                <div className="flex flex-wrap gap-1.5">
                   {target.suggested.map((s) => (
-                    <Chip
-                      key={s.perId}
-                      label={s.label}
-                      onClick={() => setPerson({ perId: s.perId, name: s.label })}
-                      sx={{ bgcolor: '#eff6ff', color: '#1d4ed8', fontWeight: 600 }}
-                    />
+                    <button key={s.perId} type="button" onClick={() => setPerson({ perId: s.perId, name: s.label })}>
+                      <Badge variant="outline" className="cursor-pointer border-transparent bg-secondary font-semibold text-[#1d4ed8]">
+                        {s.label}
+                      </Badge>
+                    </button>
                   ))}
-                </Stack>
-              </Stack>
+                </div>
+              </div>
             )}
             <PersonPicker label="Hoặc tìm người tham gia xử lý" value={person} onChange={setPerson} />
-            {error && <Alert severity="error">{error}</Alert>}
-          </Stack>
+            {error && (
+              <Alert className="border-red-200 bg-red-50">
+                <AlertDescription className="text-red-700">{error}</AlertDescription>
+              </Alert>
+            )}
+          </div>
         )}
+        <DialogFooter>
+          <Button variant="ghost" onClick={handleClose} className="text-slate-500">
+            Hủy
+          </Button>
+          <Button disabled={!person || submitting} onClick={handleSubmit} className="font-bold">
+            {submitting ? 'Đang lưu...' : 'Thêm vào hồ sơ'}
+          </Button>
+        </DialogFooter>
       </DialogContent>
-      <DialogActions sx={{ p: 2, borderTop: '1px solid #e2e8f0' }}>
-        <Button onClick={handleClose} sx={{ textTransform: 'none', color: '#64748b' }}>
-          Hủy
-        </Button>
-        <Button
-          variant="contained"
-          disabled={!person || submitting}
-          onClick={handleSubmit}
-          sx={{ bgcolor: '#2563eb', color: '#fff', '&:hover': { bgcolor: '#1d4ed8' }, textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
-        >
-          {submitting ? 'Đang lưu...' : 'Thêm vào hồ sơ'}
-        </Button>
-      </DialogActions>
     </Dialog>
   );
 }

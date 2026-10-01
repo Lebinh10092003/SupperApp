@@ -1,4 +1,4 @@
-import { Chip } from '@mui/material';
+import { Badge } from '@/components/ui/badge';
 
 /**
  * `state` là chuỗi TIẾNG VIỆT NGUYÊN VĂN lưu thật trong DB (không phải mã
@@ -24,10 +24,12 @@ const STATE_COLOR: Record<string, { bg: string; fg: string; border: string }> = 
 export function StatusChip({ state }: { state: string }) {
   const c = STATE_COLOR[state] || { bg: '#f1f5f9', fg: '#334155', border: '#e2e8f0' };
   return (
-    <Chip
-      label={state}
-      size="small"
-      sx={{ bgcolor: c.bg, color: c.fg, border: `1px solid ${c.border}`, fontWeight: 700, fontSize: '0.75rem', height: 24 }}
-    />
+    <Badge
+      variant="outline"
+      className="h-6 border font-bold"
+      style={{ backgroundColor: c.bg, color: c.fg, borderColor: c.border }}
+    >
+      {state}
+    </Badge>
   );
 }

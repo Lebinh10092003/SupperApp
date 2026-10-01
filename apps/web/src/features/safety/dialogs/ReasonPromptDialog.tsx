@@ -5,14 +5,18 @@
  * không tự biết endpoint nào — nơi gọi tự quyết định.
  */
 import { useState } from 'react';
-import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField, Typography } from '@mui/material';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 
 export function ReasonPromptDialog({
   open,
   title,
   description,
   confirmLabel = 'Xác nhận',
-  confirmColor = '#2563eb',
+  confirmVariant = 'default',
   onClose,
   onSubmit
 }: {
@@ -20,7 +24,7 @@ export function ReasonPromptDialog({
   title: string;
   description?: string;
   confirmLabel?: string;
-  confirmColor?: string;
+  confirmVariant?: 'default' | 'destructive';
   onClose: () => void;
   onSubmit: (reason: string) => Promise<void>;
 }) {
@@ -49,32 +53,32 @@ export function ReasonPromptDialog({
   };
 
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ fontWeight: 700 }}>{title}</DialogTitle>
-      <DialogContent dividers sx={{ borderColor: '#e2e8f0' }}>
-        <Stack spacing={2} sx={{ pt: 1 }}>
-          {description && (
-            <Typography variant="body2" color="text.secondary">
-              {description}
-            </Typography>
-          )}
-          <TextField autoFocus label="Lý do (bắt buộc)" value={reason} onChange={(e) => setReason(e.target.value)} multiline rows={3} fullWidth />
-          {error && <Alert severity="error">{error}</Alert>}
-        </Stack>
+    <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+        </DialogHeader>
+        {description && <p className="text-sm text-slate-500">{description}</p>}
+        <div>
+          <Label htmlFor="reason-prompt-input" className="mb-1.5 block">
+            Lý do (bắt buộc)
+          </Label>
+          <Textarea id="reason-prompt-input" autoFocus rows={3} value={reason} onChange={(e) => setReason(e.target.value)} />
+        </div>
+        {error && (
+          <Alert className="border-red-200 bg-red-50">
+            <AlertDescription className="text-red-700">{error}</AlertDescription>
+          </Alert>
+        )}
+        <DialogFooter>
+          <Button variant="ghost" onClick={handleClose} className="text-slate-500">
+            Hủy
+          </Button>
+          <Button variant={confirmVariant} disabled={!reason.trim() || submitting} onClick={handleSubmit} className="font-bold">
+            {submitting ? 'Đang gửi...' : confirmLabel}
+          </Button>
+        </DialogFooter>
       </DialogContent>
-      <DialogActions sx={{ p: 2, borderTop: '1px solid #e2e8f0' }}>
-        <Button onClick={handleClose} sx={{ textTransform: 'none', color: '#64748b' }}>
-          Hủy
-        </Button>
-        <Button
-          variant="contained"
-          disabled={!reason.trim() || submitting}
-          onClick={handleSubmit}
-          sx={{ bgcolor: confirmColor, color: '#fff', '&:hover': { filter: 'brightness(0.92)' }, textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
-        >
-          {submitting ? 'Đang gửi...' : confirmLabel}
-        </Button>
-      </DialogActions>
     </Dialog>
   );
 }

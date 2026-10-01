@@ -1,4 +1,4 @@
-import { Chip } from '@mui/material';
+import { Badge } from '@/components/ui/badge';
 
 // Sin chốt 2026-09-22: chip ĐẶC (solid), chữ trắng, cùng tông đỏ giảm dần
 // độ đậm P0->P3 — KHÔNG còn màu vàng nhạt ở P2 (trước đây đọc nhẹ như bình
@@ -28,10 +28,8 @@ export function PriorityChip({
   const c = priority ? PRIORITY_STYLE[priority] || PRIORITY_STYLE.P3 : UNCLASSIFIED_STYLE;
   const label = compact ? priority || '—' : c.label;
   return (
-    <Chip
-      label={label}
-      size="small"
-      sx={{ bgcolor: c.bg, color: '#fff', fontWeight: 700, fontSize: '0.75rem', height: 24 }}
-    />
+    <Badge className="h-6 border-transparent font-bold text-white" style={{ backgroundColor: c.bg }}>
+      {label}
+    </Badge>
   );
 }
