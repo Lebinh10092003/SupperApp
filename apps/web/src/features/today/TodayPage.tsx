@@ -1,5 +1,5 @@
-import { Box, Chip, Typography } from '@mui/material';
-import VideocamIcon from '@mui/icons-material/VideocamRounded';
+import { Video } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { ApiTablePage } from '../../components/ApiTablePage';
 
 export default function TodayPage() {
@@ -12,21 +12,15 @@ export default function TodayPage() {
           key: 'className',
           label: 'Lớp học',
           render: (val) => (
-            <Chip
-              label={val}
-              size="small"
-              sx={{ bgcolor: '#eff6ff', color: '#1d4ed8', fontWeight: 700 }}
-            />
+            <Badge variant="outline" className="border-transparent bg-secondary font-bold text-[#1d4ed8]">
+              {val}
+            </Badge>
           )
         },
         {
           key: 'subject',
           label: 'Môn học',
-          render: (val) => (
-            <Typography variant="body2" fontWeight={600} sx={{ color: '#2563eb' }}>
-              {val || 'Chưa phân môn'}
-            </Typography>
-          )
+          render: (val) => <span className="text-sm font-semibold text-primary">{val || 'Chưa phân môn'}</span>
         },
         {
           key: 'teacherEmail',
@@ -37,26 +31,17 @@ export default function TodayPage() {
           key: 'onlineStudents',
           label: 'Học sinh Online',
           render: (val) => (
-            <Typography variant="body2" fontWeight={700} sx={{ color: '#10b981' }}>
-              {val !== undefined && val !== null ? `${val} học sinh` : '0 học sinh'}
-            </Typography>
+            <span className="text-sm font-bold text-emerald-500">{val !== undefined && val !== null ? `${val} học sinh` : '0 học sinh'}</span>
           )
         },
         {
           key: 'status',
           label: 'Trạng thái',
-          render: (val) => (
-            <Chip
-              icon={<VideocamIcon sx={{ fontSize: '14px !important' }} />}
-              label="ĐANG LIVE"
-              size="small"
-              sx={{
-                bgcolor: '#fee2e2',
-                color: '#dc2626',
-                fontWeight: 800,
-                boxShadow: '0 0 8px rgba(220, 38, 38, 0.2)'
-              }}
-            />
+          render: () => (
+            <Badge variant="outline" className="gap-1 border-transparent bg-red-100 font-extrabold text-red-600 shadow-[0_0_8px_rgba(220,38,38,0.2)]">
+              <Video className="size-3.5" />
+              ĐANG LIVE
+            </Badge>
           )
         }
       ]}

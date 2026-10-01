@@ -1,38 +1,15 @@
 import { useEffect, useState, useMemo } from 'react';
-import {
-  Button,
-  Card,
-  CardContent,
-  Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  TableContainer,
-  TextField,
-  InputAdornment,
-  Box,
-  Typography,
-  Chip,
-  Alert,
-  Tabs,
-  Tab,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Grid,
-  CircularProgress
-} from '@mui/material';
-import UploadFileIcon from '@mui/icons-material/UploadFileRounded';
-import UndoIcon from '@mui/icons-material/UndoRounded';
-import SearchIcon from '@mui/icons-material/SearchRounded';
-import CalendarMonthIcon from '@mui/icons-material/CalendarMonthRounded';
-import CheckCircleIcon from '@mui/icons-material/CheckCircleRounded';
-import FileDownloadIcon from '@mui/icons-material/FileDownloadRounded';
+import { Upload, Undo2, Search, CalendarDays, CheckCircle2, Download, Loader2 } from 'lucide-react';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { cn } from '@/lib/utils';
 
 export default function SchedulesPage() {
   const [items, setItems] = useState<any[]>([]);
@@ -67,7 +44,7 @@ export default function SchedulesPage() {
         setMsg({ text: 'File CSV không có dữ liệu!', severity: 'error' });
         return;
       }
-      const h = lines[0]!.replace(/^\uFEFF/, '').split(',').map((x) => x.trim());
+      const h = lines[0]!.replace(/^﻿/, '').split(',').map((x) => x.trim());
       const data = lines.slice(1).map((l) =>
         Object.fromEntries(l.split(',').map((v, i) => [h[i], v.trim()]))
       );
@@ -114,7 +91,7 @@ export default function SchedulesPage() {
 
   const downloadSampleTemplate = () => {
     const template = `dayOfWeek,period,startTime,endTime,className,subject,teacherEmail,meetingCode\n2,1,07:30,08:15,9A1,Toán học,giaovien@thcs-giangvo.edu.vn,gv-9a1-mat\n2,2,08:20,09:05,9A1,Ngữ văn,giaovien@thcs-giangvo.edu.vn,gv-9a1-lit\n`;
-    const blob = new Blob(['\uFEFF' + template], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob(['﻿' + template], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -142,184 +119,152 @@ export default function SchedulesPage() {
     <>
       <PageHeader
         title="Thời khóa biểu"
-        icon={<CalendarMonthIcon />}
+        icon={<CalendarDays />}
         action={
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<FileDownloadIcon />}
-              onClick={downloadSampleTemplate}
-              sx={{ bgcolor: '#fff', borderColor: '#cbd5e1', color: '#475569', fontWeight: 600 }}
-            >
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button variant="outline" onClick={downloadSampleTemplate} className="font-semibold">
+              <Download className="size-4" />
               Tải CSV Mẫu
             </Button>
-            <Button
-              component="label"
-              variant="contained"
-              startIcon={<UploadFileIcon />}
-              sx={{ bgcolor: '#2563eb', fontWeight: 700 }}
-            >
-              Import CSV
-              <input
-                type="file"
-                hidden
-                accept=".csv"
-                onChange={(e) => e.target.files?.[0] && parse(e.target.files[0])}
-              />
+            <Button asChild className="relative font-bold">
+              <label>
+                <Upload className="size-4" />
+                Import CSV
+                <input
+                  type="file"
+                  className="absolute inset-0 cursor-pointer opacity-0"
+                  accept=".csv"
+                  onChange={(e) => e.target.files?.[0] && parse(e.target.files[0])}
+                />
+              </label>
             </Button>
             {batch && (
               <Button
-                color="warning"
-                variant="outlined"
-                startIcon={<UndoIcon />}
+                variant="outline"
                 onClick={rollback}
+                className="border-amber-300 font-semibold text-amber-700 hover:bg-amber-50 hover:text-amber-800"
               >
+                <Undo2 className="size-4" />
                 Rollback Import
               </Button>
             )}
-          </Stack>
+          </div>
         }
       />
 
       {msg && (
-        <Alert severity={msg.severity} onClose={() => setMsg(null)} sx={{ mb: 2 }}>
-          {msg.text}
+        <Alert
+          className={cn(
+            'mb-4',
+            msg.severity === 'error'
+              ? 'border-red-200 bg-red-50'
+              : msg.severity === 'success'
+                ? 'border-emerald-200 bg-emerald-50'
+                : 'border-blue-200 bg-secondary'
+          )}
+        >
+          <AlertDescription
+            className={cn(msg.severity === 'error' ? 'text-red-700' : msg.severity === 'success' ? 'text-emerald-700' : 'text-blue-800')}
+          >
+            {msg.text}
+          </AlertDescription>
         </Alert>
       )}
 
       {/* Filter Tabs and Search Bar */}
-      <Card sx={{ mb: 3 }}>
-        <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-          <Grid container spacing={2} alignItems="center">
-            <Grid size={{ xs: 12, md: 8 }}>
-              <Tabs
-                value={dayTab}
-                onChange={(_, v) => setDayTab(v)}
-                variant="scrollable"
-                scrollButtons="auto"
-                sx={{
-                  '& .MuiTab-root': { fontWeight: 700, minWidth: 80, fontSize: '0.875rem' }
-                }}
-              >
-                {dayNames.map((d) => (
-                  <Tab key={d} label={d} />
-                ))}
-              </Tabs>
-            </Grid>
-            <Grid size={{ xs: 12, md: 4 }}>
-              <TextField
-                fullWidth
-                size="small"
-                placeholder="Tìm theo lớp, môn, giáo viên..."
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon fontSize="small" sx={{ color: '#94a3b8' }} />
-                    </InputAdornment>
-                  )
-                }}
-              />
-            </Grid>
-          </Grid>
-        </CardContent>
-      </Card>
+      <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center">
+          <Tabs value={String(dayTab)} onValueChange={(v) => setDayTab(Number(v))} className="overflow-x-auto md:basis-2/3">
+            <TabsList>
+              {dayNames.map((d, i) => (
+                <TabsTrigger key={d} value={String(i)} className="font-bold">
+                  {d}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+          <div className="relative md:basis-1/3">
+            <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
+            <Input placeholder="Tìm theo lớp, môn, giáo viên..." value={q} onChange={(e) => setQ(e.target.value)} className="pl-9" />
+          </div>
+        </div>
+      </div>
 
       {/* Timetable Table */}
-      <Card sx={{ overflow: 'hidden' }}>
-        <TableContainer sx={{ width: '100%', overflowX: 'auto' }}>
-          <Table size="medium">
-            <TableHead>
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
+        <div className="w-full overflow-x-auto">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell sx={{ width: 100 }}>Thứ</TableCell>
-                <TableCell sx={{ width: 100 }}>Tiết</TableCell>
-                <TableCell sx={{ width: 120 }}>Thời gian</TableCell>
-                <TableCell>Lớp học</TableCell>
-                <TableCell>Môn học</TableCell>
-                <TableCell>Giáo viên phụ trách</TableCell>
-                <TableCell>Google Meet Code</TableCell>
+                <TableHead className="w-24">Thứ</TableHead>
+                <TableHead className="w-24">Tiết</TableHead>
+                <TableHead className="w-28">Thời gian</TableHead>
+                <TableHead>Lớp học</TableHead>
+                <TableHead>Môn học</TableHead>
+                <TableHead>Giáo viên phụ trách</TableHead>
+                <TableHead>Google Meet Code</TableHead>
               </TableRow>
-            </TableHead>
+            </TableHeader>
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={7} sx={{ py: 6, textAlign: 'center' }}>
-                    <CircularProgress size={30} />
+                  <TableCell colSpan={7} className="py-12 text-center">
+                    <Loader2 className="mx-auto size-7 animate-spin text-primary" />
                   </TableCell>
                 </TableRow>
               ) : filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} sx={{ py: 8, textAlign: 'center' }}>
-                    <Box sx={{ color: '#94a3b8', fontSize: '2.5rem', mb: 1 }}>📅</Box>
-                    <Typography variant="h6" fontWeight={700} color="#1e293b" sx={{ mb: 0.5 }}>
-                      Chưa có tiết học nào trong thời khóa biểu
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 440, mx: 'auto', mb: 2.5 }}>
+                  <TableCell colSpan={7} className="py-16 text-center">
+                    <p className="mb-1 text-[2.5rem] text-slate-400">📅</p>
+                    <p className="mb-1 text-lg font-bold text-slate-800">Chưa có tiết học nào trong thời khóa biểu</p>
+                    <p className="mx-auto mb-5 max-w-[440px] text-sm text-slate-500">
                       Vui lòng sử dụng chức năng <strong>Import CSV</strong> để tải lịch học của trường lên hệ thống.
-                    </Typography>
-                    <Button
-                      component="label"
-                      variant="contained"
-                      startIcon={<UploadFileIcon />}
-                      sx={{ bgcolor: '#2563eb', fontWeight: 700 }}
-                    >
-                      Tải File CSV Thời Khóa Biểu
-                      <input
-                        type="file"
-                        hidden
-                        accept=".csv"
-                        onChange={(e) => e.target.files?.[0] && parse(e.target.files[0])}
-                      />
+                    </p>
+                    <Button asChild className="relative font-bold">
+                      <label>
+                        <Upload className="size-4" />
+                        Tải File CSV Thời Khóa Biểu
+                        <input
+                          type="file"
+                          className="absolute inset-0 cursor-pointer opacity-0"
+                          accept=".csv"
+                          onChange={(e) => e.target.files?.[0] && parse(e.target.files[0])}
+                        />
+                      </label>
                     </Button>
                   </TableCell>
                 </TableRow>
               ) : (
                 filtered.map((x) => (
-                  <TableRow key={x.id} hover>
+                  <TableRow key={x.id}>
                     <TableCell>
-                      <Chip
-                        label={`Thứ ${x.dayOfWeek}`}
-                        size="small"
-                        sx={{ bgcolor: '#eff6ff', color: '#1d4ed8', fontWeight: 700 }}
-                      />
+                      <Badge variant="outline" className="border-transparent bg-secondary font-bold text-[#1d4ed8]">
+                        Thứ {x.dayOfWeek}
+                      </Badge>
                     </TableCell>
                     <TableCell>
-                      <Chip
-                        label={`Tiết ${x.period}`}
-                        size="small"
-                        sx={{ bgcolor: '#f1f5f9', color: '#334155', fontWeight: 700 }}
-                      />
+                      <Badge variant="outline" className="border-transparent bg-slate-100 font-bold text-slate-700">
+                        Tiết {x.period}
+                      </Badge>
                     </TableCell>
-                    <TableCell sx={{ color: '#64748b', fontSize: '0.8125rem' }}>
-                      {x.startTime && x.endTime ? `${x.startTime} – ${x.endTime}` : (x.startTime || x.endTime || '—')}
+                    <TableCell className="text-[0.8125rem] text-slate-500">
+                      {x.startTime && x.endTime ? `${x.startTime} – ${x.endTime}` : x.startTime || x.endTime || '—'}
                     </TableCell>
                     <TableCell>
-                      <Typography variant="body2" fontWeight={700} sx={{ color: '#0f172a' }}>
-                        {x.className}
-                      </Typography>
+                      <span className="text-sm font-bold text-[#0f172a]">{x.className}</span>
                     </TableCell>
                     <TableCell>
-                      <Typography variant="body2" fontWeight={600} sx={{ color: '#2563eb' }}>
-                        {x.subject}
-                      </Typography>
+                      <span className="text-sm font-semibold text-primary">{x.subject}</span>
                     </TableCell>
-                    <TableCell sx={{ color: '#475569' }}>
-                      {x.teacherEmail}
-                    </TableCell>
+                    <TableCell className="text-slate-600">{x.teacherEmail}</TableCell>
                     <TableCell>
                       {x.meetingCode || x.spaceName ? (
-                        <Chip
-                          icon={<CheckCircleIcon sx={{ fontSize: '14px !important' }} />}
-                          label={x.meetingCode || x.spaceName}
-                          size="small"
-                          sx={{ bgcolor: '#ecfdf5', color: '#059669', fontWeight: 600 }}
-                        />
+                        <Badge variant="outline" className="gap-1 border-transparent bg-emerald-50 font-semibold text-emerald-600">
+                          <CheckCircle2 className="size-3.5" />
+                          {x.meetingCode || x.spaceName}
+                        </Badge>
                       ) : (
-                        <Typography variant="caption" sx={{ color: '#94a3b8' }}>
-                          Chưa cấu hình
-                        </Typography>
+                        <span className="text-xs text-slate-400">Chưa cấu hình</span>
                       )}
                     </TableCell>
                   </TableRow>
@@ -327,46 +272,44 @@ export default function SchedulesPage() {
               )}
             </TableBody>
           </Table>
-        </TableContainer>
-      </Card>
+        </div>
+      </div>
 
       {/* CSV Preview & Confirm Dialog */}
-      <Dialog
-        open={previewOpen}
-        onClose={() => setPreviewOpen(false)}
-        maxWidth="md"
-        fullWidth
-        PaperProps={{ sx: { borderRadius: 3 } }}
-      >
-        <DialogTitle sx={{ fontWeight: 800 }}>
-          Xem trước dữ liệu Thời khóa biểu CSV
-        </DialogTitle>
-        <DialogContent dividers>
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Xem trước dữ liệu Thời khóa biểu CSV</DialogTitle>
+          </DialogHeader>
           {previewData && (
-            <Stack spacing={2}>
-              <Box sx={{ display: 'flex', gap: 2 }}>
-                <Alert severity="success" sx={{ flex: 1 }}>
-                  <strong>{previewData.valid}</strong> dòng hợp lệ
+            <div className="flex flex-col gap-4">
+              <div className="flex gap-3">
+                <Alert className="flex-1 border-emerald-200 bg-emerald-50">
+                  <AlertDescription className="text-emerald-700">
+                    <strong>{previewData.valid}</strong> dòng hợp lệ
+                  </AlertDescription>
                 </Alert>
                 {previewData.invalid > 0 && (
-                  <Alert severity="error" sx={{ flex: 1 }}>
-                    <strong>{previewData.invalid}</strong> dòng lỗi
+                  <Alert className="flex-1 border-red-200 bg-red-50">
+                    <AlertDescription className="text-red-700">
+                      <strong>{previewData.invalid}</strong> dòng lỗi
+                    </AlertDescription>
                   </Alert>
                 )}
-              </Box>
+              </div>
 
-              <Typography variant="subtitle2">Dữ liệu mẫu 5 dòng đầu:</Typography>
-              <TableContainer sx={{ maxHeight: 240 }}>
-                <Table size="small">
-                  <TableHead>
+              <p className="text-sm font-semibold text-[#0f172a]">Dữ liệu mẫu 5 dòng đầu:</p>
+              <div className="max-h-60 overflow-auto rounded-md border border-slate-200">
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell>Thứ</TableCell>
-                      <TableCell>Tiết</TableCell>
-                      <TableCell>Lớp</TableCell>
-                      <TableCell>Môn</TableCell>
-                      <TableCell>Giáo viên</TableCell>
+                      <TableHead>Thứ</TableHead>
+                      <TableHead>Tiết</TableHead>
+                      <TableHead>Lớp</TableHead>
+                      <TableHead>Môn</TableHead>
+                      <TableHead>Giáo viên</TableHead>
                     </TableRow>
-                  </TableHead>
+                  </TableHeader>
                   <TableBody>
                     {(previewData.sample || []).slice(0, 5).map((s: any, i: number) => (
                       <TableRow key={i}>
@@ -379,16 +322,16 @@ export default function SchedulesPage() {
                     ))}
                   </TableBody>
                 </Table>
-              </TableContainer>
-            </Stack>
+              </div>
+            </div>
           )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPreviewOpen(false)}>
+              Hủy
+            </Button>
+            <Button onClick={imp}>Xác nhận Import vào hệ thống</Button>
+          </DialogFooter>
         </DialogContent>
-        <DialogActions sx={{ p: 2.5 }}>
-          <Button onClick={() => setPreviewOpen(false)}>Hủy</Button>
-          <Button variant="contained" onClick={imp} sx={{ bgcolor: '#2563eb' }}>
-            Xác nhận Import vào hệ thống
-          </Button>
-        </DialogActions>
       </Dialog>
     </>
   );

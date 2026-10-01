@@ -1,5 +1,5 @@
-import { Box, Chip, Typography } from '@mui/material';
-import FactCheckIcon from '@mui/icons-material/FactCheckRounded';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import { ApiTablePage } from '../../components/ApiTablePage';
 
 export default function AttendancePage() {
@@ -17,38 +17,28 @@ export default function AttendancePage() {
           key: 'className',
           label: 'Lớp',
           render: (val) => (
-            <Chip
-              label={val || '—'}
-              size="small"
-              sx={{ bgcolor: '#eff6ff', color: '#1d4ed8', fontWeight: 700 }}
-            />
+            <Badge variant="outline" className="border-transparent bg-secondary font-bold text-[#1d4ed8]">
+              {val || '—'}
+            </Badge>
           )
         },
         {
           key: 'present',
           label: 'Có mặt',
-          render: (val) => (
-            <Typography variant="body2" fontWeight={700} sx={{ color: '#16a34a' }}>
-              {val ?? 0} HS
-            </Typography>
-          )
+          render: (val) => <span className="text-sm font-bold text-green-600">{val ?? 0} HS</span>
         },
         {
           key: 'late',
           label: 'Đi muộn',
           render: (val) => (
-            <Typography variant="body2" fontWeight={600} sx={{ color: Number(val) > 0 ? '#d97706' : '#64748b' }}>
-              {val ?? 0} HS
-            </Typography>
+            <span className={cn('text-sm font-semibold', Number(val) > 0 ? 'text-amber-600' : 'text-slate-500')}>{val ?? 0} HS</span>
           )
         },
         {
           key: 'absent',
           label: 'Vắng mặt',
           render: (val) => (
-            <Typography variant="body2" fontWeight={700} sx={{ color: Number(val) > 0 ? '#dc2626' : '#64748b' }}>
-              {val ?? 0} HS
-            </Typography>
+            <span className={cn('text-sm font-bold', Number(val) > 0 ? 'text-red-600' : 'text-slate-500')}>{val ?? 0} HS</span>
           )
         },
         {
@@ -56,19 +46,16 @@ export default function AttendancePage() {
           label: 'Tỷ lệ Chuyên cần',
           render: (val) => {
             if (val === undefined || val === null) {
-              return <Typography variant="caption" color="text.secondary">—</Typography>;
+              return <span className="text-xs text-slate-500">—</span>;
             }
             const num = Number(val);
             return (
-              <Chip
-                label={`${num}%`}
-                size="small"
-                sx={{
-                  bgcolor: num >= 95 ? '#ecfdf5' : '#fffbeb',
-                  color: num >= 95 ? '#059669' : '#d97706',
-                  fontWeight: 800
-                }}
-              />
+              <Badge
+                variant="outline"
+                className={cn('border-transparent font-extrabold', num >= 95 ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600')}
+              >
+                {num}%
+              </Badge>
             );
           }
         }

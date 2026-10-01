@@ -1,48 +1,33 @@
 import { useEffect, useState, useMemo } from 'react';
-import {
-  Box,
-  Button,
-  Card,
-  Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  IconButton,
-  InputAdornment,
-  Pagination,
-  Skeleton,
-  Snackbar,
-  Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TextField,
-  Tooltip,
-  Typography,
-  Alert,
-  CircularProgress,
-  Grid
-} from '@mui/material';
-import HistoryIcon from '@mui/icons-material/HistoryRounded';
-import VisibilityIcon from '@mui/icons-material/VisibilityRounded';
-import DeleteSweepIcon from '@mui/icons-material/DeleteSweepRounded';
-import RefreshIcon from '@mui/icons-material/RefreshRounded';
-import SearchIcon from '@mui/icons-material/SearchRounded';
-import CloudDoneIcon from '@mui/icons-material/CloudDoneRounded';
-import CloudSyncIcon from '@mui/icons-material/CloudSyncRounded';
-import WarningAmberIcon from '@mui/icons-material/WarningAmberRounded';
-import SchoolIcon from '@mui/icons-material/SchoolRounded';
-import GroupIcon from '@mui/icons-material/GroupRounded';
-import MenuBookIcon from '@mui/icons-material/MenuBookRounded';
-import AssignmentIcon from '@mui/icons-material/AssignmentRounded';
-import ArrowForwardIcon from '@mui/icons-material/ArrowForwardRounded';
 import { useNavigate } from 'react-router-dom';
+import {
+  History,
+  Eye,
+  ListX,
+  RefreshCw,
+  Search,
+  CloudCheck,
+  RotateCw,
+  TriangleAlert,
+  GraduationCap,
+  Users,
+  BookOpen,
+  ClipboardList,
+  ArrowRight,
+  Loader2
+} from 'lucide-react';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
+import { Toast, type ToastState } from '../../components/Toast';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
 
 export interface SyncRunItem {
   id: string;
@@ -74,6 +59,20 @@ export interface CourseDetailItem {
   lastSyncAt?: string | null;
 }
 
+const STATUS_STYLE: Record<string, string> = {
+  COMPLETED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  IN_PROGRESS: 'bg-secondary text-blue-700 border-blue-200',
+  PARTIAL: 'bg-amber-50 text-amber-700 border-amber-200',
+  FAILED: 'bg-red-50 text-red-700 border-red-200'
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  COMPLETED: 'Hoàn thành',
+  IN_PROGRESS: 'Đang đồng bộ',
+  PARTIAL: 'Một phần lỗi',
+  FAILED: 'Thất bại'
+};
+
 export default function SyncRunsPage() {
   const navigate = useNavigate();
   const [runs, setRuns] = useState<SyncRunItem[]>([]);
@@ -95,7 +94,7 @@ export default function SyncRunsPage() {
   const [rollbackError, setRollbackError] = useState('');
 
   // Toast
-  const [toast, setToast] = useState<{ message: string; severity: 'success' | 'error' | 'info' } | null>(null);
+  const [toast, setToast] = useState<ToastState | null>(null);
 
   const loadSyncRuns = async () => {
     setLoading(true);
@@ -196,53 +195,14 @@ export default function SyncRunsPage() {
     }
   };
 
-  const getStatusChip = (status: string) => {
-    switch (status) {
-      case 'COMPLETED':
-        return (
-          <Chip
-            icon={<CloudDoneIcon sx={{ fontSize: '14px !important' }} />}
-            label="Hoàn thành"
-            size="small"
-            sx={{ bgcolor: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', fontWeight: 700, borderRadius: 1.5 }}
-          />
-        );
-      case 'IN_PROGRESS':
-        return (
-          <Chip
-            icon={<CloudSyncIcon sx={{ fontSize: '14px !important' }} />}
-            label="Đang đồng bộ"
-            size="small"
-            sx={{ bgcolor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', fontWeight: 700, borderRadius: 1.5 }}
-          />
-        );
-      case 'PARTIAL':
-        return (
-          <Chip
-            icon={<WarningAmberIcon sx={{ fontSize: '14px !important' }} />}
-            label="Một phần lỗi"
-            size="small"
-            sx={{ bgcolor: '#fffbeb', color: '#b45309', border: '1px solid #fde68a', fontWeight: 700, borderRadius: 1.5 }}
-          />
-        );
-      case 'FAILED':
-        return (
-          <Chip
-            label="Thất bại"
-            size="small"
-            sx={{ bgcolor: '#fef2f2', color: '#b91c1c', border: '1px solid #fecaca', fontWeight: 700, borderRadius: 1.5 }}
-          />
-        );
-      default:
-        return (
-          <Chip
-            label={status}
-            size="small"
-            sx={{ bgcolor: '#f1f5f9', color: '#475569', fontWeight: 600, borderRadius: 1.5 }}
-          />
-        );
-    }
-  };
+  const getStatusBadge = (status: string) => (
+    <Badge variant="outline" className={cn('gap-1 font-bold', STATUS_STYLE[status] || 'bg-slate-100 text-slate-600 border-slate-200')}>
+      {status === 'COMPLETED' && <CloudCheck className="size-3.5" />}
+      {status === 'IN_PROGRESS' && <RotateCw className="size-3.5" />}
+      {status === 'PARTIAL' && <TriangleAlert className="size-3.5" />}
+      {STATUS_LABEL[status] || status}
+    </Badge>
+  );
 
   // KPIs
   const totalSyncs = runs.length;
@@ -250,159 +210,103 @@ export default function SyncRunsPage() {
   const latestRun = runs[0];
 
   return (
-    <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1440, mx: 'auto' }}>
+    <div className="mx-auto max-w-[1440px] p-4 md:p-6">
       <PageHeader
         title="Quản lý Phiên Đồng bộ Google Classroom"
         subtitle="Lịch sử các phiên đồng bộ dữ liệu từ Google Classroom, xem chi tiết khoá học theo phiên và hỗ trợ rollback dữ liệu an toàn."
         action={
-          <Stack direction="row" spacing={1.5}>
-            <Tooltip title="Làm mới danh sách">
-              <IconButton onClick={loadSyncRuns} sx={{ bgcolor: '#fff', border: '1px solid #e2e8f0' }} size="small">
-                <RefreshIcon fontSize="small" />
-              </IconButton>
+          <div className="flex items-center gap-2.5">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="icon" onClick={loadSyncRuns}>
+                  <RefreshCw className="size-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Làm mới danh sách</TooltipContent>
             </Tooltip>
-            <Button
-              variant="outlined"
-              onClick={() => navigate('/classroom')}
-              sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 600, color: '#334155', borderColor: '#cbd5e1' }}
-            >
+            <Button variant="outline" onClick={() => navigate('/classroom')} className="font-semibold">
               Xem Khoá học
             </Button>
-            <Button
-              variant="contained"
-              onClick={() => navigate('/connections')}
-              startIcon={<CloudSyncIcon />}
-              sx={{
-                bgcolor: '#2563eb',
-                '&:hover': { bgcolor: '#1d4ed8' },
-                textTransform: 'none',
-                borderRadius: 2,
-                fontWeight: 600,
-                px: 2.5
-              }}
-            >
+            <Button onClick={() => navigate('/connections')} className="font-semibold">
+              <RotateCw className="size-4" />
               Đồng bộ dữ liệu
             </Button>
-          </Stack>
+          </div>
         }
       />
 
       {/* Thống kê nhanh KPI */}
-      <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <Card sx={{ p: 2.5, borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
-            <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}>
-              Tổng phiên đồng bộ
-            </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: '#0f172a', mt: 0.5 }}>
-              {totalSyncs}
-            </Typography>
-            <Typography variant="body2" sx={{ color: '#94a3b8', mt: 0.5 }}>
-              Lần quét & import từ trước tới nay
-            </Typography>
-          </Card>
-        </Grid>
+      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
+          <p className="text-xs font-semibold text-slate-500 uppercase">Tổng phiên đồng bộ</p>
+          <p className="mt-1 text-3xl font-extrabold text-[#0f172a]">{totalSyncs}</p>
+          <p className="mt-1 text-sm text-slate-400">Lần quét & import từ trước tới nay</p>
+        </div>
 
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <Card sx={{ p: 2.5, borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
-            <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}>
-              Khoá học đang lưu vết
-            </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: '#2563eb', mt: 0.5 }}>
-              {activeCoursesFromSync}
-            </Typography>
-            <Typography variant="body2" sx={{ color: '#94a3b8', mt: 0.5 }}>
-              Thuộc các phiên đồng bộ hiện hành
-            </Typography>
-          </Card>
-        </Grid>
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
+          <p className="text-xs font-semibold text-slate-500 uppercase">Khoá học đang lưu vết</p>
+          <p className="mt-1 text-3xl font-extrabold text-primary">{activeCoursesFromSync}</p>
+          <p className="mt-1 text-sm text-slate-400">Thuộc các phiên đồng bộ hiện hành</p>
+        </div>
 
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <Card sx={{ p: 2.5, borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
-            <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}>
-              Phiên gần nhất
-            </Typography>
-            <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#0f172a', mt: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {latestRun ? formatDate(latestRun.startedAt) : 'Chưa có'}
-            </Typography>
-            <Typography variant="body2" sx={{ color: '#64748b', mt: 0.5 }}>
-              {latestRun?.performedBy || 'Chưa thực hiện'}
-            </Typography>
-          </Card>
-        </Grid>
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
+          <p className="text-xs font-semibold text-slate-500 uppercase">Phiên gần nhất</p>
+          <p className="mt-2 overflow-hidden text-sm font-bold text-nowrap text-ellipsis text-[#0f172a]">
+            {latestRun ? formatDate(latestRun.startedAt) : 'Chưa có'}
+          </p>
+          <p className="mt-1 text-sm text-slate-500">{latestRun?.performedBy || 'Chưa thực hiện'}</p>
+        </div>
 
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <Card sx={{ p: 2.5, borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
-            <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}>
-              Trạng thái gần nhất
-            </Typography>
-            <Box sx={{ mt: 1 }}>{latestRun ? getStatusChip(latestRun.status) : '—'}</Box>
-            <Typography variant="body2" sx={{ color: '#94a3b8', mt: 1 }}>
-              {latestRun ? `${latestRun.coursesSuccess}/${latestRun.coursesTotal} khoá thành công` : 'Sẵn sàng'}
-            </Typography>
-          </Card>
-        </Grid>
-      </Grid>
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
+          <p className="text-xs font-semibold text-slate-500 uppercase">Trạng thái gần nhất</p>
+          <div className="mt-2">{latestRun ? getStatusBadge(latestRun.status) : '—'}</div>
+          <p className="mt-2 text-sm text-slate-400">
+            {latestRun ? `${latestRun.coursesSuccess}/${latestRun.coursesTotal} khoá thành công` : 'Sẵn sàng'}
+          </p>
+        </div>
+      </div>
 
       {/* Tìm kiếm */}
-      <Card sx={{ p: 2, mb: 3, borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-        <TextField
-          size="small"
-          placeholder="Tìm theo mã phiên, người thực hiện hoặc trạng thái..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon sx={{ color: '#94a3b8', fontSize: 20 }} />
-              </InputAdornment>
-            )
-          }}
-          sx={{ maxWidth: 450, width: '100%' }}
-        />
-      </Card>
+      <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+        <div className="relative max-w-[450px]">
+          <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
+          <Input placeholder="Tìm theo mã phiên, người thực hiện hoặc trạng thái..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+        </div>
+      </div>
 
       {/* Bảng danh sách phiên đồng bộ */}
-      <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
-        <TableContainer>
-          <Table sx={{ minWidth: 800 }}>
-            <TableHead sx={{ bgcolor: '#f8fafc' }}>
-              <TableRow>
-                <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.85rem' }}>Mã Phiên Đồng bộ</TableCell>
-                <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.85rem' }}>Thời gian thực hiện</TableCell>
-                <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.85rem' }}>Người thực hiện</TableCell>
-                <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.85rem' }}>Khoá học của phiên</TableCell>
-                <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.85rem' }}>Trạng thái</TableCell>
-                <TableCell align="right" sx={{ fontWeight: 700, color: '#475569', fontSize: '0.85rem' }}>Thao tác</TableCell>
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+        <div className="w-full overflow-x-auto">
+          <Table className="min-w-[800px]">
+            <TableHeader className="bg-slate-50">
+              <TableRow className="hover:bg-slate-50">
+                <TableHead className="text-[0.85rem] font-bold text-slate-600">Mã Phiên Đồng bộ</TableHead>
+                <TableHead className="text-[0.85rem] font-bold text-slate-600">Thời gian thực hiện</TableHead>
+                <TableHead className="text-[0.85rem] font-bold text-slate-600">Người thực hiện</TableHead>
+                <TableHead className="text-[0.85rem] font-bold text-slate-600">Khoá học của phiên</TableHead>
+                <TableHead className="text-[0.85rem] font-bold text-slate-600">Trạng thái</TableHead>
+                <TableHead className="text-right text-[0.85rem] font-bold text-slate-600">Thao tác</TableHead>
               </TableRow>
-            </TableHead>
+            </TableHeader>
             <TableBody>
               {loading ? (
                 Array.from({ length: 4 }).map((_, idx) => (
                   <TableRow key={idx}>
-                    <TableCell colSpan={6} sx={{ py: 2 }}>
-                      <Skeleton variant="text" width="100%" height={28} />
+                    <TableCell colSpan={6} className="py-4">
+                      <Skeleton className="h-7 w-full" />
                     </TableCell>
                   </TableRow>
                 ))
               ) : pagedRuns.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} sx={{ py: 6, textAlign: 'center' }}>
-                    <Box sx={{ display: 'inline-flex', p: 2, borderRadius: '50%', bgcolor: '#f1f5f9', mb: 1.5 }}>
-                      <HistoryIcon sx={{ fontSize: 36, color: '#94a3b8' }} />
-                    </Box>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#334155' }}>
-                      Chưa có phiên đồng bộ nào
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: '#64748b', mt: 0.5, mb: 2 }}>
-                      Thực hiện đồng bộ dữ liệu từ Google Classroom để xem lịch sử tại đây.
-                    </Typography>
-                    <Button
-                      variant="outlined"
-                      startIcon={<CloudSyncIcon />}
-                      onClick={() => navigate('/connections')}
-                      sx={{ textTransform: 'none', borderRadius: 2 }}
-                    >
+                  <TableCell colSpan={6} className="py-12 text-center">
+                    <div className="mb-3 inline-flex rounded-full bg-slate-100 p-4">
+                      <History className="size-9 text-slate-400" />
+                    </div>
+                    <p className="font-semibold text-slate-700">Chưa có phiên đồng bộ nào</p>
+                    <p className="mt-1 mb-4 text-sm text-slate-500">Thực hiện đồng bộ dữ liệu từ Google Classroom để xem lịch sử tại đây.</p>
+                    <Button variant="outline" onClick={() => navigate('/connections')}>
+                      <RotateCw className="size-4" />
                       Đi tới Kết nối & Đồng bộ
                     </Button>
                   </TableCell>
@@ -411,105 +315,57 @@ export default function SyncRunsPage() {
                 pagedRuns.map((run) => {
                   const hasActiveCourses = run.coursesCount > 0;
                   return (
-                    <TableRow key={run.id} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                    <TableRow key={run.id}>
                       {/* Mã phiên */}
                       <TableCell>
-                        <Stack direction="row" spacing={1.5} alignItems="center">
-                          <Box
-                            sx={{
-                              width: 36,
-                              height: 36,
-                              borderRadius: 2,
-                              bgcolor: '#eff6ff',
-                              color: '#2563eb',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center'
-                            }}
-                          >
-                            <HistoryIcon fontSize="small" />
-                          </Box>
-                          <Box>
-                            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#0f172a' }}>
-                              {run.id}
-                            </Typography>
-                            <Typography variant="caption" sx={{ color: '#64748b' }}>
-                              Loại: {run.type}
-                            </Typography>
-                          </Box>
-                        </Stack>
+                        <div className="flex items-center gap-2.5">
+                          <div className="grid size-9 place-items-center rounded-lg bg-secondary text-primary">
+                            <History className="size-4" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-[#0f172a]">{run.id}</p>
+                            <p className="text-xs text-slate-500">Loại: {run.type}</p>
+                          </div>
+                        </div>
                       </TableCell>
 
                       {/* Thời gian */}
                       <TableCell>
-                        <Typography variant="body2" sx={{ fontWeight: 600, color: '#1e293b' }}>
-                          Bắt đầu: {formatDate(run.startedAt)}
-                        </Typography>
-                        {run.finishedAt && (
-                          <Typography variant="caption" sx={{ color: '#64748b', display: 'block' }}>
-                            Xong: {formatDate(run.finishedAt)}
-                          </Typography>
-                        )}
+                        <p className="text-sm font-semibold text-slate-800">Bắt đầu: {formatDate(run.startedAt)}</p>
+                        {run.finishedAt && <p className="text-xs text-slate-500">Xong: {formatDate(run.finishedAt)}</p>}
                       </TableCell>
 
                       {/* Người thực hiện */}
                       <TableCell>
-                        <Typography variant="body2" sx={{ fontWeight: 600, color: '#1e293b' }}>
-                          {run.performedBy || 'Hệ thống'}
-                        </Typography>
+                        <p className="text-sm font-semibold text-slate-800">{run.performedBy || 'Hệ thống'}</p>
                       </TableCell>
 
                       {/* Số khoá học */}
                       <TableCell>
-                        <Stack direction="row" spacing={1} alignItems="center">
-                          <MenuBookIcon sx={{ fontSize: 16, color: '#64748b' }} />
-                          <Typography variant="body2" sx={{ fontWeight: 700, color: hasActiveCourses ? '#2563eb' : '#64748b' }}>
+                        <div className="flex items-center gap-1.5">
+                          <BookOpen className="size-4 text-slate-500" />
+                          <span className={cn('text-sm font-bold', hasActiveCourses ? 'text-primary' : 'text-slate-500')}>
                             {run.coursesCount} khoá học
-                          </Typography>
-                          <Typography variant="caption" sx={{ color: '#94a3b8' }}>
-                            (Quét: {run.coursesTotal})
-                          </Typography>
-                        </Stack>
+                          </span>
+                          <span className="text-xs text-slate-400">(Quét: {run.coursesTotal})</span>
+                        </div>
                       </TableCell>
 
                       {/* Trạng thái */}
-                      <TableCell>{getStatusChip(run.status)}</TableCell>
+                      <TableCell>{getStatusBadge(run.status)}</TableCell>
 
                       {/* Thao tác */}
-                      <TableCell align="right">
-                        <Stack direction="row" spacing={1} justifyContent="flex-end">
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            startIcon={<VisibilityIcon />}
-                            onClick={() => handleViewCourses(run)}
-                            disabled={!hasActiveCourses}
-                            sx={{
-                              textTransform: 'none',
-                              borderRadius: 1.5,
-                              borderColor: '#e2e8f0',
-                              color: '#334155',
-                              '&:hover': { bgcolor: '#f8fafc', borderColor: '#cbd5e1' }
-                            }}
-                          >
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1.5">
+                          <Button size="sm" variant="outline" onClick={() => handleViewCourses(run)} disabled={!hasActiveCourses}>
+                            <Eye className="size-4" />
                             Xem khoá học
                           </Button>
-                          <Button
-                            size="small"
-                            variant="contained"
-                            color="error"
-                            startIcon={<DeleteSweepIcon />}
-                            onClick={() => handleOpenRollback(run)}
-                            sx={{
-                              textTransform: 'none',
-                              borderRadius: 1.5,
-                              boxShadow: 'none',
-                              '&:hover': { bgcolor: '#dc2626' }
-                            }}
-                          >
+                          <Button size="sm" variant="destructive" onClick={() => handleOpenRollback(run)}>
+                            <ListX className="size-4" />
                             Rollback
                           </Button>
-                        </Stack>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
@@ -517,182 +373,145 @@ export default function SyncRunsPage() {
               )}
             </TableBody>
           </Table>
-        </TableContainer>
+        </div>
 
         {filteredRuns.length > rowsPerPage && (
-          <Box sx={{ p: 2, display: 'flex', justifyContent: 'center', borderTop: '1px solid #e2e8f0' }}>
-            <Pagination
-              count={totalPages}
-              page={page}
-              onChange={(_, val) => setPage(val)}
-              color="primary"
-              shape="rounded"
-            />
-          </Box>
+          <div className="flex items-center justify-center gap-3 border-t border-slate-200 p-3 text-sm text-slate-500">
+            <Button variant="ghost" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+              Trước
+            </Button>
+            <span>
+              Trang {page}/{totalPages}
+            </span>
+            <Button variant="ghost" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>
+              Sau
+            </Button>
+          </div>
         )}
-      </Card>
+      </div>
 
       {/* DIALOG: Danh sách khoá học thuộc phiên */}
-      <Dialog open={openCoursesDialog} onClose={() => setOpenCoursesDialog(false)} maxWidth="md" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700, color: '#0f172a' }}>
-          Khoá học thuộc phiên {selectedRun?.id}
-        </DialogTitle>
-        <DialogContent dividers sx={{ p: 0 }}>
+      <Dialog open={openCoursesDialog} onOpenChange={setOpenCoursesDialog}>
+        <DialogContent className="sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Khoá học thuộc phiên {selectedRun?.id}</DialogTitle>
+          </DialogHeader>
           {loadingCourses ? (
-            <Box sx={{ p: 4, textAlign: 'center' }}>
-              <CircularProgress size={32} />
-              <Typography variant="body2" sx={{ color: '#64748b', mt: 1 }}>
-                Đang tải danh sách khoá học...
-              </Typography>
-            </Box>
+            <div className="py-8 text-center">
+              <Loader2 className="mx-auto size-8 animate-spin text-primary" />
+              <p className="mt-2 text-sm text-slate-500">Đang tải danh sách khoá học...</p>
+            </div>
           ) : coursesInRun.length === 0 ? (
-            <Box sx={{ p: 4, textAlign: 'center' }}>
-              <Typography variant="body2" sx={{ color: '#64748b' }}>
-                Không có khoá học nào thuộc phiên này (hoặc đã bị rollback).
-              </Typography>
-            </Box>
+            <div className="py-8 text-center">
+              <p className="text-sm text-slate-500">Không có khoá học nào thuộc phiên này (hoặc đã bị rollback).</p>
+            </div>
           ) : (
-            <TableContainer sx={{ maxHeight: 440 }}>
-              <Table size="small" stickyHeader>
-                <TableHead>
-                  <TableRow>
-                    <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>Tên Khoá học</TableCell>
-                    <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>Lớp & Khối</TableCell>
-                    <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>Môn học</TableCell>
-                    <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>Sĩ số / GV</TableCell>
-                    <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>Bài tập</TableCell>
+            <div className="max-h-[440px] overflow-auto rounded-md border border-slate-200">
+              <Table>
+                <TableHeader className="bg-slate-50">
+                  <TableRow className="hover:bg-slate-50">
+                    <TableHead className="font-bold">Tên Khoá học</TableHead>
+                    <TableHead className="font-bold">Lớp & Khối</TableHead>
+                    <TableHead className="font-bold">Môn học</TableHead>
+                    <TableHead className="font-bold">Sĩ số / GV</TableHead>
+                    <TableHead className="font-bold">Bài tập</TableHead>
                   </TableRow>
-                </TableHead>
+                </TableHeader>
                 <TableBody>
                   {coursesInRun.map((course) => (
-                    <TableRow key={course.id} hover>
+                    <TableRow key={course.id}>
                       <TableCell>
-                        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#0f172a' }}>
-                          {course.name}
-                        </Typography>
-                        <Typography variant="caption" sx={{ color: '#64748b' }}>
+                        <p className="text-sm font-bold text-[#0f172a]">{course.name}</p>
+                        <p className="text-xs text-slate-500">
                           ID: {course.id} {course.room ? `• Phòng: ${course.room}` : ''}
-                        </Typography>
+                        </p>
                       </TableCell>
                       <TableCell>
                         {course.className ? (
-                          <Chip
-                            icon={<SchoolIcon sx={{ fontSize: '14px !important' }} />}
-                            label={course.className}
-                            size="small"
-                            sx={{ bgcolor: '#eff6ff', color: '#1d4ed8', fontWeight: 600, borderRadius: 1.5 }}
-                          />
+                          <Badge variant="outline" className="gap-1 border-transparent bg-secondary font-semibold text-[#1d4ed8]">
+                            <GraduationCap className="size-3.5" />
+                            {course.className}
+                          </Badge>
                         ) : (
-                          <Typography variant="caption" sx={{ color: '#94a3b8' }}>
-                            Chưa phân lớp
-                          </Typography>
+                          <span className="text-xs text-slate-400">Chưa phân lớp</span>
                         )}
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2" sx={{ color: '#334155' }}>
-                          {course.subjectName || 'Chưa phân môn'}
-                        </Typography>
+                        <span className="text-sm text-slate-700">{course.subjectName || 'Chưa phân môn'}</span>
                       </TableCell>
                       <TableCell>
-                        <Stack direction="row" spacing={0.5} alignItems="center">
-                          <GroupIcon sx={{ fontSize: 15, color: '#64748b' }} />
-                          <Typography variant="body2" sx={{ fontWeight: 600, color: '#1e293b' }}>
-                            {course.rosterStudents || 0} HS
-                          </Typography>
-                        </Stack>
-                        <Typography variant="caption" sx={{ color: '#64748b' }}>
-                          {course.rosterTeachers || 0} giáo viên
-                        </Typography>
+                        <div className="flex items-center gap-1">
+                          <Users className="size-3.5 text-slate-500" />
+                          <span className="text-sm font-semibold text-slate-800">{course.rosterStudents || 0} HS</span>
+                        </div>
+                        <p className="text-xs text-slate-500">{course.rosterTeachers || 0} giáo viên</p>
                       </TableCell>
                       <TableCell>
-                        <Stack direction="row" spacing={0.5} alignItems="center">
-                          <AssignmentIcon sx={{ fontSize: 15, color: '#64748b' }} />
-                          <Typography variant="body2" sx={{ color: '#1e293b' }}>
-                            {course.contentCoursework || 0} bài tập
-                          </Typography>
-                        </Stack>
+                        <div className="flex items-center gap-1">
+                          <ClipboardList className="size-3.5 text-slate-500" />
+                          <span className="text-sm text-slate-800">{course.contentCoursework || 0} bài tập</span>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
-            </TableContainer>
+            </div>
           )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenCoursesDialog(false)}>
+              Đóng
+            </Button>
+            <Button
+              onClick={() => {
+                setOpenCoursesDialog(false);
+                navigate('/classroom');
+              }}
+            >
+              Quản lý Khoá học
+              <ArrowRight className="size-4" />
+            </Button>
+          </DialogFooter>
         </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={() => setOpenCoursesDialog(false)} sx={{ textTransform: 'none' }}>
-            Đóng
-          </Button>
-          <Button
-            variant="contained"
-            endIcon={<ArrowForwardIcon />}
-            onClick={() => {
-              setOpenCoursesDialog(false);
-              navigate('/classroom');
-            }}
-            sx={{ textTransform: 'none', bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
-          >
-            Quản lý Khoá học
-          </Button>
-        </DialogActions>
       </Dialog>
 
       {/* DIALOG: Xác nhận Rollback phiên */}
-      <Dialog open={openRollbackDialog} onClose={() => !rollbackSubmitting && setOpenRollbackDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700, color: '#dc2626', display: 'flex', alignItems: 'center', gap: 1 }}>
-          <WarningAmberIcon color="error" />
-          Xác nhận Rollback phiên {rollbackRun?.id}
-        </DialogTitle>
-        <DialogContent dividers>
+      <Dialog open={openRollbackDialog} onOpenChange={(open) => !open && !rollbackSubmitting && setOpenRollbackDialog(false)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <TriangleAlert className="size-5" />
+              Xác nhận Rollback phiên {rollbackRun?.id}
+            </DialogTitle>
+          </DialogHeader>
           {rollbackError && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {rollbackError}
+            <Alert className="border-red-200 bg-red-50">
+              <AlertDescription className="text-red-700">{rollbackError}</AlertDescription>
             </Alert>
           )}
-          <Typography variant="body1" sx={{ color: '#0f172a', fontWeight: 600, mb: 1 }}>
-            Bạn có chắc chắn muốn rollback toàn bộ dữ liệu của phiên đồng bộ này?
-          </Typography>
-          <Typography variant="body2" sx={{ color: '#475569', mb: 2 }}>
-            Hành động này sẽ thực hiện các thao tác sau:
-          </Typography>
-          <Box component="ul" sx={{ pl: 2.5, m: 0, color: '#475569', fontSize: '0.875rem', '& li': { mb: 0.5 } }}>
+          <p className="font-semibold text-[#0f172a]">Bạn có chắc chắn muốn rollback toàn bộ dữ liệu của phiên đồng bộ này?</p>
+          <p className="text-sm text-slate-600">Hành động này sẽ thực hiện các thao tác sau:</p>
+          <ul className="list-disc space-y-1 pl-5 text-sm text-slate-600">
             <li>
               Xoá toàn bộ <strong>{rollbackRun?.coursesCount || 0} khoá học</strong> được import trong phiên này.
             </li>
             <li>Xoá dữ liệu con cascade: bài tập, tài liệu, thông báo, bài nộp, thành viên của các khoá học.</li>
             <li>Tự động tổng hợp và tính toán lại danh sách lớp học và các chỉ số thống kê trường học.</li>
             <li>Lớp học tạo thủ công và thời khoá biểu đã xếp sẽ được bảo toàn nguyên vẹn.</li>
-          </Box>
+          </ul>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenRollbackDialog(false)} disabled={rollbackSubmitting}>
+              Huỷ bỏ
+            </Button>
+            <Button variant="destructive" onClick={handleRollbackSubmit} disabled={rollbackSubmitting}>
+              {rollbackSubmitting && <Loader2 className="size-4 animate-spin" />}
+              {rollbackSubmitting ? 'Đang xử lý...' : 'Xác nhận Rollback'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={() => setOpenRollbackDialog(false)} disabled={rollbackSubmitting} sx={{ textTransform: 'none' }}>
-            Huỷ bỏ
-          </Button>
-          <Button
-            variant="contained"
-            color="error"
-            onClick={handleRollbackSubmit}
-            disabled={rollbackSubmitting}
-            sx={{ textTransform: 'none', px: 2.5 }}
-          >
-            {rollbackSubmitting ? <CircularProgress size={22} color="inherit" /> : 'Xác nhận Rollback'}
-          </Button>
-        </DialogActions>
       </Dialog>
 
-      {/* Toast */}
-      <Snackbar
-        open={Boolean(toast)}
-        autoHideDuration={4000}
-        onClose={() => setToast(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        {toast ? (
-          <Alert onClose={() => setToast(null)} severity={toast.severity} sx={{ width: '100%', boxShadow: 3 }}>
-            {toast.message}
-          </Alert>
-        ) : undefined}
-      </Snackbar>
-    </Box>
+      <Toast toast={toast} onClose={() => setToast(null)} />
+    </div>
   );
 }
