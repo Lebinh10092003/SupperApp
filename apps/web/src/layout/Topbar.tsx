@@ -8,13 +8,14 @@ import { NotificationBell } from '../features/safety/components/NotificationBell
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { SIDEBAR_WIDTH, getCurrentSemesterLabel, useCurrentNavItem } from './nav-data';
+import { getCurrentSemesterLabel, useCurrentNavItem } from './nav-data';
 
 /** Thanh header trên cùng — y hệt <AppBar> cũ trong AppShell.tsx (bản MUI):
  * breadcrumb tiêu đề trang, pill trạng thái đồng bộ Classroom + nút Đồng
  * bộ (chỉ FermatTech), badge học kỳ, nút làm mới, chuông thông báo. Logic
- * fetch/polling trạng thái đồng bộ giữ nguyên 100%. */
-export function Topbar({ onOpenMobileMenu }: { onOpenMobileMenu: () => void }) {
+ * fetch/polling trạng thái đồng bộ giữ nguyên 100%. `sidebarWidth` truyền
+ * từ AppShell.tsx — đổi theo trạng thái rút gọn sidebar. */
+export function Topbar({ onOpenMobileMenu, sidebarWidth }: { onOpenMobileMenu: () => void; sidebarWidth: number }) {
   const navigate = useNavigate();
   const { profile } = useAuth();
   const isFermatTechAdmin = isFermatTechAdminEmail(profile?.email);
@@ -50,8 +51,8 @@ export function Topbar({ onOpenMobileMenu }: { onOpenMobileMenu: () => void }) {
 
   return (
     <header
-      className="fixed top-0 right-0 left-0 z-40 flex h-[54px] items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur-sm md:left-(--sidebar-w) md:h-[58px] md:px-6"
-      style={{ '--sidebar-w': `${SIDEBAR_WIDTH}px` } as CSSProperties}
+      className="fixed top-0 right-0 left-0 z-40 flex h-[54px] items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur-sm transition-[left] duration-200 md:left-(--sidebar-w) md:h-[58px] md:px-6"
+      style={{ '--sidebar-w': `${sidebarWidth}px` } as CSSProperties}
     >
       <div className="flex items-center gap-3">
         <button

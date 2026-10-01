@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { ChevronDown, Search } from 'lucide-react';
+import { ChevronDown, PanelLeftClose, PanelLeftOpen, Search } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { GROUP_DISPLAY_ORDER, useVisibleNavGroups } from './nav-data';
 import { UserMenu } from './UserMenu';
 
@@ -16,8 +17,25 @@ const BADGE_DEFAULT = 'bg-blue-50 text-blue-600 border-blue-200';
 /** Nội dung sidebar dùng chung cho cả MobileSheet (drawer tạm thời trên di
  * động) và bản desktop cố định (xem AppShell.tsx) — y hệt `drawerContent`
  * cũ trong AppShell.tsx (bản MUI), chỉ đổi lớp hiển thị sang shadcn/
- * Tailwind. Logic lọc vai trò/nhóm gấp-mở giữ nguyên 100%. */
-export function Sidebar({ onNavigate, onOpenSearch }: { onNavigate?: () => void; onOpenSearch: () => void }) {
+ * Tailwind. Logic lọc vai trò/nhóm gấp-mở giữ nguyên 100%.
+ *
+ * `collapsed`/`onToggleCollapsed` — nút rút gọn kiểu template (chỉ bản
+ * desktop cố định dùng, xem AppShell.tsx; MobileSheet không truyền 2 prop
+ * này nên mặc định luôn hiển thị đầy đủ). Khi thu gọn: ẩn toàn bộ nhãn
+ * chữ, các NHÓM được "làm phẳng" thành 1 cột icon duy nhất (không còn
+ * Collapsible ẩn/hiện) vì flyout lồng nhau khi thu gọn phức tạp không
+ * tương xứng lợi ích — tooltip khi hover thay thế nhãn chữ. */
+export function Sidebar({
+  onNavigate,
+  onOpenSearch,
+  collapsed = false,
+  onToggleCollapsed
+}: {
+  onNavigate?: () => void;
+  onOpenSearch: () => void;
+  collapsed?: boolean;
+  onToggleCollapsed?: () => void;
+}) {
   const navigate = useNavigate();
   const location = useLocation();
   const visibleGroups = useVisibleNavGroups();
@@ -36,17 +54,103 @@ export function Sidebar({ onNavigate, onOpenSearch }: { onNavigate?: () => void;
   });
   const toggleGroup = (groupTitle: string) => setOpenGroups((prev) => ({ ...prev, [groupTitle]: !prev[groupTitle] }));
 
+  if (collapsed) {
+    const flatItems = visibleGroups.flatMap((g) => g.items);
+    return (
+      <div className="flex h-full flex-col items-center bg-white text-[#0f172a]">
+        <div className="flex w-full flex-col items-center gap-2 border-b border-slate-100 p-3">
+          <img src="/logo-truong-transparent.png" alt="Logo trường" className="h-8 w-auto shrink-0 object-contain" />
+          {onToggleCollapsed && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={onToggleCollapsed}
+                  className="flex size-7 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-[#0f172a]"
+                  aria-label="Mở rộng sidebar"
+                >
+                  <PanelLeftOpen className="size-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">Mở rộng sidebar</TooltipContent>
+            </Tooltip>
+          )}
+        </div>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={onOpenSearch}
+              className="mt-3 flex size-9 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-500 hover:border-slate-300"
+              aria-label="Tìm kiếm điều hành"
+            >
+              <Search className="size-4" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="right">Tìm kiếm điều hành (⌘K)</TooltipContent>
+        </Tooltip>
+
+        <nav className="flex w-full flex-1 flex-col items-center gap-1 overflow-y-auto px-2 py-3">
+          {flatItems.map((item) => {
+            const isSelected = location.pathname === item.path;
+            return (
+              <Tooltip key={item.path}>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigate(item.path);
+                      onNavigate?.();
+                    }}
+                    className={cn(
+                      'relative flex size-10 items-center justify-center rounded-lg transition-colors',
+                      isSelected ? 'bg-secondary text-primary' : 'text-slate-500 hover:bg-slate-100 hover:text-[#0f172a]'
+                    )}
+                  >
+                    {item.icon}
+                    {item.badge && <span className="absolute top-1 right-1 size-1.5 rounded-full bg-primary" />}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right">{item.label}</TooltipContent>
+              </Tooltip>
+            );
+          })}
+        </nav>
+
+        <div className="w-full border-t border-slate-200 bg-slate-50 p-2.5">
+          <UserMenu collapsed />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-full flex-col bg-white text-[#0f172a]">
       {/* Brand Header */}
       <div className="flex items-center gap-3 border-b border-slate-100 p-4">
         <img src="/logo-truong-transparent.png" alt="Logo trường" className="h-10 w-auto shrink-0 object-contain" />
-        <div className="overflow-hidden">
+        <div className="min-w-0 flex-1 overflow-hidden">
           <p className="truncate text-sm font-extrabold tracking-tight text-[#0f172a]">Trường THCS Giảng Võ</p>
           <span className="mt-0.5 inline-block truncate rounded px-[0.21rem] py-[0.04rem] text-xs font-bold tracking-wide text-primary bg-secondary">
             SuperApp
           </span>
         </div>
+        {onToggleCollapsed && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={onToggleCollapsed}
+                className="flex size-7 shrink-0 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-[#0f172a]"
+                aria-label="Thu gọn sidebar"
+              >
+                <PanelLeftClose className="size-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Thu gọn sidebar</TooltipContent>
+          </Tooltip>
+        )}
       </div>
 
       {/* Quick Search Trigger */}

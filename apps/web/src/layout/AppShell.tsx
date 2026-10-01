@@ -3,7 +3,7 @@ import { Sidebar } from './Sidebar';
 import { MobileSheet } from './MobileSheet';
 import { Topbar } from './Topbar';
 import { CommandPalette } from './CommandPalette';
-import { SIDEBAR_WIDTH } from './nav-data';
+import { SIDEBAR_WIDTH, SIDEBAR_WIDTH_COLLAPSED } from './nav-data';
 
 /**
  * Khung ứng dụng chính (sidebar + topbar + nội dung) — BẢN SHADCN/TAILWIND,
@@ -31,6 +31,14 @@ import { SIDEBAR_WIDTH } from './nav-data';
 export function AppShell({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  // Nút rút gọn sidebar (kiểu template) — nhớ lựa chọn giữa các phiên qua
+  // localStorage, chỉ áp dụng ở bản desktop cố định (di động vẫn dùng Sheet
+  // toàn chiều rộng như cũ).
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sidebarCollapsed') === '1');
+  useEffect(() => {
+    localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0');
+  }, [collapsed]);
+  const sidebarWidth = collapsed ? SIDEBAR_WIDTH_COLLAPSED : SIDEBAR_WIDTH;
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -45,24 +53,24 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-screen bg-slate-50">
-      <Topbar onOpenMobileMenu={() => setMobileOpen(true)} />
+      <Topbar onOpenMobileMenu={() => setMobileOpen(true)} sidebarWidth={sidebarWidth} />
 
       {/* Sidebar di động (Sheet) */}
       <MobileSheet open={mobileOpen} onOpenChange={setMobileOpen} onOpenSearch={() => setSearchOpen(true)} />
 
       {/* Sidebar desktop cố định */}
       <aside
-        className="fixed inset-y-0 left-0 z-30 hidden border-r border-slate-200 md:block"
-        style={{ width: SIDEBAR_WIDTH }}
+        className="fixed inset-y-0 left-0 z-30 hidden border-r border-slate-200 transition-[width] duration-200 md:block"
+        style={{ width: sidebarWidth }}
       >
-        <Sidebar onOpenSearch={() => setSearchOpen(true)} />
+        <Sidebar onOpenSearch={() => setSearchOpen(true)} collapsed={collapsed} onToggleCollapsed={() => setCollapsed((c) => !c)} />
       </aside>
 
       {/* Nội dung chính — md:ml-(--sidebar-w) chừa đúng bề rộng sidebar
           desktop, cùng cách Topbar.tsx chừa chỗ bằng md:left-(--sidebar-w). */}
       <main
-        className="box-border min-w-0 flex-1 p-4 pt-[calc(54px+1rem)] sm:p-6 sm:pt-[calc(54px+1.5rem)] md:ml-(--sidebar-w) md:p-[1.75rem] md:pt-[calc(58px+1.75rem)]"
-        style={{ '--sidebar-w': `${SIDEBAR_WIDTH}px` } as CSSProperties}
+        className="box-border min-w-0 flex-1 p-4 pt-[calc(54px+1rem)] transition-[margin] duration-200 sm:p-6 sm:pt-[calc(54px+1.5rem)] md:ml-(--sidebar-w) md:p-[1.75rem] md:pt-[calc(58px+1.75rem)]"
+        style={{ '--sidebar-w': `${sidebarWidth}px` } as CSSProperties}
       >
         <div className="mx-auto w-full max-w-[1600px]">{children}</div>
       </main>

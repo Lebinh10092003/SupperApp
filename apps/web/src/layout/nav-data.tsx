@@ -29,6 +29,9 @@ import { useAuth } from '../auth/AuthProvider';
 /** Y hệt DRAWER_WIDTH cũ trong AppShell.tsx — giữ nguyên bề rộng sidebar
  * sau khi chuyển sang shadcn/ui (xem Sidebar.tsx). */
 export const SIDEBAR_WIDTH = 270;
+/** Bề rộng sidebar ở trạng thái thu gọn (chỉ icon) — nút rút gọn kiểu
+ * template, xem AppShell.tsx/Sidebar.tsx. */
+export const SIDEBAR_WIDTH_COLLAPSED = 68;
 
 export interface NavItem {
   path: string;

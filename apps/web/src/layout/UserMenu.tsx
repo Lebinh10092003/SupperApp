@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const roleLabelMap: Record<string, string> = {
   SYSTEM_SUPER_ADMIN: 'Quản trị viên cấp cao nhất',
@@ -31,7 +32,7 @@ const roleLabelMap: Record<string, string> = {
  * — y hệt phần "User Session Footer" + 2 Dialog cuối `drawerContent` cũ
  * trong AppShell.tsx (bản MUI). Tách component riêng vì đây là khối state
  * độc lập (không phụ thuộc gì từ Sidebar/AppShell ngoài useAuth()). */
-export function UserMenu() {
+export function UserMenu({ collapsed = false }: { collapsed?: boolean }) {
   const { profile, user, logout, changePassword, updateDisplayName } = useAuth();
   const hasPasswordProvider = !!user?.providerData?.some((p) => p.providerId === 'password');
 
@@ -109,17 +110,27 @@ export function UserMenu() {
       <div className="border-t border-slate-200 bg-slate-50 p-2.5">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button type="button" className="flex w-full items-center gap-2.5 rounded-lg border border-transparent px-2 py-2 transition-colors hover:bg-slate-100">
+            <button
+              type="button"
+              className={cn(
+                'flex w-full items-center gap-2.5 rounded-lg border border-transparent px-2 py-2 transition-colors hover:bg-slate-100',
+                collapsed && 'justify-center px-0'
+              )}
+            >
               <Avatar className="size-[34px] shrink-0 shadow-[0_2px_5px_rgba(37,99,235,0.25)]">
                 <AvatarFallback className="bg-gradient-to-br from-primary to-[#1d4ed8] font-bold text-white">
                   {profile?.displayName?.[0] || 'G'}
                 </AvatarFallback>
               </Avatar>
-              <div className="min-w-0 flex-1 overflow-hidden text-left">
-                <p className="truncate text-sm font-bold text-[#0f172a]">{profile?.displayName || 'Người dùng'}</p>
-                <p className="truncate text-xs text-slate-500">{roleLabelMap[profile?.role || ''] || profile?.role || 'Hệ thống'}</p>
-              </div>
-              <ChevronDown className="size-5 shrink-0 text-slate-400" />
+              {!collapsed && (
+                <>
+                  <div className="min-w-0 flex-1 overflow-hidden text-left">
+                    <p className="truncate text-sm font-bold text-[#0f172a]">{profile?.displayName || 'Người dùng'}</p>
+                    <p className="truncate text-xs text-slate-500">{roleLabelMap[profile?.role || ''] || profile?.role || 'Hệ thống'}</p>
+                  </div>
+                  <ChevronDown className="size-5 shrink-0 text-slate-400" />
+                </>
+              )}
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="center" side="top" className="w-56">
