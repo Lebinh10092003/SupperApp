@@ -1,8 +1,11 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
+import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { Sidebar } from './Sidebar';
 import { MobileSheet } from './MobileSheet';
 import { Topbar } from './Topbar';
 import { CommandPalette } from './CommandPalette';
+import { UrgentIncidentBanner } from './UrgentIncidentBanner';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { SIDEBAR_WIDTH, SIDEBAR_WIDTH_COLLAPSED } from './nav-data';
 
 /**
@@ -63,8 +66,26 @@ export function AppShell({ children }: { children: ReactNode }) {
         className="fixed inset-y-0 left-0 z-30 hidden border-r border-slate-200 transition-[width] duration-200 md:block"
         style={{ width: sidebarWidth }}
       >
-        <Sidebar onOpenSearch={() => setSearchOpen(true)} collapsed={collapsed} onToggleCollapsed={() => setCollapsed((c) => !c)} />
+        <Sidebar onOpenSearch={() => setSearchOpen(true)} collapsed={collapsed} />
       </aside>
+
+      {/* Nút thu gọn/mở rộng sidebar — nổi đúng tại góc giao giữa sidebar
+          và topbar (Sin chốt 2026-10-02: đẹp hơn để trong header sidebar),
+          chỉ hiện ở bản desktop cố định (cùng điều kiện với <aside> trên). */}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            onClick={() => setCollapsed((c) => !c)}
+            className="fixed z-40 hidden size-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 shadow-sm transition-[left] duration-200 hover:bg-slate-100 hover:text-[#0f172a] md:flex"
+            style={{ top: 58, left: sidebarWidth }}
+            aria-label={collapsed ? 'Mở rộng sidebar' : 'Thu gọn sidebar'}
+          >
+            {collapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="right">{collapsed ? 'Mở rộng sidebar' : 'Thu gọn sidebar'}</TooltipContent>
+      </Tooltip>
 
       {/* Nội dung chính — md:ml-(--sidebar-w) chừa đúng bề rộng sidebar
           desktop, cùng cách Topbar.tsx chừa chỗ bằng md:left-(--sidebar-w). */}
@@ -72,7 +93,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         className="box-border min-w-0 flex-1 p-4 pt-[calc(54px+1rem)] transition-[margin] duration-200 sm:p-6 sm:pt-[calc(54px+1.5rem)] md:ml-(--sidebar-w) md:p-[1.75rem] md:pt-[calc(58px+1.75rem)]"
         style={{ '--sidebar-w': `${sidebarWidth}px` } as CSSProperties}
       >
-        <div className="mx-auto w-full max-w-[1600px]">{children}</div>
+        <div className="mx-auto w-full max-w-[1600px]">
+          <UrgentIncidentBanner />
+          {children}
+        </div>
       </main>
 
       <CommandPalette open={searchOpen} onOpenChange={setSearchOpen} />

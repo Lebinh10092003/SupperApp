@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, PanelLeftClose, PanelLeftOpen, Search } from 'lucide-react';
+import { ChevronDown, Search } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -20,22 +20,22 @@ const BADGE_DEFAULT = 'bg-blue-50 text-blue-600 border-blue-200';
  * cũ trong AppShell.tsx (bản MUI), chỉ đổi lớp hiển thị sang shadcn/
  * Tailwind. Logic lọc vai trò/nhóm gấp-mở giữ nguyên 100%.
  *
- * `collapsed`/`onToggleCollapsed` — nút rút gọn kiểu template (chỉ bản
- * desktop cố định dùng, xem AppShell.tsx; MobileSheet không truyền 2 prop
- * này nên mặc định luôn hiển thị đầy đủ). Khi thu gọn: ẩn toàn bộ nhãn
- * chữ, các NHÓM được "làm phẳng" thành 1 cột icon duy nhất (không còn
- * Collapsible ẩn/hiện) vì flyout lồng nhau khi thu gọn phức tạp không
- * tương xứng lợi ích — tooltip khi hover thay thế nhãn chữ. */
+ * `collapsed` — trạng thái rút gọn kiểu template (chỉ bản desktop cố định
+ * dùng, xem AppShell.tsx; MobileSheet không truyền prop này nên mặc định
+ * luôn hiển thị đầy đủ). Nút bấm để đổi trạng thái nằm Ở AppShell.tsx (nổi
+ * tại góc sidebar/topbar, Sin chốt 2026-10-02), KHÔNG còn nằm trong
+ * Sidebar. Khi thu gọn: ẩn toàn bộ nhãn chữ, các NHÓM được "làm phẳng"
+ * thành 1 cột icon duy nhất (không còn Collapsible ẩn/hiện) vì flyout lồng
+ * nhau khi thu gọn phức tạp không tương xứng lợi ích — tooltip khi hover
+ * thay thế nhãn chữ. */
 export function Sidebar({
   onNavigate,
   onOpenSearch,
-  collapsed = false,
-  onToggleCollapsed
+  collapsed = false
 }: {
   onNavigate?: () => void;
   onOpenSearch: () => void;
   collapsed?: boolean;
-  onToggleCollapsed?: () => void;
 }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -72,21 +72,6 @@ export function Sidebar({
       <div className="flex h-full flex-col items-center bg-white text-[#0f172a]">
         <div className="flex w-full flex-col items-center gap-2 border-b border-slate-100 p-3">
           <img src="/logo-truong-transparent.png" alt="Logo trường" className="h-8 w-auto shrink-0 object-contain" />
-          {onToggleCollapsed && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  onClick={onToggleCollapsed}
-                  className="flex size-7 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-[#0f172a]"
-                  aria-label="Mở rộng sidebar"
-                >
-                  <PanelLeftOpen className="size-4" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="right">Mở rộng sidebar</TooltipContent>
-            </Tooltip>
-          )}
         </div>
 
         <Tooltip>
@@ -153,21 +138,6 @@ export function Sidebar({
             SuperApp
           </span>
         </div>
-        {onToggleCollapsed && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                onClick={onToggleCollapsed}
-                className="flex size-7 shrink-0 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-[#0f172a]"
-                aria-label="Thu gọn sidebar"
-              >
-                <PanelLeftClose className="size-4" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="right">Thu gọn sidebar</TooltipContent>
-          </Tooltip>
-        )}
       </div>
 
       {/* Quick Search Trigger */}
