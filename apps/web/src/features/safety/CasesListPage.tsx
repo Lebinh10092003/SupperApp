@@ -105,7 +105,7 @@ export default function CasesListPage() {
 
   useEffect(() => {
     api.get<{ code: string; label: string; groupLabel?: string }[]>('/api/safety/categories').then(setCategories).catch(() => setCategories([]));
-    api.get<SavedFilterRow[]>('/api/safety/saved-filters').then(setSavedFilters).catch(() => setSavedFilters([]));
+    api.get<SavedFilterRow[]>('/api/safety/saved-filters?kind=safety_cases').then(setSavedFilters).catch(() => setSavedFilters([]));
   }, []);
 
   const { items, loading, error } = useIncidents({
@@ -176,7 +176,7 @@ export default function CasesListPage() {
     if (!saveFilterName.trim()) return;
     const filterJson: SavedFilterState = { campusFilter, priorityFilter, stateFilter, categoryFilter, ownerFilter, searchText };
     try {
-      const row = await api.post<SavedFilterRow>('/api/safety/saved-filters', { name: saveFilterName.trim(), filterJson });
+      const row = await api.post<SavedFilterRow>('/api/safety/saved-filters', { name: saveFilterName.trim(), filterJson, kind: 'safety_cases' });
       setSavedFilters((prev) => [row, ...prev]);
       setSaveDialogOpen(false);
       setSaveFilterName('');

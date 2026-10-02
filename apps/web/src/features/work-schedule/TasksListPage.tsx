@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { CirclePlus, ClipboardList, ArrowUp, ArrowDown, ArrowUpDown, ListFilter, MoreHorizontal, Search } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { CirclePlus, ClipboardList, ArrowUp, ArrowDown, ArrowUpDown, BookmarkPlus, ListFilter, MoreHorizontal, Search, X } from 'lucide-react';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
 import { useTasks, type WorkTask } from './hooks/useTasks';
@@ -19,6 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn, formatDateTime } from '@/lib/utils';
 
 export function TaskStatusChip({ status }: { status: string }) {
@@ -36,6 +37,21 @@ const ALL_STATUS = '__all_status__';
 
 type TaskSortKey = 'createdAt' | 'dueAt' | 'title' | 'campusId' | 'assignee' | 'status';
 
+interface TasksSavedFilterState {
+  campusFilter: string;
+  statusFilter: string;
+  searchText: string;
+  personFilter: PersonOption | null;
+  fromDate: string;
+  toDate: string;
+}
+
+interface TasksSavedFilterRow {
+  id: string;
+  name: string;
+  filterJson: TasksSavedFilterState;
+}
+
 export default function TasksListPage() {
   const [campusFilter, setCampusFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -52,6 +68,54 @@ export default function TasksListPage() {
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const tasksActiveFilterCount = [personFilter, fromDate, toDate, campusFilter, statusFilter].filter(Boolean).length;
+
+  const [savedFilters, setSavedFilters] = useState<TasksSavedFilterRow[]>([]);
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [saveFilterName, setSaveFilterName] = useState('');
+
+  useEffect(() => {
+    api
+      .get<TasksSavedFilterRow[]>('/api/safety/saved-filters?kind=work_schedule_tasks')
+      .then(setSavedFilters)
+      .catch(() => setSavedFilters([]));
+  }, []);
+
+  const applySavedFilter = (row: TasksSavedFilterRow) => {
+    const f = row.filterJson;
+    setCampusFilter(f.campusFilter || '');
+    setStatusFilter(f.statusFilter || '');
+    setSearchText(f.searchText || '');
+    setPersonFilter(f.personFilter || null);
+    setFromDate(f.fromDate || '');
+    setToDate(f.toDate || '');
+  };
+
+  const handleSaveFilter = async () => {
+    if (!saveFilterName.trim()) return;
+    const filterJson: TasksSavedFilterState = { campusFilter, statusFilter, searchText, personFilter, fromDate, toDate };
+    try {
+      const row = await api.post<TasksSavedFilterRow>('/api/safety/saved-filters', {
+        name: saveFilterName.trim(),
+        filterJson,
+        kind: 'work_schedule_tasks'
+      });
+      setSavedFilters((prev) => [row, ...prev]);
+      setSaveDialogOpen(false);
+      setSaveFilterName('');
+    } catch {
+      // Bộ lọc đang áp dụng vẫn còn nguyên — người dùng thấy ngay nếu bấm
+      // Lưu không phản hồi gì.
+    }
+  };
+
+  const handleDeleteSavedFilter = async (id: string) => {
+    try {
+      await api.delete(`/api/safety/saved-filters/${id}`);
+      setSavedFilters((prev) => prev.filter((f) => f.id !== id));
+    } catch {
+      // Xem ghi chú ở handleSaveFilter.
+    }
+  };
 
   // Lọc thêm ở client (tìm theo tiêu đề/username người + khoảng ngày hạn)
   // — cùng cách tiếp cận với EventsListPage.tsx, không đụng useTasks.ts.
@@ -169,6 +233,31 @@ export default function TasksListPage() {
         }
       />
 
+      {savedFilters.length > 0 && (
+        <div className="mb-3 flex flex-wrap gap-2">
+          {savedFilters.map((f) => (
+            <Badge
+              key={f.id}
+              variant="outline"
+              className="cursor-pointer gap-1 border-transparent bg-secondary pr-1 font-semibold text-[#1d4ed8]"
+              onClick={() => applySavedFilter(f)}
+            >
+              {f.name}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteSavedFilter(f.id);
+                }}
+                className="rounded-full hover:bg-blue-200"
+              >
+                <X className="size-3" />
+              </button>
+            </Badge>
+          ))}
+        </div>
+      )}
+
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <div className="inline-flex rounded-md border border-slate-200 bg-slate-50 p-0.5">
           {([
@@ -283,6 +372,15 @@ export default function TasksListPage() {
             </div>
           </PopoverContent>
         </Popover>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="outline" size="icon" onClick={() => setSaveDialogOpen(true)}>
+              <BookmarkPlus className="size-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Lưu bộ lọc hiện tại</TooltipContent>
+        </Tooltip>
       </div>
 
       {error && (
@@ -452,6 +550,34 @@ export default function TasksListPage() {
         }}
         onSuccess={(message) => setToast({ message, severity: 'success' })}
       />
+
+      <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Lưu bộ lọc hiện tại</DialogTitle>
+          </DialogHeader>
+          <div>
+            <Label htmlFor="tasks-save-filter-name" className="mb-1.5 block">
+              Tên bộ lọc
+            </Label>
+            <Input
+              id="tasks-save-filter-name"
+              autoFocus
+              value={saveFilterName}
+              onChange={(e) => setSaveFilterName(e.target.value)}
+              placeholder="VD: Việc của tổ Toán"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setSaveDialogOpen(false)}>
+              Hủy
+            </Button>
+            <Button onClick={handleSaveFilter} disabled={!saveFilterName.trim()}>
+              Lưu
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

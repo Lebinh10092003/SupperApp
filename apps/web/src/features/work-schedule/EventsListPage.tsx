@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { CirclePlus, CalendarDays, Download, ArrowUp, ArrowDown, ArrowUpDown, Check, ListFilter, MoreHorizontal, Search } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { CirclePlus, CalendarDays, Download, ArrowUp, ArrowDown, ArrowUpDown, BookmarkPlus, Check, ListFilter, MoreHorizontal, Search, X } from 'lucide-react';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
 import { env } from '../../config/env';
@@ -94,6 +94,21 @@ function MiniStepper({ steps, activeIndex }: { steps: readonly string[]; activeI
   );
 }
 
+interface EventsSavedFilterState {
+  campusFilter: string;
+  statusFilter: string;
+  searchText: string;
+  personFilter: PersonOption | null;
+  fromDate: string;
+  toDate: string;
+}
+
+interface SavedFilterRow {
+  id: string;
+  name: string;
+  filterJson: EventsSavedFilterState;
+}
+
 export default function EventsListPage() {
   const [campusFilter, setCampusFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -102,6 +117,54 @@ export default function EventsListPage() {
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const eventsActiveFilterCount = [personFilter, fromDate, toDate, campusFilter, statusFilter].filter(Boolean).length;
+
+  const [savedFilters, setSavedFilters] = useState<SavedFilterRow[]>([]);
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [saveFilterName, setSaveFilterName] = useState('');
+
+  useEffect(() => {
+    api
+      .get<SavedFilterRow[]>('/api/safety/saved-filters?kind=work_schedule_events')
+      .then(setSavedFilters)
+      .catch(() => setSavedFilters([]));
+  }, []);
+
+  const applySavedFilter = (row: SavedFilterRow) => {
+    const f = row.filterJson;
+    setCampusFilter(f.campusFilter || '');
+    setStatusFilter(f.statusFilter || '');
+    setSearchText(f.searchText || '');
+    setPersonFilter(f.personFilter || null);
+    setFromDate(f.fromDate || '');
+    setToDate(f.toDate || '');
+  };
+
+  const handleSaveFilter = async () => {
+    if (!saveFilterName.trim()) return;
+    const filterJson: EventsSavedFilterState = { campusFilter, statusFilter, searchText, personFilter, fromDate, toDate };
+    try {
+      const row = await api.post<SavedFilterRow>('/api/safety/saved-filters', {
+        name: saveFilterName.trim(),
+        filterJson,
+        kind: 'work_schedule_events'
+      });
+      setSavedFilters((prev) => [row, ...prev]);
+      setSaveDialogOpen(false);
+      setSaveFilterName('');
+    } catch {
+      // Toast lỗi không cần thiết — vẫn còn bộ lọc đang áp dụng, người
+      // dùng thấy ngay nếu bấm Lưu lại không phản hồi gì.
+    }
+  };
+
+  const handleDeleteSavedFilter = async (id: string) => {
+    try {
+      await api.delete(`/api/safety/saved-filters/${id}`);
+      setSavedFilters((prev) => prev.filter((f) => f.id !== id));
+    } catch {
+      // Xem ghi chú ở handleSaveFilter.
+    }
+  };
   const { items, loading, error, refetch } = useEvents({
     campusId: campusFilter || undefined,
     statuses: statusFilter ? [statusFilter] : undefined
@@ -270,6 +333,31 @@ export default function EventsListPage() {
         }
       />
 
+      {savedFilters.length > 0 && (
+        <div className="mb-3 flex flex-wrap gap-2">
+          {savedFilters.map((f) => (
+            <Badge
+              key={f.id}
+              variant="outline"
+              className="cursor-pointer gap-1 border-transparent bg-secondary pr-1 font-semibold text-[#1d4ed8]"
+              onClick={() => applySavedFilter(f)}
+            >
+              {f.name}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteSavedFilter(f.id);
+                }}
+                className="rounded-full hover:bg-blue-200"
+              >
+                <X className="size-3" />
+              </button>
+            </Badge>
+          ))}
+        </div>
+      )}
+
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <div className="relative min-w-56 flex-1">
           <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
@@ -364,6 +452,15 @@ export default function EventsListPage() {
             </div>
           </PopoverContent>
         </Popover>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="outline" size="icon" onClick={() => setSaveDialogOpen(true)}>
+              <BookmarkPlus className="size-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Lưu bộ lọc hiện tại</TooltipContent>
+        </Tooltip>
       </div>
 
       {error && (
@@ -585,6 +682,34 @@ export default function EventsListPage() {
         }}
         onSuccess={(message) => setToast({ message, severity: 'success' })}
       />
+
+      <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Lưu bộ lọc hiện tại</DialogTitle>
+          </DialogHeader>
+          <div>
+            <Label htmlFor="events-save-filter-name" className="mb-1.5 block">
+              Tên bộ lọc
+            </Label>
+            <Input
+              id="events-save-filter-name"
+              autoFocus
+              value={saveFilterName}
+              onChange={(e) => setSaveFilterName(e.target.value)}
+              placeholder="VD: Lịch của khối 9"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setSaveDialogOpen(false)}>
+              Hủy
+            </Button>
+            <Button onClick={handleSaveFilter} disabled={!saveFilterName.trim()}>
+              Lưu
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
