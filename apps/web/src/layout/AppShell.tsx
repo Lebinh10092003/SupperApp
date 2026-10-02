@@ -55,7 +55,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
       <Topbar onOpenMobileMenu={() => setMobileOpen(true)} sidebarWidth={sidebarWidth} />
 
       {/* Sidebar di động (Sheet) */}
@@ -63,7 +63,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       {/* Sidebar desktop cố định */}
       <aside
-        className="fixed inset-y-0 left-0 z-30 hidden border-r border-slate-200 transition-[width] duration-200 md:block"
+        className="fixed inset-y-0 left-0 z-30 hidden border-r border-slate-200 transition-[width] duration-200 md:block dark:border-slate-800"
         style={{ width: sidebarWidth }}
       >
         <Sidebar onOpenSearch={() => setSearchOpen(true)} collapsed={collapsed} />
@@ -77,7 +77,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <button
             type="button"
             onClick={() => setCollapsed((c) => !c)}
-            className="fixed z-40 hidden size-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 shadow-sm transition-[left] duration-200 hover:bg-slate-100 hover:text-[#0f172a] md:flex"
+            className="fixed z-40 hidden size-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 shadow-sm transition-[left] duration-200 hover:bg-slate-100 hover:text-[#0f172a] md:flex dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
             style={{ top: 58, left: sidebarWidth }}
             aria-label={collapsed ? 'Mở rộng sidebar' : 'Thu gọn sidebar'}
           >

@@ -69,8 +69,8 @@ export function Sidebar({
 
   if (collapsed) {
     return (
-      <div className="flex h-full flex-col items-center bg-white text-[#0f172a]">
-        <div className="flex w-full flex-col items-center gap-2 border-b border-slate-100 p-3">
+      <div className="flex h-full flex-col items-center bg-white text-[#0f172a] dark:bg-slate-900 dark:text-slate-100">
+        <div className="flex w-full flex-col items-center gap-2 border-b border-slate-100 p-3 dark:border-slate-800">
           <img src="/logo-truong-transparent.png" alt="Logo trường" className="h-8 w-auto shrink-0 object-contain" />
         </div>
 
@@ -79,7 +79,7 @@ export function Sidebar({
             <button
               type="button"
               onClick={onOpenSearch}
-              className="mt-3 flex size-9 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-500 hover:border-slate-300"
+              className="mt-3 flex size-9 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-500 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:border-slate-600"
               aria-label="Tìm kiếm điều hành"
             >
               <Search className="size-4" />
@@ -90,7 +90,7 @@ export function Sidebar({
 
         <nav className="flex w-full flex-1 flex-col items-center overflow-y-auto px-2 py-3">
           {visibleGroups.map((group, groupIdx) => (
-            <div key={group.groupTitle} className={cn('flex w-full flex-col items-center gap-1', groupIdx > 0 && 'mt-2 border-t border-slate-100 pt-2')}>
+            <div key={group.groupTitle} className={cn('flex w-full flex-col items-center gap-1', groupIdx > 0 && 'mt-2 border-t border-slate-100 pt-2 dark:border-slate-800')}>
               {group.items.map((item) => {
                 const isSelected = location.pathname === item.path;
                 const badge = resolveBadge(item);
@@ -105,7 +105,9 @@ export function Sidebar({
                         }}
                         className={cn(
                           'relative flex size-10 items-center justify-center rounded-lg transition-colors',
-                          isSelected ? 'bg-secondary text-primary' : 'text-slate-500 hover:bg-slate-100 hover:text-[#0f172a]'
+                          isSelected
+                            ? 'bg-secondary text-primary'
+                            : 'text-slate-500 hover:bg-slate-100 hover:text-[#0f172a] dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100'
                         )}
                       >
                         {item.icon}
@@ -120,7 +122,7 @@ export function Sidebar({
           ))}
         </nav>
 
-        <div className="w-full border-t border-slate-200 bg-slate-50 p-2.5">
+        <div className="w-full border-t border-slate-200 bg-slate-50 p-2.5 dark:border-slate-800 dark:bg-slate-900">
           <UserMenu collapsed />
         </div>
       </div>
@@ -128,12 +130,12 @@ export function Sidebar({
   }
 
   return (
-    <div className="flex h-full flex-col bg-white text-[#0f172a]">
+    <div className="flex h-full flex-col bg-white text-[#0f172a] dark:bg-slate-900 dark:text-slate-100">
       {/* Brand Header */}
-      <div className="flex items-center gap-3 border-b border-slate-100 p-4">
+      <div className="flex items-center gap-3 border-b border-slate-100 p-4 dark:border-slate-800">
         <img src="/logo-truong-transparent.png" alt="Logo trường" className="h-10 w-auto shrink-0 object-contain" />
         <div className="min-w-0 flex-1 overflow-hidden">
-          <p className="truncate text-sm font-extrabold tracking-tight text-[#0f172a]">Trường THCS Giảng Võ</p>
+          <p className="truncate text-sm font-extrabold tracking-tight text-[#0f172a] dark:text-slate-100">Trường THCS Giảng Võ</p>
           <span className="mt-0.5 inline-block truncate rounded px-[0.21rem] py-[0.04rem] text-xs font-bold tracking-wide text-primary bg-secondary">
             SuperApp
           </span>
@@ -145,13 +147,13 @@ export function Sidebar({
         <button
           type="button"
           onClick={onOpenSearch}
-          className="flex w-full items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-left text-xs text-slate-500 transition-colors hover:border-slate-300"
+          className="flex w-full items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-left text-xs text-slate-500 transition-colors hover:border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:border-slate-600"
         >
           <span className="flex items-center gap-2">
             <Search className="size-3.5" />
             Tìm kiếm điều hành...
           </span>
-          <kbd className="rounded border border-slate-200 bg-white px-1 py-0.5 text-xs text-slate-400">⌘K</kbd>
+          <kbd className="rounded border border-slate-200 bg-white px-1 py-0.5 text-xs text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-500">⌘K</kbd>
         </button>
       </div>
 
@@ -165,8 +167,8 @@ export function Sidebar({
               <Collapsible open={isOpen} onOpenChange={() => toggleGroup(group.groupTitle)}>
                 <CollapsibleTrigger
                   className={cn(
-                    'flex w-full items-center justify-between gap-1 rounded-md px-[0.3rem] py-1.5 text-left text-xs font-medium transition-colors hover:bg-slate-100 hover:text-[#0f172a]',
-                    groupHasActiveItem ? 'text-primary' : 'text-slate-400'
+                    'flex w-full items-center justify-between gap-1 rounded-md px-[0.3rem] py-1.5 text-left text-xs font-medium transition-colors hover:bg-slate-100 hover:text-[#0f172a] dark:hover:bg-slate-800 dark:hover:text-slate-100',
+                    groupHasActiveItem ? 'text-primary' : 'text-slate-400 dark:text-slate-500'
                   )}
                 >
                   <span className="min-w-0 flex-1">{group.groupTitle}</span>
@@ -187,11 +189,11 @@ export function Sidebar({
                         className={cn(
                           'mb-1 flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors',
                           isSelected
-                            ? 'border-blue-200 bg-secondary font-bold text-[#1d4ed8] shadow-[0_1px_2px_rgba(37,99,235,0.05)]'
-                            : 'border-transparent font-medium text-slate-700 hover:bg-slate-100 hover:text-[#0f172a]'
+                            ? 'border-blue-200 bg-secondary font-bold text-[#1d4ed8] shadow-[0_1px_2px_rgba(37,99,235,0.05)] dark:border-blue-900 dark:text-blue-300'
+                            : 'border-transparent font-medium text-slate-700 hover:bg-slate-100 hover:text-[#0f172a] dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100'
                         )}
                       >
-                        <span className={cn('shrink-0', isSelected ? 'text-primary' : 'text-slate-500')}>{item.icon}</span>
+                        <span className={cn('shrink-0', isSelected ? 'text-primary' : 'text-slate-500 dark:text-slate-400')}>{item.icon}</span>
                         <span className="min-w-0 flex-1 truncate text-left">{item.label}</span>
                         {badge && (
                           <Badge variant="outline" className={cn('h-[18px] shrink-0 px-1 text-xs font-bold', badge.style)}>

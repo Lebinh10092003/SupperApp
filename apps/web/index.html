@@ -14,6 +14,21 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
     <title>SuperApp — THCS Giảng Võ</title>
+    <script>
+      // Gắn class .dark + biến cỡ chữ TRƯỚC khi React mount, tránh "nhấp
+      // nháy" theme sai lúc tải trang (đọc cùng key localStorage mà
+      // ThemeProvider.tsx dùng — xem apps/web/src/theme/ThemeProvider.tsx).
+      (function () {
+        try {
+          var theme = localStorage.getItem('appTheme') || 'system';
+          var dark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          if (dark) document.documentElement.classList.add('dark');
+          var scale = localStorage.getItem('appFontScale') || 'md';
+          var mult = scale === 'sm' ? 0.9 : scale === 'lg' ? 1.15 : 1;
+          document.documentElement.style.setProperty('--font-scale-mult', String(mult));
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

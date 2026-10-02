@@ -7,6 +7,12 @@
    shorthand import. */
 @import 'tailwindcss';
 
+/* Dark mode via an explicit `.dark` class on <html> (not OS
+   prefers-color-scheme) — toggled by ThemeProvider.tsx + persisted to
+   localStorage, so "Sáng/Tối/Theo hệ thống" in the settings panel all work
+   predictably instead of silently following the OS. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   /* MUI's default theme.breakpoints.values.md is 900px; Tailwind's default
      "md" is 768px. AppShell.tsx's mobile/desktop drawer split (and every
@@ -94,6 +100,50 @@
   --warning-foreground: 0 0% 100%;
   --info: 199 95% 41%;             /* #0284C7 */
   --info-foreground: 0 0% 100%;
+
+  /* Cỡ chữ gốc của <html> — SettingsPanel.tsx đổi biến này (không đổi
+     --font-scale-mult trực tiếp) để toàn bộ text/rem trong app co giãn theo
+     tỉ lệ, không cần sửa từng trang. */
+  --font-scale-mult: 1;
+}
+
+.dark {
+  /* Cùng hue với bảng màu sáng (xanh dương trường học), chỉ đổi độ sáng/độ
+     bão hòa cho nền tối — giữ --primary gần như nguyên vẹn để thương hiệu
+     nhất quán giữa 2 theme. */
+  --background: 222 47% 7%;        /* #0B1220 - nền tối chủ đạo */
+  --foreground: 210 40% 96%;       /* #EEF2F7 */
+  --card: 222 44% 10%;             /* #0F172A hơi sáng hơn nền */
+  --card-foreground: 210 40% 96%;
+  --popover: 222 44% 10%;
+  --popover-foreground: 210 40% 96%;
+  --primary: 217 91% 60%;          /* #3B82F6 - sáng hơn 1 chút để nổi trên nền tối */
+  --primary-foreground: 222 47% 7%;
+  --secondary: 221 39% 16%;        /* #1C2740 */
+  --secondary-foreground: 213 94% 78%; /* #93C5FD */
+  --muted: 221 33% 14%;            /* #182134 */
+  --muted-foreground: 215 20% 65%; /* #94A3B8 */
+  --accent: 221 39% 16%;
+  --accent-foreground: 213 94% 78%;
+  --destructive: 0 72% 58%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 221 33% 18%;           /* #1F2A41 */
+  --input: 221 33% 18%;
+  --ring: 217 91% 60%;
+
+  --success: 160 70% 45%;
+  --success-foreground: 222 47% 7%;
+  --warning: 38 92% 55%;
+  --warning-foreground: 222 47% 7%;
+  --info: 199 89% 55%;
+  --info-foreground: 222 47% 7%;
+}
+
+html {
+  /* 1rem = 16px * --font-scale-mult — SettingsPanel.tsx chỉ đổi biến này
+     (Nhỏ=0.9 / Vừa=1 / Lớn=1.15), toàn bộ `rem`/Tailwind text-* co giãn
+     theo mà không cần sửa từng trang. */
+  font-size: calc(16px * var(--font-scale-mult, 1));
 }
 
 html,
@@ -111,11 +161,12 @@ body,
 
 body {
   font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background-color: #f8fafc;
-  color: #0f172a;
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   letter-spacing: -0.01em;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 /* Elegant School Intelligence Scrollbar */
@@ -137,13 +188,22 @@ body {
   background: #94a3b8;
 }
 
+.dark ::-webkit-scrollbar-thumb {
+  background: #334155;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
 /* Recharts Custom Tooltip */
 .recharts-default-tooltip {
-  background-color: #ffffff !important;
-  border: 1px solid #e2e8f0 !important;
+  background-color: hsl(var(--card)) !important;
+  border: 1px solid hsl(var(--border)) !important;
   border-radius: 10px !important;
   box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.08) !important;
   padding: 10px 14px !important;
   font-family: 'Plus Jakarta Sans', 'Inter', sans-serif !important;
   font-size: 0.8125rem !important;
+  color: hsl(var(--card-foreground)) !important;
 }

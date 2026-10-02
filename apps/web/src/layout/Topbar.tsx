@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { getCurrentSemesterLabel, useCurrentNavItem } from './nav-data';
+import { SettingsPanel } from './SettingsPanel';
 
 /** Thanh header trên cùng — y hệt <AppBar> cũ trong AppShell.tsx (bản MUI):
  * breadcrumb tiêu đề trang, pill trạng thái đồng bộ Classroom + nút Đồng
@@ -51,22 +52,22 @@ export function Topbar({ onOpenMobileMenu, sidebarWidth }: { onOpenMobileMenu: (
 
   return (
     <header
-      className="fixed top-0 right-0 left-0 z-40 flex h-[54px] items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur-sm transition-[left] duration-200 md:left-(--sidebar-w) md:h-[58px] md:px-6"
+      className="fixed top-0 right-0 left-0 z-40 flex h-[54px] items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur-sm transition-[left] duration-200 md:left-(--sidebar-w) md:h-[58px] md:px-6 dark:border-slate-800 dark:bg-slate-950/95"
       style={{ '--sidebar-w': `${sidebarWidth}px` } as CSSProperties}
     >
       <div className="flex items-center gap-3">
         <button
           type="button"
           onClick={onOpenMobileMenu}
-          className="-ml-1 flex size-8 items-center justify-center rounded-md text-[#0f172a] hover:bg-slate-100 md:hidden"
+          className="-ml-1 flex size-8 items-center justify-center rounded-md text-[#0f172a] hover:bg-slate-100 md:hidden dark:text-slate-100 dark:hover:bg-slate-800"
           aria-label="Mở menu"
         >
           <Menu className="size-[18px]" />
         </button>
         <div className="flex items-center gap-1.5">
           <span className="text-sm font-semibold text-primary">Giảng Võ SuperApp</span>
-          <span className="text-sm text-slate-300">/</span>
-          <span className="text-sm font-bold text-[#0f172a]">{currentPageTitle}</span>
+          <span className="text-sm text-slate-300 dark:text-slate-600">/</span>
+          <span className="text-sm font-bold text-[#0f172a] dark:text-slate-100">{currentPageTitle}</span>
         </div>
       </div>
 
@@ -82,7 +83,9 @@ export function Topbar({ onOpenMobileMenu, sidebarWidth }: { onOpenMobileMenu: (
                 onClick={() => navigate('/connections')}
                 className={cn(
                   'hidden items-center gap-2 rounded-md border px-3 py-1 transition-colors sm:flex',
-                  syncStatus?.isSynced ? 'border-emerald-200 bg-emerald-50 hover:border-emerald-400' : 'border-amber-200 bg-amber-50 hover:border-amber-400'
+                  syncStatus?.isSynced
+                    ? 'border-emerald-200 bg-emerald-50 hover:border-emerald-400 dark:border-emerald-900 dark:bg-emerald-950'
+                    : 'border-amber-200 bg-amber-50 hover:border-amber-400 dark:border-amber-900 dark:bg-amber-950'
                 )}
               >
                 <span
@@ -91,7 +94,12 @@ export function Topbar({ onOpenMobileMenu, sidebarWidth }: { onOpenMobileMenu: (
                     syncStatus?.isSynced ? 'bg-emerald-500 shadow-[0_0_0_2px_rgba(16,185,129,0.25)]' : 'bg-amber-500 shadow-[0_0_0_2px_rgba(245,158,11,0.25)]'
                   )}
                 />
-                <span className={cn('text-xs font-bold', syncStatus?.isSynced ? 'text-emerald-800' : 'text-amber-800')}>
+                <span
+                  className={cn(
+                    'text-xs font-bold',
+                    syncStatus?.isSynced ? 'text-emerald-800 dark:text-emerald-300' : 'text-amber-800 dark:text-amber-300'
+                  )}
+                >
                   {syncStatus?.isSynced ? `Classroom: ${syncStatus.courseCount} lớp` : 'Chờ đồng bộ Classroom'}
                 </span>
               </button>
@@ -111,8 +119,8 @@ export function Topbar({ onOpenMobileMenu, sidebarWidth }: { onOpenMobileMenu: (
         )}
 
         {/* Academic Semester Badge */}
-        <div className="hidden items-center gap-2 rounded-md border border-blue-200 bg-secondary px-3 py-1 lg:flex">
-          <span className="text-xs font-bold text-[#1d4ed8]">{getCurrentSemesterLabel()}</span>
+        <div className="hidden items-center gap-2 rounded-md border border-blue-200 bg-secondary px-3 py-1 lg:flex dark:border-blue-900">
+          <span className="text-xs font-bold text-[#1d4ed8] dark:text-blue-300">{getCurrentSemesterLabel()}</span>
         </div>
 
         {/* Làm mới toàn bộ dữ liệu — Sin phản hồi 2026-09-24: mở app từ
@@ -124,7 +132,7 @@ export function Topbar({ onOpenMobileMenu, sidebarWidth }: { onOpenMobileMenu: (
             <button
               type="button"
               onClick={() => window.location.reload()}
-              className="flex size-8 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100"
+              className="flex size-8 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
               aria-label="Làm mới toàn bộ dữ liệu"
             >
               <RefreshCw className="size-[18px]" />
@@ -133,6 +141,7 @@ export function Topbar({ onOpenMobileMenu, sidebarWidth }: { onOpenMobileMenu: (
           <TooltipContent>Làm mới toàn bộ dữ liệu</TooltipContent>
         </Tooltip>
 
+        <SettingsPanel />
         <NotificationBell />
       </div>
     </header>

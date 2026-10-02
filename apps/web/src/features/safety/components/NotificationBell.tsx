@@ -123,7 +123,7 @@ export function NotificationBell() {
   return (
     <DropdownMenu open={open} onOpenChange={handleOpenChange}>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative text-slate-500">
+        <Button variant="ghost" size="icon" className="relative text-slate-500 dark:text-slate-400">
           <Bell className="size-5" />
           {unreadCount > 0 && (
             <span className="absolute top-0.5 right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-xs font-bold text-white">
@@ -149,13 +149,13 @@ export function NotificationBell() {
               // người vừa đăng nhập, có thể vẫn đang gắn với tài khoản
               // trước đó trên CHÍNH thiết bị này (Sin phát hiện 2026-09-24).
               // Bấm lại nút này để gán lại đúng tài khoản đang đăng nhập.
-              <Button variant="ghost" size="sm" disabled={pushEnabling} onClick={handleEnablePush} className="w-full text-xs text-slate-500">
+              <Button variant="ghost" size="sm" disabled={pushEnabling} onClick={handleEnablePush} className="w-full text-xs text-slate-500 dark:text-slate-400">
                 {pushEnabling ? 'Đang đồng bộ...' : 'Đồng bộ lại thông báo đẩy cho tài khoản này'}
               </Button>
             )}
             {pushError && (
-              <Alert className="mt-1.5 border-amber-200 bg-amber-50 py-1.5">
-                <AlertDescription className="text-xs text-amber-800">{pushError}</AlertDescription>
+              <Alert className="mt-1.5 border-amber-200 bg-amber-50 py-1.5 dark:border-amber-900 dark:bg-amber-950">
+                <AlertDescription className="text-xs text-amber-800 dark:text-amber-300">{pushError}</AlertDescription>
               </Alert>
             )}
           </div>
@@ -163,12 +163,12 @@ export function NotificationBell() {
         <DropdownMenuSeparator />
         {loading && (
           <div className="flex justify-center py-6">
-            <Loader2 className="size-5 animate-spin text-slate-400" />
+            <Loader2 className="size-5 animate-spin text-slate-400 dark:text-slate-500" />
           </div>
         )}
         {!loading && items.length === 0 && (
           <div className="py-6 text-center">
-            <p className="text-sm text-slate-500">Không có thông báo nào.</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">Không có thông báo nào.</p>
           </div>
         )}
         {!loading &&
@@ -178,9 +178,9 @@ export function NotificationBell() {
               onClick={() => handleItemClick(n)}
               className={cn('flex-col items-start gap-0.5 border-l-[3px] py-2.5 whitespace-normal', n.read ? 'border-l-transparent' : 'border-l-primary bg-secondary')}
             >
-              <p className={cn('text-sm text-[#0f172a]', n.read ? 'font-medium' : 'font-bold')}>{n.title}</p>
-              <p className="block text-xs text-slate-500">{n.message}</p>
-              <p className="text-xs text-slate-400">{formatDateTime(n.createdAt)}</p>
+              <p className={cn('text-sm text-[#0f172a] dark:text-slate-100', n.read ? 'font-medium' : 'font-bold')}>{n.title}</p>
+              <p className="block text-xs text-slate-500 dark:text-slate-400">{n.message}</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500">{formatDateTime(n.createdAt)}</p>
             </DropdownMenuItem>
           ))}
       </DropdownMenuContent>

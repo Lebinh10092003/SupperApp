@@ -107,13 +107,13 @@ export function UserMenu({ collapsed = false }: { collapsed?: boolean }) {
 
   return (
     <>
-      <div className="border-t border-slate-200 bg-slate-50 p-2.5">
+      <div className="border-t border-slate-200 bg-slate-50 p-2.5 dark:border-slate-800 dark:bg-slate-900">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
               type="button"
               className={cn(
-                'flex w-full items-center gap-2.5 rounded-lg border border-transparent px-2 py-2 transition-colors hover:bg-slate-100',
+                'flex w-full items-center gap-2.5 rounded-lg border border-transparent px-2 py-2 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800',
                 collapsed && 'justify-center px-0'
               )}
             >
@@ -125,10 +125,10 @@ export function UserMenu({ collapsed = false }: { collapsed?: boolean }) {
               {!collapsed && (
                 <>
                   <div className="min-w-0 flex-1 overflow-hidden text-left">
-                    <p className="truncate text-sm font-bold text-[#0f172a]">{profile?.displayName || 'Người dùng'}</p>
-                    <p className="truncate text-xs text-slate-500">{roleLabelMap[profile?.role || ''] || profile?.role || 'Hệ thống'}</p>
+                    <p className="truncate text-sm font-bold text-[#0f172a] dark:text-slate-100">{profile?.displayName || 'Người dùng'}</p>
+                    <p className="truncate text-xs text-slate-500 dark:text-slate-400">{roleLabelMap[profile?.role || ''] || profile?.role || 'Hệ thống'}</p>
                   </div>
-                  <ChevronDown className="size-5 shrink-0 text-slate-400" />
+                  <ChevronDown className="size-5 shrink-0 text-slate-400 dark:text-slate-500" />
                 </>
               )}
             </button>
@@ -158,10 +158,10 @@ export function UserMenu({ collapsed = false }: { collapsed?: boolean }) {
             <DialogTitle>Sửa thông tin cá nhân</DialogTitle>
           </DialogHeader>
           {profileSuccess ? (
-            <p className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">Đã cập nhật thông tin cá nhân.</p>
+            <p className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700 dark:border-green-900 dark:bg-green-950 dark:text-green-400">Đã cập nhật thông tin cá nhân.</p>
           ) : (
             <div className="flex flex-col gap-2">
-              {profileError && <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">{profileError}</p>}
+              {profileError && <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600 dark:border-red-900 dark:bg-red-950 dark:text-red-400">{profileError}</p>}
               <Label htmlFor="profile-name">Tên hiển thị</Label>
               <Input id="profile-name" value={profileName} onChange={(e) => setProfileName(e.target.value)} />
             </div>
@@ -186,10 +186,10 @@ export function UserMenu({ collapsed = false }: { collapsed?: boolean }) {
             <DialogTitle>Đổi mật khẩu</DialogTitle>
           </DialogHeader>
           {pwdSuccess ? (
-            <p className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">Đã đổi mật khẩu thành công.</p>
+            <p className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700 dark:border-green-900 dark:bg-green-950 dark:text-green-400">Đã đổi mật khẩu thành công.</p>
           ) : (
             <div className="flex flex-col gap-3">
-              {pwdError && <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">{pwdError}</p>}
+              {pwdError && <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600 dark:border-red-900 dark:bg-red-950 dark:text-red-400">{pwdError}</p>}
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="current-pwd">Mật khẩu hiện tại</Label>
                 <div className="relative">
@@ -205,7 +205,7 @@ export function UserMenu({ collapsed = false }: { collapsed?: boolean }) {
                     type="button"
                     tabIndex={-1}
                     onClick={() => setShowCurrentPwd((v) => !v)}
-                    className="absolute inset-y-0 right-2 flex items-center text-slate-400 hover:text-slate-600"
+                    className="absolute inset-y-0 right-2 flex items-center text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
                   >
                     {showCurrentPwd ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                   </button>
@@ -226,7 +226,7 @@ export function UserMenu({ collapsed = false }: { collapsed?: boolean }) {
                     type="button"
                     tabIndex={-1}
                     onClick={() => setShowNewPwd((v) => !v)}
-                    className="absolute inset-y-0 right-2 flex items-center text-slate-400 hover:text-slate-600"
+                    className="absolute inset-y-0 right-2 flex items-center text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
                   >
                     {showNewPwd ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                   </button>
