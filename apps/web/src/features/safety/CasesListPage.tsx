@@ -346,7 +346,7 @@ export default function CasesListPage() {
       )}
 
       {savedFilters.length > 0 && (
-        <div className="mb-3 flex flex-wrap gap-2">
+        <div className="mb-3 flex flex-wrap justify-end gap-2">
           {savedFilters.map((f) => (
             <Badge
               key={f.id}

@@ -4,6 +4,7 @@ import { ShieldAlert, ListChecks, TriangleAlert } from 'lucide-react';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
 import { MyIncidentsSection } from './components/MyIncidentsSection';
+import { useOpenUrgentCount } from './hooks/useOpenUrgentCount';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -35,7 +36,11 @@ export default function SafetyDashboardPage() {
       .catch(() => setStats(null));
   }, []);
 
-  const openUrgentCount = stats ? (stats.byPriority.P0 || 0) + (stats.byPriority.P1 || 0) : null;
+  // CỐ Ý không lấy từ `stats.byPriority` — field đó đếm mọi hồ sơ từng ở
+  // mức P0/P1 kể cả đã đóng/trùng/rác (Sin phát hiện 2026-10-02: lệch với
+  // số hồ sơ thật đang mở ở trang "Cần xử lý ngay"). Dùng chung hook đã lọc
+  // đúng TERMINAL_STATES với trang đó.
+  const openUrgentCount = useOpenUrgentCount();
 
   return (
     <>
