@@ -19,7 +19,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
-import { cn } from '@/lib/utils';
+import { cn, formatDateTime } from '@/lib/utils';
 
 interface AdminNotification {
   notificationId: string;
@@ -180,7 +180,7 @@ export function NotificationBell() {
             >
               <p className={cn('text-sm text-[#0f172a]', n.read ? 'font-medium' : 'font-bold')}>{n.title}</p>
               <p className="block text-xs text-slate-500">{n.message}</p>
-              <p className="text-xs text-slate-400">{new Date(n.createdAt).toLocaleString('vi-VN')}</p>
+              <p className="text-xs text-slate-400">{formatDateTime(n.createdAt)}</p>
             </DropdownMenuItem>
           ))}
       </DropdownMenuContent>

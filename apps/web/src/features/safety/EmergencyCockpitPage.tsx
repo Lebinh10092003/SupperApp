@@ -19,16 +19,7 @@ import { useIncidents } from './hooks/useIncidents';
 import { CAMPUS_LABEL, SLA_CLOCK_LABEL } from './constants';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
-
-function formatDateTime(iso?: string) {
-  if (!iso) return '—';
-  try {
-    return new Date(iso).toLocaleString('vi-VN');
-  } catch {
-    return iso;
-  }
-}
+import { cn, formatDateTime } from '@/lib/utils';
 
 export default function EmergencyCockpitPage() {
   const { items, loading, error, refetch } = useIncidents({ priorities: ['P0', 'P1'] });

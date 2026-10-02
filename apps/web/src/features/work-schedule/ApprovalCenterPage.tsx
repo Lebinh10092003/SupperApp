@@ -9,7 +9,7 @@ import { TaskDetailDialog } from './TasksListPage';
 import { CAMPUS_LABEL, abbreviatePersonLabel } from './constants';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { cn } from '@/lib/utils';
+import { cn, formatDateTime } from '@/lib/utils';
 
 /**
  * Trung tâm phê duyệt — theo đúng mẫu bản gốc Mr Tiến (ApprovalView): 2
@@ -84,7 +84,7 @@ export default function ApprovalCenterPage() {
                 )}
                 {myEvents.map((ev) => (
                   <TableRow key={ev.id} className="cursor-pointer" onClick={() => setEventDetail(ev)}>
-                    <TableCell>{new Date(ev.startAt).toLocaleString('vi-VN')}</TableCell>
+                    <TableCell>{formatDateTime(ev.startAt)}</TableCell>
                     <TableCell>{ev.title}</TableCell>
                     <TableCell>{CAMPUS_LABEL[ev.campusId] || ev.campusId}</TableCell>
                     <TableCell>
@@ -119,7 +119,7 @@ export default function ApprovalCenterPage() {
                 )}
                 {myPendingAcceptanceTasks.map((t) => (
                   <TableRow key={t.id} className="cursor-pointer" onClick={() => setTaskDetail(t)}>
-                    <TableCell>{new Date(t.dueAt).toLocaleString('vi-VN')}</TableCell>
+                    <TableCell>{formatDateTime(t.dueAt)}</TableCell>
                     <TableCell>{t.title}</TableCell>
                     <TableCell>{CAMPUS_LABEL[t.campusId] || t.campusId}</TableCell>
                     <TableCell title={t.assigneeLabel || t.assigneeName || t.assigneePerId}>

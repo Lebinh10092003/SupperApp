@@ -19,7 +19,7 @@ import { CAMPUS_LABEL, abbreviatePersonLabel } from './constants';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { cn } from '@/lib/utils';
+import { cn, formatDateTime } from '@/lib/utils';
 
 const NON_TERMINAL_TASK_STATUSES = ['ASSIGNED', 'ACCEPTED', 'IN_PROGRESS', 'PENDING_ACCEPTANCE', 'RETURNED'];
 
@@ -172,7 +172,7 @@ export default function RemindersPage() {
                 <TableBody>
                   {conflictingEvents.map((ev) => (
                     <TableRow key={ev.id} className="cursor-pointer" onClick={() => setEventDetail(ev)}>
-                      <TableCell>{new Date(ev.startAt).toLocaleString('vi-VN')}</TableCell>
+                      <TableCell>{formatDateTime(ev.startAt)}</TableCell>
                       <TableCell>{ev.title}</TableCell>
                       <TableCell>{CAMPUS_LABEL[ev.campusId] || ev.campusId}</TableCell>
                       <TableCell>
@@ -208,7 +208,7 @@ export default function RemindersPage() {
                     <TableRow key={t.id} className="cursor-pointer" onClick={() => setTaskDetail(t)}>
                       <TableCell>
                         <Badge variant="outline" className="border-transparent bg-orange-50 text-orange-700">
-                          {new Date(t.dueAt).toLocaleString('vi-VN')}
+                          {formatDateTime(t.dueAt)}
                         </Badge>
                       </TableCell>
                       <TableCell>{t.title}</TableCell>

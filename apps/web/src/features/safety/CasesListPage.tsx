@@ -13,31 +13,48 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { CirclePlus, ListChecks, BookmarkPlus, ListFilter, Search, MoreHorizontal, X, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+import {
+  CirclePlus,
+  ListChecks,
+  BookmarkPlus,
+  ListFilter,
+  Search,
+  MoreHorizontal,
+  Paperclip,
+  UserCheck,
+  UserPlus,
+  X,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown
+} from 'lucide-react';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
+import { env } from '../../config/env';
 import { useIncidents, type IncidentListItem } from './hooks/useIncidents';
+import { PersonPicker, type PersonOption } from './PersonPicker';
 import { StatusChip } from './components/StatusChip';
 import { PriorityChip } from './components/PriorityChip';
 import { CAMPUS_IDS, CAMPUS_LABEL, STATE_OPTIONS } from './constants';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { cn } from '@/lib/utils';
+import { cn, formatDateTime } from '@/lib/utils';
 
 const PRIORITY_OPTIONS = ['P0', 'P1', 'P2', 'P3'];
 type SortKey = 'incidentId' | 'campusId' | 'priority' | 'state' | 'updatedAt';
 type OwnerFilter = '' | 'unclaimed' | 'claimed';
+const MAX_EVIDENCE_FILES = 5;
 
 const ALL_CAMPUS = '__all_campus__';
 const ALL_PRIORITY = '__all_priority__';
@@ -74,19 +91,20 @@ export default function CasesListPage() {
   const [searchText, setSearchText] = useState(() => searchParams.get('q') || '');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
-  const [categories, setCategories] = useState<{ code: string; label: string }[]>([]);
+  const [categories, setCategories] = useState<{ code: string; label: string; groupLabel?: string }[]>([]);
   const [sortKey, setSortKey] = useState<SortKey>('updatedAt');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
   const [toast, setToast] = useState<{ message: string; severity: 'success' | 'error' } | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const [savedFilters, setSavedFilters] = useState<SavedFilterRow[]>([]);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [saveFilterName, setSaveFilterName] = useState('');
 
   useEffect(() => {
-    api.get<{ code: string; label: string }[]>('/api/safety/categories').then(setCategories).catch(() => setCategories([]));
+    api.get<{ code: string; label: string; groupLabel?: string }[]>('/api/safety/categories').then(setCategories).catch(() => setCategories([]));
     api.get<SavedFilterRow[]>('/api/safety/saved-filters').then(setSavedFilters).catch(() => setSavedFilters([]));
   }, []);
 
@@ -179,30 +197,117 @@ export default function CasesListPage() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState({ campusId: '', categoryCode: '', content: '', className: '', priority: '' });
+  const [evidenceFiles, setEvidenceFiles] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [dialogError, setDialogError] = useState('');
 
   const handleCreateDirect = async () => {
     setDialogError('');
     if (!form.campusId) return setDialogError('Vui lòng chọn cơ sở.');
-    if (!form.categoryCode) return setDialogError('Vui lòng nhập mã nhóm sự cố.');
+    if (!form.categoryCode) return setDialogError('Vui lòng chọn nhóm sự cố.');
     setSubmitting(true);
     try {
+      const evidenceIds: string[] = [];
+      for (const f of evidenceFiles) {
+        const fd = new FormData();
+        fd.append('file', f);
+        const baseUrl = (env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
+        const r = await fetch(`${baseUrl}/api/safety/evidence/upload`, { method: 'POST', body: fd });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok || d.rejected || !d.evidenceId) {
+          setDialogError(`Không tải lên được minh chứng "${f.name}". Vui lòng thử lại, hoặc bỏ file này.`);
+          setSubmitting(false);
+          return;
+        }
+        evidenceIds.push(d.evidenceId);
+      }
       const res = await api.post<{ incidentId: string }>('/api/safety/incidents/direct', {
         campusId: form.campusId,
         categoryCode: form.categoryCode,
         content: form.content,
         className: form.className || undefined,
-        priority: form.priority || undefined
+        priority: form.priority || undefined,
+        evidenceIds
       });
       setDialogOpen(false);
       setForm({ campusId: '', categoryCode: '', content: '', className: '', priority: '' });
+      setEvidenceFiles([]);
       navigate(`/safety/incidents/${res.incidentId}`);
     } catch (e: any) {
       setDialogError(e.message || 'Tạo hồ sơ thất bại.');
     } finally {
       setSubmitting(false);
     }
+  };
+
+  // --- Thao tác hàng loạt (chọn nhiều dòng) ---
+  const selectedCount = selectedIds.size;
+  const toggleSelectAllOnPage = (checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      for (const it of paged) {
+        if (checked) next.add(it.incidentId);
+        else next.delete(it.incidentId);
+      }
+      return next;
+    });
+  };
+  const toggleSelectOne = (id: string, checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
+  const allOnPageSelected = paged.length > 0 && paged.every((it) => selectedIds.has(it.incidentId));
+
+  const [bulkAccepting, setBulkAccepting] = useState(false);
+  const handleBulkAccept = async () => {
+    setBulkAccepting(true);
+    let okCount = 0;
+    for (const id of selectedIds) {
+      try {
+        await api.post(`/api/safety/incidents/${id}/acknowledge`, {});
+        okCount++;
+      } catch {
+        // tiếp tục xử lý các hồ sơ còn lại, báo tổng kết sau
+      }
+    }
+    setBulkAccepting(false);
+    setSelectedIds(new Set());
+    setToast({
+      message: okCount === selectedIds.size ? `Đã tiếp nhận ${okCount} sự vụ.` : `Đã tiếp nhận ${okCount}/${selectedIds.size} sự vụ (một số hồ sơ không thể tiếp nhận).`,
+      severity: okCount > 0 ? 'success' : 'error'
+    });
+  };
+
+  const [bulkAssignOpen, setBulkAssignOpen] = useState(false);
+  const [bulkAssignPerson, setBulkAssignPerson] = useState<PersonOption | null>(null);
+  const [bulkAssignReason, setBulkAssignReason] = useState('');
+  const [bulkAssigning, setBulkAssigning] = useState(false);
+  const handleBulkAssign = async () => {
+    if (!bulkAssignPerson || !bulkAssignReason.trim()) return;
+    setBulkAssigning(true);
+    let okCount = 0;
+    const ids = Array.from(selectedIds);
+    for (const id of ids) {
+      try {
+        await api.post(`/api/safety/incidents/${id}/commander`, { commanderPerId: bulkAssignPerson.perId, reason: bulkAssignReason.trim() });
+        okCount++;
+      } catch {
+        // tiếp tục xử lý các hồ sơ còn lại, báo tổng kết sau
+      }
+    }
+    setBulkAssigning(false);
+    setBulkAssignOpen(false);
+    setBulkAssignPerson(null);
+    setBulkAssignReason('');
+    setSelectedIds(new Set());
+    setToast({
+      message: okCount === ids.length ? `Đã chỉ định chỉ huy cho ${okCount} sự vụ.` : `Đã chỉ định ${okCount}/${ids.length} sự vụ (một số hồ sơ không thể chỉ định).`,
+      severity: okCount > 0 ? 'success' : 'error'
+    });
   };
 
   const SortHeader = ({ sortKeyName, children }: { sortKeyName: SortKey; children: React.ReactNode }) => {
@@ -265,8 +370,37 @@ export default function CasesListPage() {
         </div>
       )}
 
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <div className="relative min-w-56 flex-1">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {selectedCount > 0 ? (
+            <>
+              <span className="text-sm font-medium text-slate-600">Đã chọn {selectedCount}</span>
+              <Button variant="outline" size="sm" disabled={bulkAccepting} onClick={handleBulkAccept}>
+                <UserCheck className="size-4" />
+                Tiếp nhận
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setBulkAssignOpen(true)}>
+                <UserPlus className="size-4" />
+                Chỉ định
+              </Button>
+              {selectedCount === 1 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate(`/safety/incidents/${Array.from(selectedIds)[0]}`)}
+                >
+                  Xem chi tiết
+                </Button>
+              )}
+              <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>
+                Bỏ chọn
+              </Button>
+            </>
+          ) : null}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+        <div className="relative w-full min-w-56 sm:w-72">
           <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
           <Input
             id="cases-search"
@@ -400,12 +534,16 @@ export default function CasesListPage() {
           </TooltipTrigger>
           <TooltipContent>Lưu bộ lọc hiện tại</TooltipContent>
         </Tooltip>
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_3px_0_rgba(15,23,42,0.04)]">
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-10">
+                <Checkbox checked={allOnPageSelected} onCheckedChange={(v) => toggleSelectAllOnPage(Boolean(v))} aria-label="Chọn tất cả" />
+              </TableHead>
               <TableHead>
                 <SortHeader sortKeyName="updatedAt">Cập nhật</SortHeader>
               </TableHead>
@@ -430,15 +568,30 @@ export default function CasesListPage() {
           <TableBody>
             {!loading && paged.length === 0 && (
               <TableRow>
-                <TableCell colSpan={9} className="py-8 text-center text-slate-500">
+                <TableCell colSpan={10} className="py-8 text-center text-slate-500">
                   Không có sự vụ nào.
                 </TableCell>
               </TableRow>
             )}
             {paged.map((it: IncidentListItem) => (
-              <TableRow key={it.incidentId} className="cursor-pointer" onClick={() => navigate(`/safety/incidents/${it.incidentId}`)}>
-                <TableCell className="py-3">{it.updatedAt ? new Date(it.updatedAt).toLocaleString('vi-VN') : '—'}</TableCell>
-                <TableCell className="py-3 font-medium">{it.incidentId}</TableCell>
+              <TableRow key={it.incidentId} data-state={selectedIds.has(it.incidentId) ? 'selected' : undefined}>
+                <TableCell className="py-3">
+                  <Checkbox
+                    checked={selectedIds.has(it.incidentId)}
+                    onCheckedChange={(v) => toggleSelectOne(it.incidentId, Boolean(v))}
+                    aria-label={`Chọn ${it.incidentId}`}
+                  />
+                </TableCell>
+                <TableCell className="py-3">{it.updatedAt ? formatDateTime(it.updatedAt) : '—'}</TableCell>
+                <TableCell className="py-3">
+                  <button
+                    type="button"
+                    className="font-medium text-primary hover:underline"
+                    onClick={() => navigate(`/safety/incidents/${it.incidentId}`)}
+                  >
+                    {it.incidentId}
+                  </button>
+                </TableCell>
                 <TableCell className="py-3">{CAMPUS_LABEL[it.campusId] || it.campusId}</TableCell>
                 <TableCell className="max-w-45 py-3">
                   <p className="truncate text-sm" title={it.categoryLabel || it.categoryCode || ''}>
@@ -446,16 +599,9 @@ export default function CasesListPage() {
                   </p>
                 </TableCell>
                 <TableCell className="max-w-65 py-3">
-                  <div className="flex items-center gap-2.5">
-                    <Avatar size="sm" className="shrink-0 bg-slate-100">
-                      <AvatarFallback className="bg-slate-100 text-xs font-semibold text-slate-500">
-                        {(it.categoryLabel || it.categoryCode || '?').slice(0, 1).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <p className="truncate text-sm" title={it.contentPreview || ''}>
-                      {it.contentPreview || <em>(không có nội dung)</em>}
-                    </p>
-                  </div>
+                  <p className="truncate text-sm" title={it.contentPreview || ''}>
+                    {it.contentPreview || <em>(không có nội dung)</em>}
+                  </p>
                 </TableCell>
                 <TableCell className="py-3">
                   <PriorityChip priority={it.priority} compact />
@@ -470,7 +616,7 @@ export default function CasesListPage() {
                     </Badge>
                   )}
                 </TableCell>
-                <TableCell className="py-3" onClick={(e) => e.stopPropagation()}>
+                <TableCell className="py-3">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="icon" className="size-8">
@@ -562,7 +708,6 @@ export default function CasesListPage() {
                 <AlertDescription className="text-red-700">{dialogError}</AlertDescription>
               </Alert>
             )}
-            <p className="text-sm text-slate-500">Dùng khi bạn trực tiếp chứng kiến/xử lý sự việc, không cần có sẵn tin báo trước.</p>
             <div>
               <Label className="mb-1.5 block">Cơ sở *</Label>
               <Select value={form.campusId} onValueChange={(v) => setForm({ ...form, campusId: v })}>
@@ -579,25 +724,40 @@ export default function CasesListPage() {
               </Select>
             </div>
             <div>
-              <Label htmlFor="direct-category" className="mb-1.5 block">
-                Mã nhóm sự cố (categoryCode) *
-              </Label>
-              <Input
-                id="direct-category"
-                value={form.categoryCode}
-                onChange={(e) => setForm({ ...form, categoryCode: e.target.value })}
-                placeholder="VD: fire_explosion"
-              />
+              <Label className="mb-1.5 block">Nhóm sự cố *</Label>
+              <Select value={form.categoryCode} onValueChange={(v) => setForm({ ...form, categoryCode: v })}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Chọn nhóm sự cố" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(
+                    categories.reduce<Record<string, { code: string; label: string }[]>>((acc, c) => {
+                      const key = c.groupLabel || 'Khác';
+                      (acc[key] ||= []).push(c);
+                      return acc;
+                    }, {})
+                  ).map(([groupLabel, items]) => (
+                    <SelectGroup key={groupLabel}>
+                      <SelectLabel>{groupLabel}</SelectLabel>
+                      {items.map((c) => (
+                        <SelectItem key={c.code} value={c.code}>
+                          {c.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label htmlFor="direct-class" className="mb-1.5 block">
-                Lớp liên quan
+                Lớp liên quan (tuỳ chọn)
               </Label>
               <Input id="direct-class" value={form.className} onChange={(e) => setForm({ ...form, className: e.target.value })} />
             </div>
             <div>
               <Label htmlFor="direct-content" className="mb-1.5 block">
-                Nội dung
+                Nội dung (tuỳ chọn)
               </Label>
               <Textarea id="direct-content" rows={3} value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} />
             </div>
@@ -617,6 +777,46 @@ export default function CasesListPage() {
                 </SelectContent>
               </Select>
             </div>
+            <div>
+              <Label htmlFor="direct-evidence" className="mb-1.5 block">
+                Ảnh/video/file minh chứng (tuỳ chọn)
+              </Label>
+              <label
+                htmlFor="direct-evidence"
+                className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-4 text-sm text-slate-500 hover:border-slate-400"
+              >
+                <Paperclip className="size-4" />
+                Chọn file đính kèm (tối đa {MAX_EVIDENCE_FILES})
+                <input
+                  id="direct-evidence"
+                  type="file"
+                  multiple
+                  accept="image/*,video/*,.pdf"
+                  className="hidden"
+                  onChange={(e) => {
+                    const picked = Array.from(e.target.files || []);
+                    setEvidenceFiles((prev) => [...prev, ...picked].slice(0, MAX_EVIDENCE_FILES));
+                    e.target.value = '';
+                  }}
+                />
+              </label>
+              {evidenceFiles.length > 0 && (
+                <ul className="mt-2 flex flex-col gap-1">
+                  {evidenceFiles.map((f, idx) => (
+                    <li key={idx} className="flex items-center justify-between rounded-md bg-slate-50 px-2 py-1 text-xs text-slate-600">
+                      <span className="truncate">{f.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => setEvidenceFiles((prev) => prev.filter((_, i) => i !== idx))}
+                        className="shrink-0 text-slate-400 hover:text-red-600"
+                      >
+                        <X className="size-3.5" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setDialogOpen(false)}>
@@ -624,6 +824,31 @@ export default function CasesListPage() {
             </Button>
             <Button onClick={handleCreateDirect} disabled={submitting}>
               Tạo sự vụ
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={bulkAssignOpen} onOpenChange={(v) => !v && setBulkAssignOpen(false)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Chỉ định chỉ huy cho {selectedCount} sự vụ</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-3">
+            <PersonPicker label="Chỉ huy" value={bulkAssignPerson} onChange={setBulkAssignPerson} />
+            <div>
+              <Label htmlFor="bulk-assign-reason" className="mb-1.5 block">
+                Lý do *
+              </Label>
+              <Textarea id="bulk-assign-reason" rows={3} value={bulkAssignReason} onChange={(e) => setBulkAssignReason(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setBulkAssignOpen(false)}>
+              Hủy
+            </Button>
+            <Button disabled={!bulkAssignPerson || !bulkAssignReason.trim() || bulkAssigning} onClick={handleBulkAssign}>
+              {bulkAssigning ? 'Đang chỉ định...' : 'Chỉ định'}
             </Button>
           </DialogFooter>
         </DialogContent>

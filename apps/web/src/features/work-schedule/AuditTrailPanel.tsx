@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react';
 import { ChevronDown, History, Loader2 } from 'lucide-react';
 import { api } from '../../services/api';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { formatDateTime } from '@/lib/utils';
 
 export interface AuditLogEntry {
   id: string;
@@ -94,7 +95,7 @@ export function AuditTrailPanel({
               <div key={log.id} className="py-1.5 first:pt-0 last:pb-0">
                 <p className="text-sm font-semibold">{ACTION_LABEL[log.action] || log.action}</p>
                 <p className="text-xs text-slate-500">
-                  {log.actorLabel || log.actorPerId} — {new Date(log.createdAt).toLocaleString('vi-VN')}
+                  {log.actorLabel || log.actorPerId} — {formatDateTime(log.createdAt)}
                 </p>
               </div>
             ))}

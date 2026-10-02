@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { formatDateTime } from '@/lib/utils';
 
 interface AuditLogEntry {
   logId: string;
@@ -173,7 +174,7 @@ export default function AuditLogPage() {
               )}
               {items.map((it) => (
                 <TableRow key={it.logId} className="cursor-pointer" onClick={() => setDetail(it)}>
-                  <TableCell>{new Date(it.occurredAt).toLocaleString('vi-VN')}</TableCell>
+                  <TableCell>{formatDateTime(it.occurredAt)}</TableCell>
                   <TableCell>{it.actorLabel || it.actorPerId}</TableCell>
                   <TableCell>{ACTION_LABEL[it.action] || it.action}</TableCell>
                   <TableCell>{it.objectId}</TableCell>
@@ -200,7 +201,7 @@ export default function AuditLogPage() {
           </DialogHeader>
           {detail && (
             <div className="flex flex-col gap-2.5">
-              <p className="text-sm">Thời gian: {new Date(detail.occurredAt).toLocaleString('vi-VN')}</p>
+              <p className="text-sm">Thời gian: {formatDateTime(detail.occurredAt)}</p>
               <p className="text-sm">Người thực hiện: {detail.actorLabel || detail.actorPerId}</p>
               <p className="text-sm">Hành động: {ACTION_LABEL[detail.action] || detail.action}</p>
               <p className="text-sm">Đối tượng: {detail.objectId}</p>

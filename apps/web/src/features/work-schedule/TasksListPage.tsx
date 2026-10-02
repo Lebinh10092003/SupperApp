@@ -19,7 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
-import { cn } from '@/lib/utils';
+import { cn, formatDateTime } from '@/lib/utils';
 
 export function TaskStatusChip({ status }: { status: string }) {
   const c = TASK_STATUS_COLOR[status] || { bg: '#f1f5f9', fg: '#334155', border: '#e2e8f0' };
@@ -333,8 +333,8 @@ export default function TasksListPage() {
             )}
             {filteredItems.map((t) => (
               <TableRow key={t.id} className="cursor-pointer" onClick={() => setDetail(t)}>
-                <TableCell>{new Date(t.createdAt).toLocaleString('vi-VN')}</TableCell>
-                <TableCell>{new Date(t.dueAt).toLocaleString('vi-VN')}</TableCell>
+                <TableCell>{formatDateTime(t.createdAt)}</TableCell>
+                <TableCell>{formatDateTime(t.dueAt)}</TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2.5">
                     <Avatar size="sm" className="shrink-0 bg-slate-100">
@@ -564,8 +564,8 @@ export function TaskDetailDialog({
               Người giao: {task.createdByLabel || task.createdByName || task.createdByPerId} — Người thực hiện:{' '}
               {task.assigneeLabel || task.assigneeName || task.assigneePerId}
             </p>
-            <p className="text-sm">Ngày giao: {new Date(task.createdAt).toLocaleString('vi-VN')}</p>
-            <p className="text-sm">Hạn: {new Date(task.dueAt).toLocaleString('vi-VN')}</p>
+            <p className="text-sm">Ngày giao: {formatDateTime(task.createdAt)}</p>
+            <p className="text-sm">Hạn: {formatDateTime(task.dueAt)}</p>
             <p className="text-sm text-slate-500">Nội dung: {task.description || '—'}</p>
           </div>
           {task.status === 'RETURNED' && task.acceptanceNote && (

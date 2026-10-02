@@ -31,7 +31,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { cn } from '@/lib/utils';
+import { cn, formatDateTime } from '@/lib/utils';
 
 export function EventStatusChip({ status }: { status: string }) {
   const c = EVENT_STATUS_COLOR[status] || { bg: '#f1f5f9', fg: '#334155', border: '#e2e8f0' };
@@ -419,7 +419,7 @@ export default function EventsListPage() {
               const participantText = ev.scope === 'SCHOOL_WIDE' ? 'Toàn trường' : fullParticipants.map(abbreviatePersonLabel).join(', ') || '—';
               return (
                 <TableRow key={ev.id} className="cursor-pointer" onClick={() => setDetail(ev)}>
-                  <TableCell>{new Date(ev.startAt).toLocaleString('vi-VN')}</TableCell>
+                  <TableCell>{formatDateTime(ev.startAt)}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2.5">
                       <Avatar size="sm" className="shrink-0 bg-slate-100">
@@ -757,7 +757,7 @@ export function EventDetailDialog({
               Cơ sở: <strong>{event.scope === 'SCHOOL_WIDE' ? 'Toàn trường' : CAMPUS_LABEL[event.campusId] || event.campusId}</strong>
             </p>
             <p className="text-sm">
-              Thời gian: {new Date(event.startAt).toLocaleString('vi-VN')} → {new Date(event.endAt).toLocaleString('vi-VN')}
+              Thời gian: {formatDateTime(event.startAt)} → {formatDateTime(event.endAt)}
             </p>
             <p className="text-sm">Địa điểm: {event.location || '—'}</p>
             <p className="text-sm">Chủ trì: {event.chairLabel || event.chairPerId}</p>

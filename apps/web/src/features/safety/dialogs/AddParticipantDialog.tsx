@@ -64,9 +64,6 @@ export function AddParticipantDialog({
         </DialogHeader>
         {target && (
           <div className="flex flex-col gap-3">
-            <p className="text-sm text-slate-500">
-              Hồ sơ <strong>{target.incidentId}</strong> — người được thêm sẽ xem được toàn bộ hồ sơ và nhận thông báo ngay.
-            </p>
             {target.current && target.current.length > 0 && (
               <div className="flex flex-col gap-1.5">
                 <p className="text-xs text-slate-500">Đang tham gia xử lý hồ sơ này:</p>

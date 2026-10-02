@@ -1,6 +1,6 @@
 import { ScrollText } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
+import { cn, formatDateTime } from '@/lib/utils';
 import { ApiTablePage } from '../../components/ApiTablePage';
 
 /** Toàn bộ giá trị `action` thật từng ghi vào general_audit_logs (xem admin.routes.ts + connections.routes.ts) — không có giá trị nào khác. */
@@ -65,7 +65,7 @@ export default function ClassroomAuditPage() {
         {
           key: 'timestamp',
           label: 'Thời gian',
-          render: (val: any) => (val ? new Date(val).toLocaleString('vi-VN') : '—')
+          render: (val: any) => (val ? formatDateTime(val) : '—')
         }
       ]}
     />

@@ -79,7 +79,7 @@ export function PersonPicker({
             disabled={disabled}
             className="w-full justify-between font-normal"
           >
-            <span className={cn('truncate', !value && 'text-muted-foreground')}>{value ? `${value.name} (${value.perId})` : 'Gõ tên để tìm...'}</span>
+            <span className={cn('truncate', !value && 'text-muted-foreground')}>{value ? value.name : 'Gõ tên để tìm...'}</span>
             <ChevronsUpDown className="size-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
@@ -106,7 +106,7 @@ export function PersonPicker({
                         }}
                       >
                         <Check className={cn('mr-2 size-4', value?.perId === o.perId ? 'opacity-100' : 'opacity-0')} />
-                        {o.name} ({o.perId})
+                        {o.name}
                       </CommandItem>
                     ))}
                   </CommandGroup>

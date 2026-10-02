@@ -156,7 +156,7 @@ export default function SystemPage() {
             <p className="text-sm text-blue-100">
               Đang chạy trên VPS thật (production)
               {notConfiguredCount > 0 && ` • ${notConfiguredCount} tích hợp chưa cấu hình (xem bên dưới)`}
-              {checkedAt && ` • Kiểm tra lúc ${checkedAt.toLocaleTimeString('vi-VN')}`}
+              {checkedAt && ` • Kiểm tra lúc ${checkedAt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`}
             </p>
           </div>
           <div className="md:basis-1/3 md:text-right">

@@ -36,7 +36,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { cn } from '@/lib/utils';
+import { cn, formatDateTime } from '@/lib/utils';
 
 const CLASSROOM_SCOPES_STRING = [
   'openid',
@@ -457,7 +457,7 @@ export default function GoogleConnectionPage() {
             {status?.modeA?.connected && (
               <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
                 <p className="text-xs text-green-700">
-                  Cập nhật lần cuối: {new Date(status.modeA.connectedAt || Date.now()).toLocaleString('vi-VN')}
+                  Cập nhật lần cuối: {formatDateTime(status.modeA.connectedAt || Date.now())}
                   {status.modeA.hasRefreshToken ? ' • Tự động gia hạn vĩnh viễn' : ' • Hạn Access Token 1 giờ'}
                 </p>
                 {status.modeA.hasRefreshToken && (

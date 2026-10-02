@@ -33,6 +33,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Toast, type ToastState } from '../../components/Toast';
+import { formatDateTime } from '@/lib/utils';
 
 interface EvidenceSummary {
   evidenceId: string;
@@ -88,15 +89,6 @@ const STATE_CLOSED = 'Đã đóng';
 const SENIOR_ROLE_IDS = new Set(['R.PRINCIPAL', 'R.VICE_PRINCIPAL', 'R.DEPT_HEAD']);
 function isSeniorRole(actor: { roles: Array<{ roleId: string }> } | null | undefined) {
   return !!actor?.roles?.some((r) => SENIOR_ROLE_IDS.has(r.roleId));
-}
-
-function formatDateTime(iso?: string) {
-  if (!iso) return '—';
-  try {
-    return new Date(iso).toLocaleString('vi-VN');
-  } catch {
-    return iso;
-  }
 }
 
 export default function IncidentDetailPage() {
@@ -555,7 +547,7 @@ export default function IncidentDetailPage() {
         description={
           incident.commanderPerId && !isSenior
             ? `Hồ sơ ${incident.incidentId} đã có chỉ huy — yêu cầu tham gia của bạn cần chỉ huy duyệt trước khi có hiệu lực.`
-            : `Bạn sẽ tự thêm mình vào danh sách người tham gia xử lý ${incident.incidentId}.`
+            : undefined
         }
         confirmLabel="Tham gia"
         confirmVariant="default"
