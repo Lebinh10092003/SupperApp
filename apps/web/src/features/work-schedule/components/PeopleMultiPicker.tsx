@@ -12,6 +12,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Check, ChevronsUpDown, Loader2, X } from 'lucide-react';
 import { api } from '../../../services/api';
 import type { PersonOption } from '../../safety/PersonPicker';
+import { ContactGroupPickerButton } from '../../contacts/ContactGroupPickerDialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
@@ -99,6 +100,7 @@ export function PeopleMultiPicker({
   return (
     <div className="flex flex-col gap-1.5">
       <Label className="block">{label}</Label>
+      <div className="flex items-center gap-1.5">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button variant="outline" role="combobox" aria-expanded={open} disabled={disabled} className="w-full justify-between font-normal">
@@ -162,6 +164,8 @@ export function PeopleMultiPicker({
           </Command>
         </PopoverContent>
       </Popover>
+      {!disabled && <ContactGroupPickerButton onPick={(p) => toggle(p)} />}
+      </div>
       <div className="flex items-center gap-2">
         <Button size="sm" variant="ghost" onClick={selectAll} disabled={disabled || selectingAll} className="w-fit px-0 text-primary">
           {selectingAll ? 'Đang tải...' : 'Chọn toàn bộ'}

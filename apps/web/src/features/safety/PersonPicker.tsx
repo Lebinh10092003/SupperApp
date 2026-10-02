@@ -12,6 +12,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
+import { ContactGroupPickerButton } from '../contacts/ContactGroupPickerDialog';
 
 export interface PersonOption {
   perId: string;
@@ -70,6 +71,7 @@ export function PersonPicker({
   return (
     <div>
       <Label className="mb-1.5 block">{label}</Label>
+      <div className="flex items-center gap-1.5">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
@@ -116,6 +118,8 @@ export function PersonPicker({
           </Command>
         </PopoverContent>
       </Popover>
+      {!disabled && <ContactGroupPickerButton onPick={(p) => onChange(p)} />}
+      </div>
     </div>
   );
 }
