@@ -50,7 +50,7 @@ export function AssignCommanderDialog({
   };
 
   const handleSubmit = async () => {
-    if (!target || !commander) return;
+    if (!target || !commander || !reason.trim()) return;
     setSubmitting(true);
     setError('');
     try {
@@ -93,15 +93,12 @@ export function AssignCommanderDialog({
               )}
             </p>
             <PersonPicker label="Chỉ huy mới" value={commander} onChange={setCommander} />
-            {/* Trước đây ghi "(tuỳ chọn)" nhưng backend bắt buộc theo vai
-                trò (`PERMISSION_MATRIX['incident.assign_commander']`:
-                Hiệu trưởng/Tổ trưởng = XR → bắt buộc nhập lý do, Phó Hiệu
-                trưởng = X → không bắt buộc) — nhãn cũ sai, gây bấm Xác nhận
-                bị chặn bất ngờ (Sin phản hồi 2026-09-11; Tổ trưởng thêm
-                2026-09-22). */}
+            {/* Lý do giờ LUÔN bắt buộc ở frontend (Sin chốt 2026-10-02) dù
+                backend chỉ bắt buộc theo vai trò — chặt hơn cần thiết với
+                1 số vai trò nhưng không sai, tránh nhãn mơ hồ "tuỳ vai trò". */}
             <div>
               <Label htmlFor="assign-commander-reason" className="mb-1.5 block">
-                Lý do (bắt buộc với Hiệu trưởng/Tổ trưởng)
+                Lý do *
               </Label>
               <Textarea id="assign-commander-reason" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} />
             </div>
@@ -124,7 +121,7 @@ export function AssignCommanderDialog({
           <Button variant="ghost" onClick={handleClose} className="text-slate-500">
             Hủy
           </Button>
-          <Button disabled={!commander || submitting} onClick={handleSubmit}>
+          <Button disabled={!commander || !reason.trim() || submitting} onClick={handleSubmit}>
             {submitting ? 'Đang lưu...' : 'Xác nhận chỉ định'}
           </Button>
         </DialogFooter>

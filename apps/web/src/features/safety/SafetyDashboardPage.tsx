@@ -35,6 +35,8 @@ export default function SafetyDashboardPage() {
       .catch(() => setStats(null));
   }, []);
 
+  const openUrgentCount = stats ? (stats.byPriority.P0 || 0) + (stats.byPriority.P1 || 0) : null;
+
   return (
     <>
       <PageHeader title="Cảnh báo an toàn và xử lý sự cố" icon={<ShieldAlert />} />
@@ -63,7 +65,14 @@ export default function SafetyDashboardPage() {
         >
           <TriangleAlert className="size-5 text-red-600" />
           <div>
-            <p className="font-bold text-red-900">Cần xử lý ngay</p>
+            <p className="font-bold text-red-900">
+              Cần xử lý ngay
+              {openUrgentCount !== null && openUrgentCount > 0 && (
+                <span className="ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 text-xs font-bold text-white">
+                  {openUrgentCount}
+                </span>
+              )}
+            </p>
             <p className="text-xs text-red-900">Hồ sơ mức P0/P1 đang mở</p>
           </div>
         </div>

@@ -53,7 +53,7 @@ export function ChangeStatusDialog({
   };
 
   const handleSubmit = async () => {
-    if (!target || !toState) return;
+    if (!target || !toState || !reason.trim()) return;
     setSubmitting(true);
     setError('');
     try {
@@ -113,7 +113,7 @@ export function ChangeStatusDialog({
             </div>
             <div>
               <Label htmlFor="change-status-reason" className="mb-1.5 block">
-                Lý do (bắt buộc với 1 số vai trò)
+                Lý do *
               </Label>
               <Textarea id="change-status-reason" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} />
             </div>
@@ -136,7 +136,7 @@ export function ChangeStatusDialog({
           <Button variant="ghost" onClick={handleClose} className="text-slate-500">
             Hủy
           </Button>
-          <Button disabled={!toState || submitting} onClick={handleSubmit}>
+          <Button disabled={!toState || !reason.trim() || submitting} onClick={handleSubmit}>
             {submitting ? 'Đang lưu...' : 'Xác nhận đổi trạng thái'}
           </Button>
         </DialogFooter>

@@ -88,7 +88,7 @@ export function CorrectClassificationDialog({
             </div>
             <div>
               <Label htmlFor="correct-class-reason" className="mb-1.5 block">
-                Lý do sửa (bắt buộc)
+                Lý do sửa *
               </Label>
               <Textarea id="correct-class-reason" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} required />
             </div>

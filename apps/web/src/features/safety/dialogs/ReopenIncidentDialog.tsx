@@ -77,7 +77,7 @@ export function ReopenIncidentDialog({
             </p>
             <div>
               <Label htmlFor="reopen-reason" className="mb-1.5 block">
-                Lý do mở lại (bắt buộc)
+                Lý do mở lại *
               </Label>
               <Textarea id="reopen-reason" rows={3} value={reason} onChange={(e) => setReason(e.target.value)} required />
             </div>

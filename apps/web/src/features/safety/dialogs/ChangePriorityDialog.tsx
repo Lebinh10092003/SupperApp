@@ -55,7 +55,7 @@ export function ChangePriorityDialog({
   };
 
   const handleSubmit = async () => {
-    if (!target || !toPriority) return;
+    if (!target || !toPriority || !reason.trim()) return;
     setSubmitting(true);
     setError('');
     try {
@@ -102,7 +102,7 @@ export function ChangePriorityDialog({
             </div>
             <div>
               <Label htmlFor="change-priority-reason" className="mb-1.5 block">
-                Lý do (bắt buộc với 1 số vai trò)
+                Lý do *
               </Label>
               <Textarea id="change-priority-reason" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} />
             </div>
@@ -125,7 +125,7 @@ export function ChangePriorityDialog({
           <Button variant="ghost" onClick={handleClose} className="text-slate-500">
             Hủy
           </Button>
-          <Button disabled={!toPriority || submitting} onClick={handleSubmit}>
+          <Button disabled={!toPriority || !reason.trim() || submitting} onClick={handleSubmit}>
             {submitting ? 'Đang lưu...' : 'Xác nhận đổi ưu tiên'}
           </Button>
         </DialogFooter>

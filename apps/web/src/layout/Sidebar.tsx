@@ -6,6 +6,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { GROUP_DISPLAY_ORDER, useVisibleNavGroups } from './nav-data';
+import { useOpenUrgentCount } from '../features/safety/hooks/useOpenUrgentCount';
 import { UserMenu } from './UserMenu';
 
 const BADGE_STYLES: Record<string, string> = {
@@ -39,6 +40,18 @@ export function Sidebar({
   const navigate = useNavigate();
   const location = useLocation();
   const visibleGroups = useVisibleNavGroups();
+  const openUrgentCount = useOpenUrgentCount();
+  // Badge "Cần xử lý ngay" (/safety/cockpit) đổi từ chữ tĩnh "P0/P1" sang
+  // SỐ THẬT đang mở (Sin chốt 2026-10-02) — các badge khác (LIVE/BETA/MỚI...)
+  // vẫn giữ nguyên chữ tĩnh từ nav-data.tsx.
+  const resolveBadge = (item: { path: string; badge?: string }): { text: string; style: string } | null => {
+    if (item.path === '/safety/cockpit') {
+      if (!openUrgentCount) return null;
+      return { text: String(openUrgentCount), style: 'bg-red-50 text-red-600 border-red-200' };
+    }
+    if (!item.badge) return null;
+    return { text: item.badge, style: BADGE_STYLES[item.badge] ?? BADGE_DEFAULT };
+  };
 
   // Menu cha gấp/mở — Mr Tiến phản hồi 2026-09-21: sidebar hiện quá nhiều
   // mục cùng lúc, người mới khó dùng. Chỉ TỰ MỞ SẴN đúng 1 nhóm chứa trang
@@ -95,6 +108,7 @@ export function Sidebar({
             <div key={group.groupTitle} className={cn('flex w-full flex-col items-center gap-1', groupIdx > 0 && 'mt-2 border-t border-slate-100 pt-2')}>
               {group.items.map((item) => {
                 const isSelected = location.pathname === item.path;
+                const badge = resolveBadge(item);
                 return (
                   <Tooltip key={item.path}>
                     <TooltipTrigger asChild>
@@ -110,7 +124,7 @@ export function Sidebar({
                         )}
                       >
                         {item.icon}
-                        {item.badge && <span className="absolute top-1 right-1 size-1.5 rounded-full bg-primary" />}
+                        {badge && <span className="absolute top-1 right-1 size-1.5 rounded-full bg-primary" />}
                       </button>
                     </TooltipTrigger>
                     <TooltipContent side="right">{item.label}</TooltipContent>
@@ -191,6 +205,7 @@ export function Sidebar({
                 <CollapsibleContent>
                   {group.items.map((item) => {
                     const isSelected = location.pathname === item.path;
+                    const badge = resolveBadge(item);
                     return (
                       <button
                         key={item.path}
@@ -208,9 +223,9 @@ export function Sidebar({
                       >
                         <span className={cn('shrink-0', isSelected ? 'text-primary' : 'text-slate-500')}>{item.icon}</span>
                         <span className="min-w-0 flex-1 truncate text-left">{item.label}</span>
-                        {item.badge && (
-                          <Badge variant="outline" className={cn('h-[18px] shrink-0 px-1 text-xs font-bold', BADGE_STYLES[item.badge] ?? BADGE_DEFAULT)}>
-                            {item.badge}
+                        {badge && (
+                          <Badge variant="outline" className={cn('h-[18px] shrink-0 px-1 text-xs font-bold', badge.style)}>
+                            {badge.text}
                           </Badge>
                         )}
                       </button>

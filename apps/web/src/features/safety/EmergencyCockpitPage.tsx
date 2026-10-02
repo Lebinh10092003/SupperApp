@@ -16,7 +16,7 @@ import { PageHeader } from '../../components/PageHeader';
 import { StatusChip } from './components/StatusChip';
 import { PriorityChip } from './components/PriorityChip';
 import { useIncidents } from './hooks/useIncidents';
-import { CAMPUS_LABEL, SLA_CLOCK_LABEL } from './constants';
+import { CAMPUS_LABEL, SLA_CLOCK_LABEL, getSlaClockTone, SLA_CLOCK_TONE_CLASS } from './constants';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { cn, formatDateTime } from '@/lib/utils';
@@ -35,7 +35,7 @@ export default function EmergencyCockpitPage() {
 
   return (
     <>
-      <PageHeader title="Cockpit khẩn cấp" icon={<TriangleAlert />} />
+      <PageHeader title="Cần xử lý ngay" icon={<TriangleAlert />} />
 
       {error && (
         <Alert className="mb-5 border-red-200 bg-red-50">
@@ -76,10 +76,12 @@ export default function EmergencyCockpitPage() {
                 {it.className ? `Lớp ${it.className} — ` : ''}Chỉ huy: {it.commanderName || 'Chưa chỉ định'}
               </p>
               {it.slaClocks && Object.keys(it.slaClocks).length > 0 && (
-                <p className="mt-1 text-xs text-slate-500">
-                  {Object.entries(it.slaClocks)
-                    .map(([label, c]) => `${SLA_CLOCK_LABEL[label] || label}: hạn ${formatDateTime(c.deadlineAt)}`)
-                    .join(' · ')}
+                <p className="mt-1 flex flex-wrap gap-x-3 text-xs">
+                  {Object.entries(it.slaClocks).map(([label, c]) => (
+                    <span key={label} className={cn('font-medium', SLA_CLOCK_TONE_CLASS[getSlaClockTone(c)])}>
+                      {SLA_CLOCK_LABEL[label] || label}: hạn {formatDateTime(c.deadlineAt)}
+                    </span>
+                  ))}
                 </p>
               )}
             </Link>

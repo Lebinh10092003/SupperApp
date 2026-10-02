@@ -61,7 +61,7 @@ export function ReasonPromptDialog({
         {description && <p className="text-sm text-slate-500">{description}</p>}
         <div>
           <Label htmlFor="reason-prompt-input" className="mb-1.5 block">
-            Lý do (bắt buộc)
+            Lý do *
           </Label>
           <Textarea id="reason-prompt-input" autoFocus rows={3} value={reason} onChange={(e) => setReason(e.target.value)} />
         </div>

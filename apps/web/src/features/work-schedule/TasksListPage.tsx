@@ -634,7 +634,7 @@ export function TaskDetailDialog({
             </DialogHeader>
             <div>
               <Label htmlFor="task-reason" className="mb-1.5 block">
-                Lý do (bắt buộc) *
+                Lý do *
               </Label>
               <Textarea id="task-reason" autoFocus rows={3} value={reason} onChange={(e) => setReason(e.target.value)} />
             </div>

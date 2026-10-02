@@ -64,10 +64,12 @@ export const REPORTER_ROLE_OPTIONS: Array<{ value: string; label: string }> = [
   { value: 'other', label: 'Khác' }
 ];
 
-/** 2 đồng hồ SLA song song mỗi mức (ack/assign) — khớp key thật trong incident.slaClocks. */
+/** 2 mốc thời hạn song song mỗi mức (ack/assign) — khớp key thật trong
+ * incident.slaClocks. Tên gọi (Sin chốt 2026-10-02): "SLA" không ai hiểu,
+ * đổi hẳn tiếng Việt mô tả đúng từng mốc đang đo gì. */
 export const SLA_CLOCK_LABEL: Record<string, string> = {
-  ack: 'Xác nhận tiếp nhận',
-  assign: 'Phân công'
+  ack: 'Hạn tiếp nhận xử lý',
+  assign: 'Hạn phân công người xử lý'
 };
 
 /** SlaClockStatus (sla.ts backend): 'running' | 'paused' | 'met' | 'overdue'. */
@@ -76,4 +78,29 @@ export const SLA_STATUS_LABEL: Record<string, string> = {
   paused: 'Đang tạm dừng',
   met: 'Đã hoàn thành đúng hạn',
   overdue: 'Đã quá hạn'
+};
+
+/** Sắp đến hạn — tính ở client (backend không có trạng thái riêng cho mức
+ * này), dưới ngưỡng này coi là "sắp đến hạn" để tô vàng cảnh báo sớm. */
+const APPROACHING_DEADLINE_MS = 2 * 60 * 60 * 1000;
+
+export type SlaClockVisualTone = 'overdue' | 'met' | 'approaching' | 'normal' | 'paused';
+
+/** Màu theo đúng yêu cầu (Sin chốt 2026-10-02): quá hạn = đỏ, đúng hạn/đã
+ * xong = xanh, sắp đến hạn = vàng, còn lại = bình thường. */
+export function getSlaClockTone(clock: { deadlineAt: string; status: string }, now: Date = new Date()): SlaClockVisualTone {
+  if (clock.status === 'overdue') return 'overdue';
+  if (clock.status === 'met') return 'met';
+  if (clock.status === 'paused') return 'paused';
+  const msLeft = new Date(clock.deadlineAt).getTime() - now.getTime();
+  if (msLeft <= APPROACHING_DEADLINE_MS) return 'approaching';
+  return 'normal';
+}
+
+export const SLA_CLOCK_TONE_CLASS: Record<SlaClockVisualTone, string> = {
+  overdue: 'text-red-600',
+  met: 'text-emerald-600',
+  approaching: 'text-amber-600',
+  normal: 'text-slate-600',
+  paused: 'text-slate-400'
 };

@@ -24,7 +24,7 @@ import { AddParticipantDialog, type AddParticipantTarget } from './dialogs/AddPa
 import { ReasonPromptDialog } from './dialogs/ReasonPromptDialog';
 import { ContactInfoButton } from './components/ContactInfoButton';
 import { CorrectClassificationDialog, type CorrectClassificationTarget } from './dialogs/CorrectClassificationDialog';
-import { CAMPUS_LABEL, SLA_CLOCK_LABEL, SLA_STATUS_LABEL } from './constants';
+import { CAMPUS_LABEL, SLA_CLOCK_LABEL, SLA_STATUS_LABEL, getSlaClockTone, SLA_CLOCK_TONE_CLASS } from './constants';
 import { useActor } from './hooks/useActor';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -33,7 +33,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Toast, type ToastState } from '../../components/Toast';
-import { formatDateTime } from '@/lib/utils';
+import { cn, formatDateTime } from '@/lib/utils';
 
 interface EvidenceSummary {
   evidenceId: string;
@@ -199,9 +199,8 @@ export default function IncidentDetailPage() {
         <Alert className="border-red-200 bg-red-50">
           <AlertDescription className="text-red-700">{error}</AlertDescription>
         </Alert>
-        <Button variant="ghost" onClick={() => navigate(-1)} className="mt-4 text-slate-500">
+        <Button variant="outline" size="icon" onClick={() => navigate(-1)} className="mt-4" aria-label="Quay lại">
           <ArrowLeft className="size-4" />
-          Quay lại
         </Button>
       </div>
     );
@@ -225,10 +224,9 @@ export default function IncidentDetailPage() {
         title={`Hồ sơ sự cố ${incident.incidentId}`}
         subtitle={incident.categoryLabel || incident.categoryCode || undefined}
         action={
-          <Button asChild variant="ghost" className="text-slate-500">
-            <Link to="/safety/incidents">
+          <Button asChild variant="outline" size="icon">
+            <Link to="/safety/incidents" aria-label="Quay lại danh sách">
               <ArrowLeft className="size-4" />
-              Quay lại danh sách
             </Link>
           </Button>
         }
@@ -341,10 +339,10 @@ export default function IncidentDetailPage() {
 
         {incident.slaClocks && Object.keys(incident.slaClocks).length > 0 && (
           <div className="rounded-xl border border-slate-200 p-5">
-            <p className="mb-3 text-sm font-bold">Đồng hồ SLA</p>
+            <p className="mb-3 text-sm font-bold">Thời hạn xử lý</p>
             <div className="flex flex-col gap-1.5">
               {Object.entries(incident.slaClocks).map(([label, clock]) => (
-                <p key={label} className="text-sm">
+                <p key={label} className={cn('text-sm font-medium', SLA_CLOCK_TONE_CLASS[getSlaClockTone(clock)])}>
                   {SLA_CLOCK_LABEL[label] || label}: hạn {formatDateTime(clock.deadlineAt)} — {SLA_STATUS_LABEL[clock.status] || clock.status}
                   {clock.paused ? ' (đang tạm dừng)' : ''}
                 </p>
