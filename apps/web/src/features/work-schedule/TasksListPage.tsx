@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CirclePlus, ClipboardList, ArrowUp, ArrowDown, ArrowUpDown, BookmarkPlus, ListFilter, MoreHorizontal, Search, X } from 'lucide-react';
+import { CirclePlus, ClipboardList, ArrowUp, ArrowDown, ArrowUpDown, BookmarkPlus, Check, ListFilter, MoreHorizontal, Search, X } from 'lucide-react';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
 import { useTasks, type WorkTask } from './hooks/useTasks';
@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
@@ -159,6 +160,49 @@ export default function TasksListPage() {
     return sorted;
   }, [items, relation, actor, searchText, personFilter, fromDate, toDate, sortKey, sortDir]);
 
+  // --- Chọn nhiều dòng để chấp nhận công việc hàng loạt ---
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkAccepting, setBulkAccepting] = useState(false);
+  const toggleSelectOne = (id: string, checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
+  const allOnPageSelected = filteredItems.length > 0 && filteredItems.every((t) => selectedIds.has(t.id));
+  const toggleSelectAllOnPage = (checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      for (const t of filteredItems) {
+        if (checked) next.add(t.id);
+        else next.delete(t.id);
+      }
+      return next;
+    });
+  };
+  const handleBulkAccept = async () => {
+    setBulkAccepting(true);
+    let okCount = 0;
+    const ids = Array.from(selectedIds);
+    for (const id of ids) {
+      try {
+        await api.patch(`/api/work-schedule/tasks/${id}/status`, { nextStatus: 'ACCEPTED' });
+        okCount++;
+      } catch {
+        // tiếp tục xử lý các việc còn lại, báo tổng kết sau
+      }
+    }
+    setBulkAccepting(false);
+    setSelectedIds(new Set());
+    setToast({
+      message: okCount === ids.length ? `Đã chấp nhận ${okCount} công việc.` : `Đã chấp nhận ${okCount}/${ids.length} công việc (một số việc không thể chấp nhận).`,
+      severity: okCount > 0 ? 'success' : 'error'
+    });
+    refetch();
+  };
+
   const [createOpen, setCreateOpen] = useState(false);
   const [detail, setDetail] = useState<WorkTask | null>(null);
   const [toast, setToast] = useState<{ message: string; severity: 'success' | 'error' } | null>(null);
@@ -279,6 +323,31 @@ export default function TasksListPage() {
           ))}
         </div>
 
+        {selectedIds.size > 0 && (
+          <>
+            <span className="text-sm font-medium text-slate-600">Đã chọn {selectedIds.size}</span>
+            <Button variant="outline" size="sm" disabled={bulkAccepting} onClick={handleBulkAccept}>
+              <Check className="size-4" />
+              Chấp nhận
+            </Button>
+            {selectedIds.size === 1 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const only = filteredItems.find((t) => selectedIds.has(t.id));
+                  if (only) setDetail(only);
+                }}
+              >
+                Xem chi tiết
+              </Button>
+            )}
+            <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>
+              Bỏ chọn
+            </Button>
+          </>
+        )}
+
         <div className="relative min-w-56 flex-1">
           <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
           <Input
@@ -398,6 +467,9 @@ export default function TasksListPage() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-10">
+                <Checkbox checked={allOnPageSelected} onCheckedChange={(v) => toggleSelectAllOnPage(Boolean(v))} aria-label="Chọn tất cả" />
+              </TableHead>
               {/* Cột ngày đưa lên ĐẦU bảng — Sin yêu cầu 2026-09-21 (giữ cả
                   Ngày giao lẫn Hạn, đúng thứ tự đã thêm trước đó). */}
               <TableHead>
@@ -424,13 +496,16 @@ export default function TasksListPage() {
           <TableBody>
             {!loading && filteredItems.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} className="py-8 text-center text-slate-500">
+                <TableCell colSpan={8} className="py-8 text-center text-slate-500">
                   Không có công việc nào.
                 </TableCell>
               </TableRow>
             )}
             {filteredItems.map((t) => (
               <TableRow key={t.id} className="cursor-pointer" onClick={() => setDetail(t)}>
+                <TableCell onClick={(e) => e.stopPropagation()}>
+                  <Checkbox checked={selectedIds.has(t.id)} onCheckedChange={(v) => toggleSelectOne(t.id, Boolean(v))} aria-label={`Chọn ${t.title}`} />
+                </TableCell>
                 <TableCell>{formatDateTime(t.createdAt)}</TableCell>
                 <TableCell>{formatDateTime(t.dueAt)}</TableCell>
                 <TableCell>

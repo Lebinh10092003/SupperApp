@@ -186,6 +186,18 @@ export default function EventsListPage() {
     }
   };
 
+  // --- Chọn nhiều dòng để duyệt hàng loạt ---
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkApproving, setBulkApproving] = useState(false);
+  const toggleSelectOne = (id: string, checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
+
   const filteredItems = useMemo(() => {
     const text = searchText.trim().toLowerCase();
     const from = fromDate ? new Date(fromDate).getTime() : null;
@@ -209,6 +221,38 @@ export default function EventsListPage() {
     });
     return sorted;
   }, [items, searchText, personFilter, fromDate, toDate, sortKey, sortDir]);
+
+  const allOnPageSelected = filteredItems.length > 0 && filteredItems.every((ev) => selectedIds.has(ev.id));
+  const toggleSelectAllOnPage = (checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      for (const ev of filteredItems) {
+        if (checked) next.add(ev.id);
+        else next.delete(ev.id);
+      }
+      return next;
+    });
+  };
+  const handleBulkApprove = async () => {
+    setBulkApproving(true);
+    let okCount = 0;
+    const ids = Array.from(selectedIds);
+    for (const id of ids) {
+      try {
+        await api.post(`/api/work-schedule/events/${id}/approve`);
+        okCount++;
+      } catch {
+        // tiếp tục xử lý các lịch còn lại, báo tổng kết sau
+      }
+    }
+    setBulkApproving(false);
+    setSelectedIds(new Set());
+    setToast({
+      message: okCount === ids.length ? `Đã duyệt ${okCount} lịch.` : `Đã duyệt ${okCount}/${ids.length} lịch (một số lịch không thể duyệt).`,
+      severity: okCount > 0 ? 'success' : 'error'
+    });
+    refetch();
+  };
 
   const [createOpen, setCreateOpen] = useState(false);
   const [detail, setDetail] = useState<WorkEvent | null>(null);
@@ -358,8 +402,36 @@ export default function EventsListPage() {
         </div>
       )}
 
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <div className="relative min-w-56 flex-1">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {selectedIds.size > 0 ? (
+            <>
+              <span className="text-sm font-medium text-slate-600">Đã chọn {selectedIds.size}</span>
+              <Button variant="outline" size="sm" disabled={bulkApproving} onClick={handleBulkApprove}>
+                <Check className="size-4" />
+                Duyệt
+              </Button>
+              {selectedIds.size === 1 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const only = filteredItems.find((ev) => selectedIds.has(ev.id));
+                    if (only) setDetail(only);
+                  }}
+                >
+                  Xem chi tiết
+                </Button>
+              )}
+              <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>
+                Bỏ chọn
+              </Button>
+            </>
+          ) : null}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+        <div className="relative w-full min-w-56 sm:w-72">
           <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
           <Input
             id="events-search"
@@ -461,6 +533,7 @@ export default function EventsListPage() {
           </TooltipTrigger>
           <TooltipContent>Lưu bộ lọc hiện tại</TooltipContent>
         </Tooltip>
+        </div>
       </div>
 
       {error && (
@@ -478,6 +551,9 @@ export default function EventsListPage() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-10">
+                <Checkbox checked={allOnPageSelected} onCheckedChange={(v) => toggleSelectAllOnPage(Boolean(v))} aria-label="Chọn tất cả" />
+              </TableHead>
               {/* Cột ngày/giờ đưa lên ĐẦU bảng — Sin yêu cầu 2026-09-21. */}
               <TableHead>
                 <SortHeader sortKeyName="startAt">Thời gian</SortHeader>
@@ -501,7 +577,7 @@ export default function EventsListPage() {
           <TableBody>
             {!loading && filteredItems.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} className="py-8 text-center text-slate-500">
+                <TableCell colSpan={8} className="py-8 text-center text-slate-500">
                   Không có lịch nào khớp bộ lọc.
                 </TableCell>
               </TableRow>
@@ -516,6 +592,9 @@ export default function EventsListPage() {
               const participantText = ev.scope === 'SCHOOL_WIDE' ? 'Toàn trường' : fullParticipants.map(abbreviatePersonLabel).join(', ') || '—';
               return (
                 <TableRow key={ev.id} className="cursor-pointer" onClick={() => setDetail(ev)}>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <Checkbox checked={selectedIds.has(ev.id)} onCheckedChange={(v) => toggleSelectOne(ev.id, Boolean(v))} aria-label={`Chọn ${ev.title}`} />
+                  </TableCell>
                   <TableCell>{formatDateTime(ev.startAt)}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2.5">
