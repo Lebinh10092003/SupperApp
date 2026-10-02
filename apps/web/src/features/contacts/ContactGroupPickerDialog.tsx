@@ -123,6 +123,11 @@ function GroupSection({
   onChanged: () => void;
 }) {
   const [deleting, setDeleting] = useState(false);
+  // Xác nhận xoá nằm NGAY TRONG UI (2 bước: bấm thùng rác -> hiện nút
+  // "Xác nhận"/"Huỷ") thay vì window.confirm() — dự án đã cố tình bỏ hộp
+  // thoại mặc định của trình duyệt vì nó CHẶN toàn bộ renderer/sự kiện
+  // (gặp thật khi tự QA: tab treo cứng, không thao tác gì tiếp được).
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   return (
     <div className="rounded-lg border border-slate-200 p-3 dark:border-slate-800">
@@ -138,30 +143,46 @@ function GroupSection({
             {group.scope === 'school' ? 'Toàn trường' : 'Của tôi'}
           </span>
         </div>
-        {canManage && (
+        {canManage && !confirmingDelete && (
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 variant="ghost"
                 size="icon-xs"
                 className="text-slate-400 hover:text-red-500"
-                disabled={deleting}
-                onClick={async () => {
-                  if (!confirm(`Xoá nhóm "${group.name}"?`)) return;
-                  setDeleting(true);
-                  try {
-                    await deleteContactGroup(group.groupId);
-                    onChanged();
-                  } finally {
-                    setDeleting(false);
-                  }
-                }}
+                onClick={() => setConfirmingDelete(true)}
               >
                 <Trash2 className="size-3.5" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>Xoá nhóm</TooltipContent>
           </Tooltip>
+        )}
+        {canManage && confirmingDelete && (
+          <div className="flex items-center gap-1 text-xs">
+            <span className="text-slate-500">Xoá nhóm?</span>
+            <Button
+              size="sm"
+              variant="destructive"
+              className="h-6 px-2 text-xs"
+              disabled={deleting}
+              onClick={async () => {
+                setDeleting(true);
+                try {
+                  await deleteContactGroup(group.groupId);
+                  onChanged();
+                } finally {
+                  setDeleting(false);
+                  setConfirmingDelete(false);
+                }
+              }}
+            >
+              Xác nhận
+            </Button>
+            <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" disabled={deleting} onClick={() => setConfirmingDelete(false)}>
+              Huỷ
+            </Button>
+          </div>
         )}
       </div>
 
