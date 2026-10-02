@@ -38,9 +38,36 @@ test('filterReportItems: lọc theo campusId/categoryCodes/searchText', () => {
 
 test('filterIncidentItems: lọc theo campusId/categoryCodes/priorities/states/searchText', () => {
   const items = [
-    { incidentId: 'SC.1', campusId: 'MAIN_CAMPUS', categoryCode: 'fire_explosion', priority: 'P0', state: 'Khẩn cấp đang xử lý', className: null, assignedTaskPerIds: ['PER.1'] },
-    { incidentId: 'SC.2', campusId: 'CAMPUS_1', categoryCode: 'violence_bullying', priority: 'P1', state: 'Đang xử lý', className: '8A2', assignedTaskPerIds: ['PER.2'] },
-    { incidentId: 'SC.3', campusId: 'MAIN_CAMPUS', categoryCode: 'facility_general', priority: 'P3', state: 'Đã đóng', className: null, assignedTaskPerIds: ['PER.1', 'PER.2'] }
+    {
+      incidentId: 'SC.1',
+      campusId: 'MAIN_CAMPUS',
+      categoryCode: 'fire_explosion',
+      priority: 'P0',
+      state: 'Khẩn cấp đang xử lý',
+      className: null,
+      assignedTaskPerIds: ['PER.1'],
+      contentPreview: 'Học sinh lớp 8A3 bị bỏng nhẹ do nổ bình ga trong phòng thí nghiệm'
+    },
+    {
+      incidentId: 'SC.2',
+      campusId: 'CAMPUS_1',
+      categoryCode: 'violence_bullying',
+      priority: 'P1',
+      state: 'Đang xử lý',
+      className: '8A2',
+      assignedTaskPerIds: ['PER.2'],
+      contentPreview: 'Bị bạn cùng lớp trêu chọc nhiều lần'
+    },
+    {
+      incidentId: 'SC.3',
+      campusId: 'MAIN_CAMPUS',
+      categoryCode: 'facility_general',
+      priority: 'P3',
+      state: 'Đã đóng',
+      className: null,
+      assignedTaskPerIds: ['PER.1', 'PER.2'],
+      contentPreview: null
+    }
   ];
 
   assert.equal(filterIncidentItems(items, { campusId: 'MAIN_CAMPUS' }).length, 2);
@@ -61,6 +88,21 @@ test('filterIncidentItems: lọc theo campusId/categoryCodes/priorities/states/s
   const bySearchClass = filterIncidentItems(items, { searchText: '8a2' });
   assert.equal(bySearchClass.length, 1);
   assert.equal(bySearchClass[0]!.incidentId, 'SC.2');
+
+  // Tìm theo NỘI DUNG — Sin phản hồi 2026-10-02: trước đây chỉ tìm được
+  // theo mã sự vụ/lớp, không tìm được theo nội dung. Phải khớp cả khi gõ
+  // KHÔNG dấu/KHÔNG phân biệt hoa-thường (normalizeForMatch).
+  const bySearchContentAccented = filterIncidentItems(items, { searchText: 'bình ga' });
+  assert.equal(bySearchContentAccented.length, 1);
+  assert.equal(bySearchContentAccented[0]!.incidentId, 'SC.1');
+
+  const bySearchContentNoDiacritics = filterIncidentItems(items, { searchText: 'binh ga' });
+  assert.equal(bySearchContentNoDiacritics.length, 1);
+  assert.equal(bySearchContentNoDiacritics[0]!.incidentId, 'SC.1');
+
+  const bySearchContentUppercase = filterIncidentItems(items, { searchText: 'TRÊU CHỌC' });
+  assert.equal(bySearchContentUppercase.length, 1);
+  assert.equal(bySearchContentUppercase[0]!.incidentId, 'SC.2');
 
   const combined = filterIncidentItems(items, { campusId: 'MAIN_CAMPUS', priorities: ['P3'] });
   assert.equal(combined.length, 1);

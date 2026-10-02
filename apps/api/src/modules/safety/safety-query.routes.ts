@@ -391,10 +391,23 @@ safetyQueryRouter.get(
       visible.push(incident);
     }
 
+    // Bảng "sự vụ" gộp (2026-09-22) thay hẳn danh sách tin báo riêng —
+    // incidents KHÔNG lưu content (chỉ reports mới có), nên phải tra thêm
+    // nội dung tin báo GỐC đầu tiên của mỗi hồ sơ TRƯỚC khi lọc theo
+    // searchText — nếu không, ô tìm kiếm chỉ khớp được incidentId/className
+    // (Sin phản hồi 2026-10-02: gõ nội dung không ra kết quả).
+    const firstReportIds = visible.map((it) => it.reportIds?.[0]).filter((v): v is string => !!v);
+    const contentByReportId = new Map<string, string>();
+    if (firstReportIds.length > 0) {
+      const reportRows = await db.select({ reportId: reports.reportId, content: reports.content }).from(reports).where(inArray(reports.reportId, firstReportIds));
+      for (const r of reportRows) contentByReportId.set(r.reportId, r.content || '');
+    }
+    const visibleWithContent = visible.map((it) => ({ ...it, contentPreview: it.reportIds?.[0] ? (contentByReportId.get(it.reportIds[0]) ?? null) : null }));
+
     const categoryCodes = q.categoryCodes ? q.categoryCodes.split(',').filter(Boolean) : undefined;
     const priorities = q.priorities ? q.priorities.split(',').filter(Boolean) : undefined;
     const states = q.states ? q.states.split(',').filter(Boolean) : undefined;
-    let out = filterIncidentItems(visible, {
+    let out = filterIncidentItems(visibleWithContent, {
       campusId: q.campusId,
       categoryCodes,
       priorities,
@@ -419,24 +432,12 @@ safetyQueryRouter.get(
     const commanderPerIds = out.map((it) => it.commanderPerId).filter((v): v is string => !!v);
     const commanderNameMap = await getDisplayNamesByPerIds(db, commanderPerIds);
 
-    // Bảng "sự vụ" gộp (2026-09-22) thay hẳn danh sách tin báo riêng —
-    // incidents KHÔNG lưu content (chỉ reports mới có), nên phải tra thêm
-    // nội dung tin báo GỐC đầu tiên của mỗi hồ sơ để hiện xem trước trong
-    // bảng, giống cách trang "Tin báo chờ xử lý" cũ từng làm.
-    const firstReportIds = out.map((it) => it.reportIds?.[0]).filter((v): v is string => !!v);
-    const contentByReportId = new Map<string, string>();
-    if (firstReportIds.length > 0) {
-      const reportRows = await db.select({ reportId: reports.reportId, content: reports.content }).from(reports).where(inArray(reports.reportId, firstReportIds));
-      for (const r of reportRows) contentByReportId.set(r.reportId, r.content || '');
-    }
-
     res.json(
       out.map((it) => ({
         ...it,
         categoryLabel: it.categoryCode ? CATEGORY_CATALOG[it.categoryCode]?.label || it.categoryCode : null,
         slaClocks: clockMap[it.incidentId] || null,
-        commanderName: it.commanderPerId ? (commanderNameMap[it.commanderPerId] ?? null) : null,
-        contentPreview: it.reportIds?.[0] ? contentByReportId.get(it.reportIds[0]) ?? null : null
+        commanderName: it.commanderPerId ? (commanderNameMap[it.commanderPerId] ?? null) : null
       }))
     );
   })

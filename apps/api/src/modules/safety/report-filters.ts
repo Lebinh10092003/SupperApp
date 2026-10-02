@@ -114,6 +114,10 @@ export interface IncidentListItem {
   className?: string | null;
   createdAt?: Date | string | null;
   assignedTaskPerIds?: string[] | null;
+  /** Nội dung tin báo gốc đầu tiên của hồ sơ — KHÔNG lưu trên bảng
+   * `incidents` (chỉ `reports` mới có), nơi gọi hàm này phải tự tra trước
+   * và gắn vào đây nếu muốn tìm theo nội dung (xem safety-query.routes.ts). */
+  contentPreview?: string | null;
   [key: string]: unknown;
 }
 
@@ -144,8 +148,14 @@ export function filterIncidentItems<T extends IncidentListItem>(items: T[] | nul
     out = out.filter((it) => inDateRange(it.createdAt, input.fromDate, input.toDate));
   }
   if (input.searchText && input.searchText.trim()) {
+    const norm = normalizeForMatch(input.searchText);
     const lowerSearch = input.searchText.toLowerCase();
-    out = out.filter((it) => (it.incidentId ?? '').toLowerCase().includes(lowerSearch) || (!!it.className && it.className.toLowerCase().includes(lowerSearch)));
+    out = out.filter(
+      (it) =>
+        (it.incidentId ?? '').toLowerCase().includes(lowerSearch) ||
+        (!!it.className && it.className.toLowerCase().includes(lowerSearch)) ||
+        normalizeForMatch(it.contentPreview ?? '').includes(norm)
+    );
   }
   if (input.onlyMinePerId) {
     out = out.filter((it) => Array.isArray(it.assignedTaskPerIds) && it.assignedTaskPerIds.includes(input.onlyMinePerId!));
