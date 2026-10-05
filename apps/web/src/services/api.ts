@@ -27,7 +27,13 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   });
   if (!r.ok) {
     const d = await r.json().catch(() => ({ error: { message: r.statusText } }));
-    throw new Error(d.error?.message || d.message || r.statusText);
+    const err = new Error(d.error?.message || d.message || r.statusText);
+    // Gắn thêm field phụ (VD `errors` — danh sách lỗi theo dòng của import
+    // atomic, xem exam-schedule.routes.ts) vào error object — nơi gọi cần
+    // chi tiết hơn message chung thì tự đọc field này, không phá vỡ các chỗ
+    // gọi khác (chỉ đọc `e.message` như trước).
+    Object.assign(err, d);
+    throw err;
   }
   return (await r.json()) as T;
 }

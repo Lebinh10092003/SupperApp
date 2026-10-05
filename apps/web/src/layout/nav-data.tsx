@@ -9,6 +9,7 @@ import {
   LineChart,
   Calendar,
   ClipboardCheck,
+  FileCheck2,
   BarChart3,
   Grid2x2,
   Link as LinkIconLucide,
@@ -140,6 +141,12 @@ export const navGroups: NavGroup[] = [
         path: '/work-schedule/tasks',
         label: 'Giao việc',
         icon: <ClipboardCheck className={ICON_SIZE} />,
+        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'DEPARTMENT_HEAD', 'TEACHER', 'HOMEROOM']
+      },
+      {
+        path: '/work-schedule/exam-schedule',
+        label: 'Lịch trông thi',
+        icon: <FileCheck2 className={ICON_SIZE} />,
         roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'DEPARTMENT_HEAD', 'TEACHER', 'HOMEROOM']
       },
       {

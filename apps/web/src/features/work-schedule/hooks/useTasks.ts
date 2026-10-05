@@ -30,22 +30,34 @@ export interface UseTasksParams {
   campusId?: string;
   assigneePerId?: string;
   statuses?: string[];
+  // "GIAO VIỆC" trong chi tiết lịch công tác (§9/§10 đặc tả) — danh sách
+  // đầu việc gắn với đúng sự kiện này.
+  eventId?: string;
+  // false = không fetch (dùng khi dialog cha chưa mở/chưa có event — hook
+  // vẫn phải gọi KHÔNG điều kiện ở component cha, chỉ tắt fetch qua đây).
+  enabled?: boolean;
 }
 
 export function useTasks(params: UseTasksParams = {}) {
   const [items, setItems] = useState<WorkTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const enabled = params.enabled !== false;
 
   const paramsKey = JSON.stringify(params);
 
   const refetch = useCallback(() => {
+    if (!enabled) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     const q = new URLSearchParams();
     if (params.campusId) q.set('campusId', params.campusId);
     if (params.assigneePerId) q.set('assigneePerId', params.assigneePerId);
     if (params.statuses?.length) q.set('statuses', params.statuses.join(','));
+    if (params.eventId) q.set('eventId', params.eventId);
     const qs = q.toString();
     api
       .get<{ items: WorkTask[] }>(`/api/work-schedule/tasks${qs ? `?${qs}` : ''}`)

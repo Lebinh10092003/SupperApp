@@ -44,6 +44,7 @@ import EventsListPage from "../features/work-schedule/EventsListPage";
 import TasksListPage from "../features/work-schedule/TasksListPage";
 import ApprovalCenterPage from "../features/work-schedule/ApprovalCenterPage";
 import RemindersPage from "../features/work-schedule/RemindersPage";
+import ExamSchedulePage from "../features/work-schedule/ExamSchedulePage";
 
 // "/" (Bảng điều hành toàn trường) xoay quanh dữ liệu Google Classroom —
 // giờ chỉ tài khoản FermatTech còn thấy mục này trong sidebar (Sin yêu cầu
@@ -119,6 +120,7 @@ export function App() {
       <Route path="/work-schedule/overview" element={p(<OverviewPage />, ROLES_WORK_SCHEDULE_STAFF)} />
       <Route path="/work-schedule" element={p(<EventsListPage />, ROLES_WORK_SCHEDULE_STAFF)} />
       <Route path="/work-schedule/tasks" element={p(<TasksListPage />, ROLES_WORK_SCHEDULE_STAFF)} />
+      <Route path="/work-schedule/exam-schedule" element={p(<ExamSchedulePage />, ROLES_WORK_SCHEDULE_STAFF)} />
       <Route path="/work-schedule/approvals" element={p(<ApprovalCenterPage />, ROLES_WORK_SCHEDULE_STAFF)} />
       <Route path="/work-schedule/reminders" element={p(<RemindersPage />, ROLES_WORK_SCHEDULE_STAFF)} />
       <Route path="/today" element={p(<TodayPage />)} />

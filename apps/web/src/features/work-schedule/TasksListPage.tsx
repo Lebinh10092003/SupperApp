@@ -6,7 +6,7 @@ import { useTasks, type WorkTask } from './hooks/useTasks';
 import { useActor } from './hooks/useActor';
 import { PersonPicker, type PersonOption } from '../safety/PersonPicker';
 import { AuditTrailPanel } from './AuditTrailPanel';
-import { CAMPUS_IDS, CAMPUS_LABEL, TASK_STATUS_LABEL, TASK_STATUS_COLOR, PRIORITY_LABEL, abbreviatePersonLabel } from './constants';
+import { CAMPUS_IDS, CAMPUS_LABEL, TASK_STATUS_LABEL, TASK_STATUS_COLOR, abbreviatePersonLabel } from './constants';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -32,7 +32,7 @@ export function TaskStatusChip({ status }: { status: string }) {
   );
 }
 
-const STATUS_FILTER_OPTIONS = ['ASSIGNED', 'ACCEPTED', 'IN_PROGRESS', 'PENDING_ACCEPTANCE', 'COMPLETED', 'RETURNED', 'CANCELLED'];
+const STATUS_FILTER_OPTIONS = ['ASSIGNED', 'COMPLETED'];
 const ALL_CAMPUS = '__all_campus__';
 const ALL_STATUS = '__all_status__';
 
@@ -182,13 +182,17 @@ export default function TasksListPage() {
       return next;
     });
   };
-  const handleBulkAccept = async () => {
+  // 2026-10-05 — chỉ còn 2 trạng thái, "chấp nhận" không còn ý nghĩa riêng
+  // nữa (việc luôn khởi tạo ASSIGNED). Nút hàng loạt đổi thành đánh dấu
+  // hoàn thành, chỉ áp dụng được cho việc actor là chủ trì (server tự
+  // chặn phần còn lại, ở đây chỉ cần gộp kết quả).
+  const handleBulkComplete = async () => {
     setBulkAccepting(true);
     let okCount = 0;
     const ids = Array.from(selectedIds);
     for (const id of ids) {
       try {
-        await api.patch(`/api/work-schedule/tasks/${id}/status`, { nextStatus: 'ACCEPTED' });
+        await api.patch(`/api/work-schedule/tasks/${id}/status`, { nextStatus: 'COMPLETED' });
         okCount++;
       } catch {
         // tiếp tục xử lý các việc còn lại, báo tổng kết sau
@@ -197,7 +201,7 @@ export default function TasksListPage() {
     setBulkAccepting(false);
     setSelectedIds(new Set());
     setToast({
-      message: okCount === ids.length ? `Đã chấp nhận ${okCount} công việc.` : `Đã chấp nhận ${okCount}/${ids.length} công việc (một số việc không thể chấp nhận).`,
+      message: okCount === ids.length ? `Đã hoàn thành ${okCount} công việc.` : `Đã hoàn thành ${okCount}/${ids.length} công việc (một số việc không thể cập nhật).`,
       severity: okCount > 0 ? 'success' : 'error'
     });
     refetch();
@@ -210,7 +214,6 @@ export default function TasksListPage() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [campusId, setCampusId] = useState('');
-  const [priority, setPriority] = useState('NORMAL');
   const [dueAt, setDueAt] = useState('');
   const [assignee, setAssignee] = useState<PersonOption | null>(null);
   const [createError, setCreateError] = useState('');
@@ -220,7 +223,6 @@ export default function TasksListPage() {
     setTitle('');
     setDescription('');
     setCampusId('');
-    setPriority('NORMAL');
     setDueAt('');
     setAssignee(null);
     setCreateError('');
@@ -238,7 +240,6 @@ export default function TasksListPage() {
         title: title.trim(),
         description: description.trim(),
         campusId,
-        priority,
         assigneePerId: assignee.perId,
         dueAt: new Date(dueAt).toISOString()
       });
@@ -326,9 +327,9 @@ export default function TasksListPage() {
         {selectedIds.size > 0 && (
           <>
             <span className="text-sm font-medium text-slate-600">Đã chọn {selectedIds.size}</span>
-            <Button variant="outline" size="sm" disabled={bulkAccepting} onClick={handleBulkAccept}>
+            <Button variant="outline" size="sm" disabled={bulkAccepting} onClick={handleBulkComplete}>
               <Check className="size-4" />
-              Chấp nhận
+              Đánh dấu hoàn thành
             </Button>
             {selectedIds.size === 1 && (
               <Button
@@ -583,21 +584,6 @@ export default function TasksListPage() {
               <Input id="create-task-due" type="datetime-local" value={dueAt} onChange={(e) => setDueAt(e.target.value)} />
             </div>
             <div>
-              <Label className="mb-1.5 block">Mức ưu tiên</Label>
-              <Select value={priority} onValueChange={setPriority}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(PRIORITY_LABEL).map(([k, v]) => (
-                    <SelectItem key={k} value={k}>
-                      {v}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
               <Label htmlFor="create-task-desc" className="mb-1.5 block">
                 Mô tả
               </Label>
@@ -657,11 +643,11 @@ export default function TasksListPage() {
   );
 }
 
+// 2026-10-05 (huong_dan_lich_cong_tac_giao_viec.md §12.4/§13) — chỉ còn 2
+// trạng thái, chỉ chủ trì (assignee) được chuyển.
 const TASK_ACTION_SUCCESS_MESSAGE: Record<string, string> = {
-  ACCEPTED: 'Đã nhận việc.',
-  IN_PROGRESS: 'Đã cập nhật: đang thực hiện.',
-  PENDING_ACCEPTANCE: 'Đã trình nghiệm thu.',
-  CANCELLED: 'Đã hủy công việc.'
+  ASSIGNED: 'Đã mở lại — về trạng thái Đã giao.',
+  COMPLETED: 'Đã đánh dấu hoàn thành.'
 };
 
 export function TaskDetailDialog({
@@ -679,13 +665,6 @@ export function TaskDetailDialog({
 }) {
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState('');
-  const [reasonOpen, setReasonOpen] = useState<'CANCELLED' | 'RETURNED' | null>(null);
-  const [reason, setReason] = useState('');
-  // "Trình nghiệm thu" bắt buộc nhập minh chứng (link Sheet/Docs/Drive...)
-  // — Mr Tiến phản hồi 2026-09-21: trước đây bấm 1 nút là xong, không có
-  // chỗ nào bắt buộc nhập minh chứng trước khi trình nghiệm thu.
-  const [evidenceOpen, setEvidenceOpen] = useState(false);
-  const [evidenceUrl, setEvidenceUrl] = useState('');
   // Đếm số lần thao tác thành công — truyền vào AuditTrailPanel làm
   // refreshKey để buộc tải lại "Lịch sử" ngay trong phiên mở dialog hiện
   // tại (xem chú thích trong AuditTrailPanel.tsx).
@@ -693,7 +672,6 @@ export function TaskDetailDialog({
 
   if (!task) return null;
   const isAssignee = task.assigneePerId === actorPerId;
-  const isCreator = task.createdByPerId === actorPerId;
 
   const run = async (fn: () => Promise<WorkTask>, successMessage?: string) => {
     setBusy(true);
@@ -711,37 +689,8 @@ export function TaskDetailDialog({
     }
   };
 
-  const changeStatus = (nextStatus: string, note?: string, evidenceUrlValue?: string) =>
-    run(
-      () => api.patch<WorkTask>(`/api/work-schedule/tasks/${task.id}/status`, { nextStatus, note, evidenceUrl: evidenceUrlValue }),
-      TASK_ACTION_SUCCESS_MESSAGE[nextStatus]
-    );
-  const acceptOrReturn = (nextStatus: 'COMPLETED' | 'RETURNED', note?: string) =>
-    run(
-      () => api.post<WorkTask>(`/api/work-schedule/tasks/${task.id}/accept-or-return`, { nextStatus, note }),
-      nextStatus === 'COMPLETED' ? 'Đã nghiệm thu công việc.' : 'Đã trả lại công việc.'
-    );
-
-  const openReasonDialog = (kind: 'CANCELLED' | 'RETURNED') => {
-    setReason('');
-    setReasonOpen(kind);
-  };
-  const submitReason = async () => {
-    if (!reason.trim()) return;
-    if (reasonOpen === 'RETURNED') await acceptOrReturn('RETURNED', reason.trim());
-    else await changeStatus('CANCELLED', reason.trim());
-    setReasonOpen(null);
-  };
-
-  const openEvidenceDialog = () => {
-    setEvidenceUrl('');
-    setEvidenceOpen(true);
-  };
-  const submitEvidence = async () => {
-    if (!evidenceUrl.trim()) return;
-    await changeStatus('PENDING_ACCEPTANCE', undefined, evidenceUrl.trim());
-    setEvidenceOpen(false);
-  };
+  const changeStatus = (nextStatus: 'ASSIGNED' | 'COMPLETED') =>
+    run(() => api.patch<WorkTask>(`/api/work-schedule/tasks/${task.id}/status`, { nextStatus }), TASK_ACTION_SUCCESS_MESSAGE[nextStatus]);
 
   return (
     <Dialog open onOpenChange={(v) => !v && onClose()}>
@@ -769,117 +718,23 @@ export function TaskDetailDialog({
             <p className="text-sm">Hạn: {formatDateTime(task.dueAt)}</p>
             <p className="text-sm text-slate-500">Nội dung: {task.description || '—'}</p>
           </div>
-          {task.status === 'RETURNED' && task.acceptanceNote && (
-            <Alert className="border-amber-200 bg-amber-50">
-              <AlertDescription className="text-amber-800">Lý do trả lại: {task.acceptanceNote}</AlertDescription>
-            </Alert>
-          )}
-          {task.status === 'CANCELLED' && task.cancellationReason && (
-            <Alert className="border-blue-200 bg-secondary">
-              <AlertDescription className="text-blue-800">Lý do hủy: {task.cancellationReason}</AlertDescription>
-            </Alert>
-          )}
-          {task.status === 'COMPLETED' && task.acceptanceNote && (
-            <Alert className="border-emerald-200 bg-emerald-50">
-              <AlertDescription className="text-emerald-700">Ghi chú nghiệm thu: {task.acceptanceNote}</AlertDescription>
-            </Alert>
-          )}
-
           <AuditTrailPanel entityType="task" entityId={task.id} refreshKey={historyVersion} />
         </div>
         <DialogFooter className="flex-wrap gap-1.5 sm:justify-start">
           {task.status === 'ASSIGNED' && isAssignee && (
-            <Button disabled={busy} onClick={() => changeStatus('ACCEPTED')}>
-              Nhận việc
+            <Button disabled={busy} onClick={() => changeStatus('COMPLETED')} className="bg-green-600 hover:bg-green-700">
+              Đánh dấu hoàn thành
             </Button>
           )}
-          {task.status === 'ACCEPTED' && isAssignee && (
-            <Button disabled={busy} onClick={() => changeStatus('IN_PROGRESS')}>
-              Bắt đầu
-            </Button>
-          )}
-          {task.status === 'IN_PROGRESS' && isAssignee && (
-            <Button disabled={busy} onClick={openEvidenceDialog}>
-              Trình nghiệm thu
-            </Button>
-          )}
-          {task.status === 'PENDING_ACCEPTANCE' && isCreator && (
-            <>
-              <Button disabled={busy} onClick={() => acceptOrReturn('COMPLETED')} className="bg-green-600 hover:bg-green-700">
-                Nghiệm thu
-              </Button>
-              <Button variant="ghost" disabled={busy} onClick={() => openReasonDialog('RETURNED')} className="text-amber-700">
-                Trả lại
-              </Button>
-            </>
-          )}
-          {task.status === 'RETURNED' && isAssignee && (
-            <Button disabled={busy} onClick={() => changeStatus('IN_PROGRESS')}>
-              Tiếp tục thực hiện
-            </Button>
-          )}
-          {(task.status === 'ASSIGNED' || task.status === 'RETURNED') && isCreator && (
-            <Button variant="ghost" disabled={busy} onClick={() => openReasonDialog('CANCELLED')} className="text-red-600">
-              Hủy công việc
+          {task.status === 'COMPLETED' && isAssignee && (
+            <Button variant="ghost" disabled={busy} onClick={() => changeStatus('ASSIGNED')} className="text-slate-600">
+              Mở lại (đánh dấu nhầm)
             </Button>
           )}
           <Button variant="ghost" onClick={onClose} className="ml-auto text-slate-500">
             Đóng
           </Button>
         </DialogFooter>
-
-        <Dialog open={!!reasonOpen} onOpenChange={(v) => !v && setReasonOpen(null)}>
-          <DialogContent className="sm:max-w-sm">
-            <DialogHeader>
-              <DialogTitle>{reasonOpen === 'CANCELLED' ? 'Lý do hủy công việc' : 'Lý do trả lại'}</DialogTitle>
-            </DialogHeader>
-            <div>
-              <Label htmlFor="task-reason" className="mb-1.5 block">
-                Lý do *
-              </Label>
-              <Textarea id="task-reason" autoFocus rows={3} value={reason} onChange={(e) => setReason(e.target.value)} />
-            </div>
-            <DialogFooter>
-              <Button variant="ghost" onClick={() => setReasonOpen(null)}>
-                Hủy
-              </Button>
-              <Button onClick={submitReason} disabled={!reason.trim() || busy}>
-                Xác nhận
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={evidenceOpen} onOpenChange={setEvidenceOpen}>
-          <DialogContent className="sm:max-w-sm">
-            <DialogHeader>
-              <DialogTitle>Trình nghiệm thu</DialogTitle>
-            </DialogHeader>
-            <div>
-              <Label htmlFor="task-evidence-url" className="mb-1.5 block">
-                Link minh chứng (Google Sheet/Docs/Drive...) *
-              </Label>
-              <Input
-                id="task-evidence-url"
-                autoFocus
-                placeholder="https://docs.google.com/..."
-                value={evidenceUrl}
-                onChange={(e) => setEvidenceUrl(e.target.value)}
-              />
-              <p className="mt-1 text-xs text-slate-500">
-                Bắt buộc — dán link tài liệu/minh chứng đã hoàn thành để người giao xem trước khi nghiệm thu.
-              </p>
-            </div>
-            <DialogFooter>
-              <Button variant="ghost" onClick={() => setEvidenceOpen(false)}>
-                Hủy
-              </Button>
-              <Button onClick={submitEvidence} disabled={!evidenceUrl.trim() || busy}>
-                Trình nghiệm thu
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </DialogContent>
     </Dialog>
   );

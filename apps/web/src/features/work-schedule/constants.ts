@@ -24,33 +24,22 @@ export const EVENT_STATUS_COLOR: Record<string, { bg: string; fg: string; border
   CANCELLED: { bg: '#f1f5f9', fg: '#64748b', border: '#e2e8f0' }
 };
 
+// 2026-10-05 (huong_dan_lich_cong_tac_giao_viec.md §12.4) — chỉ còn 2
+// trạng thái việc nhỏ, khớp VALID_TASK_STATUSES backend đã thu gọn.
 export const TASK_STATUS_LABEL: Record<string, string> = {
   ASSIGNED: 'Đã giao',
-  ACCEPTED: 'Đã nhận',
-  IN_PROGRESS: 'Đang thực hiện',
-  PENDING_ACCEPTANCE: 'Chờ nghiệm thu',
-  COMPLETED: 'Hoàn thành',
-  RETURNED: 'Bị trả lại',
-  CANCELLED: 'Đã hủy'
+  COMPLETED: 'Đã hoàn thành'
 };
 
 export const TASK_STATUS_COLOR: Record<string, { bg: string; fg: string; border: string }> = {
   ASSIGNED: { bg: '#eff6ff', fg: '#2563eb', border: '#bfdbfe' },
-  ACCEPTED: { bg: '#f5f3ff', fg: '#6d28d9', border: '#ddd6fe' },
-  IN_PROGRESS: { bg: '#fffbeb', fg: '#b45309', border: '#fde68a' },
-  PENDING_ACCEPTANCE: { bg: '#fff7ed', fg: '#c2410c', border: '#fed7aa' },
-  COMPLETED: { bg: '#f0fdf4', fg: '#15803d', border: '#bbf7d0' },
-  RETURNED: { bg: '#fef2f2', fg: '#dc2626', border: '#fecaca' },
-  CANCELLED: { bg: '#f1f5f9', fg: '#64748b', border: '#e2e8f0' }
+  COMPLETED: { bg: '#f0fdf4', fg: '#15803d', border: '#bbf7d0' }
 };
 
-export const PRIORITY_LABEL: Record<string, string> = {
-  LOW: 'Thấp',
-  NORMAL: 'Bình thường',
-  HIGH: 'Cao',
-  URGENT: 'Khẩn cấp'
-};
-
+// §4 — "Cơ sở" là 1 dropdown DUY NHẤT 4 lựa chọn (3 campus + Toàn trường),
+// không tách riêng ô "Phạm vi" nữa. Value 'SCHOOL_WIDE' ở đây map sang
+// scope=SCHOOL_WIDE (+ campusId=MAIN_CAMPUS) khi gửi lên API — xem
+// EventsListPage.tsx nơi dùng danh sách này.
 export const EVENT_SCOPE_LABEL: Record<string, string> = {
   CAMPUS: 'Trong cơ sở',
   SCHOOL_WIDE: 'Toàn trường'

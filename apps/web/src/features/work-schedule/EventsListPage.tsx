@@ -4,17 +4,18 @@ import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
 import { env } from '../../config/env';
 import { useEvents, type WorkEvent } from './hooks/useEvents';
+import { useTasks } from './hooks/useTasks';
 import { useActor } from './hooks/useActor';
 import { PeopleMultiPicker } from './components/PeopleMultiPicker';
 import { PersonPicker, type PersonOption } from '../safety/PersonPicker';
 import { AuditTrailPanel } from './AuditTrailPanel';
+import { TaskStatusChip } from './TasksListPage';
 import {
   CAMPUS_IDS,
   CAMPUS_LABEL,
   EVENT_STATUS_LABEL,
   EVENT_STATUS_COLOR,
   EVENT_STATUS_STEPS,
-  PRIORITY_LABEL,
   abbreviatePersonLabel
 } from './constants';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -51,6 +52,19 @@ export function canApproveClientSide(roles: { roleId: string; campusId: string |
   if (event.scope === 'SCHOOL_WIDE') return false;
   if (has('R.DEPT_HEAD', event.campusId, event.departmentDomain)) return true;
   return false;
+}
+
+/** Khối nhóm thông tin trong phiếu chi tiết — §9 đặc tả: "các trường thông
+ * tin phải được bố trí theo nhóm logic... không để thông tin bị dồn hoặc
+ * khó đọc". Viền + nhãn nhóm viết hoa nhỏ, khớp phong cách card gọn của
+ * template tham khảo (shadcnuikit.com/dashboard/crm). */
+function DetailSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-lg border border-slate-200 p-4 dark:border-slate-800">
+      <p className="mb-3 text-xs font-bold tracking-wide text-slate-500 uppercase dark:text-slate-400">{title}</p>
+      {children}
+    </div>
+  );
 }
 
 function toLocalInput(d: Date): string {
@@ -270,12 +284,10 @@ export default function EventsListPage() {
   // định) + `scope`.
   const [campusId, setCampusId] = useState('');
   const scope: 'CAMPUS' | 'SCHOOL_WIDE' = campusId === SCHOOL_WIDE ? 'SCHOOL_WIDE' : 'CAMPUS';
-  const [priority, setPriority] = useState('NORMAL');
   const [startAt, setStartAt] = useState('');
   const [endAt, setEndAt] = useState('');
   const [location, setLocation] = useState('');
   const [participants, setParticipants] = useState<PersonOption[]>([]);
-  const [submitForApproval, setSubmitForApproval] = useState(true);
   const [createError, setCreateError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -283,12 +295,10 @@ export default function EventsListPage() {
     setTitle('');
     setDescription('');
     setCampusId('');
-    setPriority('NORMAL');
     setStartAt('');
     setEndAt('');
     setLocation('');
     setParticipants([]);
-    setSubmitForApproval(true);
     setCreateError('');
   };
 
@@ -310,7 +320,7 @@ export default function EventsListPage() {
     // lịch công tác có thể chỉ do 1 người chủ trì, không cần thêm ai khác.
     setSubmitting(true);
     try {
-      const created = await api.post<WorkEvent>('/api/work-schedule/events', {
+      await api.post<WorkEvent>('/api/work-schedule/events', {
         title: title.trim(),
         description: description.trim(),
         // Lịch toàn trường vẫn cần 1 cơ sở tổ chức thật cho server (bắt buộc
@@ -318,20 +328,19 @@ export default function EventsListPage() {
         // mặc định Điểm trường chính.
         campusId: scope === 'SCHOOL_WIDE' ? 'MAIN_CAMPUS' : campusId,
         scope,
-        priority,
         startAt: new Date(startAt).toISOString(),
         endAt: new Date(endAt).toISOString(),
         location: location.trim(),
         participantPerIds: scope === 'SCHOOL_WIDE' ? [] : participants.map((p) => p.perId)
       });
-      if (submitForApproval) {
-        await api.patch(`/api/work-schedule/events/${created.id}/status`, { nextStatus: 'PENDING_APPROVAL' });
-      }
       setCreateOpen(false);
       resetForm();
       refetch();
       setToast({
-        message: submitForApproval ? `Đã tạo lịch "${title.trim()}" và gửi duyệt.` : `Đã lưu lịch "${title.trim()}" (dự thảo).`,
+        message:
+          scope === 'SCHOOL_WIDE'
+            ? `Đã tạo lịch "${title.trim()}" — đang chờ duyệt.`
+            : `Đã ban hành lịch "${title.trim()}".`,
         severity: 'success'
       });
     } catch (e: any) {
@@ -682,7 +691,7 @@ export default function EventsListPage() {
                       {CAMPUS_LABEL[c]}
                     </SelectItem>
                   ))}
-                  <SelectItem value={SCHOOL_WIDE}>Toàn trường (cần duyệt 2 bước: Hiệu phó rồi Hiệu trưởng)</SelectItem>
+                  <SelectItem value={SCHOOL_WIDE}>Toàn trường (cần Hiệu trưởng hoặc Hiệu phó Điểm trường chính duyệt)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -708,30 +717,16 @@ export default function EventsListPage() {
             </div>
             {scope === 'CAMPUS' && <PeopleMultiPicker label="Thành phần tham dự (tuỳ chọn)" value={participants} onChange={setParticipants} />}
             <div>
-              <Label className="mb-1.5 block">Mức ưu tiên</Label>
-              <Select value={priority} onValueChange={setPriority}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(PRIORITY_LABEL).map(([k, v]) => (
-                    <SelectItem key={k} value={k}>
-                      {v}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
               <Label htmlFor="create-event-desc" className="mb-1.5 block">
                 Nội dung
               </Label>
               <Textarea id="create-event-desc" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} />
             </div>
-            <label className="flex items-center gap-2">
-              <Checkbox checked={submitForApproval} onCheckedChange={(v) => setSubmitForApproval(v === true)} />
-              <span className="text-sm">Trình lãnh đạo phê duyệt ngay sau khi lưu</span>
-            </label>
+            {scope === 'SCHOOL_WIDE' && (
+              <p className="text-xs text-slate-500">
+                Lịch toàn trường sẽ ở trạng thái <strong>Chờ duyệt</strong> cho tới khi Hiệu trưởng hoặc Hiệu phó Điểm trường chính duyệt.
+              </p>
+            )}
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setCreateOpen(false)}>
@@ -835,13 +830,23 @@ export function EventDetailDialog({
   const [editTitle, setEditTitle] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editCampusId, setEditCampusId] = useState('');
-  const [editPriority, setEditPriority] = useState('NORMAL');
   const [editStartAt, setEditStartAt] = useState('');
   const [editEndAt, setEditEndAt] = useState('');
   const [editLocation, setEditLocation] = useState('');
   const [editParticipants, setEditParticipants] = useState<PersonOption[]>([]);
   const [editError, setEditError] = useState('');
   const [editSubmitting, setEditSubmitting] = useState(false);
+
+  // --- "GIAO VIỆC" (§9/§10 đặc tả) — danh sách đầu việc gắn với lịch này +
+  // tạo nhanh 1 đầu việc mới ngay trong phiếu chi tiết. Hook gọi KHÔNG điều
+  // kiện (quy tắc Hook), chỉ tắt fetch qua `enabled` khi dialog chưa có event.
+  const { items: linkedTasks, loading: tasksLoading, refetch: refetchTasks } = useTasks({ eventId: event?.id, enabled: !!event });
+  const [taskFormOpen, setTaskFormOpen] = useState(false);
+  const [taskTitle, setTaskTitle] = useState('');
+  const [taskAssignee, setTaskAssignee] = useState<PersonOption | null>(null);
+  const [taskDueAt, setTaskDueAt] = useState('');
+  const [taskError, setTaskError] = useState('');
+  const [taskSubmitting, setTaskSubmitting] = useState(false);
 
   if (!event) return null;
   const isCreator = event.createdByPerId === actorPerId;
@@ -885,7 +890,6 @@ export function EventDetailDialog({
     setEditTitle(event.title);
     setEditDescription(event.description || '');
     setEditCampusId(event.scope === 'SCHOOL_WIDE' ? SCHOOL_WIDE : event.campusId);
-    setEditPriority(event.priority);
     setEditStartAt(toLocalInput(new Date(event.startAt)));
     setEditEndAt(toLocalInput(new Date(event.endAt)));
     setEditLocation(event.location || '');
@@ -916,7 +920,6 @@ export function EventDetailDialog({
         description: editDescription.trim(),
         campusId: editScope === 'SCHOOL_WIDE' ? 'MAIN_CAMPUS' : editCampusId,
         scope: editScope,
-        priority: editPriority,
         startAt: new Date(editStartAt).toISOString(),
         endAt: new Date(editEndAt).toISOString(),
         location: editLocation.trim(),
@@ -933,9 +936,43 @@ export function EventDetailDialog({
     }
   };
 
+  const openTaskForm = () => {
+    setTaskTitle('');
+    setTaskAssignee(null);
+    setTaskDueAt('');
+    setTaskError('');
+    setTaskFormOpen(true);
+  };
+  const submitTask = async () => {
+    setTaskError('');
+    if (!taskTitle.trim()) return setTaskError('Vui lòng nhập tên việc.');
+    if (!taskAssignee) return setTaskError('Vui lòng chọn người chủ trì.');
+    if (!taskDueAt) return setTaskError('Vui lòng chọn deadline.');
+    setTaskSubmitting(true);
+    try {
+      await api.post('/api/work-schedule/tasks', {
+        eventId: event.id,
+        title: taskTitle.trim(),
+        campusId: event.campusId,
+        assigneePerId: taskAssignee.perId,
+        dueAt: new Date(taskDueAt).toISOString()
+      });
+      setTaskFormOpen(false);
+      refetchTasks();
+      onSuccess?.(`Đã tạo đầu việc "${taskTitle.trim()}".`);
+    } catch (e: any) {
+      setTaskError(e.message || 'Tạo đầu việc thất bại.');
+    } finally {
+      setTaskSubmitting(false);
+    }
+  };
+
   return (
     <Dialog open onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="sm:max-w-md">
+      {/* §9 đặc tả: "Tăng chiều cao/chiều rộng khu vực phiếu chi tiết...
+          bố trí theo nhóm logic". Rộng hơn hẳn bản cũ (max-w-md -> 3xl) +
+          cuộn dọc khi nội dung dài (nhiều đầu việc/lịch sử), tránh dồn chữ. */}
+      <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{event.title}</DialogTitle>
         </DialogHeader>
@@ -952,52 +989,120 @@ export function EventDetailDialog({
             <EventStatusChip status={event.status} />
           )}
 
-          {/* Luôn hiện đủ tên trường dù dữ liệu trống (— thay vì ẩn hẳn dòng)
-              — Mr Tiến phản hồi 2026-09-21: trước đây thiếu dữ liệu thì mất
-              luôn cả nhãn trường, không phân biệt được "trống thật" với
-              "chưa tải xong". */}
-          <div className="flex flex-col gap-1">
-            <p className="text-sm">
-              Cơ sở: <strong>{event.scope === 'SCHOOL_WIDE' ? 'Toàn trường' : CAMPUS_LABEL[event.campusId] || event.campusId}</strong>
-            </p>
-            <p className="text-sm">
-              Thời gian: {formatDateTime(event.startAt)} → {formatDateTime(event.endAt)}
-            </p>
-            <p className="text-sm">Địa điểm: {event.location || '—'}</p>
-            <p className="text-sm">Chủ trì: {event.chairLabel || event.chairPerId}</p>
-            <p className="text-sm">
-              Thành phần:{' '}
-              {event.participantPerIds.length > 0
-                ? (event.participantLabels && event.participantLabels.length > 0 ? event.participantLabels : event.participantPerIds).join(', ')
-                : '—'}
-            </p>
-            <p className="text-sm text-slate-500">Nội dung: {event.description || '—'}</p>
-          </div>
+          <DetailSection title="Thông tin chung">
+            <div className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
+              <p className="text-sm">
+                Cơ sở: <strong>{event.scope === 'SCHOOL_WIDE' ? 'Toàn trường' : CAMPUS_LABEL[event.campusId] || event.campusId}</strong>
+              </p>
+              <p className="text-sm">
+                Trạng thái: <strong>{EVENT_STATUS_LABEL[event.status] || event.status}</strong>
+              </p>
+              <p className="text-sm">Bắt đầu: {formatDateTime(event.startAt)}</p>
+              <p className="text-sm">Kết thúc: {formatDateTime(event.endAt)}</p>
+              <p className="text-sm sm:col-span-2">Địa điểm: {event.location || '—'}</p>
+            </div>
+          </DetailSection>
 
-          {event.conflictNote && (
-            <Alert className="border-amber-200 bg-amber-50">
-              <AlertDescription className="text-amber-800">Trùng lịch: {event.conflictNote}</AlertDescription>
-            </Alert>
-          )}
-          {event.status === 'REVISION_REQUIRED' && event.revisionNote && (
-            <Alert className="border-red-200 bg-red-50">
-              <AlertDescription className="text-red-700">Lý do cần sửa lại: {event.revisionNote}</AlertDescription>
-            </Alert>
-          )}
-          {event.status === 'CANCELLED' && event.cancellationNote && (
-            <Alert className="border-blue-200 bg-secondary">
-              <AlertDescription className="text-blue-800">Lý do hủy: {event.cancellationNote}</AlertDescription>
-            </Alert>
-          )}
-          {event.scope === 'SCHOOL_WIDE' && event.approvals.length > 0 && (
-            <Alert className="border-blue-200 bg-secondary">
-              <AlertDescription className="text-blue-800">
-                Đã duyệt: {event.approvals.map((a) => `${a.role === 'R.VICE_PRINCIPAL' ? 'Hiệu phó' : 'Hiệu trưởng'}`).join(', ')}
-              </AlertDescription>
-            </Alert>
-          )}
+          <DetailSection title="Người tham gia">
+            <div className="flex flex-col gap-1">
+              <p className="text-sm">Chủ trì: {event.chairLabel || event.chairPerId}</p>
+              <p className="text-sm">
+                Thành phần tham dự:{' '}
+                {event.participantPerIds.length > 0
+                  ? (event.participantLabels && event.participantLabels.length > 0 ? event.participantLabels : event.participantPerIds).join(', ')
+                  : '—'}
+              </p>
+            </div>
+          </DetailSection>
 
-          <AuditTrailPanel entityType="event" entityId={event.id} refreshKey={historyVersion} />
+          <DetailSection title="Nội dung">
+            <div className="flex flex-col gap-2">
+              <p className="text-sm whitespace-pre-wrap">{event.description || '—'}</p>
+              {event.conflictNote && (
+                <Alert className="border-amber-200 bg-amber-50">
+                  <AlertDescription className="text-amber-800">Trùng lịch: {event.conflictNote}</AlertDescription>
+                </Alert>
+              )}
+              {event.status === 'REVISION_REQUIRED' && event.revisionNote && (
+                <Alert className="border-red-200 bg-red-50">
+                  <AlertDescription className="text-red-700">Lý do cần sửa lại: {event.revisionNote}</AlertDescription>
+                </Alert>
+              )}
+              {event.status === 'CANCELLED' && event.cancellationNote && (
+                <Alert className="border-blue-200 bg-secondary">
+                  <AlertDescription className="text-blue-800">Lý do hủy: {event.cancellationNote}</AlertDescription>
+                </Alert>
+              )}
+              {event.scope === 'SCHOOL_WIDE' && event.approvals.length > 0 && (
+                <Alert className="border-blue-200 bg-secondary">
+                  <AlertDescription className="text-blue-800">
+                    Đã duyệt: {event.approvals.map((a) => `${a.role === 'R.VICE_PRINCIPAL' ? 'Hiệu phó' : 'Hiệu trưởng'}`).join(', ')}
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          </DetailSection>
+
+          <DetailSection title="Giao việc">
+            <div className="flex flex-col gap-2">
+              {tasksLoading && <p className="text-sm text-slate-500">Đang tải...</p>}
+              {!tasksLoading && linkedTasks.length === 0 && <p className="text-sm text-slate-400">Chưa có đầu việc nào.</p>}
+              {linkedTasks.length > 0 && (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Tên việc</TableHead>
+                      <TableHead>Người chủ trì</TableHead>
+                      <TableHead>Deadline</TableHead>
+                      <TableHead>Trạng thái</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {linkedTasks.map((t) => (
+                      <TableRow key={t.id}>
+                        <TableCell className="font-medium">{t.title}</TableCell>
+                        <TableCell>{t.assigneeLabel || t.assigneeName || t.assigneePerId}</TableCell>
+                        <TableCell>{formatDateTime(t.dueAt)}</TableCell>
+                        <TableCell>
+                          <TaskStatusChip status={t.status} />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+
+              {!taskFormOpen ? (
+                <Button variant="outline" size="sm" className="w-fit" onClick={openTaskForm}>
+                  <CirclePlus className="size-4" />
+                  Tạo giao việc
+                </Button>
+              ) : (
+                <div className="flex flex-col gap-2 rounded-md border border-dashed border-slate-300 p-3 dark:border-slate-700">
+                  {taskError && (
+                    <Alert className="border-red-200 bg-red-50">
+                      <AlertDescription className="text-red-700">{taskError}</AlertDescription>
+                    </Alert>
+                  )}
+                  <Input placeholder="Tên việc *" value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} />
+                  <PersonPicker label="Người chủ trì *" value={taskAssignee} onChange={setTaskAssignee} />
+                  <Input type="datetime-local" value={taskDueAt} onChange={(e) => setTaskDueAt(e.target.value)} />
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={submitTask} disabled={taskSubmitting}>
+                      Lưu
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setTaskFormOpen(false)}>
+                      Huỷ
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </DetailSection>
+
+          <DetailSection title="Lịch sử">
+            <AuditTrailPanel entityType="event" entityId={event.id} refreshKey={historyVersion} />
+          </DetailSection>
         </div>
         <DialogFooter className="flex-wrap gap-1.5 sm:justify-start">
           {event.status === 'DRAFT' && isCreator && (
@@ -1099,7 +1204,7 @@ export function EventDetailDialog({
                         {CAMPUS_LABEL[c]}
                       </SelectItem>
                     ))}
-                    <SelectItem value={SCHOOL_WIDE}>Toàn trường (cần duyệt 2 bước: Hiệu phó rồi Hiệu trưởng)</SelectItem>
+                    <SelectItem value={SCHOOL_WIDE}>Toàn trường (cần Hiệu trưởng hoặc Hiệu phó Điểm trường chính duyệt)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1132,21 +1237,6 @@ export function EventDetailDialog({
               {editScope === 'CAMPUS' && (
                 <PeopleMultiPicker label="Thành phần tham dự (tuỳ chọn)" value={editParticipants} onChange={setEditParticipants} />
               )}
-              <div>
-                <Label className="mb-1.5 block">Mức ưu tiên</Label>
-                <Select value={editPriority} onValueChange={setEditPriority}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(PRIORITY_LABEL).map(([k, v]) => (
-                      <SelectItem key={k} value={k}>
-                        {v}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
               <div>
                 <Label htmlFor="edit-event-desc" className="mb-1.5 block">
                   Nội dung
