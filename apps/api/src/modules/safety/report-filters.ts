@@ -132,6 +132,19 @@ export interface IncidentFilterInput {
   toDate?: string;
 }
 
+/** Attach report content before incident text filtering is applied. */
+export function withIncidentContentPreviews<T extends IncidentListItem>(
+  items: T[],
+  contentByReportId: ReadonlyMap<string, string>
+): Array<T & { contentPreview: string | null }> {
+  return items.map((item) => ({
+    ...item,
+    contentPreview: item.reportIds?.[0]
+      ? (contentByReportId.get(item.reportIds[0]) ?? null)
+      : null
+  }));
+}
+
 /**
  * filterIncidentItems — `onlyMinePerId` (Pha 2 "Việc của tôi") lọc THÊM, áp
  * SAU CÙNG, chỉ giữ hồ sơ có đúng perId này trong `assignedTaskPerIds` —

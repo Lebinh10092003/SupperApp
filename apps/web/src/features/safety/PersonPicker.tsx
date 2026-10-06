@@ -1,8 +1,9 @@
 /**
  * PersonPicker.tsx — ô chọn 1 người theo tên, gọi
- * `GET /api/safety/people/search?q=` (`people-search.ts`, K7). Backend chỉ
- * trả `{perId, name}` (KHÔNG email/uid vì lý do bảo mật) — component này
- * KHÔNG tự suy ra thêm thông tin gì khác ngoài 2 field đó.
+ * `GET /api/safety/people/search?q=` (`people-search.ts`, K7). Backend trả
+ * `{perId, name, email}` — gợi ý hiện "Tên – email" cho rõ ràng, phân biệt
+ * được 2 người trùng tên (2026-10-05, Sin yêu cầu — ĐỔI quyết định bảo mật
+ * cũ từng cố tình giấu email, đã xác nhận lại trực tiếp).
  */
 import { useEffect, useMemo, useState } from 'react';
 import { Check, ChevronsUpDown, Loader2 } from 'lucide-react';
@@ -17,6 +18,7 @@ import { ContactGroupPickerButton } from '../contacts/ContactGroupPickerDialog';
 export interface PersonOption {
   perId: string;
   name: string;
+  email?: string | null;
 }
 
 export function PersonPicker({
@@ -108,7 +110,10 @@ export function PersonPicker({
                         }}
                       >
                         <Check className={cn('mr-2 size-4', value?.perId === o.perId ? 'opacity-100' : 'opacity-0')} />
-                        {o.name}
+                        <span className="truncate">
+                          {o.name}
+                          {o.email && <span className="text-muted-foreground"> – {o.email}</span>}
+                        </span>
                       </CommandItem>
                     ))}
                   </CommandGroup>

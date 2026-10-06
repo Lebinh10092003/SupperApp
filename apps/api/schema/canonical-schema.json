@@ -1,0 +1,7981 @@
+{
+  "formatVersion": 1,
+  "schemas": [
+    {
+      "name": "public"
+    }
+  ],
+  "tables": [
+    {
+      "schema": "public",
+      "name": "access_allowlist",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "accounts",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "admin_notifications",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "alert_rules",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "alerts",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "assignments",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "audit_logs",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "campus_map_markers",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "campus_zones",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "catalog_mappings",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "class_mappings",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "classes",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "contact_group_members",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "contact_groups",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "course_announcements",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "course_coursework",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "course_materials",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "course_members",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "course_submissions",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "course_topics",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "courses",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "dashboard_snapshot",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "delegations",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "duty_shifts",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "events",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "evidence",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "general_audit_logs",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "google_connections",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "grade_supervisor_assignments",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "homeroom_assignments",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "id_counters",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "idempotency_keys",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "incidents",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "ltc_audit_logs",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "ltc_events",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "ltc_exam_shifts",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "ltc_tasks",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "ltc_weekly_sheet_connection",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "ltc_weekly_sheet_rows",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "meet_attendance",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "meet_sessions",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "metrics_daily",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "notify_requests",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "people",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "people_directory",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "public_codes",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "push_tokens",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "report_identities",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "report_supplements",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "reports",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "saved_case_filters",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "schedule_imports",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "schedules",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "sla_clocks",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "subject_mappings",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "subscriptions",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "sync_runs",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "system_config",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "users",
+      "type": "table"
+    },
+    {
+      "schema": "public",
+      "name": "zone_categories",
+      "type": "table"
+    }
+  ],
+  "columns": [
+    {
+      "schema": "public",
+      "table": "access_allowlist",
+      "name": "active",
+      "type": "boolean",
+      "nullable": false,
+      "default": "true",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "access_allowlist",
+      "name": "created_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "access_allowlist",
+      "name": "email",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "access_allowlist",
+      "name": "id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "access_allowlist",
+      "name": "role",
+      "type": "text",
+      "nullable": false,
+      "default": "'VIEWER'::text",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "accounts",
+      "name": "created_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "accounts",
+      "name": "created_by_uid",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "accounts",
+      "name": "display_name",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "accounts",
+      "name": "email",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "accounts",
+      "name": "per_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "accounts",
+      "name": "uid",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "admin_notifications",
+      "name": "actor_per_id",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "admin_notifications",
+      "name": "created_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "admin_notifications",
+      "name": "event_type",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "admin_notifications",
+      "name": "message",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "admin_notifications",
+      "name": "meta",
+      "type": "jsonb",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "admin_notifications",
+      "name": "notification_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "admin_notifications",
+      "name": "object_id",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "admin_notifications",
+      "name": "read",
+      "type": "boolean",
+      "nullable": false,
+      "default": "false",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "admin_notifications",
+      "name": "read_at",
+      "type": "timestamp with time zone",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "admin_notifications",
+      "name": "recipient_per_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "admin_notifications",
+      "name": "title",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "alert_rules",
+      "name": "enabled",
+      "type": "boolean",
+      "nullable": false,
+      "default": "true",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "alert_rules",
+      "name": "id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "alert_rules",
+      "name": "name",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "alert_rules",
+      "name": "severity",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "alert_rules",
+      "name": "threshold",
+      "type": "numeric(8,2)",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "alert_rules",
+      "name": "unit",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "alerts",
+      "name": "action",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "alerts",
+      "name": "assignee_email",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "alerts",
+      "name": "category",
+      "type": "text",
+      "nullable": false,
+      "default": "'CLASSROOM'::text",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "alerts",
+      "name": "class_id",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "alerts",
+      "name": "created_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "alerts",
+      "name": "id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "alerts",
+      "name": "message",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "alerts",
+      "name": "principal_notes",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "alerts",
+      "name": "resolution",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "alerts",
+      "name": "resolved",
+      "type": "boolean",
+      "nullable": false,
+      "default": "false",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "alerts",
+      "name": "resolved_at",
+      "type": "timestamp with time zone",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "alerts",
+      "name": "resolved_by",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "alerts",
+      "name": "rule_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "alerts",
+      "name": "severity",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "alerts",
+      "name": "status",
+      "type": "text",
+      "nullable": false,
+      "default": "'NEW'::text",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "alerts",
+      "name": "target_id",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "alerts",
+      "name": "target_name",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "alerts",
+      "name": "title",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "alerts",
+      "name": "updated_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "alerts",
+      "name": "updated_by",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "assignments",
+      "name": "campus_id",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "assignments",
+      "name": "ceiling",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "assignments",
+      "name": "created_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "assignments",
+      "name": "created_by_uid",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "assignments",
+      "name": "domain",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "assignments",
+      "name": "from_date",
+      "type": "timestamp with time zone",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "assignments",
+      "name": "id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "assignments",
+      "name": "per_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "assignments",
+      "name": "role_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "assignments",
+      "name": "to_date",
+      "type": "timestamp with time zone",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "assignments",
+      "name": "updated_at",
+      "type": "timestamp with time zone",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "assignments",
+      "name": "updated_by_uid",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "audit_logs",
+      "name": "action",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "audit_logs",
+      "name": "actor_per_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "audit_logs",
+      "name": "after",
+      "type": "jsonb",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "audit_logs",
+      "name": "before",
+      "type": "jsonb",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "audit_logs",
+      "name": "correlation_id",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "audit_logs",
+      "name": "device",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "audit_logs",
+      "name": "ip",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "audit_logs",
+      "name": "log_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "audit_logs",
+      "name": "object_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "audit_logs",
+      "name": "occurred_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "audit_logs",
+      "name": "on_behalf_of_per_id",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "audit_logs",
+      "name": "reason",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "audit_logs",
+      "name": "request_id",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "audit_logs",
+      "name": "role_used",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "campus_map_markers",
+      "name": "active",
+      "type": "boolean",
+      "nullable": false,
+      "default": "true",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "campus_map_markers",
+      "name": "campus_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "campus_map_markers",
+      "name": "color",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "campus_map_markers",
+      "name": "created_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "campus_map_markers",
+      "name": "icon_key",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "campus_map_markers",
+      "name": "marker_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "campus_map_markers",
+      "name": "updated_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "campus_map_markers",
+      "name": "x_percent",
+      "type": "double precision",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "campus_map_markers",
+      "name": "y_percent",
+      "type": "double precision",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "campus_zones",
+      "name": "active",
+      "type": "boolean",
+      "nullable": false,
+      "default": "true",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "campus_zones",
+      "name": "campus_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "campus_zones",
+      "name": "category_id",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "campus_zones",
+      "name": "color",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "campus_zones",
+      "name": "created_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "campus_zones",
+      "name": "keywords",
+      "type": "jsonb",
+      "nullable": false,
+      "default": "'[]'::jsonb",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "campus_zones",
+      "name": "label",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "campus_zones",
+      "name": "map_image_key",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "campus_zones",
+      "name": "order",
+      "type": "integer",
+      "nullable": false,
+      "default": "0",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "campus_zones",
+      "name": "parent_zone_id",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "campus_zones",
+      "name": "polygon_percent",
+      "type": "jsonb",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "campus_zones",
+      "name": "rotation_deg",
+      "type": "double precision",
+      "nullable": false,
+      "default": "0",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "campus_zones",
+      "name": "shape_type",
+      "type": "text",
+      "nullable": false,
+      "default": "'rect'::text",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "campus_zones",
+      "name": "updated_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "campus_zones",
+      "name": "zone_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "catalog_mappings",
+      "name": "grade",
+      "type": "integer",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "catalog_mappings",
+      "name": "id",
+      "type": "uuid",
+      "nullable": false,
+      "default": "gen_random_uuid()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "catalog_mappings",
+      "name": "normalized_name",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "catalog_mappings",
+      "name": "raw_name",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "catalog_mappings",
+      "name": "subject",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "catalog_mappings",
+      "name": "type",
+      "type": "text",
+      "nullable": false,
+      "default": "'CLASS'::text",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "catalog_mappings",
+      "name": "updated_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "class_mappings",
+      "name": "class_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "class_mappings",
+      "name": "class_name",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "class_mappings",
+      "name": "confidence",
+      "type": "numeric(3,2)",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "class_mappings",
+      "name": "confirmed",
+      "type": "boolean",
+      "nullable": false,
+      "default": "false",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "class_mappings",
+      "name": "course_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "class_mappings",
+      "name": "course_name",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "class_mappings",
+      "name": "grade",
+      "type": "integer",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "class_mappings",
+      "name": "updated_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "classes",
+      "name": "active",
+      "type": "boolean",
+      "nullable": false,
+      "default": "true",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "classes",
+      "name": "average_score",
+      "type": "numeric(5,2)",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "classes",
+      "name": "class_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "classes",
+      "name": "class_name",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "classes",
+      "name": "completion_rate",
+      "type": "numeric(5,1)",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "classes",
+      "name": "course_count",
+      "type": "integer",
+      "nullable": false,
+      "default": "0",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "classes",
+      "name": "courses",
+      "type": "jsonb",
+      "nullable": true,
+      "default": "'[]'::jsonb",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "classes",
+      "name": "expected_students",
+      "type": "integer",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "classes",
+      "name": "grade",
+      "type": "integer",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "classes",
+      "name": "homeroom_teacher",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "classes",
+      "name": "on_time_rate",
+      "type": "numeric(5,1)",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "classes",
+      "name": "room",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "classes",
+      "name": "source",
+      "type": "text",
+      "nullable": false,
+      "default": "'CLASSROOM_SYNC'::text",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "classes",
+      "name": "student_count",
+      "type": "integer",
+      "nullable": false,
+      "default": "0",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "classes",
+      "name": "subjects",
+      "type": "jsonb",
+      "nullable": true,
+      "default": "'[]'::jsonb",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "classes",
+      "name": "submissions_late",
+      "type": "integer",
+      "nullable": false,
+      "default": "0",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "classes",
+      "name": "submissions_total",
+      "type": "integer",
+      "nullable": false,
+      "default": "0",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "classes",
+      "name": "submissions_turned_in",
+      "type": "integer",
+      "nullable": false,
+      "default": "0",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "classes",
+      "name": "teacher_email",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "classes",
+      "name": "total_coursework",
+      "type": "integer",
+      "nullable": false,
+      "default": "0",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "classes",
+      "name": "updated_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "contact_group_members",
+      "name": "added_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "contact_group_members",
+      "name": "group_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "contact_group_members",
+      "name": "per_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "contact_groups",
+      "name": "created_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "contact_groups",
+      "name": "group_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "contact_groups",
+      "name": "name",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "contact_groups",
+      "name": "owner_per_id",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "course_announcements",
+      "name": "course_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "course_announcements",
+      "name": "data",
+      "type": "jsonb",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "course_announcements",
+      "name": "id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "course_announcements",
+      "name": "updated_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "course_coursework",
+      "name": "course_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "course_coursework",
+      "name": "course_work_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "course_coursework",
+      "name": "data",
+      "type": "jsonb",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "course_coursework",
+      "name": "id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "course_coursework",
+      "name": "updated_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "course_materials",
+      "name": "course_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "course_materials",
+      "name": "data",
+      "type": "jsonb",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "course_materials",
+      "name": "id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "course_materials",
+      "name": "updated_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "course_members",
+      "name": "course_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "course_members",
+      "name": "email",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "course_members",
+      "name": "id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "course_members",
+      "name": "name",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "course_members",
+      "name": "photo_url",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "course_members",
+      "name": "role",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "course_members",
+      "name": "updated_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "course_members",
+      "name": "user_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "course_submissions",
+      "name": "course_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "course_submissions",
+      "name": "course_work_id",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "course_submissions",
+      "name": "course_work_title",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "course_submissions",
+      "name": "data",
+      "type": "jsonb",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "course_submissions",
+      "name": "due_date",
+      "type": "jsonb",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "course_submissions",
+      "name": "due_time",
+      "type": "jsonb",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "course_submissions",
+      "name": "id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "course_submissions",
+      "name": "is_graded",
+      "type": "boolean",
+      "nullable": false,
+      "default": "false",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "course_submissions",
+      "name": "is_late",
+      "type": "boolean",
+      "nullable": false,
+      "default": "false",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "course_submissions",
+      "name": "is_turned_in",
+      "type": "boolean",
+      "nullable": false,
+      "default": "false",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "course_submissions",
+      "name": "max_points",
+      "type": "numeric(6,2)",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "course_submissions",
+      "name": "updated_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "course_topics",
+      "name": "course_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "course_topics",
+      "name": "data",
+      "type": "jsonb",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "course_topics",
+      "name": "id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "course_topics",
+      "name": "updated_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "courses",
+      "name": "alternate_link",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "courses",
+      "name": "average_score",
+      "type": "numeric(5,2)",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "courses",
+      "name": "calendar_id",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "courses",
+      "name": "class_id",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "courses",
+      "name": "class_name",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "courses",
+      "name": "completion_rate",
+      "type": "numeric(5,1)",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "courses",
+      "name": "content_announcements",
+      "type": "integer",
+      "nullable": false,
+      "default": "0",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "courses",
+      "name": "content_coursework",
+      "type": "integer",
+      "nullable": false,
+      "default": "0",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "courses",
+      "name": "content_materials",
+      "type": "integer",
+      "nullable": false,
+      "default": "0",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "courses",
+      "name": "content_status",
+      "type": "text",
+      "nullable": false,
+      "default": "'DATA_UNAVAILABLE'::text",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "courses",
+      "name": "content_topics",
+      "type": "integer",
+      "nullable": false,
+      "default": "0",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "courses",
+      "name": "course_state",
+      "type": "text",
+      "nullable": false,
+      "default": "'ACTIVE'::text",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "courses",
+      "name": "creation_time",
+      "type": "timestamp with time zone",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "courses",
+      "name": "description",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "courses",
+      "name": "description_heading",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "courses",
+      "name": "grade",
+      "type": "integer",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "courses",
+      "name": "gradebook_settings",
+      "type": "jsonb",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "courses",
+      "name": "id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "courses",
+      "name": "last_sync_at",
+      "type": "timestamp with time zone",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "courses",
+      "name": "name",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "courses",
+      "name": "on_time_rate",
+      "type": "numeric(5,1)",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "courses",
+      "name": "owner_id",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "courses",
+      "name": "room",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "courses",
+      "name": "roster_status",
+      "type": "text",
+      "nullable": false,
+      "default": "'DATA_UNAVAILABLE'::text",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "courses",
+      "name": "roster_students",
+      "type": "integer",
+      "nullable": false,
+      "default": "0",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "courses",
+      "name": "roster_teachers",
+      "type": "integer",
+      "nullable": false,
+      "default": "0",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "courses",
+      "name": "section",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "courses",
+      "name": "subject_id",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "courses",
+      "name": "subject_name",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "courses",
+      "name": "submissions_graded",
+      "type": "integer",
+      "nullable": false,
+      "default": "0",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "courses",
+      "name": "submissions_late",
+      "type": "integer",
+      "nullable": false,
+      "default": "0",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "courses",
+      "name": "submissions_total",
+      "type": "integer",
+      "nullable": false,
+      "default": "0",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "courses",
+      "name": "submissions_turned_in",
+      "type": "integer",
+      "nullable": false,
+      "default": "0",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "courses",
+      "name": "sync_run_id",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "courses",
+      "name": "update_time",
+      "type": "timestamp with time zone",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "courses",
+      "name": "updated_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "dashboard_snapshot",
+      "name": "id",
+      "type": "text",
+      "nullable": false,
+      "default": "'current'::text",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "dashboard_snapshot",
+      "name": "kpis",
+      "type": "jsonb",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "dashboard_snapshot",
+      "name": "school_health",
+      "type": "jsonb",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "dashboard_snapshot",
+      "name": "updated_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "delegations",
+      "name": "campus_id",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "delegations",
+      "name": "from_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "delegations",
+      "name": "id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "delegations",
+      "name": "to_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "delegations",
+      "name": "to_per_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "duty_shifts",
+      "name": "from_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "duty_shifts",
+      "name": "id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "duty_shifts",
+      "name": "per_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "duty_shifts",
+      "name": "to_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "events",
+      "name": "attempts",
+      "type": "integer",
+      "nullable": false,
+      "default": "1",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "events",
+      "name": "error",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "events",
+      "name": "event_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "events",
+      "name": "lease_until",
+      "type": "timestamp with time zone",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "events",
+      "name": "source",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "events",
+      "name": "status",
+      "type": "text",
+      "nullable": false,
+      "default": "'PROCESSING'::text",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "events",
+      "name": "updated_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "evidence",
+      "name": "deleted",
+      "type": "boolean",
+      "nullable": false,
+      "default": "false",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "evidence",
+      "name": "evidence_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "evidence",
+      "name": "expires_unlinked_at",
+      "type": "timestamp with time zone",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "evidence",
+      "name": "extension",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "evidence",
+      "name": "file_type",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "evidence",
+      "name": "linked_at",
+      "type": "timestamp with time zone",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "evidence",
+      "name": "mime_type",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "evidence",
+      "name": "report_id",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "evidence",
+      "name": "scan_status",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "evidence",
+      "name": "size_bytes",
+      "type": "integer",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "evidence",
+      "name": "storage_path",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "evidence",
+      "name": "uploaded_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "general_audit_logs",
+      "name": "action",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "general_audit_logs",
+      "name": "actor",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "general_audit_logs",
+      "name": "entity_id",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "general_audit_logs",
+      "name": "entity_type",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "general_audit_logs",
+      "name": "id",
+      "type": "uuid",
+      "nullable": false,
+      "default": "gen_random_uuid()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "general_audit_logs",
+      "name": "message",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "general_audit_logs",
+      "name": "status",
+      "type": "text",
+      "nullable": false,
+      "default": "'SUCCESS'::text",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "general_audit_logs",
+      "name": "timestamp",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "google_connections",
+      "name": "access_token",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "google_connections",
+      "name": "email",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "google_connections",
+      "name": "expires_at",
+      "type": "timestamp with time zone",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "google_connections",
+      "name": "id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "google_connections",
+      "name": "name",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "google_connections",
+      "name": "refresh_token",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "google_connections",
+      "name": "scopes",
+      "type": "jsonb",
+      "nullable": true,
+      "default": "'[]'::jsonb",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "google_connections",
+      "name": "token_expires_at",
+      "type": "timestamp with time zone",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "google_connections",
+      "name": "uid",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "google_connections",
+      "name": "updated_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "grade_supervisor_assignments",
+      "name": "grade",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "grade_supervisor_assignments",
+      "name": "name",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "grade_supervisor_assignments",
+      "name": "per_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "homeroom_assignments",
+      "name": "class_name",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "homeroom_assignments",
+      "name": "name",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "homeroom_assignments",
+      "name": "per_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "id_counters",
+      "name": "period",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "id_counters",
+      "name": "prefix",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "id_counters",
+      "name": "updated_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "id_counters",
+      "name": "value",
+      "type": "integer",
+      "nullable": false,
+      "default": "0",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "idempotency_keys",
+      "name": "created_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "idempotency_keys",
+      "name": "key",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "idempotency_keys",
+      "name": "result",
+      "type": "jsonb",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "incidents",
+      "name": "assigned_task_per_ids",
+      "type": "jsonb",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "incidents",
+      "name": "campus_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "incidents",
+      "name": "cancel_request_reason",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "incidents",
+      "name": "cancel_requested_at",
+      "type": "timestamp with time zone",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "incidents",
+      "name": "cancel_requested_by",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "incidents",
+      "name": "category_code",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "incidents",
+      "name": "class_name",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "incidents",
+      "name": "close_requested_at",
+      "type": "timestamp with time zone",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "incidents",
+      "name": "closed_at",
+      "type": "timestamp with time zone",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "incidents",
+      "name": "closed_by",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "incidents",
+      "name": "commander_per_id",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "incidents",
+      "name": "confidentiality",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "incidents",
+      "name": "created_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "incidents",
+      "name": "extension_proposed_deadline_at",
+      "type": "timestamp with time zone",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "incidents",
+      "name": "extension_request_reason",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "incidents",
+      "name": "extension_requested_at",
+      "type": "timestamp with time zone",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "incidents",
+      "name": "extension_requested_by",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "incidents",
+      "name": "incident_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "incidents",
+      "name": "last_note",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "incidents",
+      "name": "pending_join_requests",
+      "type": "jsonb",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "incidents",
+      "name": "priority",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "incidents",
+      "name": "reopen_reason",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "incidents",
+      "name": "reopened_at",
+      "type": "timestamp with time zone",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "incidents",
+      "name": "reopened_by",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "incidents",
+      "name": "report_ids",
+      "type": "jsonb",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "incidents",
+      "name": "reporter_close_confirmed_at",
+      "type": "timestamp with time zone",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "incidents",
+      "name": "reporter_role",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "incidents",
+      "name": "resolution_deadline_at",
+      "type": "timestamp with time zone",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "incidents",
+      "name": "resolution_deadline_set_by",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "incidents",
+      "name": "state",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "incidents",
+      "name": "suggested_class_names",
+      "type": "jsonb",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "incidents",
+      "name": "unclaimed_escalation_tier",
+      "type": "integer",
+      "nullable": false,
+      "default": "0",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "incidents",
+      "name": "updated_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "incidents",
+      "name": "version",
+      "type": "integer",
+      "nullable": false,
+      "default": "1",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "incidents",
+      "name": "zone_id",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "incidents",
+      "name": "zone_ids",
+      "type": "jsonb",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_audit_logs",
+      "name": "action",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_audit_logs",
+      "name": "actor_per_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_audit_logs",
+      "name": "after",
+      "type": "jsonb",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_audit_logs",
+      "name": "before",
+      "type": "jsonb",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_audit_logs",
+      "name": "created_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_audit_logs",
+      "name": "entity_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_audit_logs",
+      "name": "entity_type",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_audit_logs",
+      "name": "id",
+      "type": "uuid",
+      "nullable": false,
+      "default": "gen_random_uuid()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_events",
+      "name": "approvals",
+      "type": "jsonb",
+      "nullable": false,
+      "default": "'[]'::jsonb",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_events",
+      "name": "campus_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_events",
+      "name": "cancellation_note",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_events",
+      "name": "chair_per_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_events",
+      "name": "conflict_note",
+      "type": "text",
+      "nullable": false,
+      "default": "''::text",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_events",
+      "name": "created_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_events",
+      "name": "created_by_per_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_events",
+      "name": "department_domain",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_events",
+      "name": "description",
+      "type": "text",
+      "nullable": false,
+      "default": "''::text",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_events",
+      "name": "end_at",
+      "type": "timestamp with time zone",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_events",
+      "name": "external_participants",
+      "type": "text[]",
+      "nullable": false,
+      "default": "'{}'::text[]",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_events",
+      "name": "id",
+      "type": "uuid",
+      "nullable": false,
+      "default": "gen_random_uuid()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_events",
+      "name": "location",
+      "type": "text",
+      "nullable": false,
+      "default": "''::text",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_events",
+      "name": "participant_per_ids",
+      "type": "text[]",
+      "nullable": false,
+      "default": "'{}'::text[]",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_events",
+      "name": "priority",
+      "type": "text",
+      "nullable": false,
+      "default": "'NORMAL'::text",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_events",
+      "name": "revision_note",
+      "type": "text",
+      "nullable": false,
+      "default": "''::text",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_events",
+      "name": "scope",
+      "type": "text",
+      "nullable": false,
+      "default": "'CAMPUS'::text",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_events",
+      "name": "start_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_events",
+      "name": "status",
+      "type": "text",
+      "nullable": false,
+      "default": "'DRAFT'::text",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_events",
+      "name": "title",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_events",
+      "name": "type",
+      "type": "text",
+      "nullable": false,
+      "default": "'MEETING'::text",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_events",
+      "name": "updated_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_events",
+      "name": "version",
+      "type": "integer",
+      "nullable": false,
+      "default": "1",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_exam_shifts",
+      "name": "campus_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_exam_shifts",
+      "name": "class_name",
+      "type": "text",
+      "nullable": false,
+      "default": "''::text",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_exam_shifts",
+      "name": "created_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_exam_shifts",
+      "name": "created_by_per_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_exam_shifts",
+      "name": "exam_date",
+      "type": "date",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_exam_shifts",
+      "name": "first_proctor_name",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_exam_shifts",
+      "name": "first_proctor_per_id",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_exam_shifts",
+      "name": "id",
+      "type": "uuid",
+      "nullable": false,
+      "default": "gen_random_uuid()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_exam_shifts",
+      "name": "note",
+      "type": "text",
+      "nullable": false,
+      "default": "''::text",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_exam_shifts",
+      "name": "period_label",
+      "type": "text",
+      "nullable": false,
+      "default": "''::text",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_exam_shifts",
+      "name": "second_proctor_name",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_exam_shifts",
+      "name": "second_proctor_per_id",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_exam_shifts",
+      "name": "session",
+      "type": "text",
+      "nullable": false,
+      "default": "''::text",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_exam_shifts",
+      "name": "subject",
+      "type": "text",
+      "nullable": false,
+      "default": "''::text",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_exam_shifts",
+      "name": "time_label",
+      "type": "text",
+      "nullable": false,
+      "default": "''::text",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_exam_shifts",
+      "name": "updated_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_tasks",
+      "name": "acceptance_note",
+      "type": "text",
+      "nullable": false,
+      "default": "''::text",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_tasks",
+      "name": "assignee_per_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_tasks",
+      "name": "campus_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_tasks",
+      "name": "cancellation_reason",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_tasks",
+      "name": "collaborator_per_ids",
+      "type": "text[]",
+      "nullable": false,
+      "default": "'{}'::text[]",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_tasks",
+      "name": "created_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_tasks",
+      "name": "created_by_per_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_tasks",
+      "name": "description",
+      "type": "text",
+      "nullable": false,
+      "default": "''::text",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_tasks",
+      "name": "due_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_tasks",
+      "name": "event_id",
+      "type": "uuid",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_tasks",
+      "name": "evidence_url",
+      "type": "text",
+      "nullable": false,
+      "default": "''::text",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_tasks",
+      "name": "id",
+      "type": "uuid",
+      "nullable": false,
+      "default": "gen_random_uuid()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_tasks",
+      "name": "location",
+      "type": "text",
+      "nullable": false,
+      "default": "''::text",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_tasks",
+      "name": "parent_task_id",
+      "type": "uuid",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_tasks",
+      "name": "priority",
+      "type": "text",
+      "nullable": false,
+      "default": "'NORMAL'::text",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_tasks",
+      "name": "start_at",
+      "type": "timestamp with time zone",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_tasks",
+      "name": "status",
+      "type": "text",
+      "nullable": false,
+      "default": "'ASSIGNED'::text",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_tasks",
+      "name": "title",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_tasks",
+      "name": "updated_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_weekly_sheet_connection",
+      "name": "connected_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_weekly_sheet_connection",
+      "name": "connected_by_per_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_weekly_sheet_connection",
+      "name": "id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_weekly_sheet_connection",
+      "name": "sheet_url",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_weekly_sheet_connection",
+      "name": "updated_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_weekly_sheet_rows",
+      "name": "content",
+      "type": "text",
+      "nullable": false,
+      "default": "''::text",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_weekly_sheet_rows",
+      "name": "created_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_weekly_sheet_rows",
+      "name": "created_by_per_id",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_weekly_sheet_rows",
+      "name": "id",
+      "type": "uuid",
+      "nullable": false,
+      "default": "gen_random_uuid()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_weekly_sheet_rows",
+      "name": "linked_event_id",
+      "type": "uuid",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_weekly_sheet_rows",
+      "name": "location",
+      "type": "text",
+      "nullable": false,
+      "default": "''::text",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_weekly_sheet_rows",
+      "name": "people",
+      "type": "text",
+      "nullable": false,
+      "default": "''::text",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_weekly_sheet_rows",
+      "name": "row_date",
+      "type": "date",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_weekly_sheet_rows",
+      "name": "sort_order",
+      "type": "integer",
+      "nullable": false,
+      "default": "0",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_weekly_sheet_rows",
+      "name": "time_label",
+      "type": "text",
+      "nullable": false,
+      "default": "''::text",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_weekly_sheet_rows",
+      "name": "updated_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "ltc_weekly_sheet_rows",
+      "name": "updated_by_per_id",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "meet_attendance",
+      "name": "duration_minutes",
+      "type": "integer",
+      "nullable": false,
+      "default": "0",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "meet_attendance",
+      "name": "email",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "meet_attendance",
+      "name": "id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "meet_attendance",
+      "name": "join_time",
+      "type": "timestamp with time zone",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "meet_attendance",
+      "name": "name",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "meet_attendance",
+      "name": "session_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "meet_attendance",
+      "name": "status",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "meet_attendance",
+      "name": "updated_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "meet_attendance",
+      "name": "user_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "meet_sessions",
+      "name": "absent",
+      "type": "integer",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "meet_sessions",
+      "name": "attendance_rate",
+      "type": "numeric(5,1)",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "meet_sessions",
+      "name": "attendance_reason",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "meet_sessions",
+      "name": "attendance_status",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "meet_sessions",
+      "name": "class_id",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "meet_sessions",
+      "name": "class_name",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "meet_sessions",
+      "name": "conference_name",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "meet_sessions",
+      "name": "date",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "meet_sessions",
+      "name": "id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "meet_sessions",
+      "name": "joined_students",
+      "type": "integer",
+      "nullable": false,
+      "default": "0",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "meet_sessions",
+      "name": "late",
+      "type": "integer",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "meet_sessions",
+      "name": "late_rate",
+      "type": "numeric(5,1)",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "meet_sessions",
+      "name": "online_students",
+      "type": "integer",
+      "nullable": false,
+      "default": "0",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "meet_sessions",
+      "name": "present",
+      "type": "integer",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "meet_sessions",
+      "name": "raw",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "meet_sessions",
+      "name": "roster_size",
+      "type": "integer",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "meet_sessions",
+      "name": "schedule_id",
+      "type": "uuid",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "meet_sessions",
+      "name": "status",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "meet_sessions",
+      "name": "subject",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "meet_sessions",
+      "name": "teacher_email",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "meet_sessions",
+      "name": "updated_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "metrics_daily",
+      "name": "active_courses",
+      "type": "integer",
+      "nullable": false,
+      "default": "0",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "metrics_daily",
+      "name": "attendance_rate",
+      "type": "numeric(5,1)",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "metrics_daily",
+      "name": "created_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "metrics_daily",
+      "name": "date",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "metrics_daily",
+      "name": "online_students",
+      "type": "integer",
+      "nullable": false,
+      "default": "0",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "metrics_daily",
+      "name": "open_alerts",
+      "type": "integer",
+      "nullable": false,
+      "default": "0",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "metrics_daily",
+      "name": "students",
+      "type": "integer",
+      "nullable": false,
+      "default": "0",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "metrics_daily",
+      "name": "submission_rate",
+      "type": "numeric(5,1)",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "metrics_daily",
+      "name": "teachers",
+      "type": "integer",
+      "nullable": false,
+      "default": "0",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "notify_requests",
+      "name": "ack_by",
+      "type": "jsonb",
+      "nullable": false,
+      "default": "'[]'::jsonb",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "notify_requests",
+      "name": "acknowledged_at",
+      "type": "timestamp with time zone",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "notify_requests",
+      "name": "attempts",
+      "type": "integer",
+      "nullable": false,
+      "default": "0",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "notify_requests",
+      "name": "channels",
+      "type": "jsonb",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "notify_requests",
+      "name": "created_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "notify_requests",
+      "name": "dedupe_keys",
+      "type": "jsonb",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "notify_requests",
+      "name": "dispatch_log",
+      "type": "jsonb",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "notify_requests",
+      "name": "dispatched_at",
+      "type": "timestamp with time zone",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "notify_requests",
+      "name": "event_type",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "notify_requests",
+      "name": "last_escalated_at",
+      "type": "timestamp with time zone",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "notify_requests",
+      "name": "last_escalated_to",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "notify_requests",
+      "name": "message",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "notify_requests",
+      "name": "notify_request_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "notify_requests",
+      "name": "object_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "notify_requests",
+      "name": "recipients",
+      "type": "jsonb",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "notify_requests",
+      "name": "require_ack",
+      "type": "boolean",
+      "nullable": false,
+      "default": "false",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "notify_requests",
+      "name": "simultaneous",
+      "type": "boolean",
+      "nullable": false,
+      "default": "false",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "notify_requests",
+      "name": "status",
+      "type": "text",
+      "nullable": false,
+      "default": "'pending'::text",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "notify_requests",
+      "name": "urgency",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "people_directory",
+      "name": "display_name",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "people_directory",
+      "name": "email",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "people_directory",
+      "name": "per_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "people_directory",
+      "name": "phone",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "people",
+      "name": "class_id",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "people",
+      "name": "class_name",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "people",
+      "name": "courses",
+      "type": "jsonb",
+      "nullable": true,
+      "default": "'[]'::jsonb",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "people",
+      "name": "display_name",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "people",
+      "name": "email",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "people",
+      "name": "org_unit_path",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "people",
+      "name": "person_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "people",
+      "name": "person_type",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "people",
+      "name": "photo_url",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "people",
+      "name": "suspended",
+      "type": "boolean",
+      "nullable": false,
+      "default": "false",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "people",
+      "name": "updated_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "public_codes",
+      "name": "code",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "public_codes",
+      "name": "created_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "public_codes",
+      "name": "report_id",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "push_tokens",
+      "name": "per_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "push_tokens",
+      "name": "token",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "push_tokens",
+      "name": "updated_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "push_tokens",
+      "name": "user_agent",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "report_identities",
+      "name": "contact_channel",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "report_identities",
+      "name": "contact_name",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "report_identities",
+      "name": "email",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "report_identities",
+      "name": "phone",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "report_identities",
+      "name": "report_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "report_identities",
+      "name": "safe_contact_time",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "report_supplements",
+      "name": "content",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "report_supplements",
+      "name": "created_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "report_supplements",
+      "name": "report_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "report_supplements",
+      "name": "supplement_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "reports",
+      "name": "anonymous",
+      "type": "boolean",
+      "nullable": false,
+      "default": "false",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "reports",
+      "name": "campus_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "reports",
+      "name": "category_code",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "reports",
+      "name": "channel",
+      "type": "text",
+      "nullable": false,
+      "default": "'public_web'::text",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "reports",
+      "name": "class_name",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "reports",
+      "name": "confidentiality",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "reports",
+      "name": "content",
+      "type": "text",
+      "nullable": false,
+      "default": "''::text",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "reports",
+      "name": "created_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "reports",
+      "name": "created_by_per_id",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "reports",
+      "name": "merged_into_incident_id",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "reports",
+      "name": "occurred_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "reports",
+      "name": "occurred_from",
+      "type": "timestamp with time zone",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "reports",
+      "name": "occurred_to",
+      "type": "timestamp with time zone",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "reports",
+      "name": "public_code",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "reports",
+      "name": "report_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "reports",
+      "name": "reporter_role",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "reports",
+      "name": "still_dangerous",
+      "type": "boolean",
+      "nullable": false,
+      "default": "false",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "reports",
+      "name": "suggested_class_names",
+      "type": "jsonb",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "reports",
+      "name": "suggested_zone_ids",
+      "type": "jsonb",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "reports",
+      "name": "zone_id",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "reports",
+      "name": "zone_ids",
+      "type": "jsonb",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "saved_case_filters",
+      "name": "created_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "saved_case_filters",
+      "name": "filter_json",
+      "type": "jsonb",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "saved_case_filters",
+      "name": "id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "saved_case_filters",
+      "name": "kind",
+      "type": "text",
+      "nullable": false,
+      "default": "'safety_cases'::text",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "saved_case_filters",
+      "name": "name",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "saved_case_filters",
+      "name": "per_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "schedule_imports",
+      "name": "created_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "schedule_imports",
+      "name": "id",
+      "type": "uuid",
+      "nullable": false,
+      "default": "gen_random_uuid()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "schedule_imports",
+      "name": "imported",
+      "type": "integer",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "schedule_imports",
+      "name": "rolled_back",
+      "type": "integer",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "schedule_imports",
+      "name": "rolled_back_at",
+      "type": "timestamp with time zone",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "schedule_imports",
+      "name": "status",
+      "type": "text",
+      "nullable": false,
+      "default": "'IMPORTED'::text",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "schedules",
+      "name": "class_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "schedules",
+      "name": "class_name",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "schedules",
+      "name": "course_id",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "schedules",
+      "name": "created_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "schedules",
+      "name": "day_of_week",
+      "type": "integer",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "schedules",
+      "name": "end_time",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "schedules",
+      "name": "expected_students",
+      "type": "integer",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "schedules",
+      "name": "id",
+      "type": "uuid",
+      "nullable": false,
+      "default": "gen_random_uuid()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "schedules",
+      "name": "import_batch_id",
+      "type": "uuid",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "schedules",
+      "name": "late_minutes",
+      "type": "integer",
+      "nullable": false,
+      "default": "10",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "schedules",
+      "name": "meeting_code",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "schedules",
+      "name": "period",
+      "type": "integer",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "schedules",
+      "name": "school_year",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "schedules",
+      "name": "semester",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "schedules",
+      "name": "source",
+      "type": "text",
+      "nullable": false,
+      "default": "'MANUAL'::text",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "schedules",
+      "name": "space_name",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "schedules",
+      "name": "start_time",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "schedules",
+      "name": "subject",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "schedules",
+      "name": "teacher_email",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "schedules",
+      "name": "updated_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "sla_clocks",
+      "name": "clock_label",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "sla_clocks",
+      "name": "deadline_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "sla_clocks",
+      "name": "escalated_at",
+      "type": "timestamp with time zone",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "sla_clocks",
+      "name": "object_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "sla_clocks",
+      "name": "pause_history",
+      "type": "jsonb",
+      "nullable": false,
+      "default": "'[]'::jsonb",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "sla_clocks",
+      "name": "paused",
+      "type": "boolean",
+      "nullable": false,
+      "default": "false",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "sla_clocks",
+      "name": "priority",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "sla_clocks",
+      "name": "start_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "sla_clocks",
+      "name": "status",
+      "type": "text",
+      "nullable": false,
+      "default": "'running'::text",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "subject_mappings",
+      "name": "confidence",
+      "type": "numeric(3,2)",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "subject_mappings",
+      "name": "confirmed",
+      "type": "boolean",
+      "nullable": false,
+      "default": "false",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "subject_mappings",
+      "name": "course_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "subject_mappings",
+      "name": "course_name",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "subject_mappings",
+      "name": "subject_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "subject_mappings",
+      "name": "subject_name",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "subject_mappings",
+      "name": "updated_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "subscriptions",
+      "name": "created_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "subscriptions",
+      "name": "expiration",
+      "type": "timestamp with time zone",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "subscriptions",
+      "name": "id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "subscriptions",
+      "name": "provider",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "subscriptions",
+      "name": "resource_id",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "subscriptions",
+      "name": "updated_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "sync_runs",
+      "name": "courses_error",
+      "type": "integer",
+      "nullable": false,
+      "default": "0",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "sync_runs",
+      "name": "courses_success",
+      "type": "integer",
+      "nullable": false,
+      "default": "0",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "sync_runs",
+      "name": "courses_total",
+      "type": "integer",
+      "nullable": false,
+      "default": "0",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "sync_runs",
+      "name": "errors",
+      "type": "jsonb",
+      "nullable": true,
+      "default": "'[]'::jsonb",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "sync_runs",
+      "name": "finished_at",
+      "type": "timestamp with time zone",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "sync_runs",
+      "name": "id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "sync_runs",
+      "name": "note",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "sync_runs",
+      "name": "performed_by",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "sync_runs",
+      "name": "started_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "sync_runs",
+      "name": "status",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "sync_runs",
+      "name": "type",
+      "type": "text",
+      "nullable": false,
+      "default": "'CLASSROOM_SYNC'::text",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "system_config",
+      "name": "key",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "system_config",
+      "name": "updated_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "system_config",
+      "name": "value",
+      "type": "jsonb",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "users",
+      "name": "active",
+      "type": "boolean",
+      "nullable": false,
+      "default": "true",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "users",
+      "name": "created_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "users",
+      "name": "display_name",
+      "type": "text",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "users",
+      "name": "email",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "users",
+      "name": "last_login",
+      "type": "timestamp with time zone",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "users",
+      "name": "role",
+      "type": "text",
+      "nullable": false,
+      "default": "'TEACHER'::text",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "users",
+      "name": "scope",
+      "type": "jsonb",
+      "nullable": true,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "users",
+      "name": "uid",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "users",
+      "name": "updated_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": "now()",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "zone_categories",
+      "name": "active",
+      "type": "boolean",
+      "nullable": false,
+      "default": "true",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "zone_categories",
+      "name": "category_id",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "zone_categories",
+      "name": "color",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "zone_categories",
+      "name": "created_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "zone_categories",
+      "name": "label",
+      "type": "text",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "zone_categories",
+      "name": "order",
+      "type": "integer",
+      "nullable": false,
+      "default": "0",
+      "identity": null,
+      "generated": null,
+      "collation": null
+    },
+    {
+      "schema": "public",
+      "table": "zone_categories",
+      "name": "updated_at",
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "default": null,
+      "identity": null,
+      "generated": null,
+      "collation": null
+    }
+  ],
+  "constraints": [
+    {
+      "schema": "public",
+      "table": "access_allowlist",
+      "name": "access_allowlist_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "accounts",
+      "name": "accounts_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (uid)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "admin_notifications",
+      "name": "admin_notifications_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (notification_id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "alert_rules",
+      "name": "alert_rules_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "alerts",
+      "name": "alerts_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "assignments",
+      "name": "assignments_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "audit_logs",
+      "name": "audit_logs_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (log_id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "campus_map_markers",
+      "name": "campus_map_markers_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (marker_id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "campus_zones",
+      "name": "campus_zones_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (zone_id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "catalog_mappings",
+      "name": "catalog_mappings_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "class_mappings",
+      "name": "class_mappings_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (course_id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "classes",
+      "name": "classes_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (class_id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "contact_group_members",
+      "name": "contact_group_members_group_id_fkey",
+      "type": "foreign_key",
+      "definition": "FOREIGN KEY (group_id) REFERENCES contact_groups(group_id) ON DELETE CASCADE",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "contact_group_members",
+      "name": "contact_group_members_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (group_id, per_id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "contact_groups",
+      "name": "contact_groups_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (group_id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "course_announcements",
+      "name": "course_announcements_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "course_coursework",
+      "name": "course_coursework_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "course_materials",
+      "name": "course_materials_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "course_members",
+      "name": "course_members_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "course_submissions",
+      "name": "course_submissions_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "course_topics",
+      "name": "course_topics_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "courses",
+      "name": "courses_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "dashboard_snapshot",
+      "name": "dashboard_snapshot_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "delegations",
+      "name": "delegations_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "duty_shifts",
+      "name": "duty_shifts_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "events",
+      "name": "events_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (event_id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "evidence",
+      "name": "evidence_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (evidence_id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "general_audit_logs",
+      "name": "general_audit_logs_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "google_connections",
+      "name": "google_connections_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "grade_supervisor_assignments",
+      "name": "grade_supervisor_assignments_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (grade)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "homeroom_assignments",
+      "name": "homeroom_assignments_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (class_name)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "id_counters",
+      "name": "id_counters_prefix_period_pk",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (prefix, period)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "idempotency_keys",
+      "name": "idempotency_keys_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (key)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "incidents",
+      "name": "incidents_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (incident_id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "ltc_audit_logs",
+      "name": "ltc_audit_logs_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "ltc_events",
+      "name": "ltc_events_campus_id_check",
+      "type": "check",
+      "definition": "CHECK (campus_id = ANY (ARRAY['MAIN_CAMPUS'::text, 'CAMPUS_1'::text, 'CAMPUS_2'::text]))",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "ltc_events",
+      "name": "ltc_events_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "ltc_events",
+      "name": "ltc_events_scope_check",
+      "type": "check",
+      "definition": "CHECK (scope = ANY (ARRAY['CAMPUS'::text, 'SCHOOL_WIDE'::text]))",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "ltc_events",
+      "name": "ltc_events_status_check",
+      "type": "check",
+      "definition": "CHECK (status = ANY (ARRAY['DRAFT'::text, 'PENDING_APPROVAL'::text, 'PUBLISHED'::text, 'REVISION_REQUIRED'::text, 'CANCELLED'::text]))",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "ltc_exam_shifts",
+      "name": "ltc_exam_shifts_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "ltc_tasks",
+      "name": "ltc_tasks_campus_id_check",
+      "type": "check",
+      "definition": "CHECK (campus_id = ANY (ARRAY['MAIN_CAMPUS'::text, 'CAMPUS_1'::text, 'CAMPUS_2'::text]))",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "ltc_tasks",
+      "name": "ltc_tasks_event_id_ltc_events_id_fk",
+      "type": "foreign_key",
+      "definition": "FOREIGN KEY (event_id) REFERENCES ltc_events(id) ON DELETE SET NULL",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "ltc_tasks",
+      "name": "ltc_tasks_parent_task_id_fkey",
+      "type": "foreign_key",
+      "definition": "FOREIGN KEY (parent_task_id) REFERENCES ltc_tasks(id) ON DELETE CASCADE",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "ltc_tasks",
+      "name": "ltc_tasks_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "ltc_tasks",
+      "name": "ltc_tasks_status_check",
+      "type": "check",
+      "definition": "CHECK (status = ANY (ARRAY['ASSIGNED'::text, 'COMPLETED'::text]))",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "ltc_weekly_sheet_connection",
+      "name": "ltc_weekly_sheet_connection_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "ltc_weekly_sheet_rows",
+      "name": "ltc_weekly_sheet_rows_linked_event_id_ltc_events_id_fk",
+      "type": "foreign_key",
+      "definition": "FOREIGN KEY (linked_event_id) REFERENCES ltc_events(id) ON DELETE SET NULL",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "ltc_weekly_sheet_rows",
+      "name": "ltc_weekly_sheet_rows_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "meet_attendance",
+      "name": "meet_attendance_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "meet_sessions",
+      "name": "meet_sessions_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "metrics_daily",
+      "name": "metrics_daily_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (date)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "notify_requests",
+      "name": "notify_requests_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (notify_request_id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "people_directory",
+      "name": "people_directory_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (per_id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "people",
+      "name": "people_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (person_id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "public_codes",
+      "name": "public_codes_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (code)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "push_tokens",
+      "name": "push_tokens_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (token)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "report_identities",
+      "name": "report_identities_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (report_id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "report_supplements",
+      "name": "report_supplements_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (supplement_id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "reports",
+      "name": "reports_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (report_id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "saved_case_filters",
+      "name": "saved_case_filters_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "schedule_imports",
+      "name": "schedule_imports_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "schedules",
+      "name": "schedules_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "sla_clocks",
+      "name": "sla_clocks_object_id_clock_label_pk",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (object_id, clock_label)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "subject_mappings",
+      "name": "subject_mappings_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (course_id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "subscriptions",
+      "name": "subscriptions_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "sync_runs",
+      "name": "sync_runs_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "system_config",
+      "name": "system_config_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (key)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "users",
+      "name": "users_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (uid)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    },
+    {
+      "schema": "public",
+      "table": "zone_categories",
+      "name": "zone_categories_pkey",
+      "type": "primary_key",
+      "definition": "PRIMARY KEY (category_id)",
+      "validated": true,
+      "deferrable": false,
+      "initiallyDeferred": false
+    }
+  ],
+  "indexes": [
+    {
+      "schema": "public",
+      "table": "access_allowlist",
+      "name": "access_allowlist_pkey",
+      "definition": "CREATE UNIQUE INDEX access_allowlist_pkey ON public.access_allowlist USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "accounts",
+      "name": "accounts_per_id_idx",
+      "definition": "CREATE UNIQUE INDEX accounts_per_id_idx ON public.accounts USING btree (per_id)"
+    },
+    {
+      "schema": "public",
+      "table": "accounts",
+      "name": "accounts_pkey",
+      "definition": "CREATE UNIQUE INDEX accounts_pkey ON public.accounts USING btree (uid)"
+    },
+    {
+      "schema": "public",
+      "table": "admin_notifications",
+      "name": "admin_notifications_pkey",
+      "definition": "CREATE UNIQUE INDEX admin_notifications_pkey ON public.admin_notifications USING btree (notification_id)"
+    },
+    {
+      "schema": "public",
+      "table": "alert_rules",
+      "name": "alert_rules_pkey",
+      "definition": "CREATE UNIQUE INDEX alert_rules_pkey ON public.alert_rules USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "alerts",
+      "name": "alerts_pkey",
+      "definition": "CREATE UNIQUE INDEX alerts_pkey ON public.alerts USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "assignments",
+      "name": "assignments_campus_id_idx",
+      "definition": "CREATE INDEX assignments_campus_id_idx ON public.assignments USING btree (campus_id)"
+    },
+    {
+      "schema": "public",
+      "table": "assignments",
+      "name": "assignments_per_id_idx",
+      "definition": "CREATE INDEX assignments_per_id_idx ON public.assignments USING btree (per_id)"
+    },
+    {
+      "schema": "public",
+      "table": "assignments",
+      "name": "assignments_per_role_idx",
+      "definition": "CREATE UNIQUE INDEX assignments_per_role_idx ON public.assignments USING btree (per_id, role_id)"
+    },
+    {
+      "schema": "public",
+      "table": "assignments",
+      "name": "assignments_pkey",
+      "definition": "CREATE UNIQUE INDEX assignments_pkey ON public.assignments USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "audit_logs",
+      "name": "audit_logs_pkey",
+      "definition": "CREATE UNIQUE INDEX audit_logs_pkey ON public.audit_logs USING btree (log_id)"
+    },
+    {
+      "schema": "public",
+      "table": "campus_map_markers",
+      "name": "campus_map_markers_pkey",
+      "definition": "CREATE UNIQUE INDEX campus_map_markers_pkey ON public.campus_map_markers USING btree (marker_id)"
+    },
+    {
+      "schema": "public",
+      "table": "campus_zones",
+      "name": "campus_zones_pkey",
+      "definition": "CREATE UNIQUE INDEX campus_zones_pkey ON public.campus_zones USING btree (zone_id)"
+    },
+    {
+      "schema": "public",
+      "table": "catalog_mappings",
+      "name": "catalog_mappings_pkey",
+      "definition": "CREATE UNIQUE INDEX catalog_mappings_pkey ON public.catalog_mappings USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "class_mappings",
+      "name": "class_mappings_pkey",
+      "definition": "CREATE UNIQUE INDEX class_mappings_pkey ON public.class_mappings USING btree (course_id)"
+    },
+    {
+      "schema": "public",
+      "table": "classes",
+      "name": "classes_pkey",
+      "definition": "CREATE UNIQUE INDEX classes_pkey ON public.classes USING btree (class_id)"
+    },
+    {
+      "schema": "public",
+      "table": "contact_group_members",
+      "name": "contact_group_members_pkey",
+      "definition": "CREATE UNIQUE INDEX contact_group_members_pkey ON public.contact_group_members USING btree (group_id, per_id)"
+    },
+    {
+      "schema": "public",
+      "table": "contact_groups",
+      "name": "contact_groups_pkey",
+      "definition": "CREATE UNIQUE INDEX contact_groups_pkey ON public.contact_groups USING btree (group_id)"
+    },
+    {
+      "schema": "public",
+      "table": "course_announcements",
+      "name": "course_announcements_course_idx",
+      "definition": "CREATE INDEX course_announcements_course_idx ON public.course_announcements USING btree (course_id)"
+    },
+    {
+      "schema": "public",
+      "table": "course_announcements",
+      "name": "course_announcements_pkey",
+      "definition": "CREATE UNIQUE INDEX course_announcements_pkey ON public.course_announcements USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "course_coursework",
+      "name": "course_coursework_course_idx",
+      "definition": "CREATE INDEX course_coursework_course_idx ON public.course_coursework USING btree (course_id)"
+    },
+    {
+      "schema": "public",
+      "table": "course_coursework",
+      "name": "course_coursework_pkey",
+      "definition": "CREATE UNIQUE INDEX course_coursework_pkey ON public.course_coursework USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "course_materials",
+      "name": "course_materials_course_idx",
+      "definition": "CREATE INDEX course_materials_course_idx ON public.course_materials USING btree (course_id)"
+    },
+    {
+      "schema": "public",
+      "table": "course_materials",
+      "name": "course_materials_pkey",
+      "definition": "CREATE UNIQUE INDEX course_materials_pkey ON public.course_materials USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "course_members",
+      "name": "course_members_course_role_idx",
+      "definition": "CREATE INDEX course_members_course_role_idx ON public.course_members USING btree (course_id, role)"
+    },
+    {
+      "schema": "public",
+      "table": "course_members",
+      "name": "course_members_pkey",
+      "definition": "CREATE UNIQUE INDEX course_members_pkey ON public.course_members USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "course_submissions",
+      "name": "course_submissions_course_idx",
+      "definition": "CREATE INDEX course_submissions_course_idx ON public.course_submissions USING btree (course_id)"
+    },
+    {
+      "schema": "public",
+      "table": "course_submissions",
+      "name": "course_submissions_pkey",
+      "definition": "CREATE UNIQUE INDEX course_submissions_pkey ON public.course_submissions USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "course_topics",
+      "name": "course_topics_course_idx",
+      "definition": "CREATE INDEX course_topics_course_idx ON public.course_topics USING btree (course_id)"
+    },
+    {
+      "schema": "public",
+      "table": "course_topics",
+      "name": "course_topics_pkey",
+      "definition": "CREATE UNIQUE INDEX course_topics_pkey ON public.course_topics USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "courses",
+      "name": "courses_pkey",
+      "definition": "CREATE UNIQUE INDEX courses_pkey ON public.courses USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "dashboard_snapshot",
+      "name": "dashboard_snapshot_pkey",
+      "definition": "CREATE UNIQUE INDEX dashboard_snapshot_pkey ON public.dashboard_snapshot USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "delegations",
+      "name": "delegations_pkey",
+      "definition": "CREATE UNIQUE INDEX delegations_pkey ON public.delegations USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "delegations",
+      "name": "delegations_to_per_id_idx",
+      "definition": "CREATE INDEX delegations_to_per_id_idx ON public.delegations USING btree (to_per_id)"
+    },
+    {
+      "schema": "public",
+      "table": "duty_shifts",
+      "name": "duty_shifts_per_id_idx",
+      "definition": "CREATE INDEX duty_shifts_per_id_idx ON public.duty_shifts USING btree (per_id)"
+    },
+    {
+      "schema": "public",
+      "table": "duty_shifts",
+      "name": "duty_shifts_pkey",
+      "definition": "CREATE UNIQUE INDEX duty_shifts_pkey ON public.duty_shifts USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "events",
+      "name": "events_pkey",
+      "definition": "CREATE UNIQUE INDEX events_pkey ON public.events USING btree (event_id)"
+    },
+    {
+      "schema": "public",
+      "table": "evidence",
+      "name": "evidence_pkey",
+      "definition": "CREATE UNIQUE INDEX evidence_pkey ON public.evidence USING btree (evidence_id)"
+    },
+    {
+      "schema": "public",
+      "table": "general_audit_logs",
+      "name": "general_audit_logs_pkey",
+      "definition": "CREATE UNIQUE INDEX general_audit_logs_pkey ON public.general_audit_logs USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "google_connections",
+      "name": "google_connections_pkey",
+      "definition": "CREATE UNIQUE INDEX google_connections_pkey ON public.google_connections USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "grade_supervisor_assignments",
+      "name": "grade_supervisor_assignments_pkey",
+      "definition": "CREATE UNIQUE INDEX grade_supervisor_assignments_pkey ON public.grade_supervisor_assignments USING btree (grade)"
+    },
+    {
+      "schema": "public",
+      "table": "homeroom_assignments",
+      "name": "homeroom_assignments_pkey",
+      "definition": "CREATE UNIQUE INDEX homeroom_assignments_pkey ON public.homeroom_assignments USING btree (class_name)"
+    },
+    {
+      "schema": "public",
+      "table": "id_counters",
+      "name": "id_counters_prefix_period_pk",
+      "definition": "CREATE UNIQUE INDEX id_counters_prefix_period_pk ON public.id_counters USING btree (prefix, period)"
+    },
+    {
+      "schema": "public",
+      "table": "idempotency_keys",
+      "name": "idempotency_keys_pkey",
+      "definition": "CREATE UNIQUE INDEX idempotency_keys_pkey ON public.idempotency_keys USING btree (key)"
+    },
+    {
+      "schema": "public",
+      "table": "incidents",
+      "name": "incidents_pkey",
+      "definition": "CREATE UNIQUE INDEX incidents_pkey ON public.incidents USING btree (incident_id)"
+    },
+    {
+      "schema": "public",
+      "table": "ltc_audit_logs",
+      "name": "ltc_audit_logs_pkey",
+      "definition": "CREATE UNIQUE INDEX ltc_audit_logs_pkey ON public.ltc_audit_logs USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "ltc_events",
+      "name": "ltc_events_pkey",
+      "definition": "CREATE UNIQUE INDEX ltc_events_pkey ON public.ltc_events USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "ltc_exam_shifts",
+      "name": "ltc_exam_shifts_pkey",
+      "definition": "CREATE UNIQUE INDEX ltc_exam_shifts_pkey ON public.ltc_exam_shifts USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "ltc_tasks",
+      "name": "ltc_tasks_pkey",
+      "definition": "CREATE UNIQUE INDEX ltc_tasks_pkey ON public.ltc_tasks USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "ltc_weekly_sheet_connection",
+      "name": "ltc_weekly_sheet_connection_pkey",
+      "definition": "CREATE UNIQUE INDEX ltc_weekly_sheet_connection_pkey ON public.ltc_weekly_sheet_connection USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "ltc_weekly_sheet_rows",
+      "name": "ltc_weekly_sheet_rows_pkey",
+      "definition": "CREATE UNIQUE INDEX ltc_weekly_sheet_rows_pkey ON public.ltc_weekly_sheet_rows USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "meet_attendance",
+      "name": "meet_attendance_pkey",
+      "definition": "CREATE UNIQUE INDEX meet_attendance_pkey ON public.meet_attendance USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "meet_attendance",
+      "name": "meet_attendance_session_idx",
+      "definition": "CREATE INDEX meet_attendance_session_idx ON public.meet_attendance USING btree (session_id)"
+    },
+    {
+      "schema": "public",
+      "table": "meet_sessions",
+      "name": "meet_sessions_date_idx",
+      "definition": "CREATE INDEX meet_sessions_date_idx ON public.meet_sessions USING btree (date)"
+    },
+    {
+      "schema": "public",
+      "table": "meet_sessions",
+      "name": "meet_sessions_pkey",
+      "definition": "CREATE UNIQUE INDEX meet_sessions_pkey ON public.meet_sessions USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "meet_sessions",
+      "name": "meet_sessions_status_idx",
+      "definition": "CREATE INDEX meet_sessions_status_idx ON public.meet_sessions USING btree (status)"
+    },
+    {
+      "schema": "public",
+      "table": "metrics_daily",
+      "name": "metrics_daily_pkey",
+      "definition": "CREATE UNIQUE INDEX metrics_daily_pkey ON public.metrics_daily USING btree (date)"
+    },
+    {
+      "schema": "public",
+      "table": "notify_requests",
+      "name": "notify_requests_pkey",
+      "definition": "CREATE UNIQUE INDEX notify_requests_pkey ON public.notify_requests USING btree (notify_request_id)"
+    },
+    {
+      "schema": "public",
+      "table": "people_directory",
+      "name": "people_directory_pkey",
+      "definition": "CREATE UNIQUE INDEX people_directory_pkey ON public.people_directory USING btree (per_id)"
+    },
+    {
+      "schema": "public",
+      "table": "people",
+      "name": "people_pkey",
+      "definition": "CREATE UNIQUE INDEX people_pkey ON public.people USING btree (person_id)"
+    },
+    {
+      "schema": "public",
+      "table": "public_codes",
+      "name": "public_codes_pkey",
+      "definition": "CREATE UNIQUE INDEX public_codes_pkey ON public.public_codes USING btree (code)"
+    },
+    {
+      "schema": "public",
+      "table": "push_tokens",
+      "name": "push_tokens_pkey",
+      "definition": "CREATE UNIQUE INDEX push_tokens_pkey ON public.push_tokens USING btree (token)"
+    },
+    {
+      "schema": "public",
+      "table": "report_identities",
+      "name": "report_identities_pkey",
+      "definition": "CREATE UNIQUE INDEX report_identities_pkey ON public.report_identities USING btree (report_id)"
+    },
+    {
+      "schema": "public",
+      "table": "report_supplements",
+      "name": "report_supplements_pkey",
+      "definition": "CREATE UNIQUE INDEX report_supplements_pkey ON public.report_supplements USING btree (supplement_id)"
+    },
+    {
+      "schema": "public",
+      "table": "reports",
+      "name": "reports_pkey",
+      "definition": "CREATE UNIQUE INDEX reports_pkey ON public.reports USING btree (report_id)"
+    },
+    {
+      "schema": "public",
+      "table": "saved_case_filters",
+      "name": "saved_case_filters_pkey",
+      "definition": "CREATE UNIQUE INDEX saved_case_filters_pkey ON public.saved_case_filters USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "schedule_imports",
+      "name": "schedule_imports_pkey",
+      "definition": "CREATE UNIQUE INDEX schedule_imports_pkey ON public.schedule_imports USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "schedules",
+      "name": "schedules_day_period_idx",
+      "definition": "CREATE INDEX schedules_day_period_idx ON public.schedules USING btree (day_of_week, period)"
+    },
+    {
+      "schema": "public",
+      "table": "schedules",
+      "name": "schedules_import_batch_idx",
+      "definition": "CREATE INDEX schedules_import_batch_idx ON public.schedules USING btree (import_batch_id)"
+    },
+    {
+      "schema": "public",
+      "table": "schedules",
+      "name": "schedules_pkey",
+      "definition": "CREATE UNIQUE INDEX schedules_pkey ON public.schedules USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "schedules",
+      "name": "schedules_space_name_idx",
+      "definition": "CREATE INDEX schedules_space_name_idx ON public.schedules USING btree (space_name)"
+    },
+    {
+      "schema": "public",
+      "table": "sla_clocks",
+      "name": "sla_clocks_object_id_clock_label_pk",
+      "definition": "CREATE UNIQUE INDEX sla_clocks_object_id_clock_label_pk ON public.sla_clocks USING btree (object_id, clock_label)"
+    },
+    {
+      "schema": "public",
+      "table": "subject_mappings",
+      "name": "subject_mappings_pkey",
+      "definition": "CREATE UNIQUE INDEX subject_mappings_pkey ON public.subject_mappings USING btree (course_id)"
+    },
+    {
+      "schema": "public",
+      "table": "subscriptions",
+      "name": "subscriptions_pkey",
+      "definition": "CREATE UNIQUE INDEX subscriptions_pkey ON public.subscriptions USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "sync_runs",
+      "name": "sync_runs_pkey",
+      "definition": "CREATE UNIQUE INDEX sync_runs_pkey ON public.sync_runs USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "sync_runs",
+      "name": "sync_runs_started_at_idx",
+      "definition": "CREATE INDEX sync_runs_started_at_idx ON public.sync_runs USING btree (started_at)"
+    },
+    {
+      "schema": "public",
+      "table": "system_config",
+      "name": "system_config_pkey",
+      "definition": "CREATE UNIQUE INDEX system_config_pkey ON public.system_config USING btree (key)"
+    },
+    {
+      "schema": "public",
+      "table": "users",
+      "name": "users_pkey",
+      "definition": "CREATE UNIQUE INDEX users_pkey ON public.users USING btree (uid)"
+    },
+    {
+      "schema": "public",
+      "table": "zone_categories",
+      "name": "zone_categories_pkey",
+      "definition": "CREATE UNIQUE INDEX zone_categories_pkey ON public.zone_categories USING btree (category_id)"
+    }
+  ]
+}

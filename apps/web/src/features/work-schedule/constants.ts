@@ -48,6 +48,23 @@ export const EVENT_SCOPE_LABEL: Record<string, string> = {
 export const EVENT_STATUS_STEPS = ['DRAFT', 'PENDING_APPROVAL', 'PUBLISHED'] as const;
 
 /**
+ * Định dạng ngày giờ RIÊNG cho module Lịch công tác — NGÀY trước, GIỜ sau,
+ * có dấu phân tách rõ ràng (Sin yêu cầu 2026-10-05: `formatDateTime` dùng
+ * chung ở lib/utils.ts hiện hiện GIỜ trước NGÀY và 2 phần dính sát nhau,
+ * khó đọc). Cố tình KHÔNG sửa `formatDateTime` dùng chung — module An toàn
+ * trường học (safety) và các module khác đang dùng đúng thứ tự cũ, nằm
+ * ngoài phạm vi yêu cầu này.
+ */
+export function formatScheduleDateTime(value: string | number | Date | null | undefined): string {
+  if (!value) return '—';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '—';
+  const datePart = d.toLocaleDateString('vi-VN');
+  const timePart = d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+  return `${datePart} · ${timePart}`;
+}
+
+/**
  * Viết tắt tên hiển thị Ở BẢNG DANH SÁCH cho gọn — "Bùi Thị Cúc (Giáo
  * viên)" -> "Cúc BT" (tên riêng + chữ cái đầu các từ đứng trước, KHÔNG kèm
  * chức vụ). Dialog chi tiết vẫn hiện tên đầy đủ + chức vụ (formatPersonLabel

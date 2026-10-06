@@ -47,7 +47,7 @@ test('searchPeopleByName: query rỗng/1 ký tự -> trả mảng rỗng', { ski
   assert.deepEqual(await searchPeopleByName(db, undefined), []);
 });
 
-test('searchPeopleByName: khớp 1 phần tên, không dấu/khác hoa-thường, CHỈ trả perId+name', { skip }, async () => {
+test('searchPeopleByName: khớp 1 phần tên, không dấu/khác hoa-thường, trả perId+name+email', { skip }, async () => {
   await resetTables();
   await seedAccount(uid('u1'), { displayName: 'Nguyễn Văn A', perId: perId('001') });
   await seedAccount(uid('u2'), { displayName: 'Trần Thị B', perId: perId('002') });
@@ -56,7 +56,7 @@ test('searchPeopleByName: khớp 1 phần tên, không dấu/khác hoa-thường
   assert.equal(results.length, 1);
   assert.equal(results[0]!.perId, perId('001'));
   assert.equal(results[0]!.name, 'Nguyễn Văn A');
-  assert.deepEqual(Object.keys(results[0]!).sort(), ['name', 'perId']);
+  assert.deepEqual(Object.keys(results[0]!).sort(), ['email', 'name', 'perId']);
 
   const resultsUpper = await searchPeopleByName(db, 'NGUYEN');
   assert.equal(resultsUpper.length, 1);
@@ -67,7 +67,7 @@ test('searchPeopleByName: khớp 1 phần tên, không dấu/khác hoa-thường
   assert.equal(resultsAccent[0]!.perId, perId('001'));
 });
 
-test('searchPeopleByName: khớp email (Sin yêu cầu 2026-09-24, gõ email cũng phải tìm ra), vẫn KHÔNG trả email ra ngoài', { skip }, async () => {
+test('searchPeopleByName: khớp email và trả email để hiển thị trong bộ chọn người', { skip }, async () => {
   await resetTables();
   await seedAccount(uid('u1'), { displayName: 'Bùi Lan Phương', perId: perId('EM1'), email: 'phuongbuilan.c2giangvo@gmail.com' });
   await seedAccount(uid('u2'), { displayName: 'Trần Thị B', perId: perId('EM2'), email: 'khac@gmail.com' });
@@ -76,7 +76,8 @@ test('searchPeopleByName: khớp email (Sin yêu cầu 2026-09-24, gõ email cũ
   assert.equal(results.length, 1);
   assert.equal(results[0]!.perId, perId('EM1'));
   assert.equal(results[0]!.name, 'Bùi Lan Phương');
-  assert.deepEqual(Object.keys(results[0]!).sort(), ['name', 'perId']);
+  assert.equal(results[0]!.email, 'phuongbuilan.c2giangvo@gmail.com');
+  assert.deepEqual(Object.keys(results[0]!).sort(), ['email', 'name', 'perId']);
 
   const partial = await searchPeopleByName(db, 'phuongbuilan');
   assert.equal(partial.length, 1);

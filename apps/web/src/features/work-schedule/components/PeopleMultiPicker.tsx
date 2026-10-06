@@ -164,7 +164,14 @@ export function PeopleMultiPicker({
           </Command>
         </PopoverContent>
       </Popover>
-      {!disabled && <ContactGroupPickerButton onPick={(p) => toggle(p)} />}
+      {!disabled && (
+        // `selected={value}` nạp sẵn giỏ chọn hiện tại vào modal (Sin yêu
+        // cầu 2026-10-05: "input sẵn người đã chọn ở ngoài") — modal cho
+        // thêm/bớt tự do bên trong, "Xong" trả về NGUYÊN giỏ cuối cùng
+        // (đã gồm cả xoá bớt nếu có), nên thay thế thẳng `value` thay vì
+        // gộp thêm (gộp thêm sẽ không xoá được người đã bỏ chọn trong modal).
+        <ContactGroupPickerButton selected={value} onPickMultiple={(people) => onChange(people)} />
+      )}
       </div>
       <div className="flex items-center gap-2">
         <Button size="sm" variant="ghost" onClick={selectAll} disabled={disabled || selectingAll} className="w-fit px-0 text-primary">

@@ -6,10 +6,10 @@ import { useTasks, type WorkTask } from './hooks/useTasks';
 import { useActor } from './hooks/useActor';
 import { EventDetailDialog, canApproveClientSide, EventStatusChip } from './EventsListPage';
 import { TaskDetailDialog } from './TasksListPage';
-import { CAMPUS_LABEL, abbreviatePersonLabel } from './constants';
+import { CAMPUS_LABEL, abbreviatePersonLabel, formatScheduleDateTime } from './constants';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { cn, formatDateTime } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 
 /**
  * Trung tâm phê duyệt — theo đúng mẫu bản gốc Mr Tiến (ApprovalView): 2
@@ -84,7 +84,7 @@ export default function ApprovalCenterPage() {
                 )}
                 {myEvents.map((ev) => (
                   <TableRow key={ev.id} className="cursor-pointer" onClick={() => setEventDetail(ev)}>
-                    <TableCell>{formatDateTime(ev.startAt)}</TableCell>
+                    <TableCell>{formatScheduleDateTime(ev.startAt)}</TableCell>
                     <TableCell>{ev.title}</TableCell>
                     <TableCell>{CAMPUS_LABEL[ev.campusId] || ev.campusId}</TableCell>
                     <TableCell>
@@ -119,7 +119,7 @@ export default function ApprovalCenterPage() {
                 )}
                 {myPendingAcceptanceTasks.map((t) => (
                   <TableRow key={t.id} className="cursor-pointer" onClick={() => setTaskDetail(t)}>
-                    <TableCell>{formatDateTime(t.dueAt)}</TableCell>
+                    <TableCell>{formatScheduleDateTime(t.dueAt)}</TableCell>
                     <TableCell>{t.title}</TableCell>
                     <TableCell>{CAMPUS_LABEL[t.campusId] || t.campusId}</TableCell>
                     <TableCell title={t.assigneeLabel || t.assigneeName || t.assigneePerId}>

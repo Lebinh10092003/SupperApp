@@ -4,6 +4,7 @@ import { ShieldAlert, ListChecks, TriangleAlert } from 'lucide-react';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
 import { MyIncidentsSection } from './components/MyIncidentsSection';
+import { ReportQrCodeButton } from './components/ReportQrCodeButton';
 import { useOpenUrgentCount } from './hooks/useOpenUrgentCount';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -83,10 +84,11 @@ export default function SafetyDashboardPage() {
         </div>
       </div>
 
-      <div className="my-6">
+      <div className="my-6 flex flex-wrap gap-2">
         <Button variant="outline" onClick={() => window.open('/safety/report', '_blank')}>
           Xem trang báo cáo công khai
         </Button>
+        <ReportQrCodeButton />
       </div>
 
       <MyIncidentsSection />

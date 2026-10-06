@@ -31,7 +31,7 @@ import { asyncRoute, HttpError } from '../../core/http.js';
 import { db } from '../../core/db/client.js';
 import { loadActorContext } from '../identity/actor-context.js';
 import { checkAuthorization, inOrgScope, type Actor } from './authz.js';
-import { CATEGORY_CATALOG, relevantRolesForCategory, suggestedPriorityForCategory, type Confidentiality } from './catalog.js';
+import { CATEGORY_CATALOG, groupForCategory, relevantRolesForCategory, suggestedPriorityForCategory, type Confidentiality } from './catalog.js';
 import { publicCodes } from './ids.schema.js';
 import { reports, reportIdentities, reportSupplements } from './reports.schema.js';
 import { incidents } from './incidents.schema.js';
@@ -47,8 +47,9 @@ import { registerPushToken, unregisterPushToken } from './push-notify.js';
 import { acknowledge } from './notify.js';
 import { getDisplayNamesByPerIds } from './people-search.js';
 import { getPersonSummariesByPerIds, formatPersonLabel, getPersonLabelsByPerIds, findPeopleByRolesAndCampus } from '../identity/person-directory.js';
+import { findLeadershipForCampus, findDeptHeadsForCampus } from './escalation-recipients.js';
 import { peopleDirectory } from '../identity/identity.schema.js';
-import { filterReportItems, filterIncidentItems, sortReportItemsDefault } from './report-filters.js';
+import { filterReportItems, filterIncidentItems, sortReportItemsDefault, withIncidentContentPreviews } from './report-filters.js';
 import { resolveClassRelatedPeople } from './report-flow.js';
 import * as notify from './notify.js';
 import * as catalog from './catalog.js';
@@ -367,6 +368,36 @@ safetyQueryRouter.get(
 );
 
 // Port từ `exports.listIncidents`.
+/**
+ * `GET /suggested-commanders?campusId=X` — bổ sung 2026-09-29 (Sin: Cockpit
+ * khẩn cấp "hiện những người đề xuất để bấm cho tiện" khi chỉ định chỉ
+ * huy). Cùng 2 hàm ĐÃ CÓ SẴN dùng để báo khẩn (`findLeadershipForCampus`/
+ * `findDeptHeadsForCampus`, escalation-recipients.ts) — khớp ĐÚNG 3 vai
+ * trò thật sự có quyền chỉ định chỉ huy (`PERMISSION_MATRIX['incident.
+ * assign_commander']` trong authz.ts: Hiệu trưởng/Phó Hiệu trưởng/Tổ
+ * trưởng), không tự nghĩ ra danh sách gợi ý riêng. CHỈ cần `campusId` (tách
+ * khỏi 1 hồ sơ cụ thể) để dùng được cả từ danh sách (Cockpit, chưa có đủ
+ * chi tiết 1 hồ sơ) lẫn từ trang chi tiết. Không có thông tin nhạy cảm hơn
+ * `PersonPicker` (tìm người) đã cho phép mọi nhân viên đã đăng nhập tra
+ * cứu — không cần thêm bước kiểm tra phạm vi.
+ */
+safetyQueryRouter.get(
+  '/suggested-commanders',
+  firebaseAuth,
+  asyncRoute(async (req, res) => {
+    const campusId = typeof req.query.campusId === 'string' ? req.query.campusId : '';
+    if (!campusId) throw new HttpError(400, 'Thiếu campusId.', 'INVALID_INPUT');
+    const now = new Date();
+    const [leadershipIds, deptHeadIds] = await Promise.all([
+      findLeadershipForCampus(db, campusId, { now }),
+      findDeptHeadsForCampus(db, campusId, { now })
+    ]);
+    const perIds = Array.from(new Set([...leadershipIds, ...deptHeadIds]));
+    const labels = await getPersonLabelsByPerIds(db, perIds, now);
+    res.json(perIds.map((perId) => ({ perId, label: labels[perId] || perId })));
+  })
+);
+
 safetyQueryRouter.get(
   '/incidents',
   firebaseAuth,
@@ -385,24 +416,32 @@ safetyQueryRouter.get(
       const decision = checkAuthorization({
         actor,
         action: 'incident.view',
-        resource: { campusId: incident.campusId, commanderPerId: incident.commanderPerId ?? undefined, assignedTaskPerIds: incident.assignedTaskPerIds || [] }
+        resource: {
+          campusId: incident.campusId,
+          // Bước 5 (phạm vi lĩnh vực) — Sin chốt 2026-09-27: Y tế/Tư vấn tâm
+          // lý/Bảo vệ/CSVC chỉ xem đúng nhóm sự cố mình phụ trách qua
+          // `ROLE_VIEW_DOMAIN_GROUPS` (authz.ts), nối vào đây.
+          domain: incident.categoryCode ? groupForCategory(incident.categoryCode) : undefined,
+          commanderPerId: incident.commanderPerId ?? undefined,
+          assignedTaskPerIds: incident.assignedTaskPerIds || []
+        }
       });
       if (!decision.allowed) continue;
       visible.push(incident);
     }
 
-    // Bảng "sự vụ" gộp (2026-09-22) thay hẳn danh sách tin báo riêng —
-    // incidents KHÔNG lưu content (chỉ reports mới có), nên phải tra thêm
-    // nội dung tin báo GỐC đầu tiên của mỗi hồ sơ TRƯỚC khi lọc theo
-    // searchText — nếu không, ô tìm kiếm chỉ khớp được incidentId/className
-    // (Sin phản hồi 2026-10-02: gõ nội dung không ra kết quả).
-    const firstReportIds = visible.map((it) => it.reportIds?.[0]).filter((v): v is string => !!v);
+    // Enrich only authorized rows, but do it before filtering because
+    // searchText also searches contentPreview. Apply the limit afterward.
+    const visibleReportIds = visible.map((it) => it.reportIds?.[0]).filter((v): v is string => !!v);
     const contentByReportId = new Map<string, string>();
-    if (firstReportIds.length > 0) {
-      const reportRows = await db.select({ reportId: reports.reportId, content: reports.content }).from(reports).where(inArray(reports.reportId, firstReportIds));
-      for (const r of reportRows) contentByReportId.set(r.reportId, r.content || '');
+    if (visibleReportIds.length > 0) {
+      const reportRows = await db
+        .select({ reportId: reports.reportId, content: reports.content })
+        .from(reports)
+        .where(inArray(reports.reportId, visibleReportIds));
+      for (const report of reportRows) contentByReportId.set(report.reportId, report.content || '');
     }
-    const visibleWithContent = visible.map((it) => ({ ...it, contentPreview: it.reportIds?.[0] ? (contentByReportId.get(it.reportIds[0]) ?? null) : null }));
+    const visibleWithContent = withIncidentContentPreviews(visible, contentByReportId);
 
     const categoryCodes = q.categoryCodes ? q.categoryCodes.split(',').filter(Boolean) : undefined;
     const priorities = q.priorities ? q.priorities.split(',').filter(Boolean) : undefined;
@@ -455,7 +494,12 @@ safetyQueryRouter.get(
     const decision = checkAuthorization({
       actor,
       action: 'incident.view',
-      resource: { campusId: incident.campusId, commanderPerId: incident.commanderPerId ?? undefined, assignedTaskPerIds: incident.assignedTaskPerIds || [] }
+      resource: {
+        campusId: incident.campusId,
+        domain: incident.categoryCode ? groupForCategory(incident.categoryCode) : undefined,
+        commanderPerId: incident.commanderPerId ?? undefined,
+        assignedTaskPerIds: incident.assignedTaskPerIds || []
+      }
     });
     if (!decision.allowed) throw new HttpError(403, decision.reason ?? 'Không đủ quyền.', 'PERMISSION_ERROR');
 
@@ -478,6 +522,19 @@ safetyQueryRouter.get(
     if (incident.commanderPerId) {
       const map = await getDisplayNamesByPerIds(db, [incident.commanderPerId]);
       commanderName = map[incident.commanderPerId] ?? null;
+    }
+
+    // "Hạn xử lý sự vụ" (2026-10-05) — hiện tên người đặt hạn/xin gia hạn
+    // thay vì mã PER_xxx thô, cùng quy ước commanderName ở trên.
+    let resolutionDeadlineSetByName: string | null = null;
+    let extensionRequestedByName: string | null = null;
+    {
+      const ids = [incident.resolutionDeadlineSetBy, incident.extensionRequestedBy].filter((v): v is string => !!v);
+      if (ids.length > 0) {
+        const map = await getDisplayNamesByPerIds(db, ids);
+        resolutionDeadlineSetByName = incident.resolutionDeadlineSetBy ? (map[incident.resolutionDeadlineSetBy] ?? null) : null;
+        extensionRequestedByName = incident.extensionRequestedBy ? (map[incident.extensionRequestedBy] ?? null) : null;
+      }
     }
 
     // "Người đang tiếp nhận" — Sin chốt 2026-09-22: chi tiết hồ sơ phải hiện
@@ -562,6 +619,8 @@ safetyQueryRouter.get(
       suggestedPriority: incident.priority ? null : suggestedPriorityForCategory(incident.categoryCode),
       slaClocks: slaClockMap,
       commanderName,
+      resolutionDeadlineSetByName,
+      extensionRequestedByName,
       participantPerIds,
       participantLabels,
       pendingJoinRequests,

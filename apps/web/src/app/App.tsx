@@ -39,6 +39,7 @@ import SafetyDashboardPage from "../features/safety/SafetyDashboardPage";
 import CasesListPage from "../features/safety/CasesListPage";
 import AuditLogPage from "../features/safety/AuditLogPage";
 import AnalyticsPage from "../features/safety/AnalyticsPage";
+import WorkScheduleDashboardPage from "../features/work-schedule/DashboardPage";
 import OverviewPage from "../features/work-schedule/OverviewPage";
 import EventsListPage from "../features/work-schedule/EventsListPage";
 import TasksListPage from "../features/work-schedule/TasksListPage";
@@ -117,6 +118,7 @@ export function App() {
       {/* Module Lịch công tác và Giao việc — hệ quyền R.* riêng
           (work-schedule.authz.ts), khớp thiết kế của Mr Tiến (nguyên văn
           trong TICH_HOP_MODULE_LICH_CONG_TAC.md). Gate advisory only. */}
+      <Route path="/work-schedule/dashboard" element={p(<WorkScheduleDashboardPage />, ROLES_WORK_SCHEDULE_STAFF)} />
       <Route path="/work-schedule/overview" element={p(<OverviewPage />, ROLES_WORK_SCHEDULE_STAFF)} />
       <Route path="/work-schedule" element={p(<EventsListPage />, ROLES_WORK_SCHEDULE_STAFF)} />
       <Route path="/work-schedule/tasks" element={p(<TasksListPage />, ROLES_WORK_SCHEDULE_STAFF)} />

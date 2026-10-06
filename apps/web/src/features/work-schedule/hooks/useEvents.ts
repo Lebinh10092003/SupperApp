@@ -16,7 +16,7 @@ export interface WorkEvent {
   campusId: string;
   scope: string;
   startAt: string;
-  endAt: string;
+  endAt: string | null;
   location: string;
   chairPerId: string;
   chairName?: string | null;
@@ -34,6 +34,13 @@ export interface WorkEvent {
   createdAt: string;
   updatedAt: string;
   version: number;
+  // Backend đã gắn sẵn từ trước (attachTaskProgress, work-schedule.service.ts)
+  // nhưng frontend chưa từng khai báo/hiển thị — Sin yêu cầu 2026-10-05:
+  // "thanh progress nên hiển thị ở ngoài cho dễ nhìn", đưa ra bảng danh
+  // sách thay vì chỉ nằm trong dialog chi tiết.
+  taskCount?: number;
+  taskCompletedCount?: number;
+  taskProgressPercent?: number | null;
 }
 
 export interface UseEventsParams {

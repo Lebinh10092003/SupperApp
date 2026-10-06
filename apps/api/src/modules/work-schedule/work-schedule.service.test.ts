@@ -5,15 +5,16 @@ import { db } from '../../core/db/client.js';
 import { ltcEvents, ltcTasks, ltcAuditLogs } from './work-schedule.schema.js';
 import { adminNotifications } from '../safety/admin-notify.schema.js';
 import {
-  createEvent,
-  updateRevisionEvent,
+  createEvent as createEventService,
+  updateRevisionEvent as updateRevisionEventService,
   changeEventStatus,
   approveEvent,
   listEvents,
-  createTask,
+  createTask as createTaskService,
+  updateTask as updateTaskService,
   changeTaskStatus,
-  acceptOrReturnTask,
   listTasks,
+  attachSubtaskInfo,
   getAuditLogs,
   recomputeConflictsForEvent,
   AppError
@@ -26,17 +27,71 @@ import {
  */
 const skip = !process.env.DATABASE_URL;
 
+// Keep fixed-date fixtures deterministic as real time advances. Individual
+// validation tests can still override `now` through the service options.
+function createEvent(...args: Parameters<typeof createEventService>) {
+  const [database, input, options] = args;
+  return createEventService(database, input, {
+    now: new Date('2026-09-01T00:00:00+07:00'),
+    ...options
+  });
+}
+
+function updateRevisionEvent(...args: Parameters<typeof updateRevisionEventService>) {
+  const [database, input, options] = args;
+  return updateRevisionEventService(database, input, {
+    now: new Date('2026-09-01T00:00:00+07:00'),
+    ...options
+  });
+}
+
+function createTask(...args: Parameters<typeof createTaskService>) {
+  const [database, input, options] = args;
+  return createTaskService(database, input, {
+    now: new Date('2026-09-01T00:00:00+07:00'),
+    ...options
+  });
+}
+
+function updateTask(...args: Parameters<typeof updateTaskService>) {
+  const [database, input, options] = args;
+  return updateTaskService(database, input, {
+    now: new Date('2026-09-01T00:00:00+07:00'),
+    ...options
+  });
+}
+
 async function cleanup() {
   await db.delete(ltcAuditLogs);
   await db.delete(ltcTasks);
   await db.delete(ltcEvents);
 }
 
+/**
+ * 2026-09-29 (Sin — Phó Hiệu trưởng — yêu cầu bỏ gate duyệt, xem ghi chú
+ * ở createEvent trong work-schedule.service.ts): `createEvent` giờ LUÔN
+ * trả PUBLISHED ngay, không còn đường nào tạo ra DRAFT nữa. Các hàm
+ * `changeEventStatus`/`approveEvent`/`evaluateEventApproval` CỐ Ý GIỮ
+ * NGUYÊN (không xoá) — chỉ không còn nơi nào trong app THẬT gọi tới nữa.
+ * Helper này ép NGƯỢC 1 event vừa tạo về DRAFT bằng update thẳng DB, CHỈ
+ * để giữ được test coverage cho state machine duyệt cũ (phòng khi cần
+ * dùng lại) — KHÔNG PHẢI cách nào trong code thật (route/service) làm
+ * vậy, không dùng ngoài test. */
+async function createDraftEvent(input: Parameters<typeof createEvent>[1]) {
+  const event = await createEvent(db, input);
+  const [row] = await db.update(ltcEvents).set({ status: 'DRAFT' }).where(eq(ltcEvents.id, event.id)).returning();
+  return row!;
+}
+
 test('work-schedule: state machine sự kiện + duyệt CAMPUS 1 bước', { skip }, async (t) => {
   t.after(cleanup);
   await cleanup();
 
-  const event = await createEvent(db, {
+  // createEvent() thật giờ trả PUBLISHED ngay (xem test riêng cuối file)
+  // — dùng createDraftEvent() (ép ngược về DRAFT qua DB) để vẫn kiểm tra
+  // được state machine duyệt cũ, GIỮ NGUYÊN không xoá dù không còn đường
+  // nào trong app thật dẫn tới đây nữa.
+  const event = await createDraftEvent({
     title: 'Họp tổ chuyên môn',
     campusId: 'CAMPUS_1',
     startAt: new Date('2026-10-01T08:00:00+07:00'),
@@ -76,7 +131,7 @@ test('work-schedule: state machine sự kiện + duyệt CAMPUS 1 bước', { sk
   assert.equal(listed[0]!.id, event.id);
 });
 
-test('work-schedule: sự kiện SCHOOL_WIDE cần đúng 2 bước tuần tự (Hiệu phó rồi Hiệu trưởng)', { skip }, async (t) => {
+test('work-schedule: 2026-10-05 lịch SCHOOL_WIDE tạo ra PENDING_APPROVAL, chỉ 1 bước duyệt (Hiệu trưởng HOẶC Hiệu phó Điểm trường chính)', { skip }, async (t) => {
   t.after(cleanup);
   await cleanup();
 
@@ -89,48 +144,47 @@ test('work-schedule: sự kiện SCHOOL_WIDE cần đúng 2 bước tuần tự 
     chairPerId: 'per-principal',
     createdByPerId: 'per-principal'
   });
-  await changeEventStatus(db, { eventId: event.id, nextStatus: 'PENDING_APPROVAL', actorPerId: 'per-principal' });
+  assert.equal(event.status, 'PENDING_APPROVAL', 'lịch toàn trường không ban hành thẳng nữa, phải chờ duyệt');
 
-  const vpAssignments = [{ roleId: 'R.VICE_PRINCIPAL', campusId: 'MAIN_CAMPUS', domain: null }];
-  const afterVp = await approveEvent(db, { eventId: event.id, actorPerId: 'per-vp', actorAssignments: vpAssignments });
-  assert.equal(afterVp.status, 'PENDING_APPROVAL', 'chưa PUBLISHED khi mới có chữ ký Hiệu phó');
-  assert.equal(afterVp.approvals.length, 1);
-
-  // Hiệu phó bấm duyệt lần 2 -> từ chối rõ lý do.
+  // Hiệu phó CAMPUS_1 (không phải Điểm trường chính) không được duyệt.
   await assert.rejects(
-    () => approveEvent(db, { eventId: event.id, actorPerId: 'per-vp', actorAssignments: vpAssignments }),
-    (err: unknown) => err instanceof AppError && /đã duyệt bước này rồi/.test(err.message)
+    () => approveEvent(db, { eventId: event.id, actorPerId: 'per-vp1', actorAssignments: [{ roleId: 'R.VICE_PRINCIPAL', campusId: 'CAMPUS_1', domain: null }] }),
+    (err: unknown) => err instanceof AppError && err.code === 'forbidden'
   );
 
-  const principalAssignments = [{ roleId: 'R.PRINCIPAL', campusId: null, domain: null }];
-  const afterPrincipal = await approveEvent(db, { eventId: event.id, actorPerId: 'per-principal-actor', actorAssignments: principalAssignments });
-  assert.equal(afterPrincipal.status, 'PUBLISHED');
-  assert.equal(afterPrincipal.approvals.length, 2);
+  // Hiệu phó Điểm trường chính duyệt -> ban hành ngay (1 bước, không cần ai duyệt thêm).
+  const published = await approveEvent(db, {
+    eventId: event.id,
+    actorPerId: 'per-vp-main',
+    actorAssignments: [{ roleId: 'R.VICE_PRINCIPAL', campusId: 'MAIN_CAMPUS', domain: null }]
+  });
+  assert.equal(published.status, 'PUBLISHED');
+  assert.equal(published.approvals.length, 1);
+
+  // Duyệt lại lần nữa (đã PUBLISHED, không còn PENDING_APPROVAL) -> lỗi.
+  await assert.rejects(
+    () => approveEvent(db, { eventId: event.id, actorPerId: 'per-principal-actor', actorAssignments: [{ roleId: 'R.PRINCIPAL', campusId: null, domain: null }] }),
+    (err: unknown) => err instanceof AppError && err.code === 'invalid_transition'
+  );
 });
 
-test('work-schedule: sửa lịch REVISION_REQUIRED chỉ cho đúng người tạo', { skip }, async (t) => {
+test('work-schedule: sửa lịch — 2026-09-29 nới ra người tạo HOẶC chủ trì, mọi trạng thái trừ CANCELLED', { skip }, async (t) => {
   t.after(cleanup);
   await cleanup();
 
+  // Sự kiện thật (createEvent) giờ PUBLISHED ngay — kiểm tra sửa được
+  // luôn ở PUBLISHED (khác hẳn bản cũ chỉ sửa được DRAFT/REVISION_REQUIRED).
   const event = await createEvent(db, {
     title: 'Họp giao ban',
     campusId: 'CAMPUS_1',
     startAt: new Date('2026-10-02T08:00:00+07:00'),
     endAt: new Date('2026-10-02T09:00:00+07:00'),
-    chairPerId: 'per-a',
+    chairPerId: 'per-chair',
     createdByPerId: 'per-a'
   });
-  await changeEventStatus(db, { eventId: event.id, nextStatus: 'PENDING_APPROVAL', actorPerId: 'per-a' });
-  const revised = await changeEventStatus(db, {
-    eventId: event.id,
-    nextStatus: 'REVISION_REQUIRED',
-    note: 'Sai giờ họp',
-    actorPerId: 'per-vp',
-    actorAssignments: [{ roleId: 'R.VICE_PRINCIPAL', campusId: 'CAMPUS_1', domain: null }]
-  });
-  assert.equal(revised.status, 'REVISION_REQUIRED');
-  assert.equal(revised.revisionNote, 'Sai giờ họp');
+  assert.equal(event.status, 'PUBLISHED');
 
+  // Không phải người tạo, không phải chủ trì -> vẫn bị từ chối.
   await assert.rejects(
     () =>
       updateRevisionEvent(db, {
@@ -146,7 +200,8 @@ test('work-schedule: sửa lịch REVISION_REQUIRED chỉ cho đúng người t�
     (err: unknown) => err instanceof AppError && err.code === 'forbidden'
   );
 
-  const fixed = await updateRevisionEvent(db, {
+  // Người tạo sửa được, dù đã PUBLISHED.
+  const fixedByCreator = await updateRevisionEvent(db, {
     eventId: event.id,
     actorPerId: 'per-a',
     eventData: {
@@ -156,13 +211,79 @@ test('work-schedule: sửa lịch REVISION_REQUIRED chỉ cho đúng người t�
       endAt: new Date('2026-10-02T10:00:00+07:00')
     }
   });
-  assert.equal(fixed.title, 'Họp giao ban (đã sửa giờ)');
-  assert.equal(fixed.status, 'REVISION_REQUIRED', 'trạng thái giữ nguyên, chưa tự gửi duyệt lại');
-  // version tăng dần theo từng lần ghi: create=1, PENDING_APPROVAL=2, REVISION_REQUIRED=3, sửa=4.
-  assert.equal(fixed.version, 4);
+  assert.equal(fixedByCreator.title, 'Họp giao ban (đã sửa giờ)');
+  assert.equal(fixedByCreator.status, 'PUBLISHED', 'vẫn PUBLISHED, không còn bị đẩy về trạng thái nào khác khi sửa');
+
+  // Chủ trì (không phải người tạo) CŨNG sửa được — quy tắc mới.
+  const fixedByChair = await updateRevisionEvent(db, {
+    eventId: event.id,
+    actorPerId: 'per-chair',
+    eventData: {
+      title: 'Họp giao ban (chủ trì tự sửa lại)',
+      campusId: 'CAMPUS_1',
+      startAt: new Date('2026-10-02T09:00:00+07:00'),
+      endAt: new Date('2026-10-02T10:00:00+07:00')
+    }
+  });
+  assert.equal(fixedByChair.title, 'Họp giao ban (chủ trì tự sửa lại)');
+
+  // SỬA 2026-09-29 #2 (Sin: "lịch đã huỷ thì vẫn cho edit như thường thôi")
+  // — đã CANCELLED vẫn sửa được nội dung (không tự khôi phục trạng thái).
+  await changeEventStatus(db, { eventId: event.id, nextStatus: 'CANCELLED', note: 'Test huỷ', actorPerId: 'per-a' });
+  const fixedAfterCancel = await updateRevisionEvent(db, {
+    eventId: event.id,
+    actorPerId: 'per-a',
+    eventData: { title: 'Sửa lịch đã huỷ', campusId: 'CAMPUS_1', startAt: new Date('2026-10-02T09:00:00+07:00'), endAt: new Date('2026-10-02T10:00:00+07:00') }
+  });
+  assert.equal(fixedAfterCancel.title, 'Sửa lịch đã huỷ');
+  assert.equal(fixedAfterCancel.status, 'CANCELLED', 'sửa nội dung không tự khôi phục trạng thái');
+
+  // Khôi phục CANCELLED -> PUBLISHED.
+  const restored = await changeEventStatus(db, { eventId: event.id, nextStatus: 'PUBLISHED', actorPerId: 'per-a' });
+  assert.equal(restored.status, 'PUBLISHED');
 });
 
-test('work-schedule: state machine công việc + nghiệm thu chỉ do người giao xác nhận', { skip }, async (t) => {
+test('work-schedule: sửa lịch — 2026-09-30 (Sin: "phó hiệu trưởng nhờ giáo viên tạo hộ lịch") — đổi được chairPerId, giữ nguyên nếu không truyền', { skip }, async (t) => {
+  t.after(cleanup);
+  await cleanup();
+
+  const event = await createEvent(db, {
+    title: 'Lễ chào cờ',
+    campusId: 'CAMPUS_1',
+    startAt: new Date('2026-10-05T07:00:00+07:00'),
+    endAt: new Date('2026-10-05T08:00:00+07:00'),
+    chairPerId: 'PER_pho_hieu_truong',
+    createdByPerId: 'PER_giao_vien_tao_ho'
+  });
+  assert.equal(event.chairPerId, 'PER_pho_hieu_truong');
+
+  // Sửa nội dung khác mà KHÔNG truyền chairPerId — chủ trì cũ PHẢI giữ
+  // nguyên (trước đây route/service không hề nhận field này, âm thầm bỏ
+  // qua — nhưng ít nhất không được VÔ TÌNH xoá/đổi chủ trì khi sửa việc
+  // khác không liên quan).
+  const editedOther = await updateRevisionEvent(db, {
+    eventId: event.id,
+    actorPerId: 'PER_giao_vien_tao_ho',
+    eventData: { title: 'Lễ chào cờ (đổi giờ)', campusId: 'CAMPUS_1', startAt: new Date('2026-10-05T07:30:00+07:00'), endAt: new Date('2026-10-05T08:30:00+07:00') }
+  });
+  assert.equal(editedOther.chairPerId, 'PER_pho_hieu_truong', 'không truyền chairPerId thì giữ nguyên, không bị xoá mất');
+
+  // Đổi hẳn sang người khác — phải áp dụng đúng.
+  const editedChair = await updateRevisionEvent(db, {
+    eventId: event.id,
+    actorPerId: 'PER_giao_vien_tao_ho',
+    eventData: {
+      title: 'Lễ chào cờ',
+      campusId: 'CAMPUS_1',
+      startAt: new Date('2026-10-05T07:30:00+07:00'),
+      endAt: new Date('2026-10-05T08:30:00+07:00'),
+      chairPerId: 'PER_thay_the_khac'
+    }
+  });
+  assert.equal(editedChair.chairPerId, 'PER_thay_the_khac');
+});
+
+test('work-schedule: state machine công việc — 2027-10-05 chỉ 2 trạng thái, chỉ chủ trì (assignee) được chuyển', { skip }, async (t) => {
   t.after(cleanup);
   await cleanup();
 
@@ -170,44 +291,92 @@ test('work-schedule: state machine công việc + nghiệm thu chỉ do người
     title: 'Chuẩn bị phòng họp',
     campusId: 'CAMPUS_1',
     assigneePerId: 'per-b',
-    dueAt: new Date('2026-10-01T07:30:00+07:00'),
+    dueAt: new Date('2027-10-01T07:30:00+07:00'),
     createdByPerId: 'per-a'
   });
   assert.equal(task.status, 'ASSIGNED');
 
+  // Người giao (per-a) KHÔNG được tự chuyển trạng thái — chỉ chủ trì (per-b).
   await assert.rejects(
-    () => changeTaskStatus(db, { taskId: task.id, nextStatus: 'ACCEPTED', actorPerId: 'per-other' }),
+    () => changeTaskStatus(db, { taskId: task.id, nextStatus: 'COMPLETED', actorPerId: 'per-a' }),
+    (err: unknown) => err instanceof AppError && err.code === 'forbidden'
+  );
+  await assert.rejects(
+    () => changeTaskStatus(db, { taskId: task.id, nextStatus: 'COMPLETED', actorPerId: 'per-other' }),
     (err: unknown) => err instanceof AppError && err.code === 'forbidden'
   );
 
-  await changeTaskStatus(db, { taskId: task.id, nextStatus: 'ACCEPTED', actorPerId: 'per-b' });
-  await changeTaskStatus(db, { taskId: task.id, nextStatus: 'IN_PROGRESS', actorPerId: 'per-b' });
-  await assert.rejects(
-    () => changeTaskStatus(db, { taskId: task.id, nextStatus: 'PENDING_ACCEPTANCE', actorPerId: 'per-b' }),
-    (err: unknown) => err instanceof AppError && err.code === 'invalid_input' && /minh chứng/.test(err.message)
-  );
-  const pendingAcceptance = await changeTaskStatus(db, {
-    taskId: task.id,
-    nextStatus: 'PENDING_ACCEPTANCE',
-    actorPerId: 'per-b',
-    evidenceUrl: 'https://docs.google.com/document/d/abc'
-  });
-  assert.equal(pendingAcceptance.status, 'PENDING_ACCEPTANCE');
-
-  // Người được giao (per-b) không được tự nghiệm thu việc của mình.
-  await assert.rejects(
-    () => acceptOrReturnTask(db, { taskId: task.id, nextStatus: 'COMPLETED', actorPerId: 'per-b' }),
-    (err: unknown) => err instanceof AppError && err.code === 'forbidden'
-  );
-
-  const completed = await acceptOrReturnTask(db, { taskId: task.id, nextStatus: 'COMPLETED', actorPerId: 'per-a' });
+  const completed = await changeTaskStatus(db, { taskId: task.id, nextStatus: 'COMPLETED', actorPerId: 'per-b' });
   assert.equal(completed.status, 'COMPLETED');
+
+  // Lùi lại ASSIGNED nếu đánh dấu nhầm — vẫn chỉ chủ trì được làm.
+  const reverted = await changeTaskStatus(db, { taskId: task.id, nextStatus: 'ASSIGNED', actorPerId: 'per-b' });
+  assert.equal(reverted.status, 'ASSIGNED');
 
   const tasksOfB = await listTasks(db, { assigneePerId: 'per-b' });
   assert.equal(tasksOfB.length, 1);
 });
 
-test('work-schedule: người tạo == người được giao thì task tự ACCEPTED', { skip }, async (t) => {
+test('work-schedule: sửa việc nhỏ — 2026-09-29 người giao HOẶC người được giao sửa được, có location + nhiều người cùng làm, chặn khi CANCELLED và chặn người ngoài', { skip }, async (t) => {
+  t.after(cleanup);
+  await cleanup();
+
+  const task = await createTask(db, {
+    title: 'Chuẩn bị phòng họp',
+    campusId: 'CAMPUS_1',
+    assigneePerId: 'per-b',
+    dueAt: new Date('2027-10-01T07:30:00+07:00'),
+    createdByPerId: 'per-a'
+  });
+
+  // Người ngoài (không phải người giao/người được giao) bị chặn.
+  await assert.rejects(
+    () =>
+      updateTask(db, {
+        taskId: task.id,
+        actorPerId: 'per-other',
+        taskData: { title: 'Sửa trái phép', campusId: 'CAMPUS_1', assigneePerId: 'per-b', dueAt: new Date('2027-10-02T07:30:00+07:00') }
+      }),
+    (err: unknown) => err instanceof AppError && err.code === 'forbidden'
+  );
+
+  // Người giao (per-a, không phải assignee) sửa được — thêm địa điểm +
+  // người cùng làm (per-c).
+  const afterCreatorEdit = await updateTask(db, {
+    taskId: task.id,
+    actorPerId: 'per-a',
+    taskData: {
+      title: 'Chuẩn bị phòng họp (đã sửa)',
+      campusId: 'CAMPUS_1',
+      assigneePerId: 'per-b',
+      collaboratorPerIds: ['per-c'],
+      location: 'Phòng họp tầng 2',
+      dueAt: new Date('2027-10-02T07:30:00+07:00')
+    }
+  });
+  assert.equal(afterCreatorEdit.title, 'Chuẩn bị phòng họp (đã sửa)');
+  assert.equal(afterCreatorEdit.location, 'Phòng họp tầng 2');
+  assert.deepEqual(afterCreatorEdit.collaboratorPerIds, ['per-c']);
+  assert.equal(afterCreatorEdit.status, 'ASSIGNED', 'sửa nội dung không đổi trạng thái');
+
+  // Người được giao (per-b) cũng sửa được, kể cả đổi người được giao mới.
+  const afterAssigneeEdit = await updateTask(db, {
+    taskId: task.id,
+    actorPerId: 'per-b',
+    taskData: {
+      title: 'Chuẩn bị phòng họp (đổi người)',
+      campusId: 'CAMPUS_1',
+      assigneePerId: 'per-d',
+      dueAt: new Date('2027-10-03T07:30:00+07:00')
+    }
+  });
+  assert.equal(afterAssigneeEdit.assigneePerId, 'per-d');
+
+  const logs = await getAuditLogs(db, { entityType: 'task', entityId: task.id });
+  assert.ok(logs.some((l) => l.action === 'task.updated'));
+});
+
+test('work-schedule: 2026-10-05 chỉ 2 trạng thái — task luôn khởi tạo ASSIGNED kể cả tự giao cho mình', { skip }, async (t) => {
   t.after(cleanup);
   await cleanup();
 
@@ -215,10 +384,10 @@ test('work-schedule: người tạo == người được giao thì task tự ACC
     title: 'Tự làm báo cáo tuần',
     campusId: 'MAIN_CAMPUS',
     assigneePerId: 'per-a',
-    dueAt: new Date('2026-10-03T17:00:00+07:00'),
+    dueAt: new Date('2027-10-03T17:00:00+07:00'),
     createdByPerId: 'per-a'
   });
-  assert.equal(task.status, 'ACCEPTED');
+  assert.equal(task.status, 'ASSIGNED');
 });
 
 test('work-schedule: getAuditLogs đọc đúng nhật ký đã ghi, lọc theo entityType/entityId, mới nhất trước', { skip }, async (t) => {
@@ -233,7 +402,7 @@ test('work-schedule: getAuditLogs đọc đúng nhật ký đã ghi, lọc theo 
     chairPerId: 'per-a',
     createdByPerId: 'per-a'
   });
-  await changeEventStatus(db, { eventId: event.id, nextStatus: 'PENDING_APPROVAL', actorPerId: 'per-a' });
+  await changeEventStatus(db, { eventId: event.id, nextStatus: 'CANCELLED', note: 'Đổi lịch', actorPerId: 'per-a' });
 
   const task = await createTask(db, {
     title: 'Chuẩn bị phòng họp',
@@ -370,7 +539,7 @@ test('work-schedule: dò trùng lịch — sửa giờ lịch REVISION_REQUIRED 
     createdByPerId: 'per-c'
   });
 
-  const event = await createEvent(db, {
+  const event = await createDraftEvent({
     title: 'Họp giao ban',
     campusId: 'CAMPUS_1',
     startAt: new Date('2026-11-05T08:00:00+07:00'),
@@ -470,14 +639,6 @@ test('work-schedule: validate ngày quá khứ — updateRevisionEvent áp dụn
     chairPerId: 'per-a',
     createdByPerId: 'per-a'
   });
-  await changeEventStatus(db, { eventId: event.id, nextStatus: 'PENDING_APPROVAL', actorPerId: 'per-a' });
-  await changeEventStatus(db, {
-    eventId: event.id,
-    nextStatus: 'REVISION_REQUIRED',
-    note: 'Sai giờ',
-    actorPerId: 'per-vp',
-    actorAssignments: [{ roleId: 'R.VICE_PRINCIPAL', campusId: 'CAMPUS_1', domain: null }]
-  });
 
   await assert.rejects(
     () =>
@@ -563,7 +724,7 @@ test('work-schedule: hủy lịch -> người tạo/chủ trì/thành phần đ�
   await cleanup();
   await cleanupBell();
 
-  const event = await createEvent(db, {
+  const event = await createDraftEvent({
     title: 'Lịch WSBELL cần sửa',
     campusId: 'CAMPUS_1',
     startAt: new Date('2026-10-02T08:00:00+07:00'),
@@ -595,7 +756,7 @@ test('work-schedule: duyệt xong (published) -> người tạo/chủ trì/thàn
   await cleanup();
   await cleanupBell();
 
-  const event = await createEvent(db, {
+  const event = await createDraftEvent({
     title: 'Lịch WSBELL duyệt xong',
     campusId: 'CAMPUS_1',
     startAt: new Date('2026-10-03T08:00:00+07:00'),
@@ -612,7 +773,7 @@ test('work-schedule: duyệt xong (published) -> người tạo/chủ trì/thàn
   assert.deepEqual(publishedBells.map((b) => b.recipientPerId).sort(), ['WSBELL_chair', 'WSBELL_creator', 'WSBELL_participant']);
 });
 
-test('work-schedule: giao việc -> người được giao nhận chuông; nghiệm thu -> người được giao nhận chuông kết quả', { skip }, async (t) => {
+test('work-schedule: giao việc -> người được giao nhận chuông; chủ trì đánh dấu hoàn thành -> người giao nhận chuông', { skip }, async (t) => {
   t.after(async () => {
     await cleanup();
     await cleanupBell();
@@ -632,21 +793,198 @@ test('work-schedule: giao việc -> người được giao nhận chuông; nghi�
   const createdBells = taskBells0.filter((b) => b.eventType === 'work_schedule.task.created');
   assert.deepEqual(createdBells.map((b) => b.recipientPerId), ['WSBELL_assignee']);
 
-  await changeTaskStatus(db, { taskId: task.id, nextStatus: 'ACCEPTED', actorPerId: 'WSBELL_assignee' });
-  await changeTaskStatus(db, { taskId: task.id, nextStatus: 'IN_PROGRESS', actorPerId: 'WSBELL_assignee' });
-  await changeTaskStatus(db, {
-    taskId: task.id,
-    nextStatus: 'PENDING_ACCEPTANCE',
-    actorPerId: 'WSBELL_assignee',
-    evidenceUrl: 'https://docs.google.com/document/d/wsbell'
+  await changeTaskStatus(db, { taskId: task.id, nextStatus: 'COMPLETED', actorPerId: 'WSBELL_assignee' });
+  const taskBells1 = await db.select().from(adminNotifications).where(eq(adminNotifications.objectId, task.id));
+  const statusBells = taskBells1.filter((b) => b.eventType === 'work_schedule.task.status_changed');
+  assert.deepEqual(statusBells.map((b) => b.recipientPerId), ['WSBELL_creator']);
+});
+
+test('work-schedule: listEvents gắn đúng taskCount/taskCompletedCount/taskProgressPercent (Sin yêu cầu 2026-09-28, "việc lớn hiện tiến độ %")', { skip }, async (t) => {
+  t.after(cleanup);
+  await cleanup();
+
+  const eventNoTasks = await createEvent(db, {
+    title: 'Lịch chưa có việc nhỏ',
+    campusId: 'CAMPUS_1',
+    startAt: new Date('2026-10-05T08:00:00+07:00'),
+    endAt: new Date('2026-10-05T09:00:00+07:00'),
+    chairPerId: 'PER_progress_chair',
+    createdByPerId: 'PER_progress_chair'
+  });
+  const eventWithTasks = await createEvent(db, {
+    title: 'Lịch có 2 việc nhỏ, 1 xong',
+    campusId: 'CAMPUS_1',
+    startAt: new Date('2026-10-06T08:00:00+07:00'),
+    endAt: new Date('2026-10-06T09:00:00+07:00'),
+    chairPerId: 'PER_progress_chair',
+    createdByPerId: 'PER_progress_chair'
   });
 
-  const taskBells1 = await db.select().from(adminNotifications).where(eq(adminNotifications.objectId, task.id));
-  const pendingAcceptanceBells = taskBells1.filter((b) => b.eventType === 'work_schedule.task.status_changed');
-  assert.ok(pendingAcceptanceBells.some((b) => b.recipientPerId === 'WSBELL_creator' && /nghiệm thu/.test(b.message)));
+  const taskA = await createTask(db, {
+    eventId: eventWithTasks.id,
+    title: 'Việc nhỏ A — sẽ hoàn thành',
+    campusId: 'CAMPUS_1',
+    assigneePerId: 'PER_progress_assignee',
+    dueAt: new Date('2026-10-06T08:00:00+07:00'),
+    createdByPerId: 'PER_progress_chair'
+  });
+  await createTask(db, {
+    eventId: eventWithTasks.id,
+    title: 'Việc nhỏ B — vẫn đang làm',
+    campusId: 'CAMPUS_1',
+    assigneePerId: 'PER_progress_assignee',
+    dueAt: new Date('2026-10-06T08:00:00+07:00'),
+    createdByPerId: 'PER_progress_chair'
+  });
+  await changeTaskStatus(db, { taskId: taskA.id, nextStatus: 'COMPLETED', actorPerId: 'PER_progress_assignee' });
 
-  await acceptOrReturnTask(db, { taskId: task.id, nextStatus: 'COMPLETED', actorPerId: 'WSBELL_creator' });
-  const taskBells2 = await db.select().from(adminNotifications).where(eq(adminNotifications.objectId, task.id));
-  const acceptedBells = taskBells2.filter((b) => b.eventType === 'work_schedule.task.accepted');
-  assert.deepEqual(acceptedBells.map((b) => b.recipientPerId), ['WSBELL_assignee']);
+  const events = await listEvents(db, { campusId: 'CAMPUS_1' });
+  const noTasksRow = events.find((e) => e.id === eventNoTasks.id)!;
+  const withTasksRow = events.find((e) => e.id === eventWithTasks.id)!;
+
+  assert.equal(noTasksRow.taskCount, 0);
+  assert.equal(noTasksRow.taskProgressPercent, null, 'chưa có việc nhỏ nào -> null, KHÔNG phải 0%');
+
+  assert.equal(withTasksRow.taskCount, 2);
+  assert.equal(withTasksRow.taskCompletedCount, 1);
+  assert.equal(withTasksRow.taskProgressPercent, 50);
+});
+
+test('work-schedule: listTasks lọc theo eventId — "bấm vào việc lớn xem đúng các việc nhỏ của nó"', { skip }, async (t) => {
+  t.after(cleanup);
+  await cleanup();
+
+  const eventOne = await createEvent(db, {
+    title: 'Sự kiện 1',
+    campusId: 'CAMPUS_1',
+    startAt: new Date('2026-10-07T08:00:00+07:00'),
+    endAt: new Date('2026-10-07T09:00:00+07:00'),
+    chairPerId: 'PER_evfilter_chair',
+    createdByPerId: 'PER_evfilter_chair'
+  });
+  const eventTwo = await createEvent(db, {
+    title: 'Sự kiện 2',
+    campusId: 'CAMPUS_1',
+    startAt: new Date('2026-10-08T08:00:00+07:00'),
+    endAt: new Date('2026-10-08T09:00:00+07:00'),
+    chairPerId: 'PER_evfilter_chair',
+    createdByPerId: 'PER_evfilter_chair'
+  });
+
+  const taskForOne = await createTask(db, {
+    eventId: eventOne.id,
+    title: 'Việc của sự kiện 1',
+    campusId: 'CAMPUS_1',
+    assigneePerId: 'PER_evfilter_assignee',
+    dueAt: new Date('2026-10-07T08:00:00+07:00'),
+    createdByPerId: 'PER_evfilter_chair'
+  });
+  await createTask(db, {
+    eventId: eventTwo.id,
+    title: 'Việc của sự kiện 2',
+    campusId: 'CAMPUS_1',
+    assigneePerId: 'PER_evfilter_assignee',
+    dueAt: new Date('2026-10-08T08:00:00+07:00'),
+    createdByPerId: 'PER_evfilter_chair'
+  });
+  await createTask(db, {
+    title: 'Việc không gắn sự kiện nào',
+    campusId: 'CAMPUS_1',
+    assigneePerId: 'PER_evfilter_assignee',
+    dueAt: new Date('2026-10-09T08:00:00+07:00'),
+    createdByPerId: 'PER_evfilter_chair'
+  });
+
+  const tasksForEventOne = await listTasks(db, { eventId: eventOne.id });
+  assert.deepEqual(tasksForEventOne.map((t2) => t2.id), [taskForOne.id]);
+});
+
+test('work-schedule: "việc nhỏ" trong "việc lớn" — 2026-09-30 (Sin: "giao việc nhỏ ở đầu việc lớn trong tab giao việc") — chỉ chủ trì/người tạo việc lớn được thêm việc nhỏ, chỉ 2 cấp, listTasks(forPerId) hiện việc lớn read-only cho người phụ trách việc nhỏ', { skip }, async (t) => {
+  t.after(cleanup);
+  await cleanup();
+
+  const bigTask = await createTask(db, {
+    title: 'Việc lớn: Chuẩn bị lễ khai giảng',
+    campusId: 'CAMPUS_1',
+    assigneePerId: 'PER_bigtask_chutri',
+    dueAt: new Date('2026-10-10T08:00:00+07:00'),
+    createdByPerId: 'PER_bigtask_creator'
+  });
+
+  // Người ngoài (không phải chủ trì/người tạo việc lớn) không được thêm việc nhỏ.
+  await assert.rejects(
+    () =>
+      createTask(db, {
+        parentTaskId: bigTask.id,
+        title: 'Việc nhỏ trái phép',
+        campusId: 'CAMPUS_1',
+        assigneePerId: 'PER_bigtask_outsider',
+        dueAt: new Date('2026-10-09T08:00:00+07:00'),
+        createdByPerId: 'PER_bigtask_outsider'
+      }),
+    (e: any) => e instanceof AppError && e.code === 'forbidden'
+  );
+
+  // Chủ trì (assigneePerId) của việc lớn thêm được việc nhỏ, giao cho người khác.
+  const subtaskA = await createTask(db, {
+    parentTaskId: bigTask.id,
+    title: 'Việc nhỏ A: Trang trí sân khấu',
+    campusId: 'CAMPUS_1',
+    assigneePerId: 'PER_bigtask_phutrach_a',
+    dueAt: new Date('2026-10-09T08:00:00+07:00'),
+    createdByPerId: 'PER_bigtask_chutri'
+  });
+  // Người tạo việc lớn (createdByPerId, khác chủ trì) cũng thêm được việc nhỏ.
+  const subtaskB = await createTask(db, {
+    parentTaskId: bigTask.id,
+    title: 'Việc nhỏ B: Chuẩn bị âm thanh',
+    campusId: 'CAMPUS_1',
+    assigneePerId: 'PER_bigtask_phutrach_b',
+    dueAt: new Date('2026-10-09T09:00:00+07:00'),
+    createdByPerId: 'PER_bigtask_creator'
+  });
+  await changeTaskStatus(db, { taskId: subtaskA.id, nextStatus: 'COMPLETED', actorPerId: 'PER_bigtask_phutrach_a' });
+
+  // Việc nhỏ không được có việc nhỏ của riêng nó (chỉ 2 cấp).
+  await assert.rejects(
+    () =>
+      createTask(db, {
+        parentTaskId: subtaskA.id,
+        title: 'Việc nhỏ của việc nhỏ — không hợp lệ',
+        campusId: 'CAMPUS_1',
+        assigneePerId: 'PER_bigtask_phutrach_a',
+        dueAt: new Date('2026-10-09T08:00:00+07:00'),
+        createdByPerId: 'PER_bigtask_chutri'
+      }),
+    (e: any) => e instanceof AppError && e.code === 'invalid_input'
+  );
+
+  // listTasks(forPerId) — người phụ trách việc nhỏ A thấy ĐÚNG việc nhỏ
+  // của mình + dòng việc lớn (ngữ cảnh, read-only) — KHÔNG thấy việc nhỏ B
+  // (không liên quan tới họ).
+  const forPhuTrachA = await listTasks(db, { forPerId: 'PER_bigtask_phutrach_a' });
+  assert.deepEqual(new Set(forPhuTrachA.map((t2) => t2.id)), new Set([bigTask.id, subtaskA.id]));
+
+  // Người tạo việc lớn (KHÔNG trực tiếp phụ trách/tạo việc nhỏ nào — chỉ
+  // subtaskB do người này tạo) — listTasks mặc định thấy dòng việc lớn
+  // (chủ trì trực tiếp/người tạo) VÀ subtaskB (chính họ tạo) — nhưng
+  // KHÔNG tự động thấy subtaskA (không liên quan trực tiếp, không phải
+  // người tạo/phụ trách subtaskA) — xem hết phải qua parentTaskId filter
+  // riêng (route gate quyền chủ trì/người tạo việc lớn).
+  const forParentCreator = await listTasks(db, { forPerId: 'PER_bigtask_creator' });
+  assert.deepEqual(new Set(forParentCreator.map((t2) => t2.id)), new Set([bigTask.id, subtaskB.id]));
+
+  // parentTaskId filter (không forPerId) — xem ĐỦ cả 2 việc nhỏ, dùng cho
+  // dialog chi tiết việc lớn (route tự gate quyền chủ trì/người tạo).
+  const allChildren = await listTasks(db, { parentTaskId: bigTask.id });
+  assert.deepEqual(new Set(allChildren.map((t2) => t2.id)), new Set([subtaskA.id, subtaskB.id]));
+
+  // attachSubtaskInfo — việc lớn gắn đúng subtaskCount/subtaskCompletedCount/%,
+  // việc nhỏ gắn đúng parentTaskTitle.
+  const [withInfo] = await attachSubtaskInfo(db, [bigTask]);
+  assert.equal(withInfo!.subtaskCount, 2);
+  assert.equal(withInfo!.subtaskCompletedCount, 1);
+  assert.equal(withInfo!.subtaskProgressPercent, 50);
+  const [subtaskAWithInfo] = await attachSubtaskInfo(db, [subtaskA]);
+  assert.equal(subtaskAWithInfo!.parentTaskTitle, 'Việc lớn: Chuẩn bị lễ khai giảng');
 });

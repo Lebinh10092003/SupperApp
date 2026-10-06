@@ -15,7 +15,10 @@ export interface IcsEventInput {
   description: string;
   location: string;
   startAt: Date;
-  endAt: Date;
+  // Tuỳ chọn (2026-10-05) — lịch không khai báo giờ kết thúc thì bỏ hẳn
+  // DTEND trong VEVENT (hợp lệ theo RFC 5545, ứng dụng lịch ngoài tự hiểu
+  // là sự kiện không có thời lượng xác định), không bịa 1 giờ kết thúc giả.
+  endAt?: Date | null;
   updatedAt: Date;
 }
 
@@ -53,10 +56,10 @@ export function buildIcsCalendar(events: IcsEventInput[]): string {
       'BEGIN:VEVENT',
       foldLine(`UID:${ev.id}@lich-cong-tac.supperapp`),
       `DTSTAMP:${formatIcsUtc(ev.updatedAt)}`,
-      `DTSTART:${formatIcsUtc(ev.startAt)}`,
-      `DTEND:${formatIcsUtc(ev.endAt)}`,
-      foldLine(`SUMMARY:${escapeIcsText(ev.title)}`)
+      `DTSTART:${formatIcsUtc(ev.startAt)}`
     );
+    if (ev.endAt) lines.push(`DTEND:${formatIcsUtc(ev.endAt)}`);
+    lines.push(foldLine(`SUMMARY:${escapeIcsText(ev.title)}`));
     if (ev.description) lines.push(foldLine(`DESCRIPTION:${escapeIcsText(ev.description)}`));
     if (ev.location) lines.push(foldLine(`LOCATION:${escapeIcsText(ev.location)}`));
     lines.push('END:VEVENT');

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { filterReportItems, filterIncidentItems, sortReportItemsDefault } from './report-filters.js';
+import { filterReportItems, filterIncidentItems, sortReportItemsDefault, withIncidentContentPreviews } from './report-filters.js';
 
 test('filterReportItems: lọc theo campusId/categoryCodes/searchText', () => {
   const items = [
@@ -125,6 +125,24 @@ test('filterIncidentItems: lọc theo campusId/categoryCodes/priorities/states/s
 
   const itemsNoAssigned = [{ incidentId: 'SC.9', campusId: 'MAIN_CAMPUS', priority: 'P3', state: 'Mới tiếp nhận' }];
   assert.equal(filterIncidentItems(itemsNoAssigned, { onlyMinePerId: 'PER.1' }).length, 0);
+});
+
+test('incident content search: enrich before filtering and limiting', () => {
+  const authorizedRows = [
+    { incidentId: 'SC.1', campusId: 'MAIN_CAMPUS', reportIds: ['TB.1'] },
+    { incidentId: 'SC.2', campusId: 'MAIN_CAMPUS', reportIds: ['TB.2'] }
+  ];
+  const content = new Map([
+    ['TB.1', 'Nội dung không liên quan'],
+    ['TB.2', 'Phát hiện mùi khét ở phòng thí nghiệm']
+  ]);
+
+  const enriched = withIncidentContentPreviews(authorizedRows, content);
+  const filtered = filterIncidentItems(enriched, { searchText: 'mui khet' }).slice(0, 1);
+
+  assert.equal(filtered.length, 1);
+  assert.equal(filtered[0]!.incidentId, 'SC.2');
+  assert.equal(filtered[0]!.contentPreview, content.get('TB.2'));
 });
 
 test('filterReportItems: lọc theo stillDangerous + khoảng thời gian (occurredAt)', () => {

@@ -74,7 +74,14 @@ const schema = z.object({
   SMTP_PORT: z.coerce.number().default(587),
   SMTP_USER: z.string().default(''),
   SMTP_PASS: z.string().default(''),
-  SMTP_FROM: z.string().default('')
+  SMTP_FROM: z.string().default(''),
+
+  // "Lịch công tác tuần" (weekly-sheet.ts, bổ sung 2026-09-28) — danh sách
+  // email được SỬA bảng tuần tự do (thêm/sửa/xoá dòng, sao chép tuần) —
+  // ai KHÔNG có mặt ở đây vẫn XEM được bình thường, chỉ không sửa được.
+  // Danh sách thực tế chỉ được cấu hình qua môi trường triển khai; mặc định
+  // rỗng để một checkout mới không tự cấp quyền cho bất kỳ tài khoản nào.
+  WEEKLY_SHEET_EDITOR_EMAILS: z.string().default('')
 });
 
 export const env = schema.parse(process.env);
@@ -97,4 +104,3 @@ export const bootstrapSuperAdminDomains = new Set(
 export const bootstrapEmails = bootstrapSuperAdminEmails;
 export const teacherOUs = env.TEACHER_OU_PREFIXES.split(',').map(x => x.trim()).filter(Boolean);
 export const studentOUs = env.STUDENT_OU_PREFIXES.split(',').map(x => x.trim()).filter(Boolean);
-

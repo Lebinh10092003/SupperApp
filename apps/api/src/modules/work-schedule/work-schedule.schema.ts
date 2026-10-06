@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, integer, jsonb, uuid, check } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, integer, jsonb, uuid, check, foreignKey } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
 /**
@@ -22,9 +22,13 @@ import { sql } from 'drizzle-orm';
  */
 
 export const VALID_EVENT_STATUSES = ['DRAFT', 'PENDING_APPROVAL', 'PUBLISHED', 'REVISION_REQUIRED', 'CANCELLED'] as const;
-export const VALID_TASK_STATUSES = [
-  'ASSIGNED', 'ACCEPTED', 'IN_PROGRESS', 'PENDING_ACCEPTANCE', 'COMPLETED', 'RETURNED', 'CANCELLED'
-] as const;
+// Thu gọn còn đúng 2 trạng thái (2026-10-05, theo
+// huong_dan_lich_cong_tac_giao_viec.md §12.4/§28.7 Sin gửi) — trước đó có
+// 7 trạng thái (ACCEPTED/IN_PROGRESS/PENDING_ACCEPTANCE/RETURNED/CANCELLED
+// cho luồng nghiệm thu/từ chối), Sin xác nhận bỏ hẳn, chỉ còn Đã giao/Đã
+// hoàn thành. Dữ liệu cũ migrate thủ công trên VPS (xem HANDOFF ghi chú
+// deploy): mọi status khác COMPLETED -> ASSIGNED.
+export const VALID_TASK_STATUSES = ['ASSIGNED', 'COMPLETED'] as const;
 // 3 mã cơ sở CHUNG với module Cảnh báo an toàn — KHÔNG tự định nghĩa lại,
 // xem CLAUDE.md cấp trên (/Users/macbook/Projects/CLAUDE.md).
 export const VALID_CAMPUS_IDS = ['MAIN_CAMPUS', 'CAMPUS_1', 'CAMPUS_2'] as const;
@@ -46,10 +50,25 @@ export const ltcEvents = pgTable(
     campusId: text('campus_id').notNull(),
     scope: text('scope').notNull().default('CAMPUS'),
     startAt: timestamp('start_at', { withTimezone: true }).notNull(),
-    endAt: timestamp('end_at', { withTimezone: true }).notNull(),
+    // Bỏ NOT NULL (2026-10-05, Sin: "giờ kết thúc không bắt buộc") — lịch
+    // không nhất thiết biết trước thời điểm kết thúc; NULL nghĩa là
+    // "chưa rõ/không khai báo", KHÁC "kết thúc = bắt đầu". Dò trùng lịch
+    // (findOverlappingPartners) bỏ qua các cặp có endAt NULL — xem ghi chú
+    // tại đó.
+    endAt: timestamp('end_at', { withTimezone: true }),
     location: text('location').notNull().default(''),
     chairPerId: text('chair_per_id').notNull(),
     participantPerIds: text('participant_per_ids').array().notNull().default(sql`'{}'::text[]`),
+    // 2026-09-30 (Sin: "có cái thêm người thì có thể sẽ thêm một số tác
+    // nhân ko nằm trong danh sách tk bên quản trị thì cho thêm kiểu dạng
+    // text cũng được") — thành phần KHÔNG có tài khoản trong hệ thống (VD
+    // khách mời ngoài trường, phụ huynh, công an phường...) — CHỮ TỰ DO,
+    // không phải perId, không liên kết được tới ai — chỉ để HIỂN THỊ. Cùng
+    // ý tưởng cột `people` của ltc_weekly_sheet_rows (xem
+    // WeeklySheetPeoplePicker.tsx) nhưng đây là mảng RIÊNG, tách khỏi
+    // participantPerIds (perId thật) để không lẫn 2 loại dữ liệu khác bản
+    // chất vào cùng 1 cột.
+    externalParticipants: text('external_participants').array().notNull().default(sql`'{}'::text[]`),
     status: text('status').notNull().default('DRAFT'),
     conflictNote: text('conflict_note').notNull().default(''),
     revisionNote: text('revision_note').notNull().default(''),
@@ -82,12 +101,33 @@ export const ltcTasks = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     eventId: uuid('event_id').references(() => ltcEvents.id, { onDelete: 'set null' }),
+    // 2026-09-30 (Sin: "đầu việc nhỏ ở đầu việc lớn trong tab giao việc") —
+    // "đầu việc lớn"/"đầu việc nhỏ" giờ là quan hệ Task→Task (KHÔNG phải
+    // Event→Task như hiểu nhầm trước đó) — 1 việc (không có parentTaskId)
+    // có thể có nhiều "việc nhỏ" (parentTaskId trỏ về việc đó), MỖI việc
+    // nhỏ có người phụ trách RIÊNG. Chỉ 2 CẤP (một việc nhỏ không được có
+    // việc nhỏ của riêng nó nữa — chặn ở createTask). `onDelete: cascade`
+    // — xoá hẳn việc lớn thì xoá hẳn luôn các việc nhỏ của nó, không để mồ
+    // côi. Quan hệ này ĐỘC LẬP với `eventId` (1 việc có thể vừa "thuộc" 1
+    // lịch công tác vừa có việc nhỏ riêng — 2 khái niệm khác nhau).
+    parentTaskId: uuid('parent_task_id'),
     title: text('title').notNull(),
     description: text('description').notNull().default(''),
     priority: text('priority').notNull().default('NORMAL'),
     campusId: text('campus_id').notNull(),
     assigneePerId: text('assignee_per_id').notNull(),
     collaboratorPerIds: text('collaborator_per_ids').array().notNull().default(sql`'{}'::text[]`),
+    // 2026-09-29 (Sin yêu cầu) — việc nhỏ cần ô địa điểm riêng (không phải
+    // lúc nào cũng trùng địa điểm của sự kiện cha, và việc độc lập không
+    // gắn sự kiện nào thì càng cần). Tuỳ chọn, mặc định rỗng như location
+    // của ltc_events.
+    location: text('location').notNull().default(''),
+    // 2026-09-29 (Sin: "việc nhỏ thì cho thêm ngày bắt đầu lẫn kết thúc
+    // luôn, việc lớn kéo nhiều ngày vẫn có thể mà, kể cả việc nhỏ cũng có
+    // thể kéo nhiều ngày luôn") — tuỳ chọn, NULL nghĩa là việc chỉ có 1 mốc
+    // hạn như trước giờ (không phải ai cũng cần khai báo ngày bắt đầu).
+    // `dueAt` giữ nguyên ý nghĩa "hạn hoàn thành" (mốc kết thúc).
+    startAt: timestamp('start_at', { withTimezone: true }),
     dueAt: timestamp('due_at', { withTimezone: true }).notNull(),
     status: text('status').notNull().default('ASSIGNED'),
     evidenceUrl: text('evidence_url').notNull().default(''),
@@ -98,11 +138,13 @@ export const ltcTasks = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
   },
   (table) => [
+    foreignKey({
+      name: 'ltc_tasks_parent_task_id_fkey',
+      columns: [table.parentTaskId],
+      foreignColumns: [table.id]
+    }).onDelete('cascade'),
     check('ltc_tasks_campus_id_check', sql`${table.campusId} IN ('MAIN_CAMPUS', 'CAMPUS_1', 'CAMPUS_2')`),
-    check(
-      'ltc_tasks_status_check',
-      sql`${table.status} IN ('ASSIGNED', 'ACCEPTED', 'IN_PROGRESS', 'PENDING_ACCEPTANCE', 'COMPLETED', 'RETURNED', 'CANCELLED')`
-    )
+    check('ltc_tasks_status_check', sql`${table.status} IN ('ASSIGNED', 'COMPLETED')`)
   ]
 );
 

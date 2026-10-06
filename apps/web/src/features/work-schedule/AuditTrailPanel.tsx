@@ -9,7 +9,8 @@ import { useEffect, useState } from 'react';
 import { ChevronDown, History, Loader2 } from 'lucide-react';
 import { api } from '../../services/api';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { formatDateTime } from '@/lib/utils';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { EVENT_STATUS_LABEL, TASK_STATUS_LABEL, formatScheduleDateTime } from './constants';
 
 export interface AuditLogEntry {
   id: string;
@@ -34,6 +35,25 @@ const ACTION_LABEL: Record<string, string> = {
   'task.accepted': 'Nghiệm thu',
   'task.returned': 'Trả lại'
 };
+
+/**
+ * Tóm tắt thay đổi trạng thái từ `before`/`after` (nguyên 2 bản ghi đầy đủ
+ * do `writeAuditLog` bên backend ghi lại — xem work-schedule.service.ts) —
+ * CHỈ đọc trường `status` sẵn có, không suy diễn/thêm dữ liệu backend
+ * không trả về. Trả '—' nếu không có đủ dữ liệu để so sánh.
+ */
+function summarizeChange(entityType: 'event' | 'task', log: AuditLogEntry): string {
+  const label = entityType === 'event' ? EVENT_STATUS_LABEL : TASK_STATUS_LABEL;
+  const beforeStatus = (log.before as { status?: string } | null)?.status;
+  const afterStatus = (log.after as { status?: string } | null)?.status;
+  if (afterStatus && beforeStatus && beforeStatus !== afterStatus) {
+    return `${label[beforeStatus] || beforeStatus} → ${label[afterStatus] || afterStatus}`;
+  }
+  if (afterStatus && !beforeStatus) {
+    return label[afterStatus] || afterStatus;
+  }
+  return '—';
+}
 
 export function AuditTrailPanel({
   entityType,
@@ -90,15 +110,27 @@ export function AuditTrailPanel({
         )}
         {items && items.length === 0 && <p className="text-sm text-slate-500">Chưa có nhật ký nào.</p>}
         {items && items.length > 0 && (
-          <div className="flex flex-col divide-y divide-slate-100">
-            {items.map((log) => (
-              <div key={log.id} className="py-1.5 first:pt-0 last:pb-0">
-                <p className="text-sm font-semibold">{ACTION_LABEL[log.action] || log.action}</p>
-                <p className="text-xs text-slate-500">
-                  {log.actorLabel || log.actorPerId} — {formatDateTime(log.createdAt)}
-                </p>
-              </div>
-            ))}
+          <div className="overflow-hidden rounded-md border border-slate-200">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Thời gian</TableHead>
+                  <TableHead>Người thực hiện</TableHead>
+                  <TableHead>Hành động</TableHead>
+                  <TableHead>Thay đổi</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {items.map((log) => (
+                  <TableRow key={log.id}>
+                    <TableCell className="whitespace-nowrap">{formatScheduleDateTime(log.createdAt)}</TableCell>
+                    <TableCell>{log.actorLabel || log.actorPerId}</TableCell>
+                    <TableCell>{ACTION_LABEL[log.action] || log.action}</TableCell>
+                    <TableCell>{summarizeChange(entityType, log)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
         )}
       </CollapsibleContent>

@@ -14,6 +14,7 @@ import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { reports, reportIdentities } from './reports.schema.js';
 import { incidents } from './incidents.schema.js';
 import type { DispatchAdapter } from './dispatch.js';
+import { env } from '../../config/env.js';
 
 export const REPORTER_EVENT = {
   RECEIVED: 'reporter.notified.received',
@@ -45,6 +46,39 @@ export function renderReporterMessage(eventType: string, publicCode: string): st
   throw new Error('reporterNotify.renderReporterMessage: eventType không hợp lệ: ' + eventType);
 }
 
+/** URL cổng tra cứu công khai, mã đã điền sẵn — `PublicLookupPage.tsx` tự đọc `?code=` và tra luôn, không cần người nhận tự gõ mã. */
+export function reporterLookupUrl(publicCode: string): string {
+  return `${env.WEB_ORIGIN}/safety/lookup?code=${encodeURIComponent(publicCode)}`;
+}
+
+/**
+ * Sin chốt 2026-09-28: email lúc tạo hồ sơ (RECEIVED) và lúc đề nghị đóng
+ * (CONFIRM_CLOSE_REQUESTED) cần thêm NÚT ĐIỀU HƯỚNG trỏ thẳng về trang tra
+ * cứu (kèm sẵn mã) để người báo tin thao tác ngay, không phải tự mở cổng
+ * rồi gõ lại mã tay. 2 email còn lại (CLOSED/IN_PROGRESS) không bắt buộc
+ * hành động gì thêm nên KHÔNG cần nút — chỉ hiện text.
+ */
+const EVENTS_WITH_ACTION_BUTTON = new Set<string>([REPORTER_EVENT.RECEIVED, REPORTER_EVENT.CONFIRM_CLOSE_REQUESTED]);
+
+const BUTTON_LABEL: Record<string, string> = {
+  [REPORTER_EVENT.RECEIVED]: 'Tra cứu trạng thái',
+  [REPORTER_EVENT.CONFIRM_CLOSE_REQUESTED]: 'Vào tra cứu để xác nhận'
+};
+
+/** Bản HTML của `renderReporterMessage` — inline style vì email client không đọc `<style>` ngoài. */
+export function renderReporterMessageHtml(eventType: string, publicCode: string): string {
+  const text = renderReporterMessage(eventType, publicCode);
+  const button = EVENTS_WITH_ACTION_BUTTON.has(eventType)
+    ? `<tr><td style="padding-top:20px;">
+        <a href="${reporterLookupUrl(publicCode)}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 24px;border-radius:8px;font-family:Arial,Helvetica,sans-serif;">${BUTTON_LABEL[eventType]}</a>
+      </td></tr>`
+    : '';
+  return `<table role="presentation" width="100%" style="max-width:480px;font-family:Arial,Helvetica,sans-serif;">
+    <tr><td style="font-size:14px;line-height:1.6;color:#0f172a;">${text}</td></tr>
+    ${button}
+  </table>`;
+}
+
 export interface ReporterNotifyResult {
   sent: boolean;
   reason?: string;
@@ -74,8 +108,9 @@ export async function notifyReporterForReport(
   if (!opts?.emailAdapter) return { sent: false, reason: 'no_adapter_configured' };
 
   const message = renderReporterMessage(input.eventType, report.publicCode);
+  const html = renderReporterMessageHtml(input.eventType, report.publicCode);
   try {
-    const result = await opts.emailAdapter.send({ to: email, subject: 'Cập nhật về tin báo của bạn', text: message });
+    const result = await opts.emailAdapter.send({ to: email, subject: 'Cập nhật về tin báo của bạn', text: message, html });
     return { sent: true, status: result?.status || 'sent', previewUrl: result?.previewUrl };
   } catch (e) {
     return { sent: false, reason: 'send_error', error: e instanceof Error ? e.message : String(e) };

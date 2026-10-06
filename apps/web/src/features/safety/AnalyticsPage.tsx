@@ -202,7 +202,6 @@ const RANGE_DAYS_OPTIONS = [
 
 function ClassStatsPanel() {
   const [campusId, setCampusId] = useState('MAIN_CAMPUS');
-  const [reason, setReason] = useState('');
   // Backend (`/stats/classes`) đã nhận sẵn `rangeDays` từ đầu — trước đây
   // CHƯA nối vào UI (Sin phản hồi 2026-09-11: cần lọc/kiểm tra theo thời
   // gian ở phần thống kê).
@@ -212,7 +211,6 @@ function ClassStatsPanel() {
 
   const load = () => {
     const qs = new URLSearchParams({ campusId });
-    if (reason.trim()) qs.set('reason', reason.trim());
     if (rangeDays && rangeDays !== 'all') qs.set('rangeDays', rangeDays);
     api
       .get(`/api/safety/stats/classes?${qs}`)
@@ -257,12 +255,6 @@ function ClassStatsPanel() {
               ))}
             </SelectContent>
           </Select>
-        </div>
-        <div className="min-w-70 flex-1">
-          <Label htmlFor="class-stats-reason" className="mb-1.5 block">
-            Lý do xem (bắt buộc với Trực ban/Tổ trưởng)
-          </Label>
-          <Input id="class-stats-reason" value={reason} onChange={(e) => setReason(e.target.value)} />
         </div>
         <Button variant="outline" onClick={load}>
           Xem

@@ -159,5 +159,5 @@ test('authz: incident.view_class_stats dùng đúng mức cấp quyền như inc
     resource: {}
   });
   assert.equal(d.allowed, true);
-  assert.ok(d.conditions.includes('require_reason'));
+  assert.ok(!d.conditions.includes('require_reason'));
 });

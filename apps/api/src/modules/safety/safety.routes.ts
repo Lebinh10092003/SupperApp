@@ -53,6 +53,9 @@ import {
   leaveIncident,
   requestCancelAcknowledgment,
   approveCancelAcknowledgment,
+  setResolutionDeadline,
+  requestResolutionExtension,
+  approveResolutionExtension,
   mergeDuplicateIncidents,
   updateIncidentClassification
 } from './incident-lifecycle.js';
@@ -382,6 +385,53 @@ safetyRouter.post(
     const actor = await loadActorContext(db, req.appUser!.uid);
     const d = req.body || {};
     const row = await approveCancelAcknowledgment(db, { actor, incidentId: String(req.params.id), approve: !!d.approve, note: d.note }, { dispatch, pushBell, now: new Date() });
+    res.json(row);
+  })
+);
+
+// "Hạn xử lý sự vụ" — gộp 2 hạn tiếp nhận/phân công cũ thành 1, xem
+// `setResolutionDeadline`/`requestResolutionExtension`/`approveResolutionExtension`
+// (incident-lifecycle.ts). Diện nhận thông báo yêu cầu gia hạn treo: cùng
+// cách route cancel-acknowledgment/request ở trên.
+safetyRouter.patch(
+  '/incidents/:id/resolution-deadline',
+  firebaseAuth,
+  withAppError(async (req, res) => {
+    const actor = await loadActorContext(db, req.appUser!.uid);
+    const d = req.body || {};
+    const deadlineAt = d.deadlineAt ? new Date(d.deadlineAt) : null;
+    const row = await setResolutionDeadline(db, { actor, incidentId: String(req.params.id), deadlineAt }, { dispatch, pushBell, now: new Date() });
+    res.json(row);
+  })
+);
+
+safetyRouter.post(
+  '/incidents/:id/resolution-deadline/request-extension',
+  firebaseAuth,
+  withAppError(async (req, res) => {
+    const actor = await loadActorContext(db, req.appUser!.uid);
+    const d = req.body || {};
+    const [incident] = await db.select().from(incidents).where(eq(incidents.incidentId, String(req.params.id))).limit(1);
+    const now = new Date();
+    const extraRecipients = incident
+      ? Array.from(new Set([...(await findDeptHeadsForCampus(db, incident.campusId, { now })), ...(await findLeadershipForCampus(db, incident.campusId, { now }))]))
+      : [];
+    const row = await requestResolutionExtension(
+      db,
+      { actor, incidentId: String(req.params.id), reason: d.reason, proposedDeadlineAt: new Date(d.proposedDeadlineAt) },
+      { dispatch, pushBell, extraRecipients, now }
+    );
+    res.json(row);
+  })
+);
+
+safetyRouter.post(
+  '/incidents/:id/resolution-deadline/decide-extension',
+  firebaseAuth,
+  withAppError(async (req, res) => {
+    const actor = await loadActorContext(db, req.appUser!.uid);
+    const d = req.body || {};
+    const row = await approveResolutionExtension(db, { actor, incidentId: String(req.params.id), approve: !!d.approve, note: d.note }, { dispatch, pushBell, now: new Date() });
     res.json(row);
   })
 );

@@ -19,7 +19,7 @@
  * /Users/macbook/Projects/thcs-giangvo-super-app-lich-cong-tac/App_Canh_bao_an_toan_backend_v0_1/functions/src/authz.js
  */
 
-import { ROLE, type RoleId } from './catalog.js';
+import { ROLE, ROLE_VIEW_DOMAIN_GROUPS, type RoleId } from './catalog.js';
 
 /** Danh sách cấm tuyệt đối — không vai trò nào được bỏ qua, bất kể điều kiện khác. */
 export const ABSOLUTE_FORBIDDEN_ACTIONS = new Set([
@@ -36,13 +36,34 @@ type GrantLevel = 'X' | 'XR' | 'D';
 /** Ma trận quyền tối thiểu — 'X' cho phép, 'XR' cho phép + bắt buộc lý do, 'D' cho phép nhưng cần phê duyệt cấp trên. */
 export const PERMISSION_MATRIX: Record<string, Partial<Record<RoleId, GrantLevel>>> = {
   // Xem hồ sơ — Sin chốt 2026-09-22 bỏ hẳn 3 mức view_c1_c2/c3/c4, gộp
-  // thành 1 action duy nhất cấp cho mọi vai trò nghiệp vụ an toàn (không
-  // còn ranh giới theo mức bí mật — chỉ còn ranh giới theo cơ sở/lĩnh vực
-  // ở bước 4/5 như mọi action khác).
+  // thành 1 action duy nhất, không còn ranh giới theo mức bí mật.
+  //
+  // Sin chốt LẠI 2026-09-27: đường VAI TRÒ (bước 3+4+5) giờ CHỈ còn cấp
+  // cho 3 vai trò quản lý chung (Hiệu trưởng toàn trường, Phó HT/Tổ trưởng
+  // đúng cơ sở phụ trách — xem `inOrgScope`) + 4 vai trò chuyên trách theo
+  // ĐÚNG NHÓM sự cố của mình (Y tế/Tư vấn tâm lý/Bảo vệ/CSVC — xem
+  // `ROLE_VIEW_DOMAIN_GROUPS` ở catalog.ts, ràng buộc thêm ở bước 5
+  // `inDomainScope`). TRƯỚC ĐÓ mọi vai trò nghiệp vụ an toàn (kể cả Giáo
+  // viên/GVCN thường, Trực ban ngoài ca) đều xem được TOÀN BỘ danh sách sự
+  // vụ dù không liên quan — Sin: "có vụ đánh nhau của lớp này thì cả
+  // trường biết hết, cái đấy không ổn".
+  //
+  // R.TEACHER và R.HOMEROOM bị RÚT khỏi ma trận này — KHÔNG mất quyền xem
+  // hoàn toàn: GVCN vẫn xem được đúng hồ sơ của lớp mình chủ nhiệm qua
+  // đường QUAN HỆ (bước 7, `relationalGrant`), vì `assignedTaskPerIds`
+  // được tự động gán GVCN/GV phụ trách khối ngay lúc tạo hồ sơ (xem
+  // `report-flow.ts::createIncidentFromReport`) — không cần thêm code
+  // authz mới cho phần này. Giáo viên thường/GVCN lớp khác chỉ xem được
+  // nếu được chỉ huy giao thêm làm người tham gia trên đúng hồ sơ đó.
+  //
+  // R.DUTY_OFFICER bị RÚT khỏi ma trận VAI TRÒ nhưng KHÔNG mất quyền
+  // trong ca trực — quyền đó đến từ đường QUAN HỆ độc lập với ma trận này
+  // (`relationalGrant`: `actor.onDutyNow` khớp mọi action xem hồ sơ, xem
+  // dưới) — Sin xác nhận giữ nguyên hành vi này 2026-09-27. Chỉ mất quyền
+  // xem tràn khi KHÔNG trong ca (trước đây xem được cả lúc không trực).
   'incident.view': {
-    [ROLE.PRINCIPAL]: 'X', [ROLE.VICE_PRINCIPAL]: 'X', [ROLE.DUTY_OFFICER]: 'X', [ROLE.DEPT_HEAD]: 'X',
-    [ROLE.TEACHER]: 'X', [ROLE.HOMEROOM]: 'X', [ROLE.HEALTH]: 'X', [ROLE.COUNSELOR]: 'X',
-    [ROLE.SECURITY]: 'X', [ROLE.FACILITY]: 'X'
+    [ROLE.PRINCIPAL]: 'X', [ROLE.VICE_PRINCIPAL]: 'X', [ROLE.DEPT_HEAD]: 'X',
+    [ROLE.HEALTH]: 'X', [ROLE.COUNSELOR]: 'X', [ROLE.SECURITY]: 'X', [ROLE.FACILITY]: 'X'
   },
   // Xem/tải minh chứng (S8): dùng thẳng action `incident.view` ở trên (xem
   // `evidence.ts::canViewEvidence`) — ai mở được hồ sơ thì xem được minh
@@ -108,7 +129,19 @@ export const PERMISSION_MATRIX: Record<string, Partial<Record<RoleId, GrantLevel
   'incident.view_trend_alerts': { [ROLE.PRINCIPAL]: 'X', [ROLE.VICE_PRINCIPAL]: 'X' },
   // So sánh 3 cơ sở cùng lúc — CHỈ Hiệu trưởng (Phó HT chỉ phụ trách 1 cơ sở).
   'incident.view_campus_comparison': { [ROLE.PRINCIPAL]: 'X' },
-  'incident.view_class_stats': { [ROLE.PRINCIPAL]: 'X', [ROLE.VICE_PRINCIPAL]: 'X', [ROLE.DUTY_OFFICER]: 'XR', [ROLE.DEPT_HEAD]: 'XR' },
+  // 'XR' (bắt buộc nhập lý do) -> 'X' cho Trực ban/Tổ trưởng (2026-10-05,
+  // Sin: "bỏ cái lý do xem này đi, nếu đã vô được mục này thì cho xem
+  // hết") — đã VÀO ĐƯỢC trang Phân tích & thống kê (qua đúng vai trò ở
+  // ma trận này) thì không cần thêm 1 lớp nhập lý do nữa mới xem được.
+  'incident.view_class_stats': { [ROLE.PRINCIPAL]: 'X', [ROLE.VICE_PRINCIPAL]: 'X', [ROLE.DUTY_OFFICER]: 'X', [ROLE.DEPT_HEAD]: 'X' },
+  // "Hạn xử lý sự vụ" (bổ sung 2026-10-05) — CÙNG bộ vai trò "người giao"
+  // với incident.assign_commander (Hiệu trưởng/Phó HT/Tổ trưởng): đặt/sửa
+  // hạn trực tiếp VÀ duyệt/từ chối yêu cầu gia hạn đều cần đúng nhóm này.
+  // Yêu cầu GIA HẠN (request) không nằm trong ma trận — kiểm tra bằng
+  // quan hệ "đang là chỉ huy hồ sơ" ngay trong hàm (giống hệt cách
+  // requestCancelAcknowledgment làm, không qua checkAuthorization).
+  'incident.set_resolution_deadline': { [ROLE.PRINCIPAL]: 'X', [ROLE.VICE_PRINCIPAL]: 'X', [ROLE.DEPT_HEAD]: 'X' },
+  'incident.approve_resolution_extension': { [ROLE.PRINCIPAL]: 'X', [ROLE.VICE_PRINCIPAL]: 'X', [ROLE.DEPT_HEAD]: 'X' },
   'notify.run_escalation_check': { [ROLE.PRINCIPAL]: 'X', [ROLE.VICE_PRINCIPAL]: 'X', [ROLE.DUTY_OFFICER]: 'X' }
 };
 
@@ -155,11 +188,28 @@ export function inOrgScope(actor: Actor, resource: Resource): boolean {
   });
 }
 
+/**
+ * Bước 5 — phạm vi lĩnh vực. Từ 2026-09-27 có 2 nguồn ràng buộc, xét theo
+ * đúng thứ tự dưới đây cho MỖI vai trò của actor:
+ *  1. `ROLE_VIEW_DOMAIN_GROUPS` (catalog.ts, TĨNH theo vai trò) — nếu vai
+ *     trò có mặt ở đây (Y tế/Tư vấn tâm lý/Bảo vệ/CSVC), CHỈ được xem khi
+ *     `resource.domain` (nhóm sự cố) nằm trong danh sách được cấp — KHÔNG
+ *     rơi xuống nhánh "không giới hạn" bên dưới dù `r.domain` (field 2)
+ *     đang trống.
+ *  2. `r.domain` (field tự do trên `assignments`, theo TỪNG NGƯỜI) — dự
+ *     phòng cho sau này nếu cần gán lĩnh vực riêng ngoài 4 vai trò ở (1),
+ *     hiện chưa ai có dữ liệu ở field này nên nhánh này chưa phát sinh
+ *     hiệu lực thật.
+ *  3. Vai trò không thuộc (1) và không có `r.domain` → không giới hạn lĩnh
+ *     vực (Hiệu trưởng/Phó HT/Tổ trưởng/Trực ban — vai trò quản lý chung).
+ */
 export function inDomainScope(actor: Actor, resource: Resource): boolean {
   if (!resource.domain) return true; // đối tượng không gắn lĩnh vực cụ thể
   return (actor.roles ?? []).some((r) => {
     if (WHOLE_SCHOOL_ROLES.has(r.roleId as RoleId)) return true;
-    if (!r.domain) return true; // vai trò không giới hạn lĩnh vực (VD Trực ban)
+    const restrictedToGroups = ROLE_VIEW_DOMAIN_GROUPS[r.roleId as RoleId];
+    if (restrictedToGroups) return restrictedToGroups.includes(resource.domain as string);
+    if (!r.domain) return true; // vai trò không giới hạn lĩnh vực (VD Tổ trưởng/Trực ban)
     return r.domain === resource.domain;
   });
 }

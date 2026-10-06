@@ -126,6 +126,12 @@ export const navGroups: NavGroup[] = [
     groupTitle: 'LỊCH CÔNG TÁC',
     items: [
       {
+        path: '/work-schedule/dashboard',
+        label: 'Dashboard',
+        icon: <BarChart3 className={ICON_SIZE} />,
+        roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'DEPARTMENT_HEAD', 'TEACHER', 'HOMEROOM']
+      },
+      {
         path: '/work-schedule/overview',
         label: 'Tổng quan',
         icon: <LayoutDashboard className={ICON_SIZE} />,

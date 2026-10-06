@@ -237,11 +237,19 @@ test('evidence: canViewEvidence — Sin chốt 2026-09-22: bỏ hoàn toàn C1-C
   const incident = { campus_id: 'CS.01', priority: 'P1', commander_per_id: null, assigned_task_per_ids: [] };
 
   assert.equal(canViewEvidence(principalActor, incident), true);
-  // Giáo viên đúng cơ sở xem được, kể cả hồ sơ trước đây sẽ là mức bí mật
-  // cao nhất (C4, xâm hại/tự hại) — Sin chốt bỏ hẳn ranh giới đó (2026-09-22).
-  assert.equal(canViewEvidence(teacherActor, incident), true);
+  // Sin chốt LẠI 2026-09-27: Giáo viên KHÔNG còn xem tràn qua vai trò nữa
+  // (trước đây xem được mọi hồ sơ đúng cơ sở, kể cả không liên quan — Sin:
+  // "có vụ đánh nhau của lớp này thì cả trường biết hết, cái đấy không
+  // ổn") — chỉ còn xem được hồ sơ mình được giao qua đường quan hệ (xem
+  // case dưới), dù đúng cơ sở.
+  assert.equal(canViewEvidence(teacherActor, incident), false);
+  const teacherAssigned = { ...teacherActor, perId: 'PER.00000002' };
+  const incidentAssignedToTeacher = { ...incident, assigned_task_per_ids: ['PER.00000002'] };
+  assert.equal(canViewEvidence(teacherAssigned, incidentAssignedToTeacher), true, 'được giao nhiệm vụ trên đúng hồ sơ vẫn xem được qua đường quan hệ');
   // Vẫn còn chặn theo PHẠM VI CƠ SỞ (không liên quan gì C1-C4) — giáo viên
-  // cơ sở khác không xem được.
+  // cơ sở khác không xem được, kể cả khi được giao (relationalGrant không
+  // xét campus cho nhánh assignedTaskPerIds, nhưng ở đây teacher này không
+  // nằm trong assigned_task_per_ids nên vẫn bị chặn từ vai trò).
   assert.equal(canViewEvidence(teacherOtherCampus, incident), false);
 });
 

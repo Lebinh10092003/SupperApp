@@ -11,6 +11,9 @@ export const incidents = pgTable('incidents', {
   categoryCode: text('category_code').notNull(),
   className: text('class_name'),
   suggestedClassNames: jsonb('suggested_class_names').$type<string[]>(),
+  // Legacy production map classification retained in the canonical schema.
+  zoneId: text('zone_id'),
+  zoneIds: jsonb('zone_ids').$type<string[]>(),
   reporterRole: text('reporter_role'),
   // NULLABLE từ 2026-09-22 (Sin chốt) — sự vụ CHƯA ai tiếp nhận thì mức ưu
   // tiên để TRỐNG (trừ khi người báo tin chọn "vẫn đang diễn ra" -> P0 ngay
@@ -58,6 +61,24 @@ export const incidents = pgTable('incidents', {
   // là cấp cao (Hiệu trưởng/Phó HT/Tổ trưởng) vẫn tham gia được NGAY, bỏ
   // qua mảng này hoàn toàn — xem joinIncident (incident-lifecycle.ts).
   pendingJoinRequests: jsonb('pending_join_requests').$type<Array<{ perId: string; reason: string; requestedAt: string }>>(),
+  // "Hạn xử lý sự vụ" (bổ sung 2026-10-05, Sin: "2 hạn tiếp nhận/phân công
+  // ... phải gộp là một — hạn thực sự cần là hạn xử lý sự vụ") — THAY cho
+  // việc hiện riêng 2 đồng hồ SLA ack/assign (sla_clocks, vẫn giữ nguyên
+  // không đổi — đo tốc độ phản hồi ban đầu, mục đích khác hẳn) ở UI chi
+  // tiết hồ sơ. NULL = chưa ai đặt hạn. Người giao (Hiệu trưởng/Phó
+  // HT/Tổ trưởng — xem incident.set_resolution_deadline) đặt/điều chỉnh
+  // tự do, không cần lý do.
+  resolutionDeadlineAt: timestamp('resolution_deadline_at', { withTimezone: true }),
+  resolutionDeadlineSetBy: text('resolution_deadline_set_by'),
+  // Yêu cầu GIA HẠN đang chờ duyệt — CÙNG MẪU với cancelRequested* ở trên
+  // (chỉ 1 yêu cầu treo/1 lúc, 1 hồ sơ). Chỉ huy hồ sơ (BẤT KỲ cấp nào,
+  // kể cả cấp thấp — Sin: "người chỉ huy mà tk cấp thấp thì cũng có thể
+  // xin gia hạn") được xin, bắt buộc lý do + hạn mới đề xuất; người giao
+  // (hoặc cấp cao hơn) duyệt/từ chối qua incident.approve_resolution_extension.
+  extensionRequestedBy: text('extension_requested_by'),
+  extensionRequestReason: text('extension_request_reason'),
+  extensionProposedDeadlineAt: timestamp('extension_proposed_deadline_at', { withTimezone: true }),
+  extensionRequestedAt: timestamp('extension_requested_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull()
 });

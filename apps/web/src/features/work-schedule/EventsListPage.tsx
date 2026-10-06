@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { CirclePlus, CalendarDays, Download, ArrowUp, ArrowDown, ArrowUpDown, BookmarkPlus, Check, ListFilter, MoreHorizontal, Search, X } from 'lucide-react';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
@@ -7,6 +8,8 @@ import { useEvents, type WorkEvent } from './hooks/useEvents';
 import { useTasks } from './hooks/useTasks';
 import { useActor } from './hooks/useActor';
 import { PeopleMultiPicker } from './components/PeopleMultiPicker';
+import { WeekView } from './components/WeekView';
+import { MonthView } from './components/MonthView';
 import { PersonPicker, type PersonOption } from '../safety/PersonPicker';
 import { AuditTrailPanel } from './AuditTrailPanel';
 import { TaskStatusChip } from './TasksListPage';
@@ -16,7 +19,8 @@ import {
   EVENT_STATUS_LABEL,
   EVENT_STATUS_COLOR,
   EVENT_STATUS_STEPS,
-  abbreviatePersonLabel
+  abbreviatePersonLabel,
+  formatScheduleDateTime
 } from './constants';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -28,11 +32,12 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { cn, formatDateTime } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 
 export function EventStatusChip({ status }: { status: string }) {
   const c = EVENT_STATUS_COLOR[status] || { bg: '#f1f5f9', fg: '#334155', border: '#e2e8f0' };
@@ -58,9 +63,22 @@ export function canApproveClientSide(roles: { roleId: string; campusId: string |
  * tin phải được bố trí theo nhóm logic... không để thông tin bị dồn hoặc
  * khó đọc". Viền + nhãn nhóm viết hoa nhỏ, khớp phong cách card gọn của
  * template tham khảo (shadcnuikit.com/dashboard/crm). */
-function DetailSection({ title, children }: { title: string; children: React.ReactNode }) {
+/** Export để TasksListPage.tsx dùng lại Y HỆT khối nhóm này cho phiếu chi
+ * tiết Giao việc — tránh viết lặp lại 1 component UI giống hệt (Sin yêu
+ * cầu 2026-10-05: "cải thiện phiếu Giao việc dựa trên UX/pattern của phiếu
+ * Lịch công tác, tránh duplicate UI nếu có component dùng chung hợp lý"). */
+export function DetailSection({ title, children }: { title: string; children: React.ReactNode }) {
+  // 'min-w-0' BẮT BUỘC — DetailSection là flex item trong 1 cột flex cha
+  // (flex flex-col), mặc định min-width:auto khiến nó KHÔNG co nhỏ hơn nội
+  // dung bên trong (VD bảng "Giao việc"), buộc CẢ DIALOG rộng vượt khung đã
+  // đặt (max-w-3xl) khi cửa sổ hẹp — dialog bị dịch lệch khỏi màn hình (Sin
+  // phát hiện 2026-10-05, kèm ảnh: nhãn "THÔNG TIN CHUNG" bị cắt chữ đầu).
+  // Verify trực tiếp qua DOM: thiếu min-w-0 ở đây thì dialog.scrollWidth >
+  // dialog.clientWidth; thêm vào thì hết hẳn — bảng bên trong tự cuộn ngang
+  // RIÊNG nó (đã có sẵn `overflow-x-auto` trong Table.tsx) thay vì đẩy cả
+  // dialog rộng ra.
   return (
-    <div className="rounded-lg border border-slate-200 p-4 dark:border-slate-800">
+    <div className="min-w-0 rounded-lg border border-slate-200 p-4 dark:border-slate-800">
       <p className="mb-3 text-xs font-bold tracking-wide text-slate-500 uppercase dark:text-slate-400">{title}</p>
       {children}
     </div>
@@ -80,28 +98,42 @@ const SCHOOL_WIDE = 'SCHOOL_WIDE';
 type EventSortKey = 'startAt' | 'title' | 'campusId' | 'chair' | 'status';
 
 function MiniStepper({ steps, activeIndex }: { steps: readonly string[]; activeIndex: number }) {
+  // Bước cuối (PUBLISHED/"Đã ban hành") là trạng thái ĐÍCH, không phải bước
+  // "đang xử lý" — nên khi activeIndex trỏ đúng bước cuối, hiển thị như đã
+  // hoàn tất (dấu check, tô đầy) thay vì vòng tròn số "đang ở đây" như các
+  // bước giữa (Sin phát hiện 2026-10-05: "Đã ban hành" hiện số "3" trống
+  // thay vì dấu check dù sự kiện đã thực sự PUBLISHED ở backend).
+  const isDone = (i: number) => i < activeIndex || (i === activeIndex && i === steps.length - 1);
   return (
     <div className="flex items-center">
       {steps.map((s, i) => (
-        <div key={s} className="flex flex-1 items-center">
-          <div className="flex flex-col items-center gap-1">
+        // 'min-w-0' BẮT BUỘC — mặc định flex item có min-width:auto, tức là
+        // KHÔNG co nhỏ hơn kích thước nội dung dù đã đặt flex-1, buộc toàn bộ
+        // hàng (và theo đó là CẢ DIALOG cha, vì không giới hạn min-width
+        // riêng) rộng vượt max-w-3xl khi cửa sổ hẹp lại — dialog bị đẩy lệch
+        // trái ra ngoài màn hình (Sin phát hiện 2026-10-05, kèm ảnh chụp:
+        // nhãn "THÔNG TIN CHUNG"/"Địa điểm" bị cắt mất phần đầu). Đã verify
+        // trực tiếp bằng DOM: scrollWidth > clientWidth của dialog chính là
+        // do chính div này không co được.
+        <div key={s} className="flex min-w-0 flex-1 items-center">
+          <div className="flex min-w-0 flex-col items-center gap-1">
             <div
               className={cn(
-                'grid size-7 place-items-center rounded-full border-2 text-xs font-bold',
-                i < activeIndex
+                'grid size-7 shrink-0 place-items-center rounded-full border-2 text-xs font-bold',
+                isDone(i)
                   ? 'border-primary bg-primary text-primary-foreground'
                   : i === activeIndex
                     ? 'border-primary text-primary'
                     : 'border-slate-300 text-slate-400'
               )}
             >
-              {i < activeIndex ? <Check className="size-4" /> : i + 1}
+              {isDone(i) ? <Check className="size-4" /> : i + 1}
             </div>
             <p className={cn('text-center text-xs', i <= activeIndex ? 'font-semibold text-[#0f172a]' : 'text-slate-400')}>
               {EVENT_STATUS_LABEL[s] || s}
             </p>
           </div>
-          {i < steps.length - 1 && <div className={cn('mx-1 h-0.5 flex-1', i < activeIndex ? 'bg-primary' : 'bg-slate-200')} />}
+          {i < steps.length - 1 && <div className={cn('mx-1 h-0.5 flex-1', isDone(i) ? 'bg-primary' : 'bg-slate-200')} />}
         </div>
       ))}
     </div>
@@ -271,6 +303,26 @@ export default function EventsListPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [detail, setDetail] = useState<WorkEvent | null>(null);
   const [toast, setToast] = useState<{ message: string; severity: 'success' | 'error' } | null>(null);
+  const [viewMode, setViewMode] = useState<'list' | 'week' | 'month'>('list');
+
+  // Mở sẵn phiếu chi tiết đúng lịch được trỏ tới qua `?eventId=...` — dùng
+  // khi bấm vào "tên lịch công tác gốc" từ phiếu chi tiết Giao việc
+  // (TasksListPage.tsx), Sin yêu cầu 2026-10-05: "bấm vào tên lịch phải mở
+  // đúng phiếu lịch công tác nguồn". Chỉ tự mở 1 LẦN mỗi khi danh sách tải
+  // xong có khớp id — không tự mở lại nếu người dùng đã tự đóng dialog.
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    const wantedId = searchParams.get('eventId');
+    if (!wantedId || items.length === 0) return;
+    const found = items.find((ev) => ev.id === wantedId);
+    if (found) {
+      setDetail(found);
+      const next = new URLSearchParams(searchParams);
+      next.delete('eventId');
+      setSearchParams(next, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items]);
 
   // --- form tạo mới ---
   const [title, setTitle] = useState('');
@@ -311,13 +363,25 @@ export default function EventsListPage() {
     }
   };
 
+  // Bấm "+"/số ngày trong WeekView/MonthView — mở sẵn dialog Tạo lịch với
+  // ngày đó + giờ mặc định 08:00 (Sin yêu cầu 2026-10-05: "có thể tạo thẳng
+  // trực tiếp... để tạo lịch ngày trong tuần").
+  const openCreateOnDate = (date: Date) => {
+    resetForm();
+    const d = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 8, 0);
+    handleStartAtChange(toLocalInput(d));
+    setCreateOpen(true);
+  };
+
   const handleCreate = async () => {
     setCreateError('');
     if (!title.trim()) return setCreateError('Vui lòng nhập tiêu đề.');
     if (!campusId) return setCreateError('Vui lòng chọn cơ sở.');
-    if (!startAt || !endAt) return setCreateError('Vui lòng chọn thời gian bắt đầu/kết thúc.');
+    if (!startAt) return setCreateError('Vui lòng chọn thời gian bắt đầu.');
     // Thành phần tham dự KHÔNG bắt buộc — Mr Tiến phản hồi 2026-09-21: 1
     // lịch công tác có thể chỉ do 1 người chủ trì, không cần thêm ai khác.
+    // Giờ kết thúc cũng KHÔNG bắt buộc (Sin yêu cầu 2026-10-05) — không
+    // phải lúc nào cũng biết trước lịch kéo dài bao lâu.
     setSubmitting(true);
     try {
       await api.post<WorkEvent>('/api/work-schedule/events', {
@@ -329,7 +393,7 @@ export default function EventsListPage() {
         campusId: scope === 'SCHOOL_WIDE' ? 'MAIN_CAMPUS' : campusId,
         scope,
         startAt: new Date(startAt).toISOString(),
-        endAt: new Date(endAt).toISOString(),
+        endAt: endAt ? new Date(endAt).toISOString() : null,
         location: location.trim(),
         participantPerIds: scope === 'SCHOOL_WIDE' ? [] : participants.map((p) => p.perId)
       });
@@ -385,6 +449,33 @@ export default function EventsListPage() {
           </div>
         }
       />
+
+      {/* Chế độ xem — Sin yêu cầu 2026-10-05: "đổi Lịch công tác thành hiển
+          thị lịch theo tuần và lịch theo tháng". Giữ nguyên "Danh sách"
+          (bảng cũ, đủ bộ lọc/chọn hàng loạt) làm mặc định — không xoá
+          chức năng sẵn có, chỉ thêm 2 chế độ xem mới. Khớp đúng kiểu
+          segmented-tab "Của tôi/Tôi giao/Tất cả" đã dùng ở TasksListPage.tsx. */}
+      <div className="mb-4 inline-flex rounded-md border border-slate-200 bg-slate-50 p-0.5">
+        {(
+          [
+            ['list', 'Danh sách'],
+            ['week', 'Tuần'],
+            ['month', 'Tháng']
+          ] as const
+        ).map(([v, label]) => (
+          <button
+            key={v}
+            type="button"
+            onClick={() => setViewMode(v)}
+            className={cn(
+              'rounded-[5px] px-3 py-1.5 text-sm font-medium transition-colors',
+              viewMode === v ? 'bg-white text-[#0f172a] shadow-sm' : 'text-slate-500 hover:text-[#0f172a]'
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
       {savedFilters.length > 0 && (
         <div className="mb-3 flex flex-wrap justify-end gap-2">
@@ -556,6 +647,7 @@ export default function EventsListPage() {
         </Alert>
       )}
 
+      {viewMode === 'list' && (
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_3px_0_rgba(15,23,42,0.04)]">
         <Table>
           <TableHeader>
@@ -580,13 +672,14 @@ export default function EventsListPage() {
               <TableHead>
                 <SortHeader sortKeyName="status">Trạng thái</SortHeader>
               </TableHead>
+              <TableHead>Tiến độ</TableHead>
               <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {!loading && filteredItems.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} className="py-8 text-center text-slate-500">
+                <TableCell colSpan={9} className="py-8 text-center text-slate-500">
                   Không có lịch nào khớp bộ lọc.
                 </TableCell>
               </TableRow>
@@ -604,7 +697,7 @@ export default function EventsListPage() {
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     <Checkbox checked={selectedIds.has(ev.id)} onCheckedChange={(v) => toggleSelectOne(ev.id, Boolean(v))} aria-label={`Chọn ${ev.title}`} />
                   </TableCell>
-                  <TableCell>{formatDateTime(ev.startAt)}</TableCell>
+                  <TableCell>{formatScheduleDateTime(ev.startAt)}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2.5">
                       <Avatar size="sm" className="shrink-0 bg-slate-100">
@@ -642,6 +735,18 @@ export default function EventsListPage() {
                       )}
                     </div>
                   </TableCell>
+                  <TableCell className="w-32">
+                    {ev.taskCount ? (
+                      <div className="flex items-center gap-2">
+                        <Progress value={ev.taskProgressPercent ?? 0} className="h-1.5 w-16" />
+                        <span className="shrink-0 text-xs text-slate-500">
+                          {ev.taskCompletedCount}/{ev.taskCount}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-slate-400">—</span>
+                    )}
+                  </TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -660,6 +765,10 @@ export default function EventsListPage() {
           </TableBody>
         </Table>
       </div>
+      )}
+
+      {viewMode === 'week' && <WeekView events={filteredItems} onSelectEvent={setDetail} onCreateOnDate={openCreateOnDate} />}
+      {viewMode === 'month' && <MonthView events={filteredItems} onSelectEvent={setDetail} onCreateOnDate={openCreateOnDate} />}
 
       {/* Dialog tạo mới */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
@@ -704,7 +813,7 @@ export default function EventsListPage() {
               </div>
               <div className="flex-1">
                 <Label htmlFor="create-event-end" className="mb-1.5 block">
-                  Kết thúc *
+                  Kết thúc
                 </Label>
                 <Input id="create-event-end" type="datetime-local" value={endAt} min={startAt || undefined} onChange={(e) => setEndAt(e.target.value)} />
               </div>
@@ -841,6 +950,18 @@ export function EventDetailDialog({
   // tạo nhanh 1 đầu việc mới ngay trong phiếu chi tiết. Hook gọi KHÔNG điều
   // kiện (quy tắc Hook), chỉ tắt fetch qua `enabled` khi dialog chưa có event.
   const { items: linkedTasks, loading: tasksLoading, refetch: refetchTasks } = useTasks({ eventId: event?.id, enabled: !!event });
+  // Tiến độ = số việc nhỏ COMPLETED / tổng số việc nhỏ của lịch này (Sin
+  // yêu cầu 2026-10-05: "5 công việc, 3 hoàn thành => 60%", công thức tổng
+  // quát completedChildren/totalChildren*100, không hard-code %/việc).
+  // Tính trực tiếp từ `linkedTasks` (danh sách việc nhỏ ĐANG hiển thị ngay
+  // dưới) thay vì đọc field `taskProgressPercent` backend đã gắn sẵn vào
+  // từng event ở `GET /events` (work-schedule.service.ts#attachTaskProgress)
+  // — `linkedTasks` luôn mới nhất trong phiên mở dialog (tự refetch sau khi
+  // tạo/đổi trạng thái việc nhỏ), còn field trên event là ảnh chụp lúc tải
+  // danh sách lịch, có thể cũ nếu vừa thao tác việc nhỏ mà chưa đóng-mở lại
+  // dialog.
+  const taskCompletedCount = linkedTasks.filter((t) => t.status === 'COMPLETED').length;
+  const taskProgressPercent = linkedTasks.length > 0 ? Math.round((taskCompletedCount / linkedTasks.length) * 100) : null;
   const [taskFormOpen, setTaskFormOpen] = useState(false);
   const [taskTitle, setTaskTitle] = useState('');
   const [taskAssignee, setTaskAssignee] = useState<PersonOption | null>(null);
@@ -891,7 +1012,7 @@ export function EventDetailDialog({
     setEditDescription(event.description || '');
     setEditCampusId(event.scope === 'SCHOOL_WIDE' ? SCHOOL_WIDE : event.campusId);
     setEditStartAt(toLocalInput(new Date(event.startAt)));
-    setEditEndAt(toLocalInput(new Date(event.endAt)));
+    setEditEndAt(event.endAt ? toLocalInput(new Date(event.endAt)) : '');
     setEditLocation(event.location || '');
     // Tự dựng lại PersonOption từ nhãn đã có sẵn (chairLabel/participantLabels)
     // — không cần gọi lại API tìm người, chỉ cần đủ {perId, name} để
@@ -912,7 +1033,7 @@ export function EventDetailDialog({
     setEditError('');
     if (!editTitle.trim()) return setEditError('Vui lòng nhập tiêu đề.');
     if (!editCampusId) return setEditError('Vui lòng chọn cơ sở.');
-    if (!editStartAt || !editEndAt) return setEditError('Vui lòng chọn thời gian bắt đầu/kết thúc.');
+    if (!editStartAt) return setEditError('Vui lòng chọn thời gian bắt đầu.');
     setEditSubmitting(true);
     try {
       const updated = await api.patch<WorkEvent>(`/api/work-schedule/events/${event.id}`, {
@@ -921,7 +1042,7 @@ export function EventDetailDialog({
         campusId: editScope === 'SCHOOL_WIDE' ? 'MAIN_CAMPUS' : editCampusId,
         scope: editScope,
         startAt: new Date(editStartAt).toISOString(),
-        endAt: new Date(editEndAt).toISOString(),
+        endAt: editEndAt ? new Date(editEndAt).toISOString() : null,
         location: editLocation.trim(),
         participantPerIds: editScope === 'SCHOOL_WIDE' ? [] : editParticipants.map((p) => p.perId)
       });
@@ -976,7 +1097,7 @@ export function EventDetailDialog({
         <DialogHeader>
           <DialogTitle>{event.title}</DialogTitle>
         </DialogHeader>
-        <div className="flex flex-col gap-4">
+        <div className="flex min-w-0 flex-col gap-4">
           {actionError && (
             <Alert className="border-red-200 bg-red-50">
               <AlertDescription className="text-red-700">{actionError}</AlertDescription>
@@ -997,8 +1118,8 @@ export function EventDetailDialog({
               <p className="text-sm">
                 Trạng thái: <strong>{EVENT_STATUS_LABEL[event.status] || event.status}</strong>
               </p>
-              <p className="text-sm">Bắt đầu: {formatDateTime(event.startAt)}</p>
-              <p className="text-sm">Kết thúc: {formatDateTime(event.endAt)}</p>
+              <p className="text-sm">Bắt đầu: {formatScheduleDateTime(event.startAt)}</p>
+              <p className="text-sm">Kết thúc: {formatScheduleDateTime(event.endAt)}</p>
               <p className="text-sm sm:col-span-2">Địa điểm: {event.location || '—'}</p>
             </div>
           </DetailSection>
@@ -1048,6 +1169,14 @@ export function EventDetailDialog({
               {tasksLoading && <p className="text-sm text-slate-500">Đang tải...</p>}
               {!tasksLoading && linkedTasks.length === 0 && <p className="text-sm text-slate-400">Chưa có đầu việc nào.</p>}
               {linkedTasks.length > 0 && (
+                <div className="flex items-center gap-3">
+                  <Progress value={taskProgressPercent ?? 0} className="h-2 flex-1" />
+                  <span className="shrink-0 text-xs font-semibold text-slate-600">
+                    {taskCompletedCount}/{linkedTasks.length} hoàn thành ({taskProgressPercent}%)
+                  </span>
+                </div>
+              )}
+              {linkedTasks.length > 0 && (
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -1062,7 +1191,7 @@ export function EventDetailDialog({
                       <TableRow key={t.id}>
                         <TableCell className="font-medium">{t.title}</TableCell>
                         <TableCell>{t.assigneeLabel || t.assigneeName || t.assigneePerId}</TableCell>
-                        <TableCell>{formatDateTime(t.dueAt)}</TableCell>
+                        <TableCell>{formatScheduleDateTime(t.dueAt)}</TableCell>
                         <TableCell>
                           <TaskStatusChip status={t.status} />
                         </TableCell>
@@ -1143,6 +1272,15 @@ export function EventDetailDialog({
               </Button>
             </>
           )}
+          {event.status === 'PUBLISHED' && (isCreator || canApprove || isPrincipal) && (
+            // Bổ sung 2026-10-05 — "Đã ban hành -> về Nháp -> sửa -> ban
+            // hành lại" (huong_dan_lich_cong_tac_giao_viec.md §26). Backend
+            // (changeEventStatus) tự kiểm lại đúng quyền này lần nữa, nút
+            // chỉ ẩn/hiện cho đỡ rối, không phải lớp chặn thật.
+            <Button variant="ghost" disabled={busy} onClick={() => changeStatus('DRAFT')}>
+              Chuyển về nháp để sửa
+            </Button>
+          )}
           {event.status === 'PUBLISHED' && (canApprove || isPrincipal) && (
             <Button variant="ghost" disabled={busy} onClick={() => openReasonDialog('CANCELLED')} className="text-red-600">
               Hủy lịch công tác
@@ -1217,7 +1355,7 @@ export function EventDetailDialog({
                 </div>
                 <div className="flex-1">
                   <Label htmlFor="edit-event-end" className="mb-1.5 block">
-                    Kết thúc *
+                    Kết thúc
                   </Label>
                   <Input
                     id="edit-event-end"

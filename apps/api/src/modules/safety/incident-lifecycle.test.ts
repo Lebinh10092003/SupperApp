@@ -653,7 +653,7 @@ test('acknowledgeIncident: giáo viên khác cơ sở (không xem được đầ
   assert.equal(secondAck.code, 'already_acknowledged');
 });
 
-test('acknowledgeIncident: hồ sơ CHƯA có priority (null) -> bắt buộc chọn mức khi tiếp nhận, priority không hợp lệ bị từ chối, tiếp nhận xong đăng ký MỚI cả 2 đồng hồ SLA (ack đã met ngay, assign còn chạy)', { skip }, async () => {
+test('acknowledgeIncident: hồ sơ CHƯA có priority (null) -> bắt buộc chọn mức khi tiếp nhận, priority không hợp lệ bị từ chối, tiếp nhận xong đánh dấu cả 2 đồng hồ SLA đã đạt', { skip }, async () => {
   await resetTables();
   const incidentId = await seedIncident({ priority: null });
 
@@ -679,7 +679,7 @@ test('acknowledgeIncident: hồ sơ CHƯA có priority (null) -> bắt buộc ch
 
   const assignClock = await db.select().from(slaClocks).where(and(eq(slaClocks.objectId, incidentId), eq(slaClocks.clockLabel, 'assign')));
   assert.equal(assignClock.length, 1);
-  assert.equal(assignClock[0]!.status, 'running');
+  assert.equal(assignClock[0]!.status, 'met');
 });
 
 test('addIncidentParticipant: chỉ chỉ huy hồ sơ hoặc cấp cao mới thêm được người tham gia; thêm thành công thì có mặt trong assignedTaskPerIds + audit + chuông báo người được thêm', { skip }, async () => {

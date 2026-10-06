@@ -22,6 +22,8 @@ import { ReopenIncidentDialog, type ReopenIncidentTarget } from './dialogs/Reope
 import { AssignCommanderDialog, type AssignCommanderTarget } from './dialogs/AssignCommanderDialog';
 import { AddParticipantDialog, type AddParticipantTarget } from './dialogs/AddParticipantDialog';
 import { ReasonPromptDialog } from './dialogs/ReasonPromptDialog';
+import { SetResolutionDeadlineDialog } from './dialogs/SetResolutionDeadlineDialog';
+import { RequestExtensionDialog } from './dialogs/RequestExtensionDialog';
 import { ContactInfoButton } from './components/ContactInfoButton';
 import { CorrectClassificationDialog, type CorrectClassificationTarget } from './dialogs/CorrectClassificationDialog';
 import { CAMPUS_LABEL, SLA_CLOCK_LABEL, SLA_STATUS_LABEL, getSlaClockTone, SLA_CLOCK_TONE_CLASS } from './constants';
@@ -77,6 +79,16 @@ interface IncidentDetail {
   cancelRequestedBy?: string | null;
   cancelRequestReason?: string | null;
   cancelRequestedAt?: string | null;
+  // "Hạn xử lý sự vụ" (2026-10-05) — gộp 2 hạn tiếp nhận/phân công cũ
+  // (slaClocks vẫn giữ nguyên bên dưới, đo tốc độ phản hồi, mục đích khác).
+  resolutionDeadlineAt?: string | null;
+  resolutionDeadlineSetBy?: string | null;
+  resolutionDeadlineSetByName?: string | null;
+  extensionRequestedBy?: string | null;
+  extensionRequestedByName?: string | null;
+  extensionRequestReason?: string | null;
+  extensionProposedDeadlineAt?: string | null;
+  extensionRequestedAt?: string | null;
   canViewEvidence?: boolean;
   evidenceList?: EvidenceSummary[];
   reportSubmissions?: ReportSubmission[];
@@ -110,6 +122,9 @@ export default function IncidentDetailPage() {
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
   const [cancelAckDialogOpen, setCancelAckDialogOpen] = useState(false);
   const [decidingCancel, setDecidingCancel] = useState(false);
+  const [setDeadlineDialogOpen, setSetDeadlineDialogOpen] = useState(false);
+  const [requestExtensionDialogOpen, setRequestExtensionDialogOpen] = useState(false);
+  const [decidingExtension, setDecidingExtension] = useState(false);
   const [acknowledging, setAcknowledging] = useState(false);
   const [ackDialogOpen, setAckDialogOpen] = useState(false);
   const [ackPriority, setAckPriority] = useState('');
@@ -182,6 +197,20 @@ export default function IncidentDetailPage() {
       setToast({ message: e.message, severity: 'error' });
     } finally {
       setDecidingCancel(false);
+    }
+  };
+
+  const decideResolutionExtension = async (approve: boolean) => {
+    if (!incident) return;
+    setDecidingExtension(true);
+    try {
+      await api.post(`/api/safety/incidents/${incident.incidentId}/resolution-deadline/decide-extension`, { approve });
+      load();
+      setToast({ message: approve ? 'Đã duyệt gia hạn.' : 'Đã từ chối yêu cầu gia hạn.', severity: 'success' });
+    } catch (e: any) {
+      setToast({ message: e.message, severity: 'error' });
+    } finally {
+      setDecidingExtension(false);
     }
   };
 
@@ -337,9 +366,61 @@ export default function IncidentDetailPage() {
           </div>
         )}
 
+        <div className="rounded-xl border border-slate-200 p-5">
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-sm font-bold">Hạn xử lý sự vụ</p>
+            {isSenior && (
+              <Button size="sm" variant="outline" onClick={() => setSetDeadlineDialogOpen(true)}>
+                {incident.resolutionDeadlineAt ? 'Sửa hạn' : 'Đặt hạn'}
+              </Button>
+            )}
+          </div>
+          {incident.resolutionDeadlineAt ? (
+            <p className="text-sm font-medium">
+              Hạn: {formatDateTime(incident.resolutionDeadlineAt)}
+              {incident.resolutionDeadlineSetByName || incident.resolutionDeadlineSetBy ? (
+                <span className="text-slate-500"> — do {incident.resolutionDeadlineSetByName || incident.resolutionDeadlineSetBy} đặt</span>
+              ) : null}
+            </p>
+          ) : (
+            <p className="text-sm text-slate-500">Chưa đặt hạn xử lý.</p>
+          )}
+          {isCommander && !incident.extensionRequestedAt && (
+            <Button size="sm" variant="ghost" className="mt-2 px-0 text-primary" onClick={() => setRequestExtensionDialogOpen(true)}>
+              Xin gia hạn
+            </Button>
+          )}
+          {incident.extensionRequestedAt && (
+            <Alert className="mt-3 border-amber-200 bg-amber-50">
+              <AlertDescription className="text-amber-900">
+                <p className="mb-1">
+                  Đang chờ duyệt gia hạn — {incident.extensionRequestedByName || incident.extensionRequestedBy} xin dời hạn sang{' '}
+                  {formatDateTime(incident.extensionProposedDeadlineAt)}, lý do: {incident.extensionRequestReason}
+                </p>
+                {isSenior && (
+                  <div className="mt-2 flex gap-2">
+                    <Button size="sm" disabled={decidingExtension} onClick={() => decideResolutionExtension(true)} className="bg-emerald-600 hover:bg-emerald-700">
+                      Duyệt
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={decidingExtension}
+                      onClick={() => decideResolutionExtension(false)}
+                      className="border-red-300 font-semibold text-red-600 hover:bg-red-50"
+                    >
+                      Từ chối
+                    </Button>
+                  </div>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
+        </div>
+
         {incident.slaClocks && Object.keys(incident.slaClocks).length > 0 && (
           <div className="rounded-xl border border-slate-200 p-5">
-            <p className="mb-3 text-sm font-bold">Thời hạn xử lý</p>
+            <p className="mb-3 text-sm font-bold">Tốc độ phản hồi ban đầu</p>
             <div className="flex flex-col gap-1.5">
               {Object.entries(incident.slaClocks).map(([label, clock]) => (
                 <p key={label} className={cn('text-sm font-medium', SLA_CLOCK_TONE_CLASS[getSlaClockTone(clock)])}>
@@ -672,6 +753,25 @@ export default function IncidentDetailPage() {
             message: base + notified,
             severity: 'success'
           });
+        }}
+      />
+      <SetResolutionDeadlineDialog
+        open={setDeadlineDialogOpen}
+        currentDeadlineAt={incident.resolutionDeadlineAt}
+        onClose={() => setSetDeadlineDialogOpen(false)}
+        onSubmit={async (deadlineAt) => {
+          await api.patch(`/api/safety/incidents/${incident.incidentId}/resolution-deadline`, { deadlineAt });
+          load();
+          setToast({ message: deadlineAt ? 'Đã cập nhật hạn xử lý.' : 'Đã bỏ hạn xử lý.', severity: 'success' });
+        }}
+      />
+      <RequestExtensionDialog
+        open={requestExtensionDialogOpen}
+        onClose={() => setRequestExtensionDialogOpen(false)}
+        onSubmit={async (reason, proposedDeadlineAt) => {
+          await api.post(`/api/safety/incidents/${incident.incidentId}/resolution-deadline/request-extension`, { reason, proposedDeadlineAt });
+          load();
+          setToast({ message: 'Đã gửi yêu cầu gia hạn, đang chờ duyệt.', severity: 'success' });
         }}
       />
     </>

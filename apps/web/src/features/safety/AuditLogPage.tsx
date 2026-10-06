@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { History } from 'lucide-react';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
@@ -102,6 +102,11 @@ export default function AuditLogPage() {
       .catch((e: any) => setError(e.message || 'Không tải được nhật ký kiểm toán (có thể vai trò của bạn không đủ quyền xem).'))
       .finally(() => setLoading(false));
   };
+
+  // Mặc định hiện sẵn các bản ghi gần đây nhất ngay khi vào trang — Sin
+  // yêu cầu 2026-10-05: "không cần để input trống thì mới hiện gần đây".
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(load, []);
 
   // "Tải thêm" — con trỏ (cursor) là occurredAt của bản ghi cuối trang
   // hiện tại, KHÔNG dùng offset số vì nhật ký liên tục có bản ghi mới

@@ -22,11 +22,11 @@ import { useTasks, type WorkTask } from './hooks/useTasks';
 import { useActor } from './hooks/useActor';
 import { EventDetailDialog, EventStatusChip } from './EventsListPage';
 import { TaskDetailDialog, TaskStatusChip } from './TasksListPage';
-import { CAMPUS_LABEL, abbreviatePersonLabel } from './constants';
+import { CAMPUS_LABEL, abbreviatePersonLabel, formatScheduleDateTime } from './constants';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { cn, formatDateTime } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 
 const VN_OFFSET_MS = 7 * 60 * 60 * 1000;
 
@@ -121,7 +121,7 @@ export default function OverviewPage() {
                       ev.scope === 'SCHOOL_WIDE' ? 'Toàn trường' : fullParticipants.map(abbreviatePersonLabel).join(', ') || '—';
                     return (
                       <TableRow key={ev.id} className="cursor-pointer" onClick={() => setEventDetail(ev)}>
-                        <TableCell>{formatDateTime(ev.startAt)}</TableCell>
+                        <TableCell>{formatScheduleDateTime(ev.startAt)}</TableCell>
                         <TableCell>{ev.title}</TableCell>
                         <TableCell>{ev.scope === 'SCHOOL_WIDE' ? 'Toàn trường' : CAMPUS_LABEL[ev.campusId] || ev.campusId}</TableCell>
                         <TableCell title={ev.chairLabel || ev.chairPerId}>{abbreviatePersonLabel(ev.chairLabel || ev.chairPerId)}</TableCell>
@@ -163,7 +163,7 @@ export default function OverviewPage() {
                 <TableBody>
                   {upcomingTasks.map((t) => (
                     <TableRow key={t.id} className="cursor-pointer" onClick={() => setTaskDetail(t)}>
-                      <TableCell>{formatDateTime(t.dueAt)}</TableCell>
+                      <TableCell>{formatScheduleDateTime(t.dueAt)}</TableCell>
                       <TableCell>{t.title}</TableCell>
                       <TableCell>{CAMPUS_LABEL[t.campusId] || t.campusId}</TableCell>
                       <TableCell>

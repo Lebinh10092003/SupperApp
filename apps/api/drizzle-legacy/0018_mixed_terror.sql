@@ -1,0 +1,2 @@
+ALTER TABLE "ltc_weekly_sheet_rows" ADD COLUMN "linked_event_id" uuid;--> statement-breakpoint
+ALTER TABLE "ltc_weekly_sheet_rows" ADD CONSTRAINT "ltc_weekly_sheet_rows_linked_event_id_ltc_events_id_fk" FOREIGN KEY ("linked_event_id") REFERENCES "public"."ltc_events"("id") ON DELETE set null ON UPDATE no action;

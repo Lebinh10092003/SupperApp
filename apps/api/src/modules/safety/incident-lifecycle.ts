@@ -105,6 +105,26 @@ async function saveSlaClock(db: Db, clock: sla.SlaClock) {
     .where(and(eq(slaClocks.objectId, clock.object_id), eq(slaClocks.clockLabel, clock.clock_label)));
 }
 
+/**
+ * markCommanderClocksMet — LỖI TỰ PHÁT HIỆN 2026-10-02 (Sin chỉ ra qua ảnh
+ * chụp thật: hồ sơ ĐÃ có chỉ huy nhưng "Hạn phân công người xử lý" vẫn
+ * hiện đỏ "Đã quá hạn"): `acknowledgeIncident` chỉ đánh dấu xong đồng hồ
+ * 'ack', KHÔNG BAO GIỜ đụng tới 'assign' — còn `assignCommander` không
+ * đụng tới CẢ HAI đồng hồ nào. Kết quả: đồng hồ 'assign' (và 'ack' khi chỉ
+ * định trực tiếp, bỏ qua bước tự tiếp nhận) không bao giờ được đóng, cứ
+ * chạy tới khi quá hạn dù việc nó đo (có người chịu trách nhiệm xử lý) đã
+ * xong thật. Có người chỉ huy = CẢ HAI mốc "đã tiếp nhận" và "đã phân
+ * công" đều đúng nghĩa là xong — đóng cả 2 đồng hồ (idempotent, bỏ qua
+ * đồng hồ không tồn tại hoặc đã 'met' từ trước) mỗi khi commanderPerId
+ * được set, bất kể qua đường tự tiếp nhận hay được chỉ định.
+ */
+async function markCommanderClocksMet(db: Db, incidentId: string) {
+  for (const label of ['ack', 'assign'] as const) {
+    const clock = await loadSlaClock(db, incidentId, label);
+    if (clock && clock.status !== 'met') await saveSlaClock(db, { ...clock, status: 'met' });
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Chuyển mức ưu tiên hồ sơ.
 // ---------------------------------------------------------------------------
@@ -491,6 +511,10 @@ export async function assignCommander(
     .set({ commanderPerId: input.commanderPerId, assignedTaskPerIds, version: incident.version + 1, updatedAt: now })
     .where(eq(incidents.incidentId, input.incidentId));
 
+  // Được chỉ định thẳng (không qua tự tiếp nhận) vẫn phải đóng cả 2 đồng
+  // hồ — xem docstring markCommanderClocksMet.
+  await markCommanderClocksMet(db, input.incidentId);
+
   await writeAuditLog(
     db,
     buildAuditRecord({
@@ -615,18 +639,19 @@ export async function acknowledgeIncident(
 
   const ackClock = await loadSlaClock(db, input.incidentId, 'ack');
   if (ackClock) {
-    // Đồng hồ SLA "ack" đã có sẵn từ lúc tạo (priority không null lúc tạo) —
-    // coi như đã hoàn thành ngay khi có người tiếp nhận, tránh
-    // check-sla-overdue.ts tiếp tục báo quá hạn cho việc đã xong.
-    if (ackClock.status !== 'met') await saveSlaClock(db, { ...ackClock, status: 'met' });
+    // Đồng hồ SLA đã có sẵn từ lúc tạo (priority không null lúc tạo) — tự
+    // tiếp nhận nghĩa là CẢ 'ack' lẫn 'assign' đều xong ngay (người tiếp
+    // nhận tự trở thành chỉ huy, xem markCommanderClocksMet ở trên).
+    await markCommanderClocksMet(db, input.incidentId);
   } else {
     // Chưa có clock nào (priority null lúc tạo) -> đăng ký CẢ HAI đồng hồ
     // NGAY BÂY GIỜ, startAt = now (KHÔNG phải lúc tạo hồ sơ — trước đó
-    // chưa có priority để tính hạn được). "ack" coi như xong ngay.
+    // chưa có priority để tính hạn được), cả 2 coi như xong ngay cùng lý
+    // do trên.
     const newAck = sla.registerSlaClock({ objectId: input.incidentId, clockLabel: 'ack', priority: priority as catalog.Priority, startAt: now, calendar: opts?.calendar });
     await db.insert(slaClocks).values(slaClockToRow({ ...newAck, status: 'met' }));
     const newAssign = sla.registerSlaClock({ objectId: input.incidentId, clockLabel: 'assign', priority: priority as catalog.Priority, startAt: now, calendar: opts?.calendar });
-    await db.insert(slaClocks).values(slaClockToRow(newAssign));
+    await db.insert(slaClocks).values(slaClockToRow({ ...newAssign, status: 'met' }));
   }
 
   await writeAuditLog(
@@ -1210,6 +1235,252 @@ export async function approveCancelAcknowledgment(
           title: 'Yêu cầu huỷ tiếp nhận đã bị từ chối — ' + input.incidentId,
           message: input.incidentId + ': ' + rejectActorName + ' đã từ chối yêu cầu huỷ tiếp nhận của bạn.',
           eventType: 'safety.incident.cancel_acknowledgment_rejected',
+          objectId: input.incidentId,
+          actorPerId: input.actor.perId,
+          meta: { requested_by: requestedBy, campus_id: incident.campusId }
+        },
+        { now }
+      );
+    }
+  }
+
+  return { incidentId: input.incidentId, approved: input.approve };
+}
+
+// ---------------------------------------------------------------------------
+// Hạn xử lý sự vụ — bổ sung 2026-10-05 (Sin: "2 hạn tiếp nhận/phân công...
+// phải gộp là một... hạn thực sự cần là hạn xử lý sự vụ... người giao có
+// thể điều chỉnh được hạn xử lý... người chỉ huy cấp thấp cũng có thể xin
+// gia hạn nhưng cần lý do và duyệt"). KHÔNG đụng sla_clocks/sla.ts (đồng hồ
+// ack/assign vẫn nguyên — đo tốc độ phản hồi ban đầu, khác mục đích hoàn
+// toàn với hạn xử lý ở đây). Luồng yêu cầu/duyệt gia hạn CÙNG MẪU với
+// request/approveCancelAcknowledgment ở trên — chỉ 1 yêu cầu treo/1 lúc.
+// ---------------------------------------------------------------------------
+
+export async function setResolutionDeadline(
+  db: Db,
+  input: { actor: Actor; incidentId: string; deadlineAt: Date | null },
+  opts?: SafetyOpts
+): Promise<{ incidentId: string; resolutionDeadlineAt: Date | null }> {
+  const now = opts?.now || new Date();
+  const incident = await loadIncident(db, input.incidentId);
+
+  const decision = checkAuthorization({ actor: input.actor, action: 'incident.set_resolution_deadline', resource: { campusId: incident.campusId } });
+  if (!decision.allowed) throw new AppError('forbidden', decision.reason!);
+
+  if (input.deadlineAt && Number.isNaN(input.deadlineAt.getTime())) {
+    throw new AppError('invalid_input', 'Sai định dạng hạn xử lý.');
+  }
+
+  await db
+    .update(incidents)
+    .set({
+      resolutionDeadlineAt: input.deadlineAt,
+      resolutionDeadlineSetBy: input.deadlineAt ? input.actor.perId : null,
+      version: incident.version + 1,
+      updatedAt: now
+    })
+    .where(eq(incidents.incidentId, input.incidentId));
+
+  await writeAuditLog(
+    db,
+    buildAuditRecord({
+      actorPerId: input.actor.perId!,
+      action: 'incident.resolution_deadline_set',
+      objectId: input.incidentId,
+      before: { resolution_deadline_at: incident.resolutionDeadlineAt },
+      after: { resolution_deadline_at: input.deadlineAt },
+      now
+    })
+  );
+
+  if (opts?.pushBell && incident.commanderPerId) {
+    const setActorName = await nameForBell(db, input.actor.perId);
+    await opts.pushBell(
+      db,
+      {
+        recipients: [incident.commanderPerId],
+        title: 'Hạn xử lý sự vụ ' + input.incidentId + ' đã được cập nhật',
+        message: input.incidentId + ': ' + setActorName + (input.deadlineAt ? ' đã đặt hạn xử lý mới.' : ' đã bỏ hạn xử lý.'),
+        eventType: 'safety.incident.resolution_deadline_set',
+        objectId: input.incidentId,
+        actorPerId: input.actor.perId,
+        meta: { campus_id: incident.campusId }
+      },
+      { now }
+    );
+  }
+
+  return { incidentId: input.incidentId, resolutionDeadlineAt: input.deadlineAt };
+}
+
+export async function requestResolutionExtension(
+  db: Db,
+  input: { actor: Actor; incidentId: string; reason: string; proposedDeadlineAt: Date },
+  opts?: SafetyOpts
+): Promise<{ incidentId: string; extensionRequestedBy: string; extensionProposedDeadlineAt: Date }> {
+  const now = opts?.now || new Date();
+  if (!input.actor.perId) throw new AppError('forbidden', 'Tài khoản chưa được gắn với hồ sơ nhân sự (perId) nào.');
+  if (!input.reason || !input.reason.trim()) {
+    throw new AppError('reason_required', 'Bắt buộc nhập lý do khi xin gia hạn.');
+  }
+  if (!(input.proposedDeadlineAt instanceof Date) || Number.isNaN(input.proposedDeadlineAt.getTime())) {
+    throw new AppError('invalid_input', 'Sai định dạng hạn đề xuất.');
+  }
+  const incident = await loadIncident(db, input.incidentId);
+
+  if (!incident.commanderPerId || incident.commanderPerId !== input.actor.perId) {
+    throw new AppError('forbidden', 'Chỉ chỉ huy hiện tại của hồ sơ mới được xin gia hạn.');
+  }
+  if (incident.extensionRequestedAt) {
+    throw new AppError('already_requested', 'Đã có 1 yêu cầu gia hạn đang chờ duyệt cho hồ sơ này.');
+  }
+
+  const reason = input.reason.trim();
+  await db
+    .update(incidents)
+    .set({
+      extensionRequestedBy: input.actor.perId,
+      extensionRequestReason: reason,
+      extensionProposedDeadlineAt: input.proposedDeadlineAt,
+      extensionRequestedAt: now,
+      version: incident.version + 1,
+      updatedAt: now
+    })
+    .where(eq(incidents.incidentId, input.incidentId));
+
+  await writeAuditLog(
+    db,
+    buildAuditRecord({
+      actorPerId: input.actor.perId,
+      action: 'incident.resolution_extension_requested',
+      objectId: input.incidentId,
+      after: { extension_requested_by: input.actor.perId, extension_proposed_deadline_at: input.proposedDeadlineAt },
+      reason,
+      now
+    })
+  );
+
+  if (opts?.pushBell) {
+    const recipients = Array.from(new Set([...(opts.extraRecipients || [])].filter(Boolean) as string[]));
+    if (recipients.length > 0) {
+      const extReqActorName = await nameForBell(db, input.actor.perId);
+      await opts.pushBell(
+        db,
+        {
+          recipients,
+          title: 'Yêu cầu gia hạn xử lý sự vụ ' + input.incidentId,
+          message: input.incidentId + ': ' + extReqActorName + ' xin gia hạn — lý do: ' + reason,
+          eventType: 'safety.incident.resolution_extension_requested',
+          objectId: input.incidentId,
+          actorPerId: input.actor.perId,
+          meta: { extension_requested_by: input.actor.perId, campus_id: incident.campusId }
+        },
+        { now }
+      );
+    }
+  }
+
+  return { incidentId: input.incidentId, extensionRequestedBy: input.actor.perId, extensionProposedDeadlineAt: input.proposedDeadlineAt };
+}
+
+export async function approveResolutionExtension(
+  db: Db,
+  input: { actor: Actor; incidentId: string; approve: boolean; note?: string },
+  opts?: SafetyOpts
+): Promise<{ incidentId: string; approved: boolean }> {
+  const now = opts?.now || new Date();
+  const incident = await loadIncident(db, input.incidentId);
+
+  const decision = checkAuthorization({ actor: input.actor, action: 'incident.approve_resolution_extension', resource: { campusId: incident.campusId } });
+  if (!decision.allowed) throw new AppError('forbidden', decision.reason!);
+
+  if (!incident.extensionRequestedAt || !incident.extensionRequestedBy || !incident.extensionProposedDeadlineAt) {
+    throw new AppError('not_found', 'Không có yêu cầu gia hạn nào đang chờ duyệt cho hồ sơ này.');
+  }
+
+  const requestedBy = incident.extensionRequestedBy;
+  const proposedDeadlineAt = incident.extensionProposedDeadlineAt;
+
+  if (input.approve) {
+    await db
+      .update(incidents)
+      .set({
+        resolutionDeadlineAt: proposedDeadlineAt,
+        resolutionDeadlineSetBy: input.actor.perId,
+        extensionRequestedBy: null,
+        extensionRequestReason: null,
+        extensionProposedDeadlineAt: null,
+        extensionRequestedAt: null,
+        version: incident.version + 1,
+        updatedAt: now
+      })
+      .where(eq(incidents.incidentId, input.incidentId));
+
+    await writeAuditLog(
+      db,
+      buildAuditRecord({
+        actorPerId: input.actor.perId!,
+        action: 'incident.resolution_extension_approved',
+        objectId: input.incidentId,
+        before: { resolution_deadline_at: incident.resolutionDeadlineAt },
+        after: { resolution_deadline_at: proposedDeadlineAt },
+        reason: input.note,
+        now
+      })
+    );
+
+    if (opts?.pushBell) {
+      const approveActorName = await nameForBell(db, input.actor.perId);
+      await opts.pushBell(
+        db,
+        {
+          recipients: [requestedBy],
+          title: 'Yêu cầu gia hạn đã được duyệt — ' + input.incidentId,
+          message: input.incidentId + ': ' + approveActorName + ' đã duyệt gia hạn.',
+          eventType: 'safety.incident.resolution_extension_approved',
+          objectId: input.incidentId,
+          actorPerId: input.actor.perId,
+          meta: { requested_by: requestedBy, campus_id: incident.campusId }
+        },
+        { now }
+      );
+    }
+  } else {
+    await db
+      .update(incidents)
+      .set({
+        extensionRequestedBy: null,
+        extensionRequestReason: null,
+        extensionProposedDeadlineAt: null,
+        extensionRequestedAt: null,
+        version: incident.version + 1,
+        updatedAt: now
+      })
+      .where(eq(incidents.incidentId, input.incidentId));
+
+    await writeAuditLog(
+      db,
+      buildAuditRecord({
+        actorPerId: input.actor.perId!,
+        action: 'incident.resolution_extension_rejected',
+        objectId: input.incidentId,
+        before: { extension_requested_by: requestedBy },
+        after: { extension_requested_by: null },
+        reason: input.note,
+        now
+      })
+    );
+
+    if (opts?.pushBell) {
+      const rejectActorName = await nameForBell(db, input.actor.perId);
+      await opts.pushBell(
+        db,
+        {
+          recipients: [requestedBy],
+          title: 'Yêu cầu gia hạn đã bị từ chối — ' + input.incidentId,
+          message: input.incidentId + ': ' + rejectActorName + ' đã từ chối yêu cầu gia hạn của bạn.',
+          eventType: 'safety.incident.resolution_extension_rejected',
           objectId: input.incidentId,
           actorPerId: input.actor.perId,
           meta: { requested_by: requestedBy, campus_id: incident.campusId }

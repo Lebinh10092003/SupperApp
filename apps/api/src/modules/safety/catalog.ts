@@ -277,6 +277,32 @@ export function relevantRolesForCategory(categoryCode: string): RoleId[] {
 }
 
 /**
+ * Vai trò được xem DANH SÁCH sự vụ THEO ĐÚNG NHÓM phụ trách, bất kể cơ sở
+ * mình có phải chỉ huy/tham gia hay không — Sin chốt 2026-09-27: "chỉ tổ
+ * trưởng, hiệu phó, hiệu trưởng xem được toàn bộ; y tế/bảo vệ/CSVC/tư vấn
+ * tâm lý chỉ xem thêm đúng nhóm mình phụ trách" (trước đó MỌI vai trò
+ * nghiệp vụ an toàn xem được TOÀN BỘ sự vụ, kể cả không liên quan — VD một
+ * vụ đánh nhau của 1 lớp thì cả trường biết hết).
+ *
+ * CỐ Ý không dùng chung `GROUP_RELEVANT_ROLES` ở trên — bảng đó dùng cho
+ * mục đích khác (GỢI Ý người tham gia, có cả R.HOMEROOM cho nhóm
+ * `student_safety`) — GVCN KHÔNG được liệt vào đây vì GVCN chỉ nên thấy
+ * đúng lớp mình chủ nhiệm (qua quan hệ `assignedTaskPerIds`, tự động gán
+ * lúc tạo hồ sơ ở `report-flow.ts::createIncidentFromReport`), không phải
+ * toàn bộ nhóm `student_safety` của cả trường.
+ *
+ * Dùng ở `authz.ts::inDomainScope` — CHỈ áp cho vai trò có mặt ở đây; vai
+ * trò không có mặt (Hiệu trưởng/Phó HT/Tổ trưởng/Trực ban...) không bị
+ * giới hạn theo nhóm, giữ nguyên hành vi quản lý chung.
+ */
+export const ROLE_VIEW_DOMAIN_GROUPS: Partial<Record<RoleId, string[]>> = {
+  [ROLE.HEALTH]: ['health'],
+  [ROLE.COUNSELOR]: ['student_safety'],
+  [ROLE.SECURITY]: ['student_safety', 'security_traffic'],
+  [ROLE.FACILITY]: ['facility', 'security_traffic']
+};
+
+/**
  * Bàn giao chỉ huy (assignCommander) theo đúng cấp bậc — Sin chốt
  * 2026-09-22: Hiệu trưởng và Phó Hiệu trưởng bàn giao cho ai cũng được
  * (kể cả escalate ngược lên nhau, hành vi có sẵn từ trước — không thu hẹp

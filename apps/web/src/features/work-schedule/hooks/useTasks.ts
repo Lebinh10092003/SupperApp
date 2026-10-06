@@ -4,6 +4,7 @@ import { api } from '../../../services/api';
 export interface WorkTask {
   id: string;
   eventId: string | null;
+  eventTitle?: string | null;
   title: string;
   description: string;
   priority: string;

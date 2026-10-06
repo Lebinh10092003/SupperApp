@@ -2,19 +2,17 @@
  * work-schedule.authz.ts — luật phân quyền RIÊNG cho module Lịch công tác,
  * port 1-1 từ `authzLichCongTac.js` gốc (xác nhận trực tiếp với Mr Tiến
  * 27/08/2026, xem `TICH_HOP_MODULE_LICH_CONG_TAC.md` ở project nguồn).
- * Tách khỏi authz của module Cảnh báo an toàn — module này có luật riêng,
- * đơn giản hơn nhưng có 1 điểm đặc biệt: lịch TOÀN TRƯỜNG cần duyệt TUẦN
- * TỰ 2 bước, không phải "ai duyệt cũng xong".
+ * Tách khỏi authz của module Cảnh báo an toàn — module này có luật riêng.
  *
- * Nguyên văn trả lời của Mr Tiến (giữ lại để đối chiếu khi có tranh cãi):
+ * 2026-10-05 (huong_dan_lich_cong_tac_giao_viec.md §4): lịch TOÀN TRƯỜNG
+ * CHỈ CẦN 1 BƯỚC duyệt (Hiệu trưởng HOẶC Hiệu phó Điểm trường chính) —
+ * thay cho bản trước đó (Mr Tiến, 2026-08-27) yêu cầu tuần tự Hiệu phó rồi
+ * Hiệu trưởng. Giữ nguyên văn trả lời gốc của Mr Tiến để đối chiếu lịch sử:
  *   "Quyền duyệt theo vai trò và campus. Hiệu trưởng là quyền cao nhất ở
  *   mọi campus, có quyền tự chuyển trạng thái của mình và mọi người. Hiệu
  *   phó các campus sẽ có quyền trong campus do mình phụ trách, có quyền
  *   chuyển trạng thái của mình và mọi người trong campus. Các tổ trưởng sẽ
- *   có quyền được duyệt nhân viên trong tổ (cùng campus). Các lịch làm
- *   việc liên quan đến toàn trường sẽ phải đi qua Hiệu phó campus đó rồi
- *   đến Hiệu trưởng."
- *   "Luồng giao việc do người giao xác nhận nghiệm thu."
+ *   có quyền được duyệt nhân viên trong tổ (cùng campus)."
  *
  * GIẢ ĐỊNH CHƯA KIỂM CHỨNG (giữ nguyên từ bản gốc, cần Sin/Mr Tiến xác
  * nhận khi có dữ liệu thật): "Tổ trưởng duyệt nhân viên TRONG TỔ" được
@@ -83,32 +81,23 @@ export interface SchoolWideApprovalStep {
   finalStep?: boolean;
 }
 
-/**
- * Duyệt sự kiện TOÀN TRƯỜNG — bắt buộc tuần tự: Hiệu phó campus đó duyệt
- * TRƯỚC (ghi vào event.approvals), rồi mới tới Hiệu trưởng duyệt SAU thì
- * mới coi là hoàn tất (PUBLISHED). Hiệu trưởng duyệt trước khi có chữ ký
- * Hiệu phó vẫn ĐƯỢC (quyền cao nhất, không phụ thuộc thứ tự), nhưng Hiệu
- * phó bấm 2 lần thì lần 2 bị từ chối rõ lý do.
- */
-export function checkSchoolWideApprovalStep(
-  assignments: ActorAssignment[],
-  event: EventForApproval
-): SchoolWideApprovalStep {
-  const approvals = event.approvals || [];
-  const vpApproved = approvals.some((a) => a.role === 'R.VICE_PRINCIPAL');
-  const isPrincipal = hasRole(assignments, 'R.PRINCIPAL');
-  const isVicePrincipalHere = hasRole(assignments, 'R.VICE_PRINCIPAL', event.campusId);
+// Điểm trường chính — khớp VALID_CAMPUS_IDS[0] (work-schedule.schema.ts),
+// lặp lại hằng số chuỗi ở đây (không import để tránh vòng phụ thuộc) vì
+// spec §4 chốt rõ "Hiệu phó Điểm trường chính", không phải hiệu phó CAMPUS
+// của chính sự kiện đó.
+const MAIN_CAMPUS_ID = 'MAIN_CAMPUS';
 
-  if (isPrincipal) {
-    return { allowed: true, role: 'R.PRINCIPAL', finalStep: true };
-  }
-  if (isVicePrincipalHere) {
-    if (vpApproved) {
-      return { allowed: false, reason: 'Hiệu phó cơ sở này đã duyệt bước này rồi, đang chờ Hiệu trưởng.' };
-    }
-    return { allowed: true, role: 'R.VICE_PRINCIPAL', finalStep: false };
-  }
-  return { allowed: false, reason: 'Lịch toàn trường chỉ Hiệu phó cơ sở liên quan hoặc Hiệu trưởng mới được duyệt.' };
+/**
+ * Duyệt sự kiện TOÀN TRƯỜNG (2026-10-05, theo
+ * huong_dan_lich_cong_tac_giao_viec.md §4 — thay cho bản 2 bước tuần tự
+ * trước đó): CHỈ 1 BƯỚC — Hiệu trưởng HOẶC Hiệu phó Điểm trường chính,
+ * bất kỳ ai trong 2 vai trò đó duyệt là xong ngay (PUBLISHED), không cần
+ * người còn lại duyệt thêm.
+ */
+export function checkSchoolWideApprovalStep(assignments: ActorAssignment[]): SchoolWideApprovalStep {
+  if (hasRole(assignments, 'R.PRINCIPAL')) return { allowed: true, role: 'R.PRINCIPAL', finalStep: true };
+  if (hasRole(assignments, 'R.VICE_PRINCIPAL', MAIN_CAMPUS_ID)) return { allowed: true, role: 'R.VICE_PRINCIPAL', finalStep: true };
+  return { allowed: false, reason: 'Lịch toàn trường chỉ Hiệu trưởng hoặc Hiệu phó Điểm trường chính mới được duyệt.' };
 }
 
 export interface EventApprovalDecision {
@@ -128,7 +117,7 @@ export function evaluateEventApproval(
   actorPerId: string
 ): EventApprovalDecision {
   if (event.scope === SCOPE_SCHOOL_WIDE) {
-    const step = checkSchoolWideApprovalStep(assignments, event);
+    const step = checkSchoolWideApprovalStep(assignments);
     if (!step.allowed) return { allowed: false, reason: step.reason };
     return {
       allowed: true,
@@ -146,10 +135,13 @@ export function evaluateEventApproval(
 }
 
 /**
- * Nghiệm thu/trả lại 1 công việc: CHỈ người đã giao việc đó
- * (task.createdByPerId) mới được xác nhận COMPLETED/RETURNED — theo QUAN
- * HỆ với đúng task đó, không phải theo vai trò cố định.
+ * Lịch TOÀN TRƯỜNG (scope=SCHOOL_WIDE) — 2026-09-29 (Sin: "lịch toàn trường
+ * thì ko thể edit trừ tk có thẩm quyền kiêủ hiệu trưởng hiệu phó, người
+ * khác chỉ xem ko cho edit") — chỉ Hiệu trưởng/Phó Hiệu trưởng (bất kỳ cơ
+ * sở nào) được TẠO MỚI hoặc SỬA 1 sự kiện có scope=SCHOOL_WIDE. Dùng ở
+ * route (createEvent/updateRevisionEvent) TRƯỚC khi gọi service, không
+ * phải luật duyệt (module đã bỏ hẳn bước duyệt, xem createEvent).
  */
-export function canAcceptOrReturnTask(task: { createdByPerId: string }, actorPerId: string): boolean {
-  return task.createdByPerId === actorPerId;
+export function isLeadership(assignments: ActorAssignment[]): boolean {
+  return hasRole(assignments, 'R.PRINCIPAL') || assignments.some((a) => a.roleId === 'R.VICE_PRINCIPAL');
 }

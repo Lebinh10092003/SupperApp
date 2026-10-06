@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CirclePlus, ClipboardList, ArrowUp, ArrowDown, ArrowUpDown, BookmarkPlus, Check, ListFilter, MoreHorizontal, Search, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { CalendarDays, CirclePlus, ClipboardList, ArrowUp, ArrowDown, ArrowUpDown, BookmarkPlus, Check, ListFilter, MoreHorizontal, Search, X } from 'lucide-react';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
 import { useTasks, type WorkTask } from './hooks/useTasks';
 import { useActor } from './hooks/useActor';
 import { PersonPicker, type PersonOption } from '../safety/PersonPicker';
 import { AuditTrailPanel } from './AuditTrailPanel';
-import { CAMPUS_IDS, CAMPUS_LABEL, TASK_STATUS_LABEL, TASK_STATUS_COLOR, abbreviatePersonLabel } from './constants';
+import { DetailSection } from './EventsListPage';
+import { CAMPUS_IDS, CAMPUS_LABEL, TASK_STATUS_LABEL, TASK_STATUS_COLOR, abbreviatePersonLabel, formatScheduleDateTime } from './constants';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -21,7 +23,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { cn, formatDateTime } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 
 export function TaskStatusChip({ status }: { status: string }) {
   const c = TASK_STATUS_COLOR[status] || { bg: '#f1f5f9', fg: '#334155', border: '#e2e8f0' };
@@ -507,8 +509,8 @@ export default function TasksListPage() {
                 <TableCell onClick={(e) => e.stopPropagation()}>
                   <Checkbox checked={selectedIds.has(t.id)} onCheckedChange={(v) => toggleSelectOne(t.id, Boolean(v))} aria-label={`Chọn ${t.title}`} />
                 </TableCell>
-                <TableCell>{formatDateTime(t.createdAt)}</TableCell>
-                <TableCell>{formatDateTime(t.dueAt)}</TableCell>
+                <TableCell>{formatScheduleDateTime(t.createdAt)}</TableCell>
+                <TableCell>{formatScheduleDateTime(t.dueAt)}</TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2.5">
                     <Avatar size="sm" className="shrink-0 bg-slate-100">
@@ -669,6 +671,7 @@ export function TaskDetailDialog({
   // refreshKey để buộc tải lại "Lịch sử" ngay trong phiên mở dialog hiện
   // tại (xem chú thích trong AuditTrailPanel.tsx).
   const [historyVersion, setHistoryVersion] = useState(0);
+  const navigate = useNavigate();
 
   if (!task) return null;
   const isAssignee = task.assigneePerId === actorPerId;
@@ -694,31 +697,63 @@ export function TaskDetailDialog({
 
   return (
     <Dialog open onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{task.title}</DialogTitle>
         </DialogHeader>
-        <div className="flex flex-col gap-4">
+        <div className="flex min-w-0 flex-col gap-4">
           {actionError && (
             <Alert className="border-red-200 bg-red-50">
               <AlertDescription className="text-red-700">{actionError}</AlertDescription>
             </Alert>
           )}
           <TaskStatusChip status={task.status} />
-          {/* Luôn hiện đủ tên trường dù trống (Mr Tiến phản hồi 2026-09-21). */}
-          <div className="flex flex-col gap-1">
-            <p className="text-sm">
-              Cơ sở: <strong>{CAMPUS_LABEL[task.campusId] || task.campusId}</strong>
-            </p>
-            <p className="text-sm">
-              Người giao: {task.createdByLabel || task.createdByName || task.createdByPerId} — Người thực hiện:{' '}
-              {task.assigneeLabel || task.assigneeName || task.assigneePerId}
-            </p>
-            <p className="text-sm">Ngày giao: {formatDateTime(task.createdAt)}</p>
-            <p className="text-sm">Hạn: {formatDateTime(task.dueAt)}</p>
-            <p className="text-sm text-slate-500">Nội dung: {task.description || '—'}</p>
-          </div>
-          <AuditTrailPanel entityType="task" entityId={task.id} refreshKey={historyVersion} />
+
+          {/* Khớp bố cục nhóm theo thẻ của phiếu chi tiết Lịch công tác
+              (EventsListPage.tsx#EventDetailDialog) — Sin yêu cầu
+              2026-10-05 dùng chung UX/pattern thay vì 1 khối text dài. */}
+          <DetailSection title="Thông tin chung">
+            <div className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
+              <p className="text-sm">
+                Cơ sở: <strong>{CAMPUS_LABEL[task.campusId] || task.campusId}</strong>
+              </p>
+              <p className="text-sm">Ngày giao: {formatScheduleDateTime(task.createdAt)}</p>
+              <p className="text-sm">Hạn: {formatScheduleDateTime(task.dueAt)}</p>
+            </div>
+          </DetailSection>
+
+          <DetailSection title="Người liên quan">
+            <div className="flex flex-col gap-1">
+              <p className="text-sm">Người giao: {task.createdByLabel || task.createdByName || task.createdByPerId}</p>
+              <p className="text-sm">Người thực hiện: {task.assigneeLabel || task.assigneeName || task.assigneePerId}</p>
+            </div>
+          </DetailSection>
+
+          <DetailSection title="Nội dung">
+            <p className="text-sm whitespace-pre-wrap">{task.description || '—'}</p>
+          </DetailSection>
+
+          {/* "Lịch công tác gốc" — CHỈ hiện khi việc này được sinh ra từ 1
+              lịch công tác (eventId khác null); việc tạo độc lập không có
+              mục này, không hiện mã ID thô (Sin yêu cầu 2026-10-05). Bấm
+              vào tên điều hướng sang /work-schedule?eventId=... — trang đó
+              tự mở đúng phiếu chi tiết (xem EventsListPage.tsx). */}
+          {task.eventId && (
+            <DetailSection title="Lịch công tác gốc">
+              <button
+                type="button"
+                onClick={() => navigate(`/work-schedule?eventId=${task.eventId}`)}
+                className="flex items-center gap-2 text-sm font-medium text-primary hover:underline"
+              >
+                <CalendarDays className="size-4 shrink-0" />
+                {task.eventTitle || 'Xem lịch công tác'}
+              </button>
+            </DetailSection>
+          )}
+
+          <DetailSection title="Lịch sử">
+            <AuditTrailPanel entityType="task" entityId={task.id} refreshKey={historyVersion} />
+          </DetailSection>
         </div>
         <DialogFooter className="flex-wrap gap-1.5 sm:justify-start">
           {task.status === 'ASSIGNED' && isAssignee && (

@@ -47,6 +47,38 @@ function normalizeHeader(s: string): string {
 }
 const HEADER_LOOKUP = new Map(COLUMNS.map((c) => [normalizeHeader(c.header), c.key]));
 
+/** Ví dụ 1 dòng dữ liệu mẫu cho file mẫu tải về — đúng key trong COLUMNS. */
+const SAMPLE_ROW: Record<string, string> = {
+  stt: '1',
+  examDate: '20/12/2026',
+  dayOfWeek: 'Thứ Hai',
+  session: 'Sáng',
+  periodLabel: '1',
+  timeLabel: '07:30',
+  subject: 'Toán',
+  className: '8A1',
+  firstProctorName: 'Nguyễn Văn A',
+  secondProctorName: 'Trần Thị B',
+  note: ''
+};
+
+/** Sinh file CSV mẫu TỪ CHÍNH `COLUMNS` (header cột ngày chỉ là "Ngày",
+ * không nhét định dạng vào tên cột — Sin yêu cầu 2026-10-05) — đảm bảo
+ * template tải về và parser phía trên LUÔN khớp nhau, không lệch khi 1 bên
+ * đổi mà quên đổi bên kia. */
+function downloadTemplateCsv() {
+  const header = COLUMNS.map((c) => c.header).join(',');
+  const sample = COLUMNS.map((c) => SAMPLE_ROW[c.key] ?? '').join(',');
+  const csv = '﻿' + header + '\n' + sample + '\n';
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'mau-lich-trong-thi.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 /** Parser CSV tối giản (đủ dùng cho file xuất từ Excel/Google Sheets) —
  * không xử lý escape RFC 4180 đầy đủ, nhưng đủ cho dấu phẩy trong ngoặc kép. */
 function parseCsv(text: string): string[][] {
@@ -176,6 +208,11 @@ export function ExamImportDialog({ open, onClose, onImported }: { open: boolean;
           <DialogTitle>Nhập Lịch trông thi từ file</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-4">
+          <Button type="button" variant="outline" size="sm" onClick={downloadTemplateCsv} className="self-start">
+            <Download className="size-4" />
+            Tải file mẫu
+          </Button>
+
           <div>
             <Label className="mb-1.5 block">Điểm trường *</Label>
             <Select value={campusId} onValueChange={setCampusId}>
@@ -279,8 +316,13 @@ export function ExamImportDialog({ open, onClose, onImported }: { open: boolean;
           <Alert className="border-slate-200 bg-slate-50">
             <Download className="size-4" />
             <AlertDescription className="text-slate-600">
-              Dòng đầu file phải là tiêu đề đúng tên cột (không phân biệt hoa/thường, có/không dấu): STT, Ngày (dd/mm/yyyy), Thứ, Buổi, Tiết KS, Giờ, Môn
-              khảo sát, Lớp, GV tiết đầu, GV tiết sau, Ghi chú.
+              {/* Header cột CHỈ là tên cột, không nhét định dạng vào tên (Sin
+                  yêu cầu 2026-10-05: "KHÔNG dùng 'Ngày (dd/mm/yyyy)' hay biến
+                  thể chứa format trong tên cột") — hướng dẫn định dạng để
+                  RIÊNG 1 câu phía sau, không ghép dính vào tên cột "Ngày". */}
+              Dòng đầu file phải là tiêu đề đúng tên cột (không phân biệt hoa/thường, có/không dấu): {COLUMNS.map((c) => c.header).join(', ')}.
+              <br />
+              Cột "Ngày" nhập theo định dạng dd/mm/yyyy (VD: 20/12/2026).
             </AlertDescription>
           </Alert>
         </div>

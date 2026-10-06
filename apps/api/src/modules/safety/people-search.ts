@@ -21,6 +21,7 @@ const MAX_RESULTS = 10;
 export interface PersonResult {
   perId: string;
   name: string;
+  email?: string | null;
 }
 
 /**
@@ -29,9 +30,10 @@ export interface PersonResult {
  * `query` đã chuẩn hoá tương tự (so khớp substring) — Sin yêu cầu
  * 2026-09-24: gõ email cũng phải tìm ra được, không chỉ gõ tên.
  *
- * CHỈ trả về `{ perId, name }` cho mỗi người — TUYỆT ĐỐI không trả
- * `email`/`uid`/field nào khác (yêu cầu bảo mật đã chốt, không phải tuỳ
- * chọn) — email chỉ dùng để SO KHỚP nội bộ, không lộ ra response.
+ * Trả về thêm `email` kèm `{ perId, name }` (2026-10-05, Sin: "ô input tìm
+ * kiếm hiện tên người nhưng thiếu – email... cho tìm theo cả tên và
+ * email") — ĐỔI quyết định bảo mật cũ (trước đây cố tình giấu email để
+ * chống dò người) theo đúng yêu cầu mới, xác nhận trực tiếp từ Sin.
  */
 export async function searchPeopleByName(db: Db, query: string | null | undefined): Promise<PersonResult[]> {
   const raw = String(query || '').trim();
@@ -41,7 +43,7 @@ export async function searchPeopleByName(db: Db, query: string | null | undefine
   if (!normQuery) return [];
 
   const rows = await db.select().from(accounts);
-  const matched: Array<{ perId: string; name: string }> = [];
+  const matched: Array<{ perId: string; name: string; email: string | null }> = [];
   for (const row of rows) {
     if (matched.length >= MAX_RESULTS) break;
     const name = row.displayName;
@@ -50,12 +52,14 @@ export async function searchPeopleByName(db: Db, query: string | null | undefine
     const emailMatches = Boolean(row.email) && normalizeForMatch(row.email).includes(normQuery);
     if (!nameMatches && !emailMatches) continue;
     if (!row.perId) continue;
-    matched.push({ perId: row.perId, name });
+    matched.push({ perId: row.perId, name, email: row.email ?? null });
   }
 
   // GVCN gắn theo lớp phụ trách -> nối thêm "- GVCN (<lớp>)" sau tên thật (Sin chốt 2026-09-24).
   const overrides = await getHomeroomOverridesByPerIds(db, matched.map((m) => m.perId));
-  return matched.slice(0, MAX_RESULTS).map((m) => ({ perId: m.perId, name: withHomeroomSuffix(m.name, overrides[m.perId], m.perId) }));
+  return matched
+    .slice(0, MAX_RESULTS)
+    .map((m) => ({ perId: m.perId, name: withHomeroomSuffix(m.name, overrides[m.perId], m.perId), email: m.email }));
 }
 
 /**

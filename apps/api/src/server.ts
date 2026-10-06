@@ -4,6 +4,7 @@ import cors from 'cors';
 import { env } from './config/env.js';
 import { errorHandler, asyncRoute } from './core/http.js';
 import { verifyPubSub } from './auth/pubsub.js';
+import { contactsRouter } from './modules/identity/contacts.routes.js';
 import { healthRouter } from './modules/health/health.routes.js';
 import { sessionRouter } from './modules/session/session.routes.js';
 import { dashboardRouter } from './modules/dashboard/dashboard.routes.js';
@@ -32,6 +33,8 @@ import { directoryAssignmentsRouter } from './modules/safety/directory-assignmen
 import { meRouter } from './modules/safety/me.routes.js';
 import { savedFiltersRouter } from './modules/safety/saved-filters.routes.js';
 import { workScheduleRouter } from './modules/work-schedule/work-schedule.routes.js';
+import { weeklySheetRouter } from './modules/work-schedule/weekly-sheet.routes.js';
+import { examScheduleRouter } from './modules/work-schedule/exam-schedule.routes.js';
 import { handleMeetEvent } from './modules/meet/meet.events.js';
 
 const app = express();
@@ -74,6 +77,10 @@ app.use('/api/data-quality', dataQualityRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/system', systemRouter);
 app.use('/api/admin', adminRouter);
+// Sổ danh bạ nội bộ (nhóm liên hệ cá nhân/toàn trường, bổ sung 2026-10-02 —
+// xem contacts.routes.ts). Router riêng, không gắn dưới /api/safety vì
+// dùng được từ bất kỳ module nào (Lịch công tác, An toàn...).
+app.use('/api/contacts', contactsRouter);
 
 // Routers mở rộng chuyên sâu cho School Intelligence
 app.use('/api/connections', connectionsRouter);
@@ -103,6 +110,8 @@ app.use('/api/safety', meRouter);
 // Module Lịch công tác và Giao việc (K2: đặt tên "work-schedule" tránh đụng
 // /api/schedules có sẵn — đó là thời khoá biểu lớp học, khác nghiệp vụ).
 app.use('/api/work-schedule', workScheduleRouter);
+app.use('/api/work-schedule', weeklySheetRouter);
+app.use('/api/work-schedule', examScheduleRouter);
 
 app.post(
   '/events/meet',
