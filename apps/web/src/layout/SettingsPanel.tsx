@@ -1,5 +1,5 @@
-import { Laptop, Moon, Sun } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Laptop, Moon, Settings, Sun } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useTheme, type FontScale, type ThemeMode } from '../theme/ThemeProvider';
 
@@ -18,24 +18,11 @@ const FONT_SCALE_OPTIONS: { value: FontScale; label: string }[] = [
 /** Nút cài đặt giao diện ở Topbar — chọn Sáng/Tối/Theo hệ thống + cỡ chữ,
  * lưu localStorage qua ThemeProvider.tsx (xem file đó). Không cần backend —
  * đây là tuỳ chọn hiển thị cá nhân, không phải dữ liệu nghiệp vụ. */
-export function SettingsPanel() {
+export function AppearanceSettings() {
   const { theme, setTheme, fontScale, setFontScale } = useTheme();
 
   return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          className="flex size-8 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
-          aria-label="Cài đặt giao diện"
-        >
-          <Sun className="size-[18px] dark:hidden" />
-          <Moon className="hidden size-[18px] dark:block" />
-        </button>
-      </PopoverTrigger>
-
-      <PopoverContent align="end" className="w-72">
-        <div className="space-y-4">
+        <div className="max-w-xl space-y-5">
           <div>
             <p className="mb-2 text-xs font-bold text-slate-500 dark:text-slate-400">Giao diện</p>
             <div className="grid grid-cols-3 gap-1.5">
@@ -79,7 +66,10 @@ export function SettingsPanel() {
             </div>
           </div>
         </div>
-      </PopoverContent>
-    </Popover>
   );
+}
+
+export function SettingsPanel() {
+  const navigate = useNavigate();
+  return <button type="button" onClick={() => navigate('/settings')} className="flex size-8 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800" aria-label="Cài đặt"><Settings className="size-[18px]" /></button>;
 }

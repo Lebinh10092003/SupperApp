@@ -145,3 +145,17 @@ export function evaluateEventApproval(
 export function isLeadership(assignments: ActorAssignment[]): boolean {
   return hasRole(assignments, 'R.PRINCIPAL') || assignments.some((a) => a.roleId === 'R.VICE_PRINCIPAL');
 }
+
+/**
+ * V3: quyền quản lý lịch thay cho luồng phê duyệt cũ. Các vai trò này có
+ * thể tạo lịch toàn trường và tạo/chỉnh lịch thay người khác. Quản trị hệ
+ * thống không mặc nhiên có quyền nghiệp vụ; Văn phòng là vai trò vận hành
+ * lịch được giao quyền rõ ràng bên cạnh Ban giám hiệu.
+ */
+export function canManageSchoolCalendar(assignments: ActorAssignment[]): boolean {
+  return isLeadership(assignments) || hasRole(assignments, 'R.OFFICE_ADMIN');
+}
+
+export function canCreateScheduleForOthers(assignments: ActorAssignment[]): boolean {
+  return canManageSchoolCalendar(assignments);
+}

@@ -49,10 +49,11 @@ import {
   getPublicHolidays,
   getDashboardSummary
 } from './work-schedule.service.js';
-import { isLeadership } from './work-schedule.authz.js';
+import { canCreateScheduleForOthers, canManageSchoolCalendar, isLeadership } from './work-schedule.authz.js';
 import { buildIcsCalendar } from './ics.js';
 import { ltcTasks } from './work-schedule.schema.js';
 import { eq } from 'drizzle-orm';
+import { validateEventImportRows, validateTaskImportRows, type EventImportRow, type ImportError, type TaskImportRow } from './work-schedule-import.js';
 
 export const workScheduleRouter = Router();
 
@@ -84,6 +85,57 @@ function parseStatuses(raw: unknown): string[] | undefined {
   return raw.split(',').map((s) => s.trim()).filter(Boolean);
 }
 
+function validateImport(kind: string, rows: unknown[], actorPerId: string) {
+  return kind === 'events'
+    ? validateEventImportRows(rows as EventImportRow[], actorPerId)
+    : kind === 'tasks'
+      ? validateTaskImportRows(rows as TaskImportRow[], actorPerId)
+      : null;
+}
+
+workScheduleRouter.post('/imports/preview', firebaseAuth, withAppError(async (req, res) => {
+  const actor = await loadActorContext(db, req.appUser!.uid);
+  const kind = String(req.body?.kind || '');
+  const rows = Array.isArray(req.body?.rows) ? req.body.rows : [];
+  const result = validateImport(kind, rows, actor.perId);
+  if (!result) throw new HttpError(400, 'Loại import không hợp lệ.', 'INVALID_INPUT');
+  const errors: ImportError[] = [...result.errors];
+  if (kind === 'events') {
+    for (const row of result.normalized as ReturnType<typeof validateEventImportRows>['normalized']) {
+      if (row.scope === 'SCHOOL_WIDE' && !canManageSchoolCalendar(actor.roles)) errors.push({ row: row.rowNumber, column: 'Phạm vi', value: row.scope, message: 'Không có quyền tạo lịch toàn trường.' });
+      if (row.chairPerId !== actor.perId && !canCreateScheduleForOthers(actor.roles)) errors.push({ row: row.rowNumber, column: 'Chủ trì', value: row.chairPerId, message: 'Không có quyền tạo lịch cho người khác.' });
+    }
+  }
+  res.json({ valid: errors.length === 0, errors, rows: result.normalized.map((row) => ({ ...row, startAt: row.startAt?.toISOString() || null, endAt: 'endAt' in row ? row.endAt?.toISOString() || null : undefined, dueAt: 'dueAt' in row ? row.dueAt?.toISOString() || null : undefined })) });
+}));
+
+workScheduleRouter.post('/imports/apply', firebaseAuth, withAppError(async (req, res) => {
+  if (req.body?.confirm !== true) throw new HttpError(400, 'Phải xác nhận bản xem trước trước khi import.', 'CONFIRMATION_REQUIRED');
+  const actor = await loadActorContext(db, req.appUser!.uid);
+  const kind = String(req.body?.kind || '');
+  const rows = Array.isArray(req.body?.rows) ? req.body.rows : [];
+  const result = validateImport(kind, rows, actor.perId);
+  if (!result) throw new HttpError(400, 'Loại import không hợp lệ.', 'INVALID_INPUT');
+  const errors: ImportError[] = [...result.errors];
+  if (kind === 'events') {
+    for (const row of result.normalized as ReturnType<typeof validateEventImportRows>['normalized']) {
+      if (row.scope === 'SCHOOL_WIDE' && !canManageSchoolCalendar(actor.roles)) errors.push({ row: row.rowNumber, column: 'Phạm vi', value: row.scope, message: 'Không có quyền tạo lịch toàn trường.' });
+      if (row.chairPerId !== actor.perId && !canCreateScheduleForOthers(actor.roles)) errors.push({ row: row.rowNumber, column: 'Chủ trì', value: row.chairPerId, message: 'Không có quyền tạo lịch cho người khác.' });
+    }
+  }
+  if (errors.length) return void res.status(400).json({ error: { message: 'Dữ liệu import chưa hợp lệ.' }, errors });
+  const created = await db.transaction(async (tx) => {
+    const output: unknown[] = [];
+    if (kind === 'events') {
+      for (const row of result.normalized as ReturnType<typeof validateEventImportRows>['normalized']) output.push(await createEvent(tx as any, { ...row, createdByPerId: actor.perId, startAt: row.startAt!, endAt: row.endAt }));
+    } else {
+      for (const row of result.normalized as ReturnType<typeof validateTaskImportRows>['normalized']) output.push(await createTask(tx as any, { ...row, createdByPerId: actor.perId, dueAt: row.dueAt! }));
+    }
+    return output;
+  });
+  res.status(201).json({ imported: created.length, items: created });
+}));
+
 // ---------------------------------------------------------------------
 // Events
 // ---------------------------------------------------------------------
@@ -98,8 +150,12 @@ workScheduleRouter.post(
     // 2026-09-29 (Sin: "lịch toàn trường thì ko thể edit trừ tk có thẩm
     // quyền kiêủ hiệu trưởng hiệu phó") — chặn NGAY ở route (không tin
     // client tự khai scope), trước khi vào service.
-    if (d.scope === 'SCHOOL_WIDE' && !isLeadership(actor.roles)) {
-      throw new HttpError(403, 'Chỉ Hiệu trưởng/Phó Hiệu trưởng mới được tạo lịch toàn trường.', 'FORBIDDEN');
+    if (d.scope === 'SCHOOL_WIDE' && !canManageSchoolCalendar(actor.roles)) {
+      throw new HttpError(403, 'Bạn không có quyền tạo lịch toàn trường.', 'FORBIDDEN');
+    }
+    const chairPerId = typeof d.chairPerId === 'string' && d.chairPerId ? d.chairPerId : actor.perId;
+    if (chairPerId !== actor.perId && !canCreateScheduleForOthers(actor.roles)) {
+      throw new HttpError(403, 'Bạn chỉ được tạo lịch cá nhân cho chính mình.', 'FORBIDDEN');
     }
     const row = await createEvent(db, {
       title: d.title,
@@ -110,7 +166,7 @@ workScheduleRouter.post(
       startAt: d.startAt ? new Date(d.startAt) : undefined!,
       endAt: d.endAt ? new Date(d.endAt) : undefined!,
       location: d.location,
-      chairPerId: d.chairPerId || actor.perId,
+      chairPerId,
       participantPerIds: d.participantPerIds,
       externalParticipants: d.externalParticipants,
       departmentDomain: d.departmentDomain,
@@ -135,12 +191,16 @@ workScheduleRouter.patch(
     const d = req.body || {};
     // Cùng chốt chặn với POST /events ở trên — sửa 1 lịch (đang hoặc sẽ)
     // toàn trường cũng cần đúng vai trò lãnh đạo, không chỉ lúc tạo mới.
-    if (d.scope === 'SCHOOL_WIDE' && !isLeadership(actor.roles)) {
-      throw new HttpError(403, 'Chỉ Hiệu trưởng/Phó Hiệu trưởng mới được sửa lịch toàn trường.', 'FORBIDDEN');
+    if (d.scope === 'SCHOOL_WIDE' && !canManageSchoolCalendar(actor.roles)) {
+      throw new HttpError(403, 'Bạn không có quyền sửa lịch toàn trường.', 'FORBIDDEN');
+    }
+    if (d.chairPerId && d.chairPerId !== actor.perId && !canCreateScheduleForOthers(actor.roles)) {
+      throw new HttpError(403, 'Bạn không có quyền chuyển lịch cho người khác.', 'FORBIDDEN');
     }
     const row = await updateRevisionEvent(db, {
       eventId: String(req.params.id),
       actorPerId: actor.perId,
+      actorAssignments: actor.roles,
       eventData: {
         title: d.title,
         description: d.description,
@@ -247,7 +307,7 @@ workScheduleRouter.delete(
   firebaseAuth,
   withAppError(async (req, res) => {
     const actor = await loadActorContext(db, req.appUser!.uid);
-    await deleteEvent(db, String(req.params.id), actor.perId, { isAdmin: isLeadership(actor.roles) });
+    await deleteEvent(db, String(req.params.id), actor.perId, { isAdmin: canManageSchoolCalendar(actor.roles) });
     res.json({ ok: true });
   })
 );

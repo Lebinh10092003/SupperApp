@@ -19,9 +19,9 @@
  *     danh bạ riêng".
  */
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Check, Loader2, Mail, Phone, Plus, Search, Settings, Trash2, Users, X } from 'lucide-react';
+import { ArrowLeft, Check, Loader2, Mail, Phone, Plus, Search, Trash2, Users, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../../services/api';
-import { useAuth } from '../../auth/AuthProvider';
 import type { PersonOption } from '../safety/PersonPicker';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -43,8 +43,6 @@ import {
 
 // Khớp đúng ROLES_USER_MANAGEMENT ở apps/web/src/app/App.tsx — cùng tập
 // vai trò được backend cấp capability MANAGE_USERS (contacts.routes.ts).
-const CAN_MANAGE_SCHOOL_GROUPS = ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL'];
-
 function usePeopleSearch(query: string) {
   const [options, setOptions] = useState<PersonOption[]>([]);
   const [loading, setLoading] = useState(false);
@@ -131,7 +129,7 @@ function PersonRow({
 // Màn hình QUẢN LÝ — tạo/đổi tên/xoá nhóm, thêm/xoá thành viên. Mở từ
 // nút bánh răng trong màn hình chọn người, KHÔNG xen vào luồng chọn.
 // ---------------------------------------------------------------------
-function ManageGroupsView({ canCreateSchoolGroup, onBack }: { canCreateSchoolGroup: boolean; onBack: () => void }) {
+export function ContactGroupsManager({ canCreateSchoolGroup, onBack }: { canCreateSchoolGroup: boolean; onBack?: () => void }) {
   const [groups, setGroups] = useState<ContactGroup[]>([]);
   const [details, setDetails] = useState<Record<string, ContactDetail>>({});
   const [loading, setLoading] = useState(true);
@@ -153,10 +151,7 @@ function ManageGroupsView({ canCreateSchoolGroup, onBack }: { canCreateSchoolGro
 
   return (
     <div className="flex flex-col gap-3">
-      <Button variant="ghost" size="sm" className="w-fit px-1.5 text-slate-500" onClick={onBack}>
-        <ArrowLeft className="size-3.5" />
-        Quay lại chọn người
-      </Button>
+      {onBack && <Button variant="ghost" size="sm" className="w-fit px-1.5 text-slate-500" onClick={onBack}><ArrowLeft className="size-3.5" />Quay lại chọn người</Button>}
 
       {loading && (
         <div className="flex items-center justify-center gap-2 py-6 text-sm text-slate-500">
@@ -447,6 +442,7 @@ function PickPeopleView({
   // (Sin yêu cầu "input sẵn những người đã chọn ở ngoài nếu có"), chỉ áp
   // dụng khi đóng bằng nút "Xong" (không ảnh hưởng form cha cho tới lúc đó).
   const [picked, setPicked] = useState<PersonOption[]>(selected);
+  const [pickedGroupIds, setPickedGroupIds] = useState<string[]>([]);
 
   useEffect(() => {
     listContactGroups()
@@ -470,8 +466,14 @@ function PickPeopleView({
       onPick?.(person);
       return;
     }
+    setPickedGroupIds((previous) => previous.filter((groupId) => !groups.find((group) => group.groupId === groupId)?.perIds.includes(person.perId)));
     setPicked((prev) => (prev.some((p) => p.perId === person.perId) ? prev.filter((p) => p.perId !== person.perId) : [...prev, person]));
   };
+
+  const pickedGroupPeople = new Set(groups.filter((group) => pickedGroupIds.includes(group.groupId)).flatMap((group) => group.perIds));
+  const individuallyPicked = picked.filter((person) => !pickedGroupPeople.has(person.perId));
+  const visiblePoolItems = individuallyPicked.slice(0, Math.max(0, 4 - pickedGroupIds.length));
+  const hiddenPoolCount = individuallyPicked.length - visiblePoolItems.length;
 
   return (
     <div className="flex flex-col gap-3">
@@ -482,7 +484,13 @@ function PickPeopleView({
 
       {multi && picked.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
-          {picked.map((p) => (
+          {groups.filter((group) => pickedGroupIds.includes(group.groupId)).slice(0, 4).map((group) => (
+            <Badge key={group.groupId} variant="outline" className="gap-1 border-transparent bg-violet-50 text-violet-700">
+              <Users className="size-3" />{group.name}
+              <span role="button" tabIndex={-1} onClick={() => { setPickedGroupIds((previous) => previous.filter((id) => id !== group.groupId)); setPicked((previous) => previous.filter((person) => !group.perIds.includes(person.perId))); }}><X className="size-3" /></span>
+            </Badge>
+          ))}
+          {visiblePoolItems.map((p) => (
             <Badge key={p.perId} variant="outline" className="gap-1 border-transparent bg-secondary text-[#1d4ed8]">
               {p.name}
               <span role="button" tabIndex={-1} onClick={() => setPicked((prev) => prev.filter((x) => x.perId !== p.perId))}>
@@ -490,6 +498,7 @@ function PickPeopleView({
               </span>
             </Badge>
           ))}
+          {hiddenPoolCount > 0 && <Badge variant="outline" className="border-transparent bg-slate-100 text-slate-600" title={individuallyPicked.slice(visiblePoolItems.length).map((person) => person.name).join(', ')}>+{hiddenPoolCount} người khác</Badge>}
         </div>
       )}
 
@@ -516,10 +525,27 @@ function PickPeopleView({
       )}
 
       {!loading &&
-        groups.map((g) => (
+        groups.map((g) => {
+          const groupPeople = g.perIds.map((perId) => ({ perId, name: details[perId]?.name || perId }));
+          const allSelected = groupPeople.length > 0 && groupPeople.every((person) => isChecked(person.perId));
+          const toggleGroup = () => {
+            const groupIds = new Set(groupPeople.map((person) => person.perId));
+            if (allSelected) {
+              setPickedGroupIds((ids) => ids.filter((id) => id !== g.groupId));
+              setPicked((previous) => previous.filter((person) => !groupIds.has(person.perId)));
+              return;
+            }
+            setPickedGroupIds((ids) => [...new Set([...ids, g.groupId])]);
+            setPicked((previous) => {
+              const merged = new Map(previous.map((person) => [person.perId, person]));
+              for (const person of groupPeople) merged.set(person.perId, person);
+              return [...merged.values()];
+            });
+          };
+          return (
           <div key={g.groupId} className="rounded-lg border border-slate-200 p-3 dark:border-slate-800">
-            <div className="mb-1.5 flex items-center gap-1.5">
-              <p className="text-sm font-bold">{g.name}</p>
+            <div className="mb-1.5 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5"><p className="text-sm font-bold">{g.name}</p>
               <span
                 className={cn(
                   'rounded px-1.5 py-0.5 text-[11px] font-bold',
@@ -528,6 +554,8 @@ function PickPeopleView({
               >
                 {g.scope === 'school' ? 'Toàn trường' : 'Của tôi'}
               </span>
+              </div>
+              {multi && g.perIds.length > 0 && <Button variant={allSelected ? 'secondary' : 'outline'} size="sm" className="h-7 text-xs" onClick={toggleGroup}>{allSelected ? 'Bỏ chọn nhóm' : `Chọn nhóm (${g.perIds.length})`}</Button>}
             </div>
             {g.perIds.length === 0 && <p className="text-xs text-slate-400">Chưa có ai trong nhóm.</p>}
             {g.perIds.map((perId) => {
@@ -536,7 +564,8 @@ function PickPeopleView({
               return <PersonRow key={perId} person={person} detail={d} multi={multi} checked={isChecked(perId)} onToggle={() => handleToggle(person)} />;
             })}
           </div>
-        ))}
+          );
+        })}
 
       {multi && (
         <DialogFooter>
@@ -562,14 +591,11 @@ export function ContactGroupPickerButton({
   selected?: PersonOption[];
 }) {
   const [open, setOpen] = useState(false);
-  const [view, setView] = useState<'pick' | 'manage'>('pick');
-  const { profile } = useAuth();
-  const canCreateSchoolGroup = CAN_MANAGE_SCHOOL_GROUPS.includes(profile?.role || '');
+  const navigate = useNavigate();
   const multi = !!onPickMultiple;
 
   const handleOpenChange = (v: boolean) => {
     setOpen(v);
-    if (v) setView('pick');
   };
 
   return (
@@ -585,24 +611,11 @@ export function ContactGroupPickerButton({
 
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="max-h-[85vh] min-w-0 overflow-y-auto sm:max-w-2xl">
-          <DialogHeader className="flex-row items-center justify-between">
-            <DialogTitle>{view === 'pick' ? 'Sổ danh bạ' : 'Quản lý sổ danh bạ'}</DialogTitle>
-            {view === 'pick' && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon-xs" onClick={() => setView('manage')}>
-                    <Settings className="size-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Quản lý nhóm/danh bạ</TooltipContent>
-              </Tooltip>
-            )}
-          </DialogHeader>
-
-          {view === 'manage' ? (
-            <ManageGroupsView canCreateSchoolGroup={canCreateSchoolGroup} onBack={() => setView('pick')} />
-          ) : (
-            <PickPeopleView
+          <DialogHeader><DialogTitle>Sổ danh bạ</DialogTitle></DialogHeader>
+          <Button variant="ghost" size="sm" className="w-fit px-1 text-primary" onClick={() => { setOpen(false); navigate('/settings?section=contacts'); }}>
+            Chỉnh sửa sổ danh bạ trong Cài đặt
+          </Button>
+          <PickPeopleView
               multi={multi}
               selected={selected || []}
               onPick={(p) => {
@@ -614,7 +627,6 @@ export function ContactGroupPickerButton({
                 setOpen(false);
               }}
             />
-          )}
         </DialogContent>
       </Dialog>
     </>

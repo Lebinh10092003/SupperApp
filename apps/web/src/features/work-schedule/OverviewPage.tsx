@@ -181,8 +181,7 @@ export default function OverviewPage() {
       <EventDetailDialog
         event={eventDetail}
         actorPerId={actor?.perId}
-        canApprove={false}
-        isPrincipal={false}
+        canManageSchoolCalendar={false}
         onClose={() => setEventDetail(null)}
         onChanged={(updated) => {
           setEventDetail((prev) => (prev ? { ...prev, ...updated } : updated));

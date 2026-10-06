@@ -1,15 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { CirclePlus, CalendarDays, Download, ArrowUp, ArrowDown, ArrowUpDown, BookmarkPlus, Check, ListFilter, MoreHorizontal, Search, X } from 'lucide-react';
-import { PageHeader } from '../../components/PageHeader';
+import { CirclePlus, CalendarDays, Download, FileUp, ArrowUp, ArrowDown, ArrowUpDown, BookmarkPlus, ListFilter, MoreHorizontal, Search, X } from 'lucide-react';
 import { api } from '../../services/api';
 import { env } from '../../config/env';
 import { useEvents, type WorkEvent } from './hooks/useEvents';
 import { useTasks } from './hooks/useTasks';
 import { useActor } from './hooks/useActor';
 import { PeopleMultiPicker } from './components/PeopleMultiPicker';
-import { WeekView } from './components/WeekView';
+import { WeeklyTableView } from './components/WeeklyTableView';
 import { MonthView } from './components/MonthView';
+import { AgendaView, DayView } from './components/DayAgendaViews';
+import { WorkScheduleImportDialog } from './components/WorkScheduleImportDialog';
 import { PersonPicker, type PersonOption } from '../safety/PersonPicker';
 import { AuditTrailPanel } from './AuditTrailPanel';
 import { TaskStatusChip } from './TasksListPage';
@@ -18,7 +19,6 @@ import {
   CAMPUS_LABEL,
   EVENT_STATUS_LABEL,
   EVENT_STATUS_COLOR,
-  EVENT_STATUS_STEPS,
   abbreviatePersonLabel,
   formatScheduleDateTime
 } from './constants';
@@ -26,7 +26,6 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
@@ -48,15 +47,18 @@ export function EventStatusChip({ status }: { status: string }) {
   );
 }
 
-/** Advisory only (giống hệt cách module An toàn làm) — server luôn kiểm tra lại thật qua work-schedule.authz.ts. */
+/** UI advisory only; API/service authorization remains authoritative. */
+export function canManageSchoolCalendarClientSide(roles: { roleId: string }[]): boolean {
+  return roles.some((role) => ['R.PRINCIPAL', 'R.VICE_PRINCIPAL', 'R.OFFICE_ADMIN'].includes(role.roleId));
+}
+
+/** Legacy-history helper retained for the archived approval page and reminders. */
 export function canApproveClientSide(roles: { roleId: string; campusId: string | null; domain: string | null }[], event: WorkEvent): boolean {
   const has = (roleId: string, campusId?: string | null, domain?: string | null) =>
-    roles.some((r) => r.roleId === roleId && (!campusId || !r.campusId || r.campusId === campusId) && (!domain || !r.domain || r.domain === domain));
+    roles.some((role) => role.roleId === roleId && (!campusId || !role.campusId || role.campusId === campusId) && (!domain || !role.domain || role.domain === domain));
   if (has('R.PRINCIPAL')) return true;
   if (has('R.VICE_PRINCIPAL', event.campusId)) return true;
-  if (event.scope === 'SCHOOL_WIDE') return false;
-  if (has('R.DEPT_HEAD', event.campusId, event.departmentDomain)) return true;
-  return false;
+  return event.scope !== 'SCHOOL_WIDE' && has('R.DEPT_HEAD', event.campusId, event.departmentDomain);
 }
 
 /** Khối nhóm thông tin trong phiếu chi tiết — §9 đặc tả: "các trường thông
@@ -96,49 +98,6 @@ const ALL_STATUS = '__all_status__';
 const SCHOOL_WIDE = 'SCHOOL_WIDE';
 
 type EventSortKey = 'startAt' | 'title' | 'campusId' | 'chair' | 'status';
-
-function MiniStepper({ steps, activeIndex }: { steps: readonly string[]; activeIndex: number }) {
-  // Bước cuối (PUBLISHED/"Đã ban hành") là trạng thái ĐÍCH, không phải bước
-  // "đang xử lý" — nên khi activeIndex trỏ đúng bước cuối, hiển thị như đã
-  // hoàn tất (dấu check, tô đầy) thay vì vòng tròn số "đang ở đây" như các
-  // bước giữa (Sin phát hiện 2026-10-05: "Đã ban hành" hiện số "3" trống
-  // thay vì dấu check dù sự kiện đã thực sự PUBLISHED ở backend).
-  const isDone = (i: number) => i < activeIndex || (i === activeIndex && i === steps.length - 1);
-  return (
-    <div className="flex items-center">
-      {steps.map((s, i) => (
-        // 'min-w-0' BẮT BUỘC — mặc định flex item có min-width:auto, tức là
-        // KHÔNG co nhỏ hơn kích thước nội dung dù đã đặt flex-1, buộc toàn bộ
-        // hàng (và theo đó là CẢ DIALOG cha, vì không giới hạn min-width
-        // riêng) rộng vượt max-w-3xl khi cửa sổ hẹp lại — dialog bị đẩy lệch
-        // trái ra ngoài màn hình (Sin phát hiện 2026-10-05, kèm ảnh chụp:
-        // nhãn "THÔNG TIN CHUNG"/"Địa điểm" bị cắt mất phần đầu). Đã verify
-        // trực tiếp bằng DOM: scrollWidth > clientWidth của dialog chính là
-        // do chính div này không co được.
-        <div key={s} className="flex min-w-0 flex-1 items-center">
-          <div className="flex min-w-0 flex-col items-center gap-1">
-            <div
-              className={cn(
-                'grid size-7 shrink-0 place-items-center rounded-full border-2 text-xs font-bold',
-                isDone(i)
-                  ? 'border-primary bg-primary text-primary-foreground'
-                  : i === activeIndex
-                    ? 'border-primary text-primary'
-                    : 'border-slate-300 text-slate-400'
-              )}
-            >
-              {isDone(i) ? <Check className="size-4" /> : i + 1}
-            </div>
-            <p className={cn('text-center text-xs', i <= activeIndex ? 'font-semibold text-[#0f172a]' : 'text-slate-400')}>
-              {EVENT_STATUS_LABEL[s] || s}
-            </p>
-          </div>
-          {i < steps.length - 1 && <div className={cn('mx-1 h-0.5 flex-1', isDone(i) ? 'bg-primary' : 'bg-slate-200')} />}
-        </div>
-      ))}
-    </div>
-  );
-}
 
 interface EventsSavedFilterState {
   campusFilter: string;
@@ -215,7 +174,8 @@ export default function EventsListPage() {
     campusId: campusFilter || undefined,
     statuses: statusFilter ? [statusFilter] : undefined
   });
-  const { actor, hasRole } = useActor();
+  const { actor } = useActor();
+  const canManageSchoolCalendar = canManageSchoolCalendarClientSide(actor?.roles || []);
 
   // Lọc thêm ở client (tìm theo tên/username người + khoảng ngày) — KHÔNG
   // đụng `useEvents.ts`/route GET /events (server chỉ lọc cơ sở/trạng
@@ -230,18 +190,6 @@ export default function EventsListPage() {
       setSortKey(key);
       setSortDir('asc');
     }
-  };
-
-  // --- Chọn nhiều dòng để duyệt hàng loạt ---
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [bulkApproving, setBulkApproving] = useState(false);
-  const toggleSelectOne = (id: string, checked: boolean) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (checked) next.add(id);
-      else next.delete(id);
-      return next;
-    });
   };
 
   const filteredItems = useMemo(() => {
@@ -268,42 +216,13 @@ export default function EventsListPage() {
     return sorted;
   }, [items, searchText, personFilter, fromDate, toDate, sortKey, sortDir]);
 
-  const allOnPageSelected = filteredItems.length > 0 && filteredItems.every((ev) => selectedIds.has(ev.id));
-  const toggleSelectAllOnPage = (checked: boolean) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      for (const ev of filteredItems) {
-        if (checked) next.add(ev.id);
-        else next.delete(ev.id);
-      }
-      return next;
-    });
-  };
-  const handleBulkApprove = async () => {
-    setBulkApproving(true);
-    let okCount = 0;
-    const ids = Array.from(selectedIds);
-    for (const id of ids) {
-      try {
-        await api.post(`/api/work-schedule/events/${id}/approve`);
-        okCount++;
-      } catch {
-        // tiếp tục xử lý các lịch còn lại, báo tổng kết sau
-      }
-    }
-    setBulkApproving(false);
-    setSelectedIds(new Set());
-    setToast({
-      message: okCount === ids.length ? `Đã duyệt ${okCount} lịch.` : `Đã duyệt ${okCount}/${ids.length} lịch (một số lịch không thể duyệt).`,
-      severity: okCount > 0 ? 'success' : 'error'
-    });
-    refetch();
-  };
-
   const [createOpen, setCreateOpen] = useState(false);
   const [detail, setDetail] = useState<WorkEvent | null>(null);
   const [toast, setToast] = useState<{ message: string; severity: 'success' | 'error' } | null>(null);
-  const [viewMode, setViewMode] = useState<'list' | 'week' | 'month'>('list');
+  const [viewMode, setViewMode] = useState<'week' | 'month' | 'day' | 'agenda' | 'list'>('week');
+  const [quickEditEventId, setQuickEditEventId] = useState<string | null>(null);
+  const [highlightedEventId, setHighlightedEventId] = useState<string | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   // Mở sẵn phiếu chi tiết đúng lịch được trỏ tới qua `?eventId=...` — dùng
   // khi bấm vào "tên lịch công tác gốc" từ phiếu chi tiết Giao việc
@@ -340,6 +259,7 @@ export default function EventsListPage() {
   const [endAt, setEndAt] = useState('');
   const [location, setLocation] = useState('');
   const [participants, setParticipants] = useState<PersonOption[]>([]);
+  const [chair, setChair] = useState<PersonOption | null>(null);
   const [createError, setCreateError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -351,6 +271,7 @@ export default function EventsListPage() {
     setEndAt('');
     setLocation('');
     setParticipants([]);
+    setChair(null);
     setCreateError('');
   };
 
@@ -395,6 +316,7 @@ export default function EventsListPage() {
         startAt: new Date(startAt).toISOString(),
         endAt: endAt ? new Date(endAt).toISOString() : null,
         location: location.trim(),
+        chairPerId: chair?.perId || actor?.perId,
         participantPerIds: scope === 'SCHOOL_WIDE' ? [] : participants.map((p) => p.perId)
       });
       setCreateOpen(false);
@@ -402,9 +324,7 @@ export default function EventsListPage() {
       refetch();
       setToast({
         message:
-          scope === 'SCHOOL_WIDE'
-            ? `Đã tạo lịch "${title.trim()}" — đang chờ duyệt.`
-            : `Đã ban hành lịch "${title.trim()}".`,
+          `Đã tạo lịch "${title.trim()}".`,
         severity: 'success'
       });
     } catch (e: any) {
@@ -427,11 +347,8 @@ export default function EventsListPage() {
 
   return (
     <>
-      <PageHeader
-        title="Lịch công tác"
-        icon={<CalendarDays />}
-        action={
-          <div className="flex gap-2">
+      <div className="mb-4 flex flex-wrap items-center justify-end gap-2">
+            <Button variant="outline" onClick={() => setImportOpen(true)}><FileUp className="size-4" />Import</Button>
             <Button variant="outline" asChild>
               <a
                 href={`${(env.VITE_API_BASE_URL || '').replace(/\/+$/, '')}/api/work-schedule/calendar.ics${campusFilter ? `?campusId=${campusFilter}` : ''}`}
@@ -446,21 +363,21 @@ export default function EventsListPage() {
               <CirclePlus className="size-4" />
               Tạo lịch
             </Button>
-          </div>
-        }
-      />
+      </div>
 
       {/* Chế độ xem — Sin yêu cầu 2026-10-05: "đổi Lịch công tác thành hiển
           thị lịch theo tuần và lịch theo tháng". Giữ nguyên "Danh sách"
-          (bảng cũ, đủ bộ lọc/chọn hàng loạt) làm mặc định — không xoá
-          chức năng sẵn có, chỉ thêm 2 chế độ xem mới. Khớp đúng kiểu
+          (bảng cũ, đủ bộ lọc) như một chế độ phụ — Week là mặc định theo
+          V3. Khớp đúng kiểu
           segmented-tab "Của tôi/Tôi giao/Tất cả" đã dùng ở TasksListPage.tsx. */}
       <div className="mb-4 inline-flex rounded-md border border-slate-200 bg-slate-50 p-0.5">
         {(
           [
-            ['list', 'Danh sách'],
             ['week', 'Tuần'],
-            ['month', 'Tháng']
+            ['month', 'Tháng'],
+            ['day', 'Ngày'],
+            ['agenda', 'Agenda'],
+            ['list', 'Danh sách']
           ] as const
         ).map(([v, label]) => (
           <button
@@ -503,32 +420,7 @@ export default function EventsListPage() {
       )}
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          {selectedIds.size > 0 ? (
-            <>
-              <span className="text-sm font-medium text-slate-600">Đã chọn {selectedIds.size}</span>
-              <Button variant="outline" size="sm" disabled={bulkApproving} onClick={handleBulkApprove}>
-                <Check className="size-4" />
-                Duyệt
-              </Button>
-              {selectedIds.size === 1 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const only = filteredItems.find((ev) => selectedIds.has(ev.id));
-                    if (only) setDetail(only);
-                  }}
-                >
-                  Xem chi tiết
-                </Button>
-              )}
-              <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>
-                Bỏ chọn
-              </Button>
-            </>
-          ) : null}
-        </div>
+        <div />
 
         <div className="flex flex-wrap items-center gap-2">
         <div className="relative w-full min-w-56 sm:w-72">
@@ -652,9 +544,6 @@ export default function EventsListPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-10">
-                <Checkbox checked={allOnPageSelected} onCheckedChange={(v) => toggleSelectAllOnPage(Boolean(v))} aria-label="Chọn tất cả" />
-              </TableHead>
               {/* Cột ngày/giờ đưa lên ĐẦU bảng — Sin yêu cầu 2026-09-21. */}
               <TableHead>
                 <SortHeader sortKeyName="startAt">Thời gian</SortHeader>
@@ -679,7 +568,7 @@ export default function EventsListPage() {
           <TableBody>
             {!loading && filteredItems.length === 0 && (
               <TableRow>
-                <TableCell colSpan={9} className="py-8 text-center text-slate-500">
+                <TableCell colSpan={8} className="py-8 text-center text-slate-500">
                   Không có lịch nào khớp bộ lọc.
                 </TableCell>
               </TableRow>
@@ -694,9 +583,6 @@ export default function EventsListPage() {
               const participantText = ev.scope === 'SCHOOL_WIDE' ? 'Toàn trường' : fullParticipants.map(abbreviatePersonLabel).join(', ') || '—';
               return (
                 <TableRow key={ev.id} className="cursor-pointer" onClick={() => setDetail(ev)}>
-                  <TableCell onClick={(e) => e.stopPropagation()}>
-                    <Checkbox checked={selectedIds.has(ev.id)} onCheckedChange={(v) => toggleSelectOne(ev.id, Boolean(v))} aria-label={`Chọn ${ev.title}`} />
-                  </TableCell>
                   <TableCell>{formatScheduleDateTime(ev.startAt)}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2.5">
@@ -767,8 +653,10 @@ export default function EventsListPage() {
       </div>
       )}
 
-      {viewMode === 'week' && <WeekView events={filteredItems} onSelectEvent={setDetail} onCreateOnDate={openCreateOnDate} />}
+      {viewMode === 'week' && <WeeklyTableView events={filteredItems} onSelectEvent={(event) => { setQuickEditEventId(null); setDetail(event); }} onEditEvent={(event) => { setQuickEditEventId(event.id); setDetail(event); }} canEditEvent={(event) => event.scope === 'SCHOOL_WIDE' ? canManageSchoolCalendar : canManageSchoolCalendar || event.createdByPerId === actor?.perId || event.chairPerId === actor?.perId} onCreateOnDate={openCreateOnDate} highlightedEventId={highlightedEventId} />}
       {viewMode === 'month' && <MonthView events={filteredItems} onSelectEvent={setDetail} onCreateOnDate={openCreateOnDate} />}
+      {viewMode === 'day' && <DayView events={filteredItems} onSelectEvent={setDetail} onCreateOnDate={openCreateOnDate} />}
+      {viewMode === 'agenda' && <AgendaView events={filteredItems} onSelectEvent={setDetail} />}
 
       {/* Dialog tạo mới */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
@@ -800,7 +688,7 @@ export default function EventsListPage() {
                       {CAMPUS_LABEL[c]}
                     </SelectItem>
                   ))}
-                  <SelectItem value={SCHOOL_WIDE}>Toàn trường (cần Hiệu trưởng hoặc Hiệu phó Điểm trường chính duyệt)</SelectItem>
+                  {canManageSchoolCalendar && <SelectItem value={SCHOOL_WIDE}>Toàn trường</SelectItem>}
                 </SelectContent>
               </Select>
             </div>
@@ -824,6 +712,7 @@ export default function EventsListPage() {
               </Label>
               <Input id="create-event-location" value={location} onChange={(e) => setLocation(e.target.value)} />
             </div>
+            {canManageSchoolCalendar && <PersonPicker label="Tạo lịch cho (mặc định là tôi)" value={chair} onChange={setChair} />}
             {scope === 'CAMPUS' && <PeopleMultiPicker label="Thành phần tham dự (tuỳ chọn)" value={participants} onChange={setParticipants} />}
             <div>
               <Label htmlFor="create-event-desc" className="mb-1.5 block">
@@ -831,11 +720,7 @@ export default function EventsListPage() {
               </Label>
               <Textarea id="create-event-desc" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} />
             </div>
-            {scope === 'SCHOOL_WIDE' && (
-              <p className="text-xs text-slate-500">
-                Lịch toàn trường sẽ ở trạng thái <strong>Chờ duyệt</strong> cho tới khi Hiệu trưởng hoặc Hiệu phó Điểm trường chính duyệt.
-              </p>
-            )}
+            {scope === 'SCHOOL_WIDE' && <p className="text-xs text-slate-500">Lịch toàn trường được hiển thị cho mọi người ngay sau khi lưu.</p>}
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setCreateOpen(false)}>
@@ -851,9 +736,9 @@ export default function EventsListPage() {
       {/* Dialog chi tiết */}
       <EventDetailDialog
         event={detail}
+        editImmediately={!!detail && quickEditEventId === detail.id}
         actorPerId={actor?.perId}
-        canApprove={detail ? canApproveClientSide(actor?.roles || [], detail) : false}
-        isPrincipal={hasRole('R.PRINCIPAL')}
+        canManageSchoolCalendar={canManageSchoolCalendar}
         onClose={() => setDetail(null)}
         onChanged={(updated) => {
           // Merge (không thay hẳn) — response của đổi trạng thái/duyệt KHÔNG
@@ -861,6 +746,10 @@ export default function EventsListPage() {
           // các thao tác này), giữ lại nhãn cũ để không rơi về mã PER_xxx thô
           // ngay sau khi bấm nút, chờ `refetch()` bên dưới nạp lại đầy đủ.
           setDetail((prev) => (prev ? { ...prev, ...updated } : updated));
+          setHighlightedEventId(updated.id);
+          setQuickEditEventId(null);
+          setViewMode('week');
+          window.setTimeout(() => setHighlightedEventId((current) => current === updated.id ? null : current), 4000);
           refetch();
         }}
         onSuccess={(message) => setToast({ message, severity: 'success' })}
@@ -893,6 +782,7 @@ export default function EventsListPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <WorkScheduleImportDialog open={importOpen} kind="events" onClose={() => setImportOpen(false)} onImported={refetch} />
     </>
   );
 }
@@ -906,17 +796,17 @@ const EVENT_ACTION_SUCCESS_MESSAGE: Record<string, string> = {
 
 export function EventDetailDialog({
   event,
+  editImmediately = false,
   actorPerId,
-  canApprove,
-  isPrincipal,
+  canManageSchoolCalendar,
   onClose,
   onChanged,
   onSuccess
 }: {
   event: WorkEvent | null;
+  editImmediately?: boolean;
   actorPerId?: string;
-  canApprove: boolean;
-  isPrincipal: boolean;
+  canManageSchoolCalendar: boolean;
   onClose: () => void;
   onChanged: (e: WorkEvent) => void;
   onSuccess?: (message: string) => void;
@@ -969,10 +859,24 @@ export function EventDetailDialog({
   const [taskError, setTaskError] = useState('');
   const [taskSubmitting, setTaskSubmitting] = useState(false);
 
+  useEffect(() => {
+    if (!event || !editImmediately) return;
+    setEditTitle(event.title);
+    setEditDescription(event.description || '');
+    setEditCampusId(event.scope === 'SCHOOL_WIDE' ? SCHOOL_WIDE : event.campusId);
+    setEditStartAt(toLocalInput(new Date(event.startAt)));
+    setEditEndAt(event.endAt ? toLocalInput(new Date(event.endAt)) : '');
+    setEditLocation(event.location || '');
+    setEditParticipants(event.participantPerIds.map((perId, index) => ({ perId, name: event.participantLabels?.[index] || perId })));
+    setEditError('');
+    setEditOpen(true);
+  }, [editImmediately, event?.id]);
+
   if (!event) return null;
   const isCreator = event.createdByPerId === actorPerId;
-  const activeStep = EVENT_STATUS_STEPS.indexOf(event.status as (typeof EVENT_STATUS_STEPS)[number]);
-  const isException = event.status === 'REVISION_REQUIRED' || event.status === 'CANCELLED';
+  const canEdit = event.scope === 'SCHOOL_WIDE'
+    ? canManageSchoolCalendar
+    : isCreator || event.chairPerId === actorPerId || canManageSchoolCalendar;
 
   const run = async (fn: () => Promise<WorkEvent>, successMessage?: string) => {
     setBusy(true);
@@ -994,8 +898,6 @@ export function EventDetailDialog({
 
   const changeStatus = (nextStatus: string, note?: string) =>
     run(() => api.patch<WorkEvent>(`/api/work-schedule/events/${event.id}/status`, { nextStatus, note }), EVENT_ACTION_SUCCESS_MESSAGE[nextStatus]);
-
-  const approve = () => run(() => api.post<WorkEvent>(`/api/work-schedule/events/${event.id}/approve`), 'Đã duyệt lịch.');
 
   const openReasonDialog = (kind: 'REVISION_REQUIRED' | 'CANCELLED') => {
     setReason('');
@@ -1104,11 +1006,7 @@ export function EventDetailDialog({
             </Alert>
           )}
 
-          {!isException ? (
-            <MiniStepper steps={EVENT_STATUS_STEPS} activeIndex={Math.max(activeStep, 0)} />
-          ) : (
-            <EventStatusChip status={event.status} />
-          )}
+          <div><EventStatusChip status={event.status} /></div>
 
           <DetailSection title="Thông tin chung">
             <div className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
@@ -1152,13 +1050,6 @@ export function EventDetailDialog({
               {event.status === 'CANCELLED' && event.cancellationNote && (
                 <Alert className="border-blue-200 bg-secondary">
                   <AlertDescription className="text-blue-800">Lý do hủy: {event.cancellationNote}</AlertDescription>
-                </Alert>
-              )}
-              {event.scope === 'SCHOOL_WIDE' && event.approvals.length > 0 && (
-                <Alert className="border-blue-200 bg-secondary">
-                  <AlertDescription className="text-blue-800">
-                    Đã duyệt: {event.approvals.map((a) => `${a.role === 'R.VICE_PRINCIPAL' ? 'Hiệu phó' : 'Hiệu trưởng'}`).join(', ')}
-                  </AlertDescription>
                 </Alert>
               )}
             </div>
@@ -1234,54 +1125,8 @@ export function EventDetailDialog({
           </DetailSection>
         </div>
         <DialogFooter className="flex-wrap gap-1.5 sm:justify-start">
-          {event.status === 'DRAFT' && isCreator && (
-            <>
-              <Button variant="ghost" disabled={busy} onClick={openEdit}>
-                Chỉnh sửa
-              </Button>
-              <Button disabled={busy} onClick={() => changeStatus('PENDING_APPROVAL')}>
-                Gửi lãnh đạo duyệt
-              </Button>
-            </>
-          )}
-          {event.status === 'REVISION_REQUIRED' && isCreator && (
-            <>
-              <Button variant="ghost" disabled={busy} onClick={openEdit}>
-                Chỉnh sửa
-              </Button>
-              <Button disabled={busy} onClick={() => changeStatus('PENDING_APPROVAL')}>
-                Gửi duyệt lại
-              </Button>
-            </>
-          )}
-          {event.status === 'PENDING_APPROVAL' && isCreator && (
-            <Button variant="ghost" disabled={busy} onClick={() => changeStatus('DRAFT')}>
-              Thu hồi về dự thảo
-            </Button>
-          )}
-          {event.status === 'PENDING_APPROVAL' && canApprove && (
-            <>
-              <Button disabled={busy} onClick={approve} className="bg-green-600 hover:bg-green-700">
-                Duyệt
-              </Button>
-              <Button variant="ghost" disabled={busy} onClick={() => openReasonDialog('REVISION_REQUIRED')} className="text-amber-700">
-                Yêu cầu sửa lại
-              </Button>
-              <Button variant="ghost" disabled={busy} onClick={() => openReasonDialog('CANCELLED')} className="text-red-600">
-                Hủy
-              </Button>
-            </>
-          )}
-          {event.status === 'PUBLISHED' && (isCreator || canApprove || isPrincipal) && (
-            // Bổ sung 2026-10-05 — "Đã ban hành -> về Nháp -> sửa -> ban
-            // hành lại" (huong_dan_lich_cong_tac_giao_viec.md §26). Backend
-            // (changeEventStatus) tự kiểm lại đúng quyền này lần nữa, nút
-            // chỉ ẩn/hiện cho đỡ rối, không phải lớp chặn thật.
-            <Button variant="ghost" disabled={busy} onClick={() => changeStatus('DRAFT')}>
-              Chuyển về nháp để sửa
-            </Button>
-          )}
-          {event.status === 'PUBLISHED' && (canApprove || isPrincipal) && (
+          {canEdit && event.status !== 'CANCELLED' && <Button variant="outline" disabled={busy} onClick={openEdit}>Chỉnh sửa</Button>}
+          {event.status === 'PUBLISHED' && canEdit && (
             <Button variant="ghost" disabled={busy} onClick={() => openReasonDialog('CANCELLED')} className="text-red-600">
               Hủy lịch công tác
             </Button>

@@ -1,6 +1,6 @@
 /**
- * DashboardPage.tsx — "Dashboard" trong menu Lịch công tác (đứng trước
- * "Tổng quan" — Sin yêu cầu 2026-10-05, mo_ta_dashboard_lich_cong_tac.md).
+ * Trang "Tổng quan" duy nhất của module Lịch công tác. V3 hợp nhất trang
+ * Dashboard/Overview cũ, giữ toàn bộ số liệu hữu ích trong một màn hình.
  * Đối tượng chính Ban Giám hiệu nhưng đặt cùng nhóm quyền xem với "Tổng
  * quan"/"Lịch công tác" hiện có — không thêm tầng phân quyền route riêng
  * (xem ghi chú route `GET /dashboard-summary`, work-schedule.routes.ts).
@@ -30,7 +30,6 @@ import {
   CartesianGrid
 } from 'recharts';
 import { CalendarClock, CheckCircle2, ClipboardList, TriangleAlert } from 'lucide-react';
-import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
 import { CAMPUS_IDS, CAMPUS_LABEL, formatScheduleDateTime } from './constants';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -223,8 +222,6 @@ export default function DashboardPage() {
 
   return (
     <>
-      <PageHeader title="Dashboard" icon={<CalendarClock />} />
-
       {error && (
         <Alert className="mb-4 border-red-200 bg-red-50">
           <AlertDescription className="text-red-700">{error}</AlertDescription>
@@ -324,19 +321,19 @@ export default function DashboardPage() {
             <KpiCard title="Quá hạn" value={summary.kpis.overdueTasks} icon={<TriangleAlert className="size-4" />} accent="text-red-600" />
           </div>
 
-          <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-3">
             <ChartCard title="Trạng thái giao việc">
               {donutData.every((d) => d.count === 0) ? (
-                <p className="py-16 text-center text-sm text-slate-400">Không có dữ liệu trong khoảng đã chọn.</p>
+                <p className="py-12 text-center text-sm text-slate-400">Không có dữ liệu trong khoảng đã chọn.</p>
               ) : (
-                <ResponsiveContainer width="100%" height={260}>
+                <ResponsiveContainer width="100%" height={200}>
                   <PieChart>
                     <Pie
                       data={donutData}
                       dataKey="count"
                       nameKey="label"
-                      innerRadius={60}
-                      outerRadius={90}
+                      innerRadius={42}
+                      outerRadius={65}
                       paddingAngle={2}
                       onClick={(entry: any) => openTaskDrillDown(entry.status)}
                     >
@@ -352,7 +349,7 @@ export default function DashboardPage() {
             </ChartCard>
 
             <ChartCard title="Xu hướng công việc">
-              <ResponsiveContainer width="100%" height={260}>
+              <ResponsiveContainer width="100%" height={200}>
                 <LineChart data={summary.taskTrendByWeek}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                   <XAxis dataKey="weekLabel" tick={{ fontSize: 12 }} />
@@ -364,14 +361,11 @@ export default function DashboardPage() {
                 </LineChart>
               </ResponsiveContainer>
             </ChartCard>
-          </div>
-
-          <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
             <ChartCard title="Lịch công tác theo Cơ sở">
               {eventsByCampusData.length === 0 ? (
-                <p className="py-16 text-center text-sm text-slate-400">Không có dữ liệu trong khoảng đã chọn.</p>
+                <p className="py-12 text-center text-sm text-slate-400">Không có dữ liệu trong khoảng đã chọn.</p>
               ) : (
-                <ResponsiveContainer width="100%" height={260}>
+                <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={eventsByCampusData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                     <XAxis dataKey="label" tick={{ fontSize: 12 }} />
@@ -385,9 +379,9 @@ export default function DashboardPage() {
 
             <ChartCard title="Tiến độ công việc theo Đơn vị">
               {campusStackData.every((c) => c.assigned + c.completed + c.overdue === 0) ? (
-                <p className="py-16 text-center text-sm text-slate-400">Không có dữ liệu trong khoảng đã chọn.</p>
+                <p className="py-12 text-center text-sm text-slate-400">Không có dữ liệu trong khoảng đã chọn.</p>
               ) : (
-                <ResponsiveContainer width="100%" height={260}>
+                <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={campusStackData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                     <XAxis dataKey="label" tick={{ fontSize: 12 }} />
@@ -409,13 +403,11 @@ export default function DashboardPage() {
                 </ResponsiveContainer>
               )}
             </ChartCard>
-          </div>
-
-          <ChartCard title="Lịch công tác theo thời gian">
+            <ChartCard title="Lịch công tác theo thời gian">
             {eventsByDateData.length === 0 ? (
-              <p className="py-16 text-center text-sm text-slate-400">Không có dữ liệu trong khoảng đã chọn.</p>
+              <p className="py-12 text-center text-sm text-slate-400">Không có dữ liệu trong khoảng đã chọn.</p>
             ) : (
-              <ResponsiveContainer width="100%" height={260}>
+              <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={eventsByDateData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                   <XAxis dataKey="label" tick={{ fontSize: 12 }} />
@@ -426,14 +418,13 @@ export default function DashboardPage() {
               </ResponsiveContainer>
             )}
             <p className="mt-2 text-center text-xs text-slate-400">Nhấp vào 1 cột để xem danh sách lịch trong ngày đó.</p>
-          </ChartCard>
+            </ChartCard>
 
-          <div className="mt-4">
             <ChartCard title="Hiệu suất thực hiện công việc theo Đơn vị">
               {completionRateData.every((c) => c.total === 0) ? (
-                <p className="py-16 text-center text-sm text-slate-400">Không có dữ liệu trong khoảng đã chọn.</p>
+                <p className="py-12 text-center text-sm text-slate-400">Không có dữ liệu trong khoảng đã chọn.</p>
               ) : (
-                <ResponsiveContainer width="100%" height={220}>
+                <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={completionRateData} layout="vertical" margin={{ left: 24 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                     <XAxis type="number" domain={[0, 100]} unit="%" tick={{ fontSize: 12 }} />

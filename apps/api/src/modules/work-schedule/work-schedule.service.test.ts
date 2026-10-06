@@ -19,6 +19,7 @@ import {
   recomputeConflictsForEvent,
   AppError
 } from './work-schedule.service.js';
+import { canCreateScheduleForOthers, canManageSchoolCalendar } from './work-schedule.authz.js';
 
 /**
  * Test thật với Postgres (không mock) — bỏ qua nếu không có DATABASE_URL.
@@ -26,6 +27,14 @@ import {
  * authzLichCongTac.js gốc, không chỉ tin code compile được.
  */
 const skip = !process.env.DATABASE_URL;
+
+test('work-schedule V3: quyền quản lý lịch toàn trường/tạo hộ là server-defined và fail closed', () => {
+  assert.equal(canManageSchoolCalendar([]), false);
+  assert.equal(canCreateScheduleForOthers([{ roleId: 'R.TEACHER', campusId: 'CAMPUS_1', domain: null }]), false);
+  assert.equal(canManageSchoolCalendar([{ roleId: 'R.OFFICE_ADMIN', campusId: 'CAMPUS_1', domain: null }]), true);
+  assert.equal(canCreateScheduleForOthers([{ roleId: 'R.VICE_PRINCIPAL', campusId: 'CAMPUS_2', domain: null }]), true);
+  assert.equal(canManageSchoolCalendar([{ roleId: 'R.SYS_ADMIN', campusId: null, domain: null }]), false);
+});
 
 // Keep fixed-date fixtures deterministic as real time advances. Individual
 // validation tests can still override `now` through the service options.
@@ -131,7 +140,7 @@ test('work-schedule: state machine sự kiện + duyệt CAMPUS 1 bước', { sk
   assert.equal(listed[0]!.id, event.id);
 });
 
-test('work-schedule: 2026-10-05 lịch SCHOOL_WIDE tạo ra PENDING_APPROVAL, chỉ 1 bước duyệt (Hiệu trưởng HOẶC Hiệu phó Điểm trường chính)', { skip }, async (t) => {
+test('work-schedule V3: lịch SCHOOL_WIDE được ban hành ngay, không tạo yêu cầu duyệt mới', { skip }, async (t) => {
   t.after(cleanup);
   await cleanup();
 
@@ -144,22 +153,8 @@ test('work-schedule: 2026-10-05 lịch SCHOOL_WIDE tạo ra PENDING_APPROVAL, ch
     chairPerId: 'per-principal',
     createdByPerId: 'per-principal'
   });
-  assert.equal(event.status, 'PENDING_APPROVAL', 'lịch toàn trường không ban hành thẳng nữa, phải chờ duyệt');
-
-  // Hiệu phó CAMPUS_1 (không phải Điểm trường chính) không được duyệt.
-  await assert.rejects(
-    () => approveEvent(db, { eventId: event.id, actorPerId: 'per-vp1', actorAssignments: [{ roleId: 'R.VICE_PRINCIPAL', campusId: 'CAMPUS_1', domain: null }] }),
-    (err: unknown) => err instanceof AppError && err.code === 'forbidden'
-  );
-
-  // Hiệu phó Điểm trường chính duyệt -> ban hành ngay (1 bước, không cần ai duyệt thêm).
-  const published = await approveEvent(db, {
-    eventId: event.id,
-    actorPerId: 'per-vp-main',
-    actorAssignments: [{ roleId: 'R.VICE_PRINCIPAL', campusId: 'MAIN_CAMPUS', domain: null }]
-  });
-  assert.equal(published.status, 'PUBLISHED');
-  assert.equal(published.approvals.length, 1);
+  assert.equal(event.status, 'PUBLISHED');
+  assert.deepEqual(event.approvals, []);
 
   // Duyệt lại lần nữa (đã PUBLISHED, không còn PENDING_APPROVAL) -> lỗi.
   await assert.rejects(
@@ -243,7 +238,7 @@ test('work-schedule: sửa lịch — 2026-09-29 nới ra người tạo HOẶC 
   assert.equal(restored.status, 'PUBLISHED');
 });
 
-test('work-schedule: sửa lịch — 2026-09-30 (Sin: "phó hiệu trưởng nhờ giáo viên tạo hộ lịch") — đổi được chairPerId, giữ nguyên nếu không truyền', { skip }, async (t) => {
+test('work-schedule V3: người có quyền đổi được chairPerId, người thường không thể chuyển lịch cho người khác', { skip }, async (t) => {
   t.after(cleanup);
   await cleanup();
 
@@ -268,10 +263,24 @@ test('work-schedule: sửa lịch — 2026-09-30 (Sin: "phó hiệu trưởng nh
   });
   assert.equal(editedOther.chairPerId, 'PER_pho_hieu_truong', 'không truyền chairPerId thì giữ nguyên, không bị xoá mất');
 
-  // Đổi hẳn sang người khác — phải áp dụng đúng.
+  await assert.rejects(
+    () => updateRevisionEvent(db, {
+      eventId: event.id,
+      actorPerId: 'PER_giao_vien_tao_ho',
+      eventData: {
+        title: 'Lễ chào cờ', campusId: 'CAMPUS_1',
+        startAt: new Date('2026-10-05T07:30:00+07:00'), endAt: new Date('2026-10-05T08:30:00+07:00'),
+        chairPerId: 'PER_thay_the_khac'
+      }
+    }),
+    (err: unknown) => err instanceof AppError && err.code === 'forbidden'
+  );
+
+  // Văn phòng được giao quyền quản lý lịch có thể tạo/chỉnh thay người khác.
   const editedChair = await updateRevisionEvent(db, {
     eventId: event.id,
     actorPerId: 'PER_giao_vien_tao_ho',
+    actorAssignments: [{ roleId: 'R.OFFICE_ADMIN', campusId: 'CAMPUS_1', domain: null }],
     eventData: {
       title: 'Lễ chào cờ',
       campusId: 'CAMPUS_1',

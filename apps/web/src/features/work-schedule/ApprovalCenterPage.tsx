@@ -4,7 +4,7 @@ import { PageHeader } from '../../components/PageHeader';
 import { useEvents, type WorkEvent } from './hooks/useEvents';
 import { useTasks, type WorkTask } from './hooks/useTasks';
 import { useActor } from './hooks/useActor';
-import { EventDetailDialog, canApproveClientSide, EventStatusChip } from './EventsListPage';
+import { EventDetailDialog, canApproveClientSide, canManageSchoolCalendarClientSide, EventStatusChip } from './EventsListPage';
 import { TaskDetailDialog } from './TasksListPage';
 import { CAMPUS_LABEL, abbreviatePersonLabel, formatScheduleDateTime } from './constants';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -136,8 +136,7 @@ export default function ApprovalCenterPage() {
       <EventDetailDialog
         event={eventDetail}
         actorPerId={actor?.perId}
-        canApprove={eventDetail ? canApproveClientSide(actor?.roles || [], eventDetail) : false}
-        isPrincipal={!!actor?.roles.some((r) => r.roleId === 'R.PRINCIPAL')}
+        canManageSchoolCalendar={canManageSchoolCalendarClientSide(actor?.roles || [])}
         onClose={() => setEventDetail(null)}
         onChanged={(updated) => {
           setEventDetail((prev) => (prev ? { ...prev, ...updated } : updated));

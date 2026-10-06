@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CalendarDays, CirclePlus, ClipboardList, ArrowUp, ArrowDown, ArrowUpDown, BookmarkPlus, Check, ListFilter, MoreHorizontal, Search, X } from 'lucide-react';
-import { PageHeader } from '../../components/PageHeader';
+import { CalendarDays, CirclePlus, ClipboardList, FileUp, ArrowUp, ArrowDown, ArrowUpDown, BookmarkPlus, Check, ListFilter, MoreHorizontal, Search, X } from 'lucide-react';
 import { api } from '../../services/api';
 import { useTasks, type WorkTask } from './hooks/useTasks';
 import { useActor } from './hooks/useActor';
@@ -24,6 +23,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { WorkScheduleImportDialog } from './components/WorkScheduleImportDialog';
 
 export function TaskStatusChip({ status }: { status: string }) {
   const c = TASK_STATUS_COLOR[status] || { bg: '#f1f5f9', fg: '#334155', border: '#e2e8f0' };
@@ -210,6 +210,7 @@ export default function TasksListPage() {
   };
 
   const [createOpen, setCreateOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [detail, setDetail] = useState<WorkTask | null>(null);
   const [toast, setToast] = useState<{ message: string; severity: 'success' | 'error' } | null>(null);
 
@@ -269,16 +270,7 @@ export default function TasksListPage() {
 
   return (
     <>
-      <PageHeader
-        title="Giao việc"
-        icon={<ClipboardList />}
-        action={
-          <Button onClick={() => setCreateOpen(true)}>
-            <CirclePlus className="size-4" />
-            Giao việc
-          </Button>
-        }
-      />
+      <div className="mb-4 flex justify-end gap-2"><Button variant="outline" onClick={() => setImportOpen(true)}><FileUp className="size-4" />Import</Button><Button onClick={() => setCreateOpen(true)}><CirclePlus className="size-4" />Giao việc</Button></div>
 
       {savedFilters.length > 0 && (
         <div className="mb-3 flex flex-wrap justify-end gap-2">
@@ -641,6 +633,7 @@ export default function TasksListPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <WorkScheduleImportDialog open={importOpen} kind="tasks" onClose={() => setImportOpen(false)} onImported={refetch} />
     </>
   );
 }

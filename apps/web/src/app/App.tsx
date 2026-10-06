@@ -40,12 +40,11 @@ import CasesListPage from "../features/safety/CasesListPage";
 import AuditLogPage from "../features/safety/AuditLogPage";
 import AnalyticsPage from "../features/safety/AnalyticsPage";
 import WorkScheduleDashboardPage from "../features/work-schedule/DashboardPage";
-import OverviewPage from "../features/work-schedule/OverviewPage";
 import EventsListPage from "../features/work-schedule/EventsListPage";
 import TasksListPage from "../features/work-schedule/TasksListPage";
-import ApprovalCenterPage from "../features/work-schedule/ApprovalCenterPage";
 import RemindersPage from "../features/work-schedule/RemindersPage";
 import ExamSchedulePage from "../features/work-schedule/ExamSchedulePage";
+import SettingsPage from "../features/settings/SettingsPage";
 
 // "/" (Bảng điều hành toàn trường) xoay quanh dữ liệu Google Classroom —
 // giờ chỉ tài khoản FermatTech còn thấy mục này trong sidebar (Sin yêu cầu
@@ -119,12 +118,13 @@ export function App() {
           (work-schedule.authz.ts), khớp thiết kế của Mr Tiến (nguyên văn
           trong TICH_HOP_MODULE_LICH_CONG_TAC.md). Gate advisory only. */}
       <Route path="/work-schedule/dashboard" element={p(<WorkScheduleDashboardPage />, ROLES_WORK_SCHEDULE_STAFF)} />
-      <Route path="/work-schedule/overview" element={p(<OverviewPage />, ROLES_WORK_SCHEDULE_STAFF)} />
+      <Route path="/work-schedule/overview" element={<Navigate to="/work-schedule/dashboard" replace />} />
       <Route path="/work-schedule" element={p(<EventsListPage />, ROLES_WORK_SCHEDULE_STAFF)} />
       <Route path="/work-schedule/tasks" element={p(<TasksListPage />, ROLES_WORK_SCHEDULE_STAFF)} />
       <Route path="/work-schedule/exam-schedule" element={p(<ExamSchedulePage />, ROLES_WORK_SCHEDULE_STAFF)} />
-      <Route path="/work-schedule/approvals" element={p(<ApprovalCenterPage />, ROLES_WORK_SCHEDULE_STAFF)} />
+      <Route path="/work-schedule/approvals" element={<Navigate to="/work-schedule/dashboard" replace />} />
       <Route path="/work-schedule/reminders" element={p(<RemindersPage />, ROLES_WORK_SCHEDULE_STAFF)} />
+      <Route path="/settings" element={p(<SettingsPage />)} />
       <Route path="/today" element={p(<TodayPage />)} />
       <Route path="/classes" element={p(<ClassesPage />)} />
       <Route path="/classroom" element={p(<ClassroomPage />)} />

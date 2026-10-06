@@ -30,7 +30,7 @@ import {
   type TaskStatus,
   type CampusId
 } from './work-schedule.schema.js';
-import { evaluateEventApproval, canApproveCampusEvent, isLeadership, type ActorAssignment } from './work-schedule.authz.js';
+import { canManageSchoolCalendar, evaluateEventApproval, canApproveCampusEvent, isLeadership, type ActorAssignment } from './work-schedule.authz.js';
 import { pushAdminNotifications, type PushAdminNotificationsInput } from '../safety/admin-notify.js';
 import { getPersonLabelsByPerIds } from '../identity/person-directory.js';
 import * as notify from '../safety/notify.js';
@@ -346,10 +346,7 @@ export interface CreateEventInput {
   createdByPerId: string;
 }
 
-/**
- * Tạo mới 1 sự kiện lịch công tác — luôn khởi tạo trạng thái DRAFT bất kể
- * client gửi gì (mọi sự kiện phải qua DRAFT trước khi vào luồng duyệt).
- */
+/** Tạo lịch công tác có hiệu lực ngay; V3 không còn luồng phê duyệt. */
 export async function createEvent(db: Db, input: CreateEventInput, opts: { now?: Date } = {}) {
   const now = opts.now ?? new Date();
   if (!input.title) throw new AppError('invalid_input', 'Thiếu tiêu đề sự kiện.');
@@ -386,14 +383,10 @@ export async function createEvent(db: Db, input: CreateEventInput, opts: { now?:
       chairPerId: input.chairPerId,
       participantPerIds: input.participantPerIds ?? [],
       externalParticipants: input.externalParticipants ?? [],
-      // 2026-10-05 (huong_dan_lich_cong_tac_giao_viec.md §3-4) — KHÔI PHỤC
-      // gate duyệt cho lịch TOÀN TRƯỜNG (bản 2026-09-29 từng bỏ hẳn duyệt
-      // cho mọi scope — spec mới yêu cầu rõ lịch Toàn trường phải qua Hiệu
-      // trưởng/Hiệu phó Điểm trường chính duyệt trước khi Đã ban hành,
-      // lịch CAMPUS/PH1/PH2 vẫn ban hành ngay như cũ, không đổi). Dùng
-      // đúng state machine PENDING_APPROVAL -> (approveEvent) -> PUBLISHED
-      // đã có sẵn (work-schedule.authz.ts), giờ đơn giản hoá còn 1 bước.
-      status: input.scope === 'SCHOOL_WIDE' ? 'PENDING_APPROVAL' : 'PUBLISHED',
+      // V3: lịch cá nhân và lịch toàn trường do người có quyền tạo đều có
+      // hiệu lực ngay. Giữ các trạng thái/ledger cũ để đọc lịch sử, nhưng
+      // không đưa bản ghi mới vào luồng phê duyệt nữa.
+      status: 'PUBLISHED',
       departmentDomain: input.departmentDomain ?? null,
       createdByPerId: input.createdByPerId
     })
@@ -440,7 +433,7 @@ export async function createEvent(db: Db, input: CreateEventInput, opts: { now?:
  * cũ, KHÔNG đổi 2 phần đó. */
 export async function updateRevisionEvent(
   db: Db,
-  input: { eventId: string; eventData: Partial<CreateEventInput>; actorPerId: string },
+  input: { eventId: string; eventData: Partial<CreateEventInput>; actorPerId: string; actorAssignments?: ActorAssignment[] },
   opts: { now?: Date } = {}
 ) {
   if (!input.eventId || !input.actorPerId) throw new AppError('invalid_input', 'Thiếu eventId hoặc actorPerId.');
@@ -463,11 +456,18 @@ export async function updateRevisionEvent(
   }
   const [before] = await db.select().from(ltcEvents).where(eq(ltcEvents.id, input.eventId)).limit(1);
   if (!before) throw new AppError('not_found', `Không tìm thấy sự kiện ${input.eventId}`);
+  const canManage = canManageSchoolCalendar(input.actorAssignments || []);
+  if ((before.scope === 'SCHOOL_WIDE' || eventData.scope === 'SCHOOL_WIDE') && !canManage) {
+    throw new AppError('forbidden', 'Bạn không có quyền chỉnh sửa lịch toàn trường.');
+  }
+  if (eventData.chairPerId && eventData.chairPerId !== input.actorPerId && !canManage) {
+    throw new AppError('forbidden', 'Bạn không có quyền chuyển lịch cho người khác.');
+  }
   // SỬA 2026-09-29 (Sin: "lịch đã huỷ thì vẫn cho edit như thường thôi") —
   // trước đây chặn sửa lịch CANCELLED, giờ bỏ hẳn chốt đó: sửa nội dung
   // KHÔNG tự động khôi phục trạng thái (vẫn CANCELLED sau khi sửa) — khôi
   // phục là thao tác riêng (changeEventStatus CANCELLED -> PUBLISHED).
-  if (before.createdByPerId !== input.actorPerId && before.chairPerId !== input.actorPerId) {
+  if (!canManage && before.createdByPerId !== input.actorPerId && before.chairPerId !== input.actorPerId) {
     throw new AppError('forbidden', 'Chỉ người tạo lịch hoặc chủ trì mới được chỉnh sửa.');
   }
   const [after] = await db
@@ -478,7 +478,7 @@ export async function updateRevisionEvent(
       type: eventData.type || before.type,
       priority: eventData.priority || before.priority,
       campusId: eventData.campusId!,
-      scope: eventData.scope || 'CAMPUS',
+      scope: eventData.scope || before.scope,
       startAt: eventData.startAt!,
       endAt: eventData.endAt ?? null,
       location: eventData.location || '',
@@ -488,8 +488,8 @@ export async function updateRevisionEvent(
       // gửi lên. Giữ nguyên chairPerId cũ nếu không truyền (sửa các trường
       // khác không vô tình đổi chủ trì).
       chairPerId: eventData.chairPerId || before.chairPerId,
-      participantPerIds: eventData.participantPerIds ?? [],
-      externalParticipants: eventData.externalParticipants ?? [],
+      participantPerIds: eventData.participantPerIds ?? before.participantPerIds,
+      externalParticipants: eventData.externalParticipants ?? before.externalParticipants,
       approvals: [],
       updatedAt: new Date(),
       version: before.version + 1
@@ -532,9 +532,11 @@ export async function updateRevisionEvent(
 }
 
 /**
- * Đổi trạng thái 1 sự kiện. KHÔNG kiểm tra actor có quyền duyệt hay không
- * (xem ghi chú đầu file) — chỉ đảm bảo bước chuyển hợp lệ theo state
- * machine. `note` bắt buộc khi chuyển sang REVISION_REQUIRED/CANCELLED.
+ * Đổi trạng thái một sự kiện. Quyền được kiểm tra tại service để mọi
+ * caller (HTTP hiện tại hoặc integration về sau) đều có cùng ranh giới:
+ * lịch toàn trường cần quyền quản lý lịch; lịch cá nhân cho phép người
+ * tạo/chủ trì hoặc người quản lý. `note` bắt buộc khi chuyển sang
+ * REVISION_REQUIRED/CANCELLED.
  */
 export async function changeEventStatus(
   db: Db,
@@ -548,6 +550,13 @@ export async function changeEventStatus(
   const nextStatus = input.nextStatus as EventStatus;
   const [before] = await db.select().from(ltcEvents).where(eq(ltcEvents.id, input.eventId)).limit(1);
   if (!before) throw new AppError('not_found', `Không tìm thấy sự kiện ${input.eventId}`);
+  const canManage = canManageSchoolCalendar(input.actorAssignments || []);
+  if (before.scope === 'SCHOOL_WIDE' && !canManage) {
+    throw new AppError('forbidden', 'Bạn không có quyền thay đổi lịch toàn trường.');
+  }
+  if (!canManage && before.createdByPerId !== input.actorPerId && before.chairPerId !== input.actorPerId) {
+    throw new AppError('forbidden', 'Chỉ người tạo, người chủ trì, hoặc người quản lý lịch mới được thay đổi trạng thái.');
+  }
 
   if (nextStatus === 'DRAFT') {
     const isCreator = before.createdByPerId === input.actorPerId;

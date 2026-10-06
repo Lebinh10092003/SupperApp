@@ -12,7 +12,7 @@ import { BellRing } from 'lucide-react';
 import { PageHeader } from '../../components/PageHeader';
 import { useEvents, type WorkEvent } from './hooks/useEvents';
 import { useTasks, type WorkTask } from './hooks/useTasks';
-import { EventDetailDialog, EventStatusChip, canApproveClientSide } from './EventsListPage';
+import { EventDetailDialog, EventStatusChip, canApproveClientSide, canManageSchoolCalendarClientSide } from './EventsListPage';
 import { TaskDetailDialog, TaskStatusChip } from './TasksListPage';
 import { useActor } from './hooks/useActor';
 import { CAMPUS_LABEL, abbreviatePersonLabel, formatScheduleDateTime } from './constants';
@@ -228,8 +228,7 @@ export default function RemindersPage() {
       <EventDetailDialog
         event={eventDetail}
         actorPerId={actor?.perId}
-        canApprove={eventDetail ? canApproveClientSide(actor?.roles || [], eventDetail) : false}
-        isPrincipal={!!actor?.roles.some((r) => r.roleId === 'R.PRINCIPAL')}
+        canManageSchoolCalendar={canManageSchoolCalendarClientSide(actor?.roles || [])}
         onClose={() => setEventDetail(null)}
         onChanged={(updated) => {
           setEventDetail((prev) => (prev ? { ...prev, ...updated } : updated));
