@@ -69,6 +69,7 @@ function findTestFiles(dir) {
 const files = [
   ...findTestFiles(srcDir),
   fileURLToPath(new URL('./database-test-guard.test.mjs', import.meta.url)),
+  fileURLToPath(new URL('./staging-review-data-guard.test.mjs', import.meta.url)),
   fileURLToPath(new URL('./schema-fingerprint.test.mjs', import.meta.url))
 ];
 console.log(`[run-tests] Tìm thấy ${files.length} file test.`);

@@ -207,3 +207,70 @@ body {
   font-size: 0.8125rem !important;
   color: hsl(var(--card-foreground)) !important;
 }
+
+/*
+ * Legacy-theme compatibility layer
+ * --------------------------------
+ * A number of screens predate the semantic Tailwind tokens above and still
+ * use the old light-only slate palette.  Keeping the mapping here makes the
+ * theme boundary explicit and fixes every shared surface (tables, cards,
+ * filters, dialogs and empty states) without a fragile route-by-route set of
+ * overrides.  These rules are scoped to `.dark`, so light mode is unchanged.
+ */
+.dark .bg-white { background-color: hsl(var(--card)) !important; }
+.dark .bg-slate-50,
+.dark .bg-slate-50\/60,
+.dark .bg-slate-100 { background-color: hsl(var(--muted)) !important; }
+.dark .bg-slate-200 { background-color: hsl(var(--border)) !important; }
+.dark .border-slate-100,
+.dark .border-slate-200,
+.dark .border-slate-300 { border-color: hsl(var(--border)) !important; }
+.dark .text-\[\#0f172a\],
+.dark .text-slate-900,
+.dark .text-slate-800,
+.dark .text-slate-700 { color: hsl(var(--foreground)) !important; }
+.dark .text-slate-600,
+.dark .text-slate-500,
+.dark .text-slate-400 { color: hsl(var(--muted-foreground)) !important; }
+.dark .text-zinc-500 { color: hsl(var(--muted-foreground)) !important; }
+.dark .text-\[\#1d4ed8\] { color: hsl(var(--secondary-foreground)) !important; }
+.dark .bg-\[\#f8faff\] { background-color: hsl(var(--card)) !important; }
+.dark .bg-\[\#fffdf5\] { background-color: hsl(38 45% 16%) !important; }
+.dark .hover\:text-\[\#0f172a\]:hover { color: hsl(var(--foreground)) !important; }
+.dark .hover\:bg-slate-50:hover,
+.dark .hover\:bg-slate-100:hover { background-color: hsl(var(--accent)) !important; }
+
+/* Status surfaces retain their meaning while gaining sufficient contrast. */
+.dark .bg-red-50 { background-color: hsl(0 45% 16%) !important; }
+.dark .bg-orange-50 { background-color: hsl(24 45% 16%) !important; }
+.dark .bg-amber-50,
+.dark .bg-yellow-50 { background-color: hsl(38 45% 16%) !important; }
+.dark .bg-green-50,
+.dark .bg-emerald-50 { background-color: hsl(155 35% 15%) !important; }
+.dark .bg-blue-50 { background-color: hsl(217 45% 17%) !important; }
+.dark .text-red-900,
+.dark .text-red-800,
+.dark .text-red-700 { color: hsl(0 86% 78%) !important; }
+.dark .text-orange-900,
+.dark .text-orange-800,
+.dark .text-orange-700 { color: hsl(27 96% 72%) !important; }
+.dark .text-green-900,
+.dark .text-green-800,
+.dark .text-green-700 { color: hsl(145 70% 68%) !important; }
+.dark .border-red-200 { border-color: hsl(0 55% 34%) !important; }
+.dark .border-orange-200,
+.dark .border-amber-200,
+.dark .border-yellow-200 { border-color: hsl(32 55% 34%) !important; }
+.dark .border-green-200,
+.dark .border-emerald-200 { border-color: hsl(155 45% 30%) !important; }
+
+/* Recharts renders SVG attributes rather than Tailwind utilities. */
+.recharts-cartesian-grid line { stroke: hsl(var(--border)); }
+.recharts-cartesian-axis line,
+.recharts-cartesian-axis-tick-line { stroke: hsl(var(--border)); }
+.recharts-cartesian-axis-tick-value,
+.recharts-polar-angle-axis-tick-value,
+.recharts-polar-radius-axis-tick-value { fill: hsl(var(--muted-foreground)); }
+.recharts-legend-item-text { color: hsl(var(--foreground)) !important; }
+.recharts-tooltip-label { color: hsl(var(--foreground)) !important; }
+.recharts-tooltip-item { color: inherit; }

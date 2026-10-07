@@ -15,7 +15,8 @@
     "db:adopt-baseline": "node scripts/adopt-canonical-baseline.mjs",
     "start": "node dist/server.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node scripts/run-tests.mjs"
+    "test": "node scripts/run-tests.mjs",
+    "seed:staging-review": "tsx scripts/seed-staging-review-data.ts"
   },
   "dependencies": {
     "@google-cloud/firestore": "^9.0.1",

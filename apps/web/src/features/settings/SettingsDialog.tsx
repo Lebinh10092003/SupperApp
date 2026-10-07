@@ -11,7 +11,7 @@ export function SettingsDialog({ open, onOpenChange, initialSection = 'appearanc
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[calc(100dvh-2rem)] w-[calc(100%-1rem)] max-w-4xl flex-col gap-4 overflow-hidden p-4 sm:max-h-[min(760px,calc(100dvh-3rem))] sm:w-[calc(100%-3rem)] sm:p-6">
+      <DialogContent className="flex h-auto max-h-[90dvh] w-[94vw] max-w-[94vw] flex-col gap-4 overflow-hidden p-4 sm:max-h-[88dvh] sm:w-[min(94vw,960px)] sm:max-w-[960px] sm:p-6">
         <DialogHeader className="shrink-0 pr-8 text-left">
           <DialogTitle>Cài đặt</DialogTitle>
         </DialogHeader>

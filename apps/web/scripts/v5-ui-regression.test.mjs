@@ -60,3 +60,28 @@ test('audited search placeholders describe implemented fields', () => {
   assert.match(read('src/features/schedules/SchedulesPage.tsx'), /Tìm theo lớp, môn hoặc email giáo viên/);
   assert.match(read('src/features/safety/PersonPicker.tsx'), /Tìm theo tên hoặc email/);
 });
+
+test('settings dialog uses the desktop review width without escaping the viewport', () => {
+  const dialog = read('src/features/settings/SettingsDialog.tsx');
+  const content = read('src/features/settings/SettingsContent.tsx');
+  assert.match(dialog, /w-\[94vw\]/);
+  assert.match(dialog, /sm:max-w-\[960px\]/);
+  assert.match(dialog, /sm:max-h-\[88dvh\]/);
+  assert.match(content, /md:grid-cols-\[240px_minmax\(0,1fr\)\]/);
+});
+
+test('dark theme centrally maps legacy surfaces and recharts to semantic tokens', () => {
+  const styles = read('src/styles.css');
+  for (const selector of ['.dark .bg-white', '.dark .border-slate-200', '.dark .text-slate-500', '.recharts-cartesian-axis-tick-value', '.recharts-legend-item-text']) {
+    assert.ok(styles.includes(selector), `missing shared dark-mode mapping ${selector}`);
+  }
+  assert.match(styles, /background-color: hsl\(var\(--card\)\)/);
+  assert.match(styles, /fill: hsl\(var\(--muted-foreground\)\)/);
+
+  const pageHeader = read('src/components/PageHeader.tsx');
+  assert.match(pageHeader, /text-foreground/);
+  assert.doesNotMatch(pageHeader, /text-\[#0f172a\]/);
+
+  const table = read('src/components/ui/table.tsx');
+  assert.match(table, /border-border text-foreground/);
+});

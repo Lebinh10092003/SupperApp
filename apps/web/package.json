@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b --pretty false",
     "test:v5": "node --test scripts/v5-ui-regression.test.mjs",
+    "test:ui": "node --test scripts/v5-ui-regression.test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
