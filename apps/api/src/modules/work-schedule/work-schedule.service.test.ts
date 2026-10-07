@@ -222,16 +222,12 @@ test('work-schedule: sửa lịch — 2026-09-29 nới ra người tạo HOẶC 
   });
   assert.equal(fixedByChair.title, 'Họp giao ban (chủ trì tự sửa lại)');
 
-  // SỬA 2026-09-29 #2 (Sin: "lịch đã huỷ thì vẫn cho edit như thường thôi")
-  // — đã CANCELLED vẫn sửa được nội dung (không tự khôi phục trạng thái).
+  // V4: lịch CANCELLED là lịch sử bất biến, phải khôi phục trước khi sửa.
   await changeEventStatus(db, { eventId: event.id, nextStatus: 'CANCELLED', note: 'Test huỷ', actorPerId: 'per-a' });
-  const fixedAfterCancel = await updateRevisionEvent(db, {
-    eventId: event.id,
-    actorPerId: 'per-a',
+  await assert.rejects(() => updateRevisionEvent(db, {
+    eventId: event.id, actorPerId: 'per-a',
     eventData: { title: 'Sửa lịch đã huỷ', campusId: 'CAMPUS_1', startAt: new Date('2026-10-02T09:00:00+07:00'), endAt: new Date('2026-10-02T10:00:00+07:00') }
-  });
-  assert.equal(fixedAfterCancel.title, 'Sửa lịch đã huỷ');
-  assert.equal(fixedAfterCancel.status, 'CANCELLED', 'sửa nội dung không tự khôi phục trạng thái');
+  }), (err: unknown) => err instanceof AppError && err.code === 'invalid_transition');
 
   // Khôi phục CANCELLED -> PUBLISHED.
   const restored = await changeEventStatus(db, { eventId: event.id, nextStatus: 'PUBLISHED', actorPerId: 'per-a' });

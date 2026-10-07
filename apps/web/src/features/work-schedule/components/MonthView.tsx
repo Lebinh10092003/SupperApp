@@ -7,7 +7,7 @@
  * cha vẫn quản lý dialog chi tiết/tạo mới — view này chỉ phát sự kiện ra).
  */
 import { useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import type { WorkEvent } from '../hooks/useEvents';
 import { EVENT_STATUS_COLOR } from '../constants';
 import { Button } from '@/components/ui/button';
@@ -107,17 +107,10 @@ export function MonthView({
           const extra = expanded ? 0 : dayEvents.length - visible.length;
           return (
             <div key={key} className={cn('min-h-25 border-r border-b border-slate-100 p-1.5 last:border-r-0', !inMonth && 'bg-slate-50')}>
-              <button
-                type="button"
-                onClick={() => onCreateOnDate(d)}
-                className={cn(
-                  'mb-1 grid size-6 place-items-center rounded-full text-xs font-semibold hover:bg-slate-100',
-                  !inMonth && 'text-slate-400',
-                  key === today && 'bg-primary text-primary-foreground hover:bg-primary'
-                )}
-              >
-                {d.getDate()}
-              </button>
+              <div className="mb-1 flex items-center justify-between">
+                <span className={cn('grid size-6 place-items-center rounded-full text-xs font-semibold', !inMonth && 'text-slate-400', key === today && 'bg-primary text-primary-foreground')}>{d.getDate()}</span>
+                <button type="button" onClick={() => onCreateOnDate(d)} aria-label={`Tạo lịch ngày ${d.getDate()}`} className="grid size-6 place-items-center rounded-md text-primary hover:bg-secondary"><Plus className="size-4" /></button>
+              </div>
               <div className="flex flex-col gap-0.5">
                 {visible.map((ev) => {
                   const c = EVENT_STATUS_COLOR[ev.status] || { bg: '#f1f5f9', fg: '#334155', border: '#e2e8f0' };

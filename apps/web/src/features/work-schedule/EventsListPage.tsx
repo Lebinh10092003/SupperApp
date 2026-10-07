@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { CirclePlus, CalendarDays, Download, FileUp, ArrowUp, ArrowDown, ArrowUpDown, BookmarkPlus, ListFilter, MoreHorizontal, Search, X } from 'lucide-react';
+import { CirclePlus, Download, FileUp, BookmarkPlus, ListFilter, Search, X } from 'lucide-react';
 import { api } from '../../services/api';
 import { env } from '../../config/env';
 import { useEvents, type WorkEvent } from './hooks/useEvents';
@@ -10,7 +10,7 @@ import { PeopleMultiPicker } from './components/PeopleMultiPicker';
 import { WeeklyTableView } from './components/WeeklyTableView';
 import { MonthView } from './components/MonthView';
 import { AgendaView, DayView } from './components/DayAgendaViews';
-import { WorkScheduleImportDialog } from './components/WorkScheduleImportDialog';
+import { WorkScheduleImportDialog } from './components/WorkScheduleImportDialogV4';
 import { PersonPicker, type PersonOption } from '../safety/PersonPicker';
 import { AuditTrailPanel } from './AuditTrailPanel';
 import { TaskStatusChip } from './TasksListPage';
@@ -23,11 +23,10 @@ import {
   formatScheduleDateTime
 } from './constants';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Toast } from '@/components/Toast';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -92,18 +91,17 @@ function toLocalInput(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-const STATUS_FILTER_OPTIONS = ['DRAFT', 'PENDING_APPROVAL', 'PUBLISHED', 'REVISION_REQUIRED', 'CANCELLED'];
+const STATUS_FILTER_OPTIONS = ['DRAFT', 'PENDING_APPROVAL', 'PUBLISHED', 'REVISION_REQUIRED'];
+const ACTIVE_EVENT_STATUSES = ['DRAFT', 'PENDING_APPROVAL', 'PUBLISHED', 'REVISION_REQUIRED'];
 const ALL_CAMPUS = '__all_campus__';
 const ALL_STATUS = '__all_status__';
 const SCHOOL_WIDE = 'SCHOOL_WIDE';
-
-type EventSortKey = 'startAt' | 'title' | 'campusId' | 'chair' | 'status';
 
 interface EventsSavedFilterState {
   campusFilter: string;
   statusFilter: string;
   searchText: string;
-  personFilter: PersonOption | null;
+  personFilter: PersonOption[];
   fromDate: string;
   toDate: string;
 }
@@ -118,10 +116,10 @@ export default function EventsListPage() {
   const [campusFilter, setCampusFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [searchText, setSearchText] = useState('');
-  const [personFilter, setPersonFilter] = useState<PersonOption | null>(null);
+  const [personFilter, setPersonFilter] = useState<PersonOption[]>([]);
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
-  const eventsActiveFilterCount = [personFilter, fromDate, toDate, campusFilter, statusFilter].filter(Boolean).length;
+  const eventsActiveFilterCount = [personFilter.length > 0, fromDate, toDate, campusFilter, statusFilter].filter(Boolean).length;
 
   const [savedFilters, setSavedFilters] = useState<SavedFilterRow[]>([]);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
@@ -137,9 +135,9 @@ export default function EventsListPage() {
   const applySavedFilter = (row: SavedFilterRow) => {
     const f = row.filterJson;
     setCampusFilter(f.campusFilter || '');
-    setStatusFilter(f.statusFilter || '');
+    setStatusFilter(f.statusFilter === 'CANCELLED' ? '' : (f.statusFilter || ''));
     setSearchText(f.searchText || '');
-    setPersonFilter(f.personFilter || null);
+    setPersonFilter(Array.isArray(f.personFilter) ? f.personFilter : f.personFilter ? [f.personFilter as unknown as PersonOption] : []);
     setFromDate(f.fromDate || '');
     setToDate(f.toDate || '');
   };
@@ -172,8 +170,9 @@ export default function EventsListPage() {
   };
   const { items, loading, error, refetch } = useEvents({
     campusId: campusFilter || undefined,
-    statuses: statusFilter ? [statusFilter] : undefined
+    statuses: statusFilter ? [statusFilter] : ACTIVE_EVENT_STATUSES
   });
+  const { items: cancelledItems, loading: cancelledLoading, refetch: refetchCancelled } = useEvents({ statuses: ['CANCELLED'] });
   const { actor } = useActor();
   const canManageSchoolCalendar = canManageSchoolCalendarClientSide(actor?.roles || []);
 
@@ -181,48 +180,29 @@ export default function EventsListPage() {
   // đụng `useEvents.ts`/route GET /events (server chỉ lọc cơ sở/trạng
   // thái, đủ cho quy mô 1 trường). Tìm theo tên: gõ tiêu đề TRỰC TIẾP,
   // hoặc chọn đúng 1 người qua `PersonPicker` (khớp chủ trì/thành phần).
-  // Mặc định ngày mới nhất lên đầu — Sin yêu cầu 2026-09-21.
-  const [sortKey, setSortKey] = useState<EventSortKey>('startAt');
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
-  const handleSort = (key: EventSortKey) => {
-    if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
-    else {
-      setSortKey(key);
-      setSortDir('asc');
-    }
-  };
-
   const filteredItems = useMemo(() => {
     const text = searchText.trim().toLowerCase();
     const from = fromDate ? new Date(fromDate).getTime() : null;
     const to = toDate ? new Date(toDate).getTime() : null;
     const filtered = items.filter((ev) => {
       if (text && !ev.title.toLowerCase().includes(text)) return false;
-      if (personFilter && ev.chairPerId !== personFilter.perId && !ev.participantPerIds.includes(personFilter.perId)) return false;
+      if (personFilter.length > 0 && !personFilter.every((person) => ev.chairPerId === person.perId || ev.participantPerIds.includes(person.perId))) return false;
       const startMs = new Date(ev.startAt).getTime();
       if (from !== null && startMs < from) return false;
       if (to !== null && startMs > to) return false;
       return true;
     });
-    const sorted = [...filtered].sort((a, b) => {
-      let cmp = 0;
-      if (sortKey === 'startAt') cmp = new Date(a.startAt).getTime() - new Date(b.startAt).getTime();
-      else if (sortKey === 'title') cmp = a.title.localeCompare(b.title);
-      else if (sortKey === 'campusId') cmp = (CAMPUS_LABEL[a.campusId] || a.campusId).localeCompare(CAMPUS_LABEL[b.campusId] || b.campusId);
-      else if (sortKey === 'chair') cmp = (a.chairLabel || a.chairPerId).localeCompare(b.chairLabel || b.chairPerId);
-      else if (sortKey === 'status') cmp = a.status.localeCompare(b.status);
-      return sortDir === 'asc' ? cmp : -cmp;
-    });
-    return sorted;
-  }, [items, searchText, personFilter, fromDate, toDate, sortKey, sortDir]);
+    return [...filtered].sort((a, b) => new Date(b.startAt).getTime() - new Date(a.startAt).getTime());
+  }, [items, searchText, personFilter, fromDate, toDate]);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [detail, setDetail] = useState<WorkEvent | null>(null);
   const [toast, setToast] = useState<{ message: string; severity: 'success' | 'error' } | null>(null);
-  const [viewMode, setViewMode] = useState<'week' | 'month' | 'day' | 'agenda' | 'list'>('week');
+  const [viewMode, setViewMode] = useState<'week' | 'month' | 'day' | 'agenda'>('week');
   const [quickEditEventId, setQuickEditEventId] = useState<string | null>(null);
   const [highlightedEventId, setHighlightedEventId] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [cancelledOpen, setCancelledOpen] = useState(false);
 
   // Mở sẵn phiếu chi tiết đúng lịch được trỏ tới qua `?eventId=...` — dùng
   // khi bấm vào "tên lịch công tác gốc" từ phiếu chi tiết Giao việc
@@ -328,26 +308,21 @@ export default function EventsListPage() {
         severity: 'success'
       });
     } catch (e: any) {
-      setCreateError(e.message || 'Tạo lịch thất bại.');
+      setToast({ message: e.message || 'Tạo lịch thất bại.', severity: 'error' });
     } finally {
       setSubmitting(false);
     }
   };
 
-  const SortHeader = ({ sortKeyName, children }: { sortKeyName: EventSortKey; children: React.ReactNode }) => {
-    const active = sortKey === sortKeyName;
-    const Icon = active ? (sortDir === 'asc' ? ArrowUp : ArrowDown) : ArrowUpDown;
-    return (
-      <button type="button" onClick={() => handleSort(sortKeyName)} className="inline-flex items-center gap-1 font-semibold text-slate-600">
-        {children}
-        <Icon className={cn('size-3.5', active ? 'text-[#0f172a]' : 'text-slate-400')} />
-      </button>
-    );
-  };
-
   return (
     <>
-      <div className="mb-4 flex flex-wrap items-center justify-end gap-2">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <div className="inline-flex rounded-md border border-slate-200 bg-slate-50 p-0.5">
+          {([['day', 'Ngày'], ['week', 'Tuần'], ['month', 'Tháng'], ['agenda', 'Lịch biểu']] as const).map(([v, label]) => (
+            <button key={v} type="button" onClick={() => setViewMode(v)} className={cn('rounded-[5px] px-3 py-1.5 text-sm font-medium transition-colors', viewMode === v ? 'bg-white text-[#0f172a] shadow-sm' : 'text-slate-500 hover:text-[#0f172a]')}>{label}</button>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
             <Button variant="outline" onClick={() => setImportOpen(true)}><FileUp className="size-4" />Import</Button>
             <Button variant="outline" asChild>
               <a
@@ -363,35 +338,7 @@ export default function EventsListPage() {
               <CirclePlus className="size-4" />
               Tạo lịch
             </Button>
-      </div>
-
-      {/* Chế độ xem — Sin yêu cầu 2026-10-05: "đổi Lịch công tác thành hiển
-          thị lịch theo tuần và lịch theo tháng". Giữ nguyên "Danh sách"
-          (bảng cũ, đủ bộ lọc) như một chế độ phụ — Week là mặc định theo
-          V3. Khớp đúng kiểu
-          segmented-tab "Của tôi/Tôi giao/Tất cả" đã dùng ở TasksListPage.tsx. */}
-      <div className="mb-4 inline-flex rounded-md border border-slate-200 bg-slate-50 p-0.5">
-        {(
-          [
-            ['week', 'Tuần'],
-            ['month', 'Tháng'],
-            ['day', 'Ngày'],
-            ['agenda', 'Agenda'],
-            ['list', 'Danh sách']
-          ] as const
-        ).map(([v, label]) => (
-          <button
-            key={v}
-            type="button"
-            onClick={() => setViewMode(v)}
-            className={cn(
-              'rounded-[5px] px-3 py-1.5 text-sm font-medium transition-colors',
-              viewMode === v ? 'bg-white text-[#0f172a] shadow-sm' : 'text-slate-500 hover:text-[#0f172a]'
-            )}
-          >
-            {label}
-          </button>
-        ))}
+        </div>
       </div>
 
       {savedFilters.length > 0 && (
@@ -423,6 +370,7 @@ export default function EventsListPage() {
         <div />
 
         <div className="flex flex-wrap items-center gap-2">
+        <Button variant="outline" onClick={() => { setCancelledOpen(true); refetchCancelled(); }}>Xem lịch đã hủy</Button>
         <div className="relative w-full min-w-56 sm:w-72">
           <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
           <Input
@@ -453,7 +401,7 @@ export default function EventsListPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    setPersonFilter(null);
+                    setPersonFilter([]);
                     setFromDate('');
                     setToDate('');
                     setCampusFilter('');
@@ -466,7 +414,7 @@ export default function EventsListPage() {
               )}
             </div>
             <div className="mt-3 flex flex-col gap-3">
-              <PersonPicker label="Người tham gia (username)" value={personFilter} onChange={setPersonFilter} />
+              <PeopleMultiPicker label="Người tham gia" value={personFilter} onChange={setPersonFilter} />
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label htmlFor="events-from-date" className="mb-1.5 block">
@@ -533,134 +481,16 @@ export default function EventsListPage() {
           <AlertDescription className="text-red-700">{error}</AlertDescription>
         </Alert>
       )}
-      {toast && (
-        <Alert className={cn('mb-4', toast.severity === 'error' ? 'border-red-200 bg-red-50' : 'border-emerald-200 bg-emerald-50')}>
-          <AlertDescription className={toast.severity === 'error' ? 'text-red-700' : 'text-emerald-700'}>{toast.message}</AlertDescription>
-        </Alert>
-      )}
+      <Toast toast={toast} onClose={() => setToast(null)} />
 
-      {viewMode === 'list' && (
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_3px_0_rgba(15,23,42,0.04)]">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              {/* Cột ngày/giờ đưa lên ĐẦU bảng — Sin yêu cầu 2026-09-21. */}
-              <TableHead>
-                <SortHeader sortKeyName="startAt">Thời gian</SortHeader>
-              </TableHead>
-              <TableHead>
-                <SortHeader sortKeyName="title">Tiêu đề</SortHeader>
-              </TableHead>
-              <TableHead>
-                <SortHeader sortKeyName="campusId">Cơ sở</SortHeader>
-              </TableHead>
-              <TableHead>
-                <SortHeader sortKeyName="chair">Chủ trì</SortHeader>
-              </TableHead>
-              <TableHead>Thành phần</TableHead>
-              <TableHead>
-                <SortHeader sortKeyName="status">Trạng thái</SortHeader>
-              </TableHead>
-              <TableHead>Tiến độ</TableHead>
-              <TableHead className="w-10" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {!loading && filteredItems.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={8} className="py-8 text-center text-slate-500">
-                  Không có lịch nào khớp bộ lọc.
-                </TableCell>
-              </TableRow>
-            )}
-            {filteredItems.map((ev) => {
-              const fullParticipants = ev.participantLabels && ev.participantLabels.length > 0 ? ev.participantLabels : ev.participantPerIds;
-              const participantFull = ev.scope === 'SCHOOL_WIDE' ? 'Toàn trường' : fullParticipants.join(', ') || '—';
-              // Bảng danh sách hiện tên VIẾT TẮT ("Bùi Thị Cúc" -> "Cúc BT")
-              // cho gọn — bấm vào dòng mở dialog chi tiết mới thấy tên đầy đủ
-              // + chức vụ (Sin yêu cầu 2026-09-21, áp dụng mọi bảng trong
-              // module Lịch công tác, không riêng bảng này).
-              const participantText = ev.scope === 'SCHOOL_WIDE' ? 'Toàn trường' : fullParticipants.map(abbreviatePersonLabel).join(', ') || '—';
-              return (
-                <TableRow key={ev.id} className="cursor-pointer" onClick={() => setDetail(ev)}>
-                  <TableCell>{formatScheduleDateTime(ev.startAt)}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2.5">
-                      <Avatar size="sm" className="shrink-0 bg-slate-100">
-                        <AvatarFallback className="bg-slate-100 text-slate-500">
-                          <CalendarDays className="size-3.5" />
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="truncate">{ev.title}</span>
-                    </div>
-                  </TableCell>
-                  {/* Bỏ cột "Phạm vi" riêng — Sin yêu cầu 2026-09-21 gộp vào
-                      thẳng cột Cơ sở (khớp việc đã gộp ô "Phạm vi" vào ô "Cơ
-                      sở" khi tạo/sửa lịch): lịch toàn trường hiện "Toàn
-                      trường" ở đây thay vì vẫn hiện "Điểm trường chính" (cơ sở
-                      tổ chức mặc định phía server) kèm cột Phạm vi thừa. */}
-                  <TableCell>{ev.scope === 'SCHOOL_WIDE' ? 'Toàn trường' : CAMPUS_LABEL[ev.campusId] || ev.campusId}</TableCell>
-                  <TableCell className="max-w-40 truncate" title={ev.chairLabel || ev.chairPerId}>
-                    {abbreviatePersonLabel(ev.chairLabel || ev.chairPerId)}
-                  </TableCell>
-                  <TableCell className="max-w-55 truncate" title={participantFull}>
-                    {participantText}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <EventStatusChip status={ev.status} />
-                      {ev.conflictNote && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Badge variant="outline" className="border-transparent bg-red-50 text-red-600">
-                              Trùng lịch
-                            </Badge>
-                          </TooltipTrigger>
-                          <TooltipContent>{ev.conflictNote}</TooltipContent>
-                        </Tooltip>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="w-32">
-                    {ev.taskCount ? (
-                      <div className="flex items-center gap-2">
-                        <Progress value={ev.taskProgressPercent ?? 0} className="h-1.5 w-16" />
-                        <span className="shrink-0 text-xs text-slate-500">
-                          {ev.taskCompletedCount}/{ev.taskCount}
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-xs text-slate-400">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell onClick={(e) => e.stopPropagation()}>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="size-8">
-                          <MoreHorizontal className="size-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => setDetail(ev)}>Xem chi tiết</DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </div>
-      )}
-
-      {viewMode === 'week' && <WeeklyTableView events={filteredItems} onSelectEvent={(event) => { setQuickEditEventId(null); setDetail(event); }} onEditEvent={(event) => { setQuickEditEventId(event.id); setDetail(event); }} canEditEvent={(event) => event.scope === 'SCHOOL_WIDE' ? canManageSchoolCalendar : canManageSchoolCalendar || event.createdByPerId === actor?.perId || event.chairPerId === actor?.perId} onCreateOnDate={openCreateOnDate} highlightedEventId={highlightedEventId} />}
+      {viewMode === 'week' && <WeeklyTableView events={filteredItems} onSelectEvent={(event) => { setQuickEditEventId(null); setDetail(event); }} onCreateOnDate={openCreateOnDate} highlightedEventId={highlightedEventId} />}
       {viewMode === 'month' && <MonthView events={filteredItems} onSelectEvent={setDetail} onCreateOnDate={openCreateOnDate} />}
-      {viewMode === 'day' && <DayView events={filteredItems} onSelectEvent={setDetail} onCreateOnDate={openCreateOnDate} />}
+      {viewMode === 'day' && <DayView events={filteredItems} onSelectEvent={setDetail} />}
       {viewMode === 'agenda' && <AgendaView events={filteredItems} onSelectEvent={setDetail} />}
 
       {/* Dialog tạo mới */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-h-[calc(100vh-2rem)] overflow-x-hidden overflow-y-auto sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Tạo lịch công tác</DialogTitle>
           </DialogHeader>
@@ -722,7 +552,7 @@ export default function EventsListPage() {
             </div>
             {scope === 'SCHOOL_WIDE' && <p className="text-xs text-slate-500">Lịch toàn trường được hiển thị cho mọi người ngay sau khi lưu.</p>}
           </div>
-          <DialogFooter>
+          <DialogFooter className="sticky bottom-0 z-10 -mx-6 -mb-6 border-t bg-background px-6 py-4">
             <Button variant="ghost" onClick={() => setCreateOpen(false)}>
               Hủy
             </Button>
@@ -751,8 +581,10 @@ export default function EventsListPage() {
           setViewMode('week');
           window.setTimeout(() => setHighlightedEventId((current) => current === updated.id ? null : current), 4000);
           refetch();
+          refetchCancelled();
         }}
         onSuccess={(message) => setToast({ message, severity: 'success' })}
+        onError={(message) => setToast({ message, severity: 'error' })}
       />
 
       <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
@@ -782,7 +614,19 @@ export default function EventsListPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <WorkScheduleImportDialog open={importOpen} kind="events" onClose={() => setImportOpen(false)} onImported={refetch} />
+      <WorkScheduleImportDialog open={importOpen} kind="events" onClose={() => setImportOpen(false)} onImported={refetch} onToast={(message, severity) => setToast({ message, severity })} />
+
+      <Dialog open={cancelledOpen} onOpenChange={setCancelledOpen}>
+        <DialogContent className="max-h-[calc(100vh-2rem)] overflow-x-hidden overflow-y-auto sm:max-w-2xl">
+          <DialogHeader><DialogTitle>Lịch đã hủy</DialogTitle></DialogHeader>
+          <div className="space-y-2">
+            {cancelledLoading && <p className="py-6 text-center text-sm text-slate-500">Đang tải…</p>}
+            {!cancelledLoading && cancelledItems.length === 0 && <p className="rounded-lg border border-dashed p-8 text-center text-sm text-slate-500">Không có lịch đã hủy.</p>}
+            {cancelledItems.map((event) => <button key={event.id} type="button" onClick={() => { setCancelledOpen(false); setDetail(event); }} className="flex w-full min-w-0 items-center justify-between gap-3 rounded-lg border p-3 text-left hover:border-primary/40"><span className="min-w-0"><span className="block truncate font-medium" title={event.title}>{event.title}</span><span className="block truncate text-xs text-slate-500" title={event.cancellationNote || ''}>{formatScheduleDateTime(event.startAt)} · {event.cancellationNote || 'Không có lý do'}</span></span><span className="shrink-0 text-sm text-primary">Xem chi tiết</span></button>)}
+          </div>
+          <DialogFooter><Button variant="ghost" onClick={() => setCancelledOpen(false)}>Đóng</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
@@ -791,7 +635,8 @@ const EVENT_ACTION_SUCCESS_MESSAGE: Record<string, string> = {
   PENDING_APPROVAL: 'Đã gửi lịch đi duyệt.',
   DRAFT: 'Đã thu hồi lịch về dự thảo.',
   REVISION_REQUIRED: 'Đã yêu cầu sửa lại lịch.',
-  CANCELLED: 'Đã hủy lịch.'
+  CANCELLED: 'Đã hủy lịch.',
+  PUBLISHED: 'Đã khôi phục lịch.'
 };
 
 export function EventDetailDialog({
@@ -801,7 +646,8 @@ export function EventDetailDialog({
   canManageSchoolCalendar,
   onClose,
   onChanged,
-  onSuccess
+  onSuccess,
+  onError
 }: {
   event: WorkEvent | null;
   editImmediately?: boolean;
@@ -810,6 +656,7 @@ export function EventDetailDialog({
   onClose: () => void;
   onChanged: (e: WorkEvent) => void;
   onSuccess?: (message: string) => void;
+  onError?: (message: string) => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState('');
@@ -890,7 +737,9 @@ export function EventDetailDialog({
       // Lỗi trỏ rõ vào đúng dialog đang thao tác (actionError ở trên,
       // không phải banner lỗi chung của trang) — Sin phản hồi 21/09/2026:
       // "lỗi gì nó ko trỏ lên chỗ lỗi làm chả phân biệt được gì".
-      setActionError(e.message || 'Thao tác thất bại — không rõ nguyên nhân, thử lại hoặc báo quản trị viên.');
+      const message = e.message || 'Thao tác thất bại — không rõ nguyên nhân, thử lại hoặc báo quản trị viên.';
+      setActionError(message);
+      onError?.(message);
     } finally {
       setBusy(false);
     }
@@ -953,7 +802,9 @@ export function EventDetailDialog({
       setEditOpen(false);
       onSuccess?.('Đã lưu nội dung lịch cần sửa.');
     } catch (e: any) {
-      setEditError(e.message || 'Lưu lịch thất bại — không rõ nguyên nhân, thử lại hoặc báo quản trị viên.');
+      const message = e.message || 'Lưu lịch thất bại — không rõ nguyên nhân, thử lại hoặc báo quản trị viên.';
+      setEditError(message);
+      onError?.(message);
     } finally {
       setEditSubmitting(false);
     }
@@ -984,7 +835,9 @@ export function EventDetailDialog({
       refetchTasks();
       onSuccess?.(`Đã tạo đầu việc "${taskTitle.trim()}".`);
     } catch (e: any) {
-      setTaskError(e.message || 'Tạo đầu việc thất bại.');
+      const message = e.message || 'Tạo đầu việc thất bại.';
+      setTaskError(message);
+      onError?.(message);
     } finally {
       setTaskSubmitting(false);
     }
@@ -995,7 +848,7 @@ export function EventDetailDialog({
       {/* §9 đặc tả: "Tăng chiều cao/chiều rộng khu vực phiếu chi tiết...
           bố trí theo nhóm logic". Rộng hơn hẳn bản cũ (max-w-md -> 3xl) +
           cuộn dọc khi nội dung dài (nhiều đầu việc/lịch sử), tránh dồn chữ. */}
-      <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-h-[calc(100vh-2rem)] overflow-x-hidden overflow-y-auto sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>{event.title}</DialogTitle>
         </DialogHeader>
@@ -1092,7 +945,7 @@ export function EventDetailDialog({
                 </Table>
               )}
 
-              {!taskFormOpen ? (
+              {event.status !== 'CANCELLED' && (!taskFormOpen ? (
                 <Button variant="outline" size="sm" className="w-fit" onClick={openTaskForm}>
                   <CirclePlus className="size-4" />
                   Tạo giao việc
@@ -1116,7 +969,7 @@ export function EventDetailDialog({
                     </Button>
                   </div>
                 </div>
-              )}
+              ))}
             </div>
           </DetailSection>
 
@@ -1124,13 +977,14 @@ export function EventDetailDialog({
             <AuditTrailPanel entityType="event" entityId={event.id} refreshKey={historyVersion} />
           </DetailSection>
         </div>
-        <DialogFooter className="flex-wrap gap-1.5 sm:justify-start">
+        <DialogFooter className="sticky bottom-0 z-10 -mx-6 -mb-6 flex-wrap gap-1.5 border-t bg-background px-6 py-4 sm:justify-start">
           {canEdit && event.status !== 'CANCELLED' && <Button variant="outline" disabled={busy} onClick={openEdit}>Chỉnh sửa</Button>}
           {event.status === 'PUBLISHED' && canEdit && (
             <Button variant="ghost" disabled={busy} onClick={() => openReasonDialog('CANCELLED')} className="text-red-600">
               Hủy lịch công tác
             </Button>
           )}
+          {event.status === 'CANCELLED' && canEdit && <Button disabled={busy} onClick={() => changeStatus('PUBLISHED')}>Khôi phục lịch</Button>}
           <Button variant="ghost" onClick={onClose} className="ml-auto text-slate-500">
             Đóng
           </Button>
@@ -1147,7 +1001,7 @@ export function EventDetailDialog({
               </Label>
               <Textarea id="event-reason" autoFocus rows={3} value={reason} onChange={(e) => setReason(e.target.value)} />
             </div>
-            <DialogFooter>
+            <DialogFooter className="sticky bottom-0 z-10 -mx-6 -mb-6 border-t bg-background px-6 py-4">
               <Button variant="ghost" onClick={() => setReasonOpen(null)}>
                 Hủy
               </Button>
@@ -1159,7 +1013,7 @@ export function EventDetailDialog({
         </Dialog>
 
         <Dialog open={editOpen} onOpenChange={setEditOpen}>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="max-h-[calc(100vh-2rem)] overflow-x-hidden overflow-y-auto sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Chỉnh sửa lịch công tác</DialogTitle>
             </DialogHeader>
@@ -1227,7 +1081,7 @@ export function EventDetailDialog({
                 <Textarea id="edit-event-desc" rows={3} value={editDescription} onChange={(e) => setEditDescription(e.target.value)} />
               </div>
             </div>
-            <DialogFooter>
+            <DialogFooter className="sticky bottom-0 z-10 -mx-6 -mb-6 border-t bg-background px-6 py-4">
               <Button variant="ghost" onClick={() => setEditOpen(false)}>
                 Hủy
               </Button>

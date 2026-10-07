@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { CalendarPlus, ChevronLeft, ChevronRight, Clock3, MapPin } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock3, MapPin } from 'lucide-react';
 import type { WorkEvent } from '../hooks/useEvents';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -17,10 +17,10 @@ function EventCard({ event, onSelect }: { event: WorkEvent; onSelect: (event: Wo
   </button>;
 }
 
-export function DayView({ events, onSelectEvent, onCreateOnDate }: { events: WorkEvent[]; onSelectEvent: (event: WorkEvent) => void; onCreateOnDate: (date: Date) => void }) {
+export function DayView({ events, onSelectEvent }: { events: WorkEvent[]; onSelectEvent: (event: WorkEvent) => void }) {
   const [cursor, setCursor] = useState(() => new Date());
   const rows = useMemo(() => events.filter((event) => dayKey(new Date(event.startAt)) === dayKey(cursor)).sort((a, b) => +new Date(a.startAt) - +new Date(b.startAt)), [events, cursor]);
-  return <section className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-800 dark:bg-slate-950/40"><div className="mb-4 flex flex-wrap items-center justify-between gap-2"><div><p className="font-bold capitalize">{dateLabel(cursor)}</p><p className="text-xs text-slate-500">{rows.length} lịch</p></div><div className="flex items-center gap-1"><Button variant="outline" size="sm" onClick={() => setCursor(new Date())}>Hôm nay</Button><Button variant="ghost" size="icon" className="size-8" onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() - 1))}><ChevronLeft className="size-4" /></Button><Button variant="ghost" size="icon" className="size-8" onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + 1))}><ChevronRight className="size-4" /></Button><Button size="sm" onClick={() => onCreateOnDate(cursor)}><CalendarPlus className="size-4" />Tạo lịch</Button></div></div><div className="space-y-2">{rows.map((event) => <EventCard key={event.id} event={event} onSelect={onSelectEvent} />)}{rows.length === 0 && <p className="rounded-lg border border-dashed p-8 text-center text-sm text-slate-500">Ngày này chưa có lịch.</p>}</div></section>;
+  return <section className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-800 dark:bg-slate-950/40"><div className="mb-4 flex flex-wrap items-center justify-between gap-2"><div><p className="font-bold capitalize">{dateLabel(cursor)}</p><p className="text-xs text-slate-500">{rows.length} lịch</p></div><div className="flex items-center gap-1"><Button variant="outline" size="sm" onClick={() => setCursor(new Date())}>Hôm nay</Button><Button variant="ghost" size="icon" className="size-8" onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() - 1))}><ChevronLeft className="size-4" /></Button><Button variant="ghost" size="icon" className="size-8" onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + 1))}><ChevronRight className="size-4" /></Button></div></div><div className="space-y-2">{rows.map((event) => <EventCard key={event.id} event={event} onSelect={onSelectEvent} />)}{rows.length === 0 && <p className="rounded-lg border border-dashed p-8 text-center text-sm text-slate-500">Ngày này chưa có lịch.</p>}</div></section>;
 }
 
 export function AgendaView({ events, onSelectEvent }: { events: WorkEvent[]; onSelectEvent: (event: WorkEvent) => void }) {

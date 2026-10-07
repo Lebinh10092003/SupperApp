@@ -51,9 +51,10 @@ import {
 } from './work-schedule.service.js';
 import { canCreateScheduleForOthers, canManageSchoolCalendar, isLeadership } from './work-schedule.authz.js';
 import { buildIcsCalendar } from './ics.js';
-import { ltcTasks } from './work-schedule.schema.js';
+import { ltcEvents, ltcTasks } from './work-schedule.schema.js';
+import { accounts, peopleDirectory } from '../identity/identity.schema.js';
 import { eq } from 'drizzle-orm';
-import { validateEventImportRows, validateTaskImportRows, type EventImportRow, type ImportError, type TaskImportRow } from './work-schedule-import.js';
+import { resolveImportReferences, validImportRows, validateEventImportRows, validateImportedEventConflicts, validateTaskImportRows, type EventImportRow, type ImportError, type TaskImportRow } from './work-schedule-import.js';
 
 export const workScheduleRouter = Router();
 
@@ -85,19 +86,32 @@ function parseStatuses(raw: unknown): string[] | undefined {
   return raw.split(',').map((s) => s.trim()).filter(Boolean);
 }
 
-function validateImport(kind: string, rows: unknown[], actorPerId: string) {
-  return kind === 'events'
-    ? validateEventImportRows(rows as EventImportRow[], actorPerId)
-    : kind === 'tasks'
-      ? validateTaskImportRows(rows as TaskImportRow[], actorPerId)
-      : null;
+async function validateImport(kind: string, rows: unknown[], actorPerId: string) {
+  if (kind !== 'events' && kind !== 'tasks') return null;
+  const [accountRows, directoryRows] = await Promise.all([
+    db.select({ perId: accounts.perId, name: accounts.displayName }).from(accounts),
+    db.select({ perId: peopleDirectory.perId, name: peopleDirectory.displayName }).from(peopleDirectory)
+  ]);
+  const people = new Map<string, { perId: string; name: string }>();
+  for (const person of directoryRows) if (person.name) people.set(person.perId, { perId: person.perId, name: person.name });
+  for (const person of accountRows) people.set(person.perId, person);
+  const references = resolveImportReferences(kind, rows as Array<EventImportRow | TaskImportRow>, [...people.values()]);
+  const result = kind === 'events'
+    ? validateEventImportRows(references.rows as EventImportRow[], actorPerId)
+    : validateTaskImportRows(references.rows as TaskImportRow[], actorPerId);
+  result.errors.push(...references.errors);
+  if (kind === 'events') {
+    const existing = await db.select({ id: ltcEvents.id, title: ltcEvents.title, startAt: ltcEvents.startAt, endAt: ltcEvents.endAt, chairPerId: ltcEvents.chairPerId, participantPerIds: ltcEvents.participantPerIds }).from(ltcEvents).where(eq(ltcEvents.status, 'PUBLISHED'));
+    result.errors.push(...validateImportedEventConflicts(result.normalized as ReturnType<typeof validateEventImportRows>['normalized'], existing));
+  }
+  return result;
 }
 
 workScheduleRouter.post('/imports/preview', firebaseAuth, withAppError(async (req, res) => {
   const actor = await loadActorContext(db, req.appUser!.uid);
   const kind = String(req.body?.kind || '');
   const rows = Array.isArray(req.body?.rows) ? req.body.rows : [];
-  const result = validateImport(kind, rows, actor.perId);
+  const result = await validateImport(kind, rows, actor.perId);
   if (!result) throw new HttpError(400, 'Loại import không hợp lệ.', 'INVALID_INPUT');
   const errors: ImportError[] = [...result.errors];
   if (kind === 'events') {
@@ -106,7 +120,8 @@ workScheduleRouter.post('/imports/preview', firebaseAuth, withAppError(async (re
       if (row.chairPerId !== actor.perId && !canCreateScheduleForOthers(actor.roles)) errors.push({ row: row.rowNumber, column: 'Chủ trì', value: row.chairPerId, message: 'Không có quyền tạo lịch cho người khác.' });
     }
   }
-  res.json({ valid: errors.length === 0, errors, rows: result.normalized.map((row) => ({ ...row, startAt: row.startAt?.toISOString() || null, endAt: 'endAt' in row ? row.endAt?.toISOString() || null : undefined, dueAt: 'dueAt' in row ? row.dueAt?.toISOString() || null : undefined })) });
+  const validRows = validImportRows(result.normalized as Array<{ rowNumber: number }>, errors);
+  res.json({ valid: errors.length === 0, errors, validCount: validRows.length, invalidCount: result.normalized.length - validRows.length, rows: result.normalized.map((row) => ({ ...row, startAt: row.startAt?.toISOString() || null, endAt: 'endAt' in row ? row.endAt?.toISOString() || null : undefined, dueAt: 'dueAt' in row ? row.dueAt?.toISOString() || null : undefined })) });
 }));
 
 workScheduleRouter.post('/imports/apply', firebaseAuth, withAppError(async (req, res) => {
@@ -114,7 +129,7 @@ workScheduleRouter.post('/imports/apply', firebaseAuth, withAppError(async (req,
   const actor = await loadActorContext(db, req.appUser!.uid);
   const kind = String(req.body?.kind || '');
   const rows = Array.isArray(req.body?.rows) ? req.body.rows : [];
-  const result = validateImport(kind, rows, actor.perId);
+  const result = await validateImport(kind, rows, actor.perId);
   if (!result) throw new HttpError(400, 'Loại import không hợp lệ.', 'INVALID_INPUT');
   const errors: ImportError[] = [...result.errors];
   if (kind === 'events') {
@@ -123,17 +138,20 @@ workScheduleRouter.post('/imports/apply', firebaseAuth, withAppError(async (req,
       if (row.chairPerId !== actor.perId && !canCreateScheduleForOthers(actor.roles)) errors.push({ row: row.rowNumber, column: 'Chủ trì', value: row.chairPerId, message: 'Không có quyền tạo lịch cho người khác.' });
     }
   }
-  if (errors.length) return void res.status(400).json({ error: { message: 'Dữ liệu import chưa hợp lệ.' }, errors });
+  const mode = req.body?.mode === 'valid_only' ? 'valid_only' : 'all';
+  if (errors.length && mode !== 'valid_only') return void res.status(400).json({ error: { message: 'Dữ liệu import chưa hợp lệ; chưa có dữ liệu nào được lưu.' }, errors });
+  const rowsToCreate = mode === 'valid_only' ? validImportRows(result.normalized as Array<{ rowNumber: number }>, errors) : result.normalized;
+  if (rowsToCreate.length === 0) return void res.status(400).json({ error: { message: 'Không có dòng hợp lệ để import.' }, errors });
   const created = await db.transaction(async (tx) => {
     const output: unknown[] = [];
     if (kind === 'events') {
-      for (const row of result.normalized as ReturnType<typeof validateEventImportRows>['normalized']) output.push(await createEvent(tx as any, { ...row, createdByPerId: actor.perId, startAt: row.startAt!, endAt: row.endAt }));
+      for (const row of rowsToCreate as ReturnType<typeof validateEventImportRows>['normalized']) output.push(await createEvent(tx as any, { ...row, createdByPerId: actor.perId, startAt: row.startAt!, endAt: row.endAt }));
     } else {
-      for (const row of result.normalized as ReturnType<typeof validateTaskImportRows>['normalized']) output.push(await createTask(tx as any, { ...row, createdByPerId: actor.perId, dueAt: row.dueAt! }));
+      for (const row of rowsToCreate as ReturnType<typeof validateTaskImportRows>['normalized']) output.push(await createTask(tx as any, { ...row, createdByPerId: actor.perId, dueAt: row.dueAt! }));
     }
     return output;
   });
-  res.status(201).json({ imported: created.length, items: created });
+  res.status(201).json({ imported: created.length, skipped: result.normalized.length - created.length, errors, items: created });
 }));
 
 // ---------------------------------------------------------------------
