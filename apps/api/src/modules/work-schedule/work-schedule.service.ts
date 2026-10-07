@@ -463,10 +463,11 @@ export async function updateRevisionEvent(
   if (eventData.chairPerId && eventData.chairPerId !== input.actorPerId && !canManage) {
     throw new AppError('forbidden', 'Bạn không có quyền chuyển lịch cho người khác.');
   }
-  // SỬA 2026-09-29 (Sin: "lịch đã huỷ thì vẫn cho edit như thường thôi") —
-  // trước đây chặn sửa lịch CANCELLED, giờ bỏ hẳn chốt đó: sửa nội dung
-  // KHÔNG tự động khôi phục trạng thái (vẫn CANCELLED sau khi sửa) — khôi
-  // phục là thao tác riêng (changeEventStatus CANCELLED -> PUBLISHED).
+  // V4: lịch đã hủy là bản ghi lịch sử bất biến. Muốn sửa phải khôi phục
+  // bằng transition được phân quyền/audit riêng rồi mới chỉnh nội dung.
+  if (before.status === 'CANCELLED') {
+    throw new AppError('invalid_transition', 'Lịch đã hủy không thể chỉnh sửa. Hãy khôi phục lịch trước.');
+  }
   if (!canManage && before.createdByPerId !== input.actorPerId && before.chairPerId !== input.actorPerId) {
     throw new AppError('forbidden', 'Chỉ người tạo lịch hoặc chủ trì mới được chỉnh sửa.');
   }

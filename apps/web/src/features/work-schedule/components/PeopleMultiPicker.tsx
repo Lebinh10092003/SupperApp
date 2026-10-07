@@ -92,26 +92,26 @@ export function PeopleMultiPicker({
 
   // Trường ~100 người, bấm "Chọn toàn bộ" trước đây render HẾT từng
   // chip trong ô -> modal dài vô tận (Sin phản hồi 2026-09-24). Chỉ
-  // hiện 4 chip đầu + "+N" còn lại, vẫn đủ để bỏ chọn từng người nếu cần
+  // hiện 2 chip đầu + "+N" còn lại, vẫn đủ để bỏ chọn từng người nếu cần
   // (bấm vào ô để xem/xoá lại).
-  const visibleChips = value.slice(0, 4);
+  const visibleChips = value.slice(0, 2);
   const extraCount = value.length - visibleChips.length;
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="min-w-0 flex flex-col gap-1.5">
       <Label className="block">{label}</Label>
-      <div className="flex items-center gap-1.5">
+      <div className="flex min-w-0 items-center gap-1.5">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <Button variant="outline" role="combobox" aria-expanded={open} disabled={disabled} className="w-full justify-between font-normal">
-            <span className="flex flex-wrap items-center gap-1 truncate">
+          <Button variant="outline" role="combobox" aria-expanded={open} disabled={disabled} className="min-w-0 flex-1 justify-between overflow-hidden font-normal">
+            <span className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden">
               {value.length === 0 ? (
                 <span className="text-muted-foreground">Gõ tên để tìm...</span>
               ) : (
                 <>
                   {visibleChips.map((p) => (
-                    <Badge key={p.perId} variant="outline" className="gap-1 border-transparent bg-secondary text-[#1d4ed8]">
-                      {p.name}
+                    <Badge key={p.perId} variant="outline" title={p.name} className="min-w-0 max-w-[42%] gap-1 border-transparent bg-secondary text-[#1d4ed8]">
+                      <span className="truncate">{p.name}</span>
                       <span
                         role="button"
                         tabIndex={-1}
@@ -126,7 +126,7 @@ export function PeopleMultiPicker({
                   ))}
                   {extraCount > 0 && (
                     <Badge variant="outline" className="border-transparent bg-slate-100 text-slate-600">
-                      +{extraCount} người khác
+                      +{extraCount}
                     </Badge>
                   )}
                 </>

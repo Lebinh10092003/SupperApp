@@ -23,7 +23,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { WorkScheduleImportDialog } from './components/WorkScheduleImportDialog';
+import { Toast } from '@/components/Toast';
+import { WorkScheduleImportDialog } from './components/WorkScheduleImportDialogV4';
 
 export function TaskStatusChip({ status }: { status: string }) {
   const c = TASK_STATUS_COLOR[status] || { bg: '#f1f5f9', fg: '#334155', border: '#e2e8f0' };
@@ -452,11 +453,7 @@ export default function TasksListPage() {
           <AlertDescription className="text-red-700">{error}</AlertDescription>
         </Alert>
       )}
-      {toast && (
-        <Alert className={cn('mb-4', toast.severity === 'error' ? 'border-red-200 bg-red-50' : 'border-emerald-200 bg-emerald-50')}>
-          <AlertDescription className={toast.severity === 'error' ? 'text-red-700' : 'text-emerald-700'}>{toast.message}</AlertDescription>
-        </Alert>
-      )}
+      <Toast toast={toast} onClose={() => setToast(null)} />
 
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_3px_0_rgba(15,23,42,0.04)]">
         <Table>
@@ -633,7 +630,7 @@ export default function TasksListPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <WorkScheduleImportDialog open={importOpen} kind="tasks" onClose={() => setImportOpen(false)} onImported={refetch} />
+      <WorkScheduleImportDialog open={importOpen} kind="tasks" onClose={() => setImportOpen(false)} onImported={refetch} onToast={(message, severity) => setToast({ message, severity })} />
     </>
   );
 }

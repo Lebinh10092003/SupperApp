@@ -110,12 +110,12 @@ interface DrillDownState {
 
 function KpiCard({ title, value, icon, accent }: { title: string; value: number; icon: React.ReactNode; accent: string }) {
   return (
-    <div className="h-full rounded-xl border border-slate-200 bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
-      <div className="mb-2 flex items-center justify-between">
+    <div className="h-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
+      <div className="mb-1 flex items-center justify-between">
         <p className="text-sm font-medium text-slate-500">{title}</p>
         <div className={cn('grid size-[34px] place-items-center rounded-lg bg-slate-100', accent)}>{icon}</div>
       </div>
-      <p className="my-0.5 text-[1.85rem] leading-tight font-bold tracking-tight text-[#0f172a]">{value}</p>
+      <p className="text-2xl leading-tight font-bold tracking-tight text-[#0f172a]">{value}</p>
     </div>
   );
 }
@@ -314,7 +314,7 @@ export default function DashboardPage() {
       {!loading && summary && (
         <>
           {/* KPI */}
-          <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
+          <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
             <KpiCard title="Tổng lịch" value={summary.kpis.totalEvents} icon={<CalendarClock className="size-4" />} accent="text-primary" />
             <KpiCard title="Tổng việc" value={summary.kpis.totalTasks} icon={<ClipboardList className="size-4" />} accent="text-primary" />
             <KpiCard title="Hoàn thành" value={summary.kpis.completedTasks} icon={<CheckCircle2 className="size-4" />} accent="text-emerald-600" />

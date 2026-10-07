@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight, MoreHorizontal, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import type { WorkEvent } from '../hooks/useEvents';
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Progress } from '@/components/ui/progress';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
@@ -23,11 +22,9 @@ function peopleSummary(event: WorkEvent) {
   return labels.length <= 2 ? labels.join(', ') || '—' : `${labels.slice(0, 2).join(', ')} +${labels.length - 2} người khác`;
 }
 
-export function WeeklyTableView({ events, onSelectEvent, onEditEvent, canEditEvent, onCreateOnDate, highlightedEventId }: {
+export function WeeklyTableView({ events, onSelectEvent, onCreateOnDate, highlightedEventId }: {
   events: WorkEvent[];
   onSelectEvent: (event: WorkEvent) => void;
-  onEditEvent: (event: WorkEvent) => void;
-  canEditEvent: (event: WorkEvent) => boolean;
   onCreateOnDate: (date: Date) => void;
   highlightedEventId?: string | null;
 }) {
@@ -55,8 +52,8 @@ export function WeeklyTableView({ events, onSelectEvent, onEditEvent, canEditEve
         </div>
       </div>
       <div className="overflow-x-auto">
-        <Table className="min-w-[1040px] table-fixed">
-          <TableHeader><TableRow className="bg-amber-50/80 dark:bg-amber-950/20"><TableHead className="w-36">Thứ/ngày</TableHead><TableHead className="w-20">Buổi</TableHead><TableHead className="w-20">Thời gian</TableHead><TableHead>Nội dung công việc</TableHead><TableHead className="w-44">Địa điểm</TableHead><TableHead className="w-52">Người thực hiện</TableHead><TableHead className="w-32">Tiến trình</TableHead><TableHead className="w-14"><span className="sr-only">Thao tác</span></TableHead></TableRow></TableHeader>
+        <Table className="min-w-[980px] table-fixed">
+          <TableHeader><TableRow className="bg-amber-50/80 dark:bg-amber-950/20"><TableHead className="w-36">Thứ/ngày</TableHead><TableHead className="w-20">Buổi</TableHead><TableHead className="w-20">Thời gian</TableHead><TableHead>Nội dung công việc</TableHead><TableHead className="w-44">Địa điểm</TableHead><TableHead className="w-52">Người thực hiện</TableHead><TableHead className="w-32">Tiến trình</TableHead></TableRow></TableHeader>
           <TableBody>
             {days.flatMap((day, dayIndex) => {
               const rows: Array<WorkEvent | null> = byDate.get(keyOf(day))?.length ? byDate.get(keyOf(day))! : [null];
@@ -65,10 +62,9 @@ export function WeeklyTableView({ events, onSelectEvent, onEditEvent, canEditEve
                 {event ? <>
                   <TableCell>{sessionOf(event.startAt)}</TableCell><TableCell className="font-medium">{timeOf(event.startAt)}</TableCell>
                   <TableCell><p className="line-clamp-2 font-medium" title={event.title}>{event.title}</p>{event.description && <p className="line-clamp-1 text-xs text-slate-500">{event.description}</p>}</TableCell>
-                  <TableCell className="text-sm">{event.location || '—'}</TableCell><TableCell className="text-sm" title={peopleSummary(event)}>{peopleSummary(event)}</TableCell>
+                  <TableCell className="truncate text-sm" title={event.location || ''}>{event.location || '—'}</TableCell><TableCell className="truncate text-sm" title={peopleSummary(event)}>{peopleSummary(event)}</TableCell>
                   <TableCell>{event.taskCount ? <div className="space-y-1"><Progress value={event.taskProgressPercent || 0} className="h-1.5" /><span className="text-xs text-slate-500">{event.taskProgressPercent || 0}% · {event.taskCompletedCount}/{event.taskCount}</span></div> : <span className="text-xs text-slate-400">—</span>}</TableCell>
-                  <TableCell onClick={(click) => click.stopPropagation()}><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="size-8" aria-label="Công cụ"><MoreHorizontal className="size-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={() => onSelectEvent(event)}>Xem chi tiết</DropdownMenuItem>{canEditEvent(event) && <DropdownMenuItem onClick={() => onEditEvent(event)}>Chỉnh sửa nhanh</DropdownMenuItem>}</DropdownMenuContent></DropdownMenu></TableCell>
-                </> : <TableCell colSpan={7} className="py-4 text-sm text-slate-400">Chưa có lịch. Dùng nút + để tạo nhanh.</TableCell>}
+                </> : <TableCell colSpan={6} className="py-4 text-sm text-slate-400">Chưa có lịch. Dùng nút + để tạo nhanh.</TableCell>}
               </TableRow>);
             })}
           </TableBody>
