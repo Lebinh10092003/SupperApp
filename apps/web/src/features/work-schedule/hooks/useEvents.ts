@@ -46,6 +46,7 @@ export interface WorkEvent {
 export interface UseEventsParams {
   campusId?: string;
   statuses?: string[];
+  includeSchoolWide?: boolean;
 }
 
 export function useEvents(params: UseEventsParams = {}) {
@@ -61,6 +62,7 @@ export function useEvents(params: UseEventsParams = {}) {
     const q = new URLSearchParams();
     if (params.campusId) q.set('campusId', params.campusId);
     if (params.statuses?.length) q.set('statuses', params.statuses.join(','));
+    if (params.includeSchoolWide === false) q.set('includeSchoolWide', 'false');
     const qs = q.toString();
     api
       .get<{ items: WorkEvent[] }>(`/api/work-schedule/events${qs ? `?${qs}` : ''}`)

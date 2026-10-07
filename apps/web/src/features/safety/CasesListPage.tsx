@@ -17,7 +17,6 @@ import {
   CirclePlus,
   ListChecks,
   BookmarkPlus,
-  ListFilter,
   Search,
   MoreHorizontal,
   Paperclip,
@@ -42,9 +41,9 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { FilterPopover } from '@/components/FilterPopover';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
@@ -404,35 +403,15 @@ export default function CasesListPage() {
           <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
           <Input
             id="cases-search"
-            placeholder="Tìm theo nội dung/mã sự vụ"
+            placeholder="Tìm theo mã sự vụ, lớp hoặc nội dung"
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             className="pl-9"
           />
         </div>
 
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline">
-              <ListFilter className="size-4" />
-              Bộ lọc
-              {activeFilterCount > 0 && (
-                <Badge variant="outline" className="h-5 min-w-5 justify-center bg-secondary px-1 text-[#1d4ed8]">
-                  {activeFilterCount}
-                </Badge>
-              )}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent align="end" className="w-[340px]">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-[#0f172a]">Bộ lọc</p>
-              {activeFilterCount > 0 && (
-                <button type="button" onClick={clearFilters} className="text-xs font-medium text-primary hover:underline">
-                  Xóa tất cả
-                </button>
-              )}
-            </div>
-            <div className="mt-3 grid grid-cols-2 gap-3">
+        <FilterPopover activeCount={activeFilterCount} onClear={clearFilters}>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <Label className="mb-1.5 block">Cơ sở</Label>
                 <Select value={campusFilter || ALL_CAMPUS} onValueChange={(v) => setCampusFilter(v === ALL_CAMPUS ? '' : v)}>
@@ -523,8 +502,7 @@ export default function CasesListPage() {
                 <Input id="cases-to-date" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
               </div>
             </div>
-          </PopoverContent>
-        </Popover>
+        </FilterPopover>
 
         <Tooltip>
           <TooltipTrigger asChild>
@@ -830,7 +808,7 @@ export default function CasesListPage() {
       </Dialog>
 
       <Dialog open={bulkAssignOpen} onOpenChange={(v) => !v && setBulkAssignOpen(false)}>
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Chỉ định chỉ huy cho {selectedCount} sự vụ</DialogTitle>
           </DialogHeader>

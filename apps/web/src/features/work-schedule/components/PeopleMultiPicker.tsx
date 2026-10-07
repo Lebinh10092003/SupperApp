@@ -106,7 +106,7 @@ export function PeopleMultiPicker({
           <Button variant="outline" role="combobox" aria-expanded={open} disabled={disabled} className="min-w-0 flex-1 justify-between overflow-hidden font-normal">
             <span className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden">
               {value.length === 0 ? (
-                <span className="text-muted-foreground">Gõ tên để tìm...</span>
+                <span className="text-muted-foreground">Tìm theo tên hoặc email</span>
               ) : (
                 <>
                   {visibleChips.map((p) => (
@@ -137,7 +137,7 @@ export function PeopleMultiPicker({
         </PopoverTrigger>
         <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
           <Command shouldFilter={false}>
-            <CommandInput placeholder="Gõ tên để tìm..." value={inputValue} onValueChange={setInputValue} />
+            <CommandInput placeholder="Tìm theo tên hoặc email" value={inputValue} onValueChange={setInputValue} />
             <CommandList>
               {loading ? (
                 <div className="flex items-center justify-center gap-2 py-6 text-sm text-slate-500">

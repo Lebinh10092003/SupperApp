@@ -390,7 +390,7 @@ function ManageGroupSection({
       )}
       {canManage && adding && (
         <div className="mt-2 flex flex-col gap-1.5 rounded-md border border-dashed border-slate-300 p-2 dark:border-slate-700">
-          <Input autoFocus placeholder="Gõ tên để tìm..." value={q} onChange={(e) => setQ(e.target.value)} />
+          <Input autoFocus placeholder="Tìm theo tên hoặc email" value={q} onChange={(e) => setQ(e.target.value)} />
           {searching && <Loader2 className="size-4 animate-spin text-slate-400" />}
           {!searching && q.trim().length >= 2 && options.length === 0 && <p className="text-xs text-slate-500">Không tìm thấy.</p>}
           <div className="flex flex-col gap-1">
@@ -610,7 +610,7 @@ export function ContactGroupPickerButton({
       </Tooltip>
 
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent className="max-h-[85vh] min-w-0 overflow-y-auto sm:max-w-2xl">
+        <DialogContent className="sm:max-w-3xl">
           <DialogHeader><DialogTitle>Sổ danh bạ</DialogTitle></DialogHeader>
           <Button variant="ghost" size="sm" className="w-fit px-1 text-primary" onClick={() => { setOpen(false); navigate('/settings?section=contacts'); }}>
             Chỉnh sửa sổ danh bạ trong Cài đặt

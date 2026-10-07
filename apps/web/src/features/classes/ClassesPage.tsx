@@ -427,7 +427,7 @@ export default function ClassesPage() {
         <div className="flex min-w-[320px] flex-1 flex-col gap-3 sm:flex-row">
           <div className="relative min-w-60 flex-1">
             <Search className="absolute top-1/2 left-3 size-5 -translate-y-1/2 text-slate-400" />
-            <Input placeholder="Tìm theo tên lớp, GVCN, phòng học..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
+            <Input placeholder="Tìm theo tên/mã lớp, GVCN, email hoặc phòng học" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
           </div>
           <Select value={selectedGrade} onValueChange={setSelectedGrade}>
             <SelectTrigger className="min-w-40">

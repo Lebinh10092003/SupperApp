@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { CirclePlus, Download, FileUp, BookmarkPlus, ListFilter, Search, X } from 'lucide-react';
+import { CirclePlus, Download, FileUp, BookmarkPlus, Search, X } from 'lucide-react';
 import { api } from '../../services/api';
 import { env } from '../../config/env';
 import { useEvents, type WorkEvent } from './hooks/useEvents';
@@ -26,15 +26,16 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Toast } from '@/components/Toast';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { FilterPopover } from '@/components/FilterPopover';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 
 export function EventStatusChip({ status }: { status: string }) {
@@ -113,6 +114,7 @@ interface SavedFilterRow {
 }
 
 export default function EventsListPage() {
+  const [showSchoolWide, setShowSchoolWide] = useState(() => localStorage.getItem('work-schedule.show-school-wide') !== 'false');
   const [campusFilter, setCampusFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [searchText, setSearchText] = useState('');
@@ -170,11 +172,16 @@ export default function EventsListPage() {
   };
   const { items, loading, error, refetch } = useEvents({
     campusId: campusFilter || undefined,
-    statuses: statusFilter ? [statusFilter] : ACTIVE_EVENT_STATUSES
+    statuses: statusFilter ? [statusFilter] : ACTIVE_EVENT_STATUSES,
+    includeSchoolWide: showSchoolWide
   });
   const { items: cancelledItems, loading: cancelledLoading, refetch: refetchCancelled } = useEvents({ statuses: ['CANCELLED'] });
   const { actor } = useActor();
   const canManageSchoolCalendar = canManageSchoolCalendarClientSide(actor?.roles || []);
+
+  useEffect(() => {
+    localStorage.setItem('work-schedule.show-school-wide', String(showSchoolWide));
+  }, [showSchoolWide]);
 
   // Lọc thêm ở client (tìm theo tên/username người + khoảng ngày) — KHÔNG
   // đụng `useEvents.ts`/route GET /events (server chỉ lọc cơ sở/trạng
@@ -317,10 +324,16 @@ export default function EventsListPage() {
   return (
     <>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <div className="inline-flex rounded-md border border-slate-200 bg-slate-50 p-0.5">
-          {([['day', 'Ngày'], ['week', 'Tuần'], ['month', 'Tháng'], ['agenda', 'Lịch biểu']] as const).map(([v, label]) => (
-            <button key={v} type="button" onClick={() => setViewMode(v)} className={cn('rounded-[5px] px-3 py-1.5 text-sm font-medium transition-colors', viewMode === v ? 'bg-white text-[#0f172a] shadow-sm' : 'text-slate-500 hover:text-[#0f172a]')}>{label}</button>
-          ))}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="inline-flex rounded-md border border-slate-200 bg-slate-50 p-0.5">
+            {([['day', 'Ngày'], ['week', 'Tuần'], ['month', 'Tháng'], ['agenda', 'Lịch biểu']] as const).map(([v, label]) => (
+              <button key={v} type="button" onClick={() => setViewMode(v)} className={cn('rounded-[5px] px-3 py-1.5 text-sm font-medium transition-colors', viewMode === v ? 'bg-white text-[#0f172a] shadow-sm' : 'text-slate-500 hover:text-[#0f172a]')}>{label}</button>
+            ))}
+          </div>
+          <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+            <Switch checked={showSchoolWide} onCheckedChange={setShowSchoolWide} aria-label="Hiện lịch toàn trường" />
+            Hiện lịch toàn trường
+          </label>
         </div>
         <div className="flex flex-wrap items-center gap-2">
             <Button variant="outline" onClick={() => setImportOpen(true)}><FileUp className="size-4" />Import</Button>
@@ -382,40 +395,18 @@ export default function EventsListPage() {
           />
         </div>
 
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline">
-              <ListFilter className="size-4" />
-              Bộ lọc
-              {eventsActiveFilterCount > 0 && (
-                <Badge variant="outline" className="h-5 min-w-5 justify-center bg-secondary px-1 text-[#1d4ed8]">
-                  {eventsActiveFilterCount}
-                </Badge>
-              )}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent align="end" className="w-[340px]">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-[#0f172a]">Bộ lọc</p>
-              {eventsActiveFilterCount > 0 && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPersonFilter([]);
-                    setFromDate('');
-                    setToDate('');
-                    setCampusFilter('');
-                    setStatusFilter('');
-                  }}
-                  className="text-xs font-medium text-primary hover:underline"
-                >
-                  Xóa tất cả
-                </button>
-              )}
-            </div>
-            <div className="mt-3 flex flex-col gap-3">
+        <FilterPopover
+          activeCount={eventsActiveFilterCount}
+          onClear={() => {
+            setPersonFilter([]);
+            setFromDate('');
+            setToDate('');
+            setCampusFilter('');
+            setStatusFilter('');
+          }}
+        >
               <PeopleMultiPicker label="Người tham gia" value={personFilter} onChange={setPersonFilter} />
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <Label htmlFor="events-from-date" className="mb-1.5 block">
                     Từ ngày
@@ -461,9 +452,7 @@ export default function EventsListPage() {
                   </Select>
                 </div>
               </div>
-            </div>
-          </PopoverContent>
-        </Popover>
+        </FilterPopover>
 
         <Tooltip>
           <TooltipTrigger asChild>
@@ -490,7 +479,7 @@ export default function EventsListPage() {
 
       {/* Dialog tạo mới */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="max-h-[calc(100vh-2rem)] overflow-x-hidden overflow-y-auto sm:max-w-md">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Tạo lịch công tác</DialogTitle>
           </DialogHeader>
@@ -552,7 +541,7 @@ export default function EventsListPage() {
             </div>
             {scope === 'SCHOOL_WIDE' && <p className="text-xs text-slate-500">Lịch toàn trường được hiển thị cho mọi người ngay sau khi lưu.</p>}
           </div>
-          <DialogFooter className="sticky bottom-0 z-10 -mx-6 -mb-6 border-t bg-background px-6 py-4">
+          <DialogFooter>
             <Button variant="ghost" onClick={() => setCreateOpen(false)}>
               Hủy
             </Button>
@@ -977,7 +966,7 @@ export function EventDetailDialog({
             <AuditTrailPanel entityType="event" entityId={event.id} refreshKey={historyVersion} />
           </DetailSection>
         </div>
-        <DialogFooter className="sticky bottom-0 z-10 -mx-6 -mb-6 flex-wrap gap-1.5 border-t bg-background px-6 py-4 sm:justify-start">
+        <DialogFooter className="flex-wrap gap-1.5 sm:justify-start">
           {canEdit && event.status !== 'CANCELLED' && <Button variant="outline" disabled={busy} onClick={openEdit}>Chỉnh sửa</Button>}
           {event.status === 'PUBLISHED' && canEdit && (
             <Button variant="ghost" disabled={busy} onClick={() => openReasonDialog('CANCELLED')} className="text-red-600">
@@ -1001,7 +990,7 @@ export function EventDetailDialog({
               </Label>
               <Textarea id="event-reason" autoFocus rows={3} value={reason} onChange={(e) => setReason(e.target.value)} />
             </div>
-            <DialogFooter className="sticky bottom-0 z-10 -mx-6 -mb-6 border-t bg-background px-6 py-4">
+            <DialogFooter>
               <Button variant="ghost" onClick={() => setReasonOpen(null)}>
                 Hủy
               </Button>
@@ -1013,7 +1002,7 @@ export function EventDetailDialog({
         </Dialog>
 
         <Dialog open={editOpen} onOpenChange={setEditOpen}>
-          <DialogContent className="max-h-[calc(100vh-2rem)] overflow-x-hidden overflow-y-auto sm:max-w-md">
+          <DialogContent className="sm:max-w-2xl">
             <DialogHeader>
               <DialogTitle>Chỉnh sửa lịch công tác</DialogTitle>
             </DialogHeader>
@@ -1081,7 +1070,7 @@ export function EventDetailDialog({
                 <Textarea id="edit-event-desc" rows={3} value={editDescription} onChange={(e) => setEditDescription(e.target.value)} />
               </div>
             </div>
-            <DialogFooter className="sticky bottom-0 z-10 -mx-6 -mb-6 border-t bg-background px-6 py-4">
+            <DialogFooter>
               <Button variant="ghost" onClick={() => setEditOpen(false)}>
                 Hủy
               </Button>

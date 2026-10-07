@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CalendarDays, CirclePlus, ClipboardList, FileUp, ArrowUp, ArrowDown, ArrowUpDown, BookmarkPlus, Check, ListFilter, MoreHorizontal, Search, X } from 'lucide-react';
+import { CalendarDays, CirclePlus, ClipboardList, FileUp, ArrowUp, ArrowDown, ArrowUpDown, BookmarkPlus, Check, Search, X } from 'lucide-react';
 import { api } from '../../services/api';
 import { useTasks, type WorkTask } from './hooks/useTasks';
 import { useActor } from './hooks/useActor';
@@ -14,10 +14,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { FilterPopover } from '@/components/FilterPopover';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
@@ -355,40 +354,18 @@ export default function TasksListPage() {
           />
         </div>
 
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline">
-              <ListFilter className="size-4" />
-              Bộ lọc
-              {tasksActiveFilterCount > 0 && (
-                <Badge variant="outline" className="h-5 min-w-5 justify-center bg-secondary px-1 text-[#1d4ed8]">
-                  {tasksActiveFilterCount}
-                </Badge>
-              )}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent align="end" className="w-[340px]">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-[#0f172a]">Bộ lọc</p>
-              {tasksActiveFilterCount > 0 && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPersonFilter(null);
-                    setFromDate('');
-                    setToDate('');
-                    setCampusFilter('');
-                    setStatusFilter('');
-                  }}
-                  className="text-xs font-medium text-primary hover:underline"
-                >
-                  Xóa tất cả
-                </button>
-              )}
-            </div>
-            <div className="mt-3 flex flex-col gap-3">
-              <PersonPicker label="Người thực hiện (username)" value={personFilter} onChange={setPersonFilter} />
-              <div className="grid grid-cols-2 gap-3">
+        <FilterPopover
+          activeCount={tasksActiveFilterCount}
+          onClear={() => {
+            setPersonFilter(null);
+            setFromDate('');
+            setToDate('');
+            setCampusFilter('');
+            setStatusFilter('');
+          }}
+        >
+              <PersonPicker label="Người thực hiện" value={personFilter} onChange={setPersonFilter} />
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <Label htmlFor="tasks-from-date" className="mb-1.5 block">
                     Hạn từ ngày
@@ -434,9 +411,7 @@ export default function TasksListPage() {
                   </Select>
                 </div>
               </div>
-            </div>
-          </PopoverContent>
-        </Popover>
+        </FilterPopover>
 
         <Tooltip>
           <TooltipTrigger asChild>
@@ -482,13 +457,12 @@ export default function TasksListPage() {
               <TableHead>
                 <SortHeader sortKeyName="status">Trạng thái</SortHeader>
               </TableHead>
-              <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {!loading && filteredItems.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} className="py-8 text-center text-slate-500">
+                <TableCell colSpan={7} className="py-8 text-center text-slate-500">
                   Không có công việc nào.
                 </TableCell>
               </TableRow>
@@ -517,18 +491,6 @@ export default function TasksListPage() {
                 <TableCell>
                   <TaskStatusChip status={t.status} />
                 </TableCell>
-                <TableCell onClick={(e) => e.stopPropagation()}>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="size-8">
-                        <MoreHorizontal className="size-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => setDetail(t)}>Xem chi tiết</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -536,7 +498,7 @@ export default function TasksListPage() {
       </div>
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Giao việc mới</DialogTitle>
           </DialogHeader>

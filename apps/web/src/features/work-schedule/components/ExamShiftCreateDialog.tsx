@@ -80,7 +80,7 @@ export function ExamShiftCreateDialog({ open, onClose, onCreated }: { open: bool
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Tạo ca trông thi</DialogTitle>
         </DialogHeader>
@@ -90,7 +90,7 @@ export function ExamShiftCreateDialog({ open, onClose, onCreated }: { open: bool
               <AlertDescription className="text-red-700">{error}</AlertDescription>
             </Alert>
           )}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <Label htmlFor="exam-shift-date" className="mb-1.5 block">
                 Ngày *
@@ -113,7 +113,7 @@ export function ExamShiftCreateDialog({ open, onClose, onCreated }: { open: bool
               </Select>
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
               <Label htmlFor="exam-shift-session" className="mb-1.5 block">
                 Buổi
@@ -133,7 +133,7 @@ export function ExamShiftCreateDialog({ open, onClose, onCreated }: { open: bool
               <Input id="exam-shift-time" value={timeLabel} onChange={(e) => setTimeLabel(e.target.value)} placeholder="07:30" />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <Label htmlFor="exam-shift-subject" className="mb-1.5 block">
                 Môn khảo sát

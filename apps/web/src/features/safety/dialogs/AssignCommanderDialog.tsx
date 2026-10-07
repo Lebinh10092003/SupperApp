@@ -75,7 +75,7 @@ export function AssignCommanderDialog({
 
   return (
     <Dialog open={Boolean(target)} onOpenChange={(v) => !v && handleClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Chỉ định chỉ huy hồ sơ</DialogTitle>
         </DialogHeader>

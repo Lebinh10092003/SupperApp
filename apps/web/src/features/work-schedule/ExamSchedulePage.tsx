@@ -9,7 +9,7 @@
  * hệ filter riêng.
  */
 import { useEffect, useMemo, useState } from 'react';
-import { CalendarClock, CirclePlus, FileUp, ListFilter, Search, X } from 'lucide-react';
+import { CalendarClock, CirclePlus, FileUp, Search, X } from 'lucide-react';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
 import { useActor } from './hooks/useActor';
@@ -21,9 +21,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { FilterPopover } from '@/components/FilterPopover';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
@@ -209,37 +209,15 @@ export default function ExamSchedulePage() {
             />
           </div>
 
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline">
-                <ListFilter className="size-4" />
-                Bộ lọc
-                {activeFilterCount > 0 && (
-                  <Badge variant="outline" className="h-5 min-w-5 justify-center bg-secondary px-1 text-[#1d4ed8]">
-                    {activeFilterCount}
-                  </Badge>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="w-[320px]">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-[#0f172a]">Bộ lọc</p>
-                {activeFilterCount > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setDateFilter('');
-                      setSubjectFilter('');
-                      setClassFilter('');
-                      setCampusFilter(ALL_CAMPUS);
-                    }}
-                    className="text-xs font-medium text-primary hover:underline"
-                  >
-                    Xóa tất cả
-                  </button>
-                )}
-              </div>
-              <div className="mt-3 flex flex-col gap-3">
+          <FilterPopover
+            activeCount={activeFilterCount}
+            onClear={() => {
+              setDateFilter('');
+              setSubjectFilter('');
+              setClassFilter('');
+              setCampusFilter(ALL_CAMPUS);
+            }}
+          >
                 <div>
                   <Label htmlFor="exam-filter-date" className="mb-1.5 block">
                     Ngày
@@ -274,9 +252,7 @@ export default function ExamSchedulePage() {
                   </Label>
                   <Input id="exam-filter-class" value={classFilter} onChange={(e) => setClassFilter(e.target.value)} placeholder="VD: 8A1" />
                 </div>
-              </div>
-            </PopoverContent>
-          </Popover>
+          </FilterPopover>
         </div>
       </div>
 

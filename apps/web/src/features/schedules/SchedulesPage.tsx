@@ -185,7 +185,7 @@ export default function SchedulesPage() {
           </Tabs>
           <div className="relative md:basis-1/3">
             <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
-            <Input placeholder="Tìm theo lớp, môn, giáo viên..." value={q} onChange={(e) => setQ(e.target.value)} className="pl-9" />
+            <Input placeholder="Tìm theo lớp, môn hoặc email giáo viên" value={q} onChange={(e) => setQ(e.target.value)} className="pl-9" />
           </div>
         </div>
       </div>

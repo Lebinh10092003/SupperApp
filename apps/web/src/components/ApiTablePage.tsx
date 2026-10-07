@@ -66,8 +66,8 @@ export function ApiTablePage({
   const filtered = useMemo(() => {
     if (!q.trim()) return items;
     const query = q.toLowerCase();
-    return items.filter((x) => Object.values(x).some((val) => String(val ?? '').toLowerCase().includes(query)));
-  }, [items, q]);
+    return items.filter((x) => columns.some((column) => String(x[column.key] ?? '').toLowerCase().includes(query)));
+  }, [items, q, columns]);
 
   const pagedItems = useMemo(() => {
     return filtered.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
@@ -126,7 +126,7 @@ export function ApiTablePage({
         <div className="relative w-full sm:w-80">
           <Search className="absolute top-1/2 left-3 size-[19px] -translate-y-1/2 text-slate-500" />
           <Input
-            placeholder="Lọc dữ liệu tìm kiếm..."
+            placeholder="Tìm trong các cột của bảng"
             value={q}
             onChange={(e) => {
               setQ(e.target.value);

@@ -165,7 +165,7 @@ export function MyIncidentsSection() {
           </SelectContent>
         </Select>
         <Input
-          placeholder="Tìm mã hồ sơ / lớp / nhóm sự cố"
+          placeholder="Tìm theo mã hồ sơ, lớp hoặc nhóm sự cố"
           value={searchText}
           onChange={(e) => setSearchText(e.target.value)}
           className="min-w-60 flex-1"

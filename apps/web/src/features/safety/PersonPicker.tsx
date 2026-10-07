@@ -71,9 +71,9 @@ export function PersonPicker({
   }, [options, value]);
 
   return (
-    <div>
+    <div className="min-w-0">
       <Label className="mb-1.5 block">{label}</Label>
-      <div className="flex items-center gap-1.5">
+      <div className="flex min-w-0 items-center gap-1.5">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
@@ -81,15 +81,15 @@ export function PersonPicker({
             role="combobox"
             aria-expanded={open}
             disabled={disabled}
-            className="w-full justify-between font-normal"
+            className="min-w-0 flex-1 justify-between overflow-hidden font-normal"
           >
-            <span className={cn('truncate', !value && 'text-muted-foreground')}>{value ? value.name : 'Gõ tên để tìm...'}</span>
+            <span className={cn('truncate', !value && 'text-muted-foreground')}>{value ? value.name : 'Tìm theo tên hoặc email'}</span>
             <ChevronsUpDown className="size-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
           <Command shouldFilter={false}>
-            <CommandInput placeholder="Gõ tên để tìm..." value={inputValue} onValueChange={setInputValue} />
+            <CommandInput placeholder="Tìm theo tên hoặc email" value={inputValue} onValueChange={setInputValue} />
             <CommandList>
               {loading ? (
                 <div className="flex items-center justify-center gap-2 py-6 text-sm text-slate-500">

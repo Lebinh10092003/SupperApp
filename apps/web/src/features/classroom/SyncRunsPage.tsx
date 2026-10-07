@@ -269,7 +269,7 @@ export default function SyncRunsPage() {
       <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
         <div className="relative max-w-[450px]">
           <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
-          <Input placeholder="Tìm theo mã phiên, người thực hiện hoặc trạng thái..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+          <Input placeholder="Tìm theo mã phiên, người thực hiện hoặc trạng thái" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
         </div>
       </div>
 

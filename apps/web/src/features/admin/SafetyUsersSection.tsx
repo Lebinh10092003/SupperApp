@@ -223,7 +223,7 @@ export function SafetyUsersSection() {
 
       <div className="mb-4 flex flex-col gap-3 sm:flex-row">
         <Input
-          placeholder="Tìm tên hoặc email..."
+          placeholder="Tìm theo tên hoặc email"
           value={search}
           onChange={(e) => {
             setSearch(e.target.value);

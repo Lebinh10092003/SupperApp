@@ -404,7 +404,7 @@ export default function ClassroomPage() {
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 p-4">
           <div className="relative w-full sm:w-[340px]">
             <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
-            <Input placeholder="Tìm theo tên khóa học, mã lớp, học kỳ..." value={q} onChange={(e) => setQ(e.target.value)} className="pl-9" />
+            <Input placeholder="Tìm theo tên khóa học, lớp hoặc học kỳ" value={q} onChange={(e) => setQ(e.target.value)} className="pl-9" />
           </div>
           <div className="flex items-center gap-3">
             <Badge variant="outline" className="bg-secondary text-[#1d4ed8]">
@@ -610,7 +610,7 @@ export default function ClassroomPage() {
                 <div className="relative w-full sm:w-[280px]">
                   <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
                   <Input
-                    placeholder="Lọc danh sách theo tên khóa học, mã lớp..."
+                    placeholder="Tìm theo tên khóa học hoặc lớp"
                     value={previewSearch}
                     onChange={(e) => setPreviewSearch(e.target.value)}
                     className="pl-9"
