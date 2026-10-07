@@ -1,5 +1,4 @@
 import { Laptop, Moon, Settings, Sun } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useTheme, type FontScale, type ThemeMode } from '../theme/ThemeProvider';
 
@@ -69,7 +68,6 @@ export function AppearanceSettings() {
   );
 }
 
-export function SettingsPanel() {
-  const navigate = useNavigate();
-  return <button type="button" onClick={() => navigate('/settings')} className="flex size-8 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800" aria-label="Cài đặt"><Settings className="size-[18px]" /></button>;
+export function SettingsPanel({ onOpen }: { onOpen: () => void }) {
+  return <button type="button" onClick={onOpen} className="flex size-8 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800" aria-label="Cài đặt"><Settings className="size-[18px]" /></button>;
 }

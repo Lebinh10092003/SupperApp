@@ -16,7 +16,7 @@ import { SettingsPanel } from './SettingsPanel';
  * bộ (chỉ FermatTech), badge học kỳ, nút làm mới, chuông thông báo. Logic
  * fetch/polling trạng thái đồng bộ giữ nguyên 100%. `sidebarWidth` truyền
  * từ AppShell.tsx — đổi theo trạng thái rút gọn sidebar. */
-export function Topbar({ onOpenMobileMenu, sidebarWidth }: { onOpenMobileMenu: () => void; sidebarWidth: number }) {
+export function Topbar({ onOpenMobileMenu, onOpenSettings, sidebarWidth }: { onOpenMobileMenu: () => void; onOpenSettings: () => void; sidebarWidth: number }) {
   const navigate = useNavigate();
   const { profile } = useAuth();
   const isFermatTechAdmin = isFermatTechAdminEmail(profile?.email);
@@ -141,7 +141,7 @@ export function Topbar({ onOpenMobileMenu, sidebarWidth }: { onOpenMobileMenu: (
           <TooltipContent>Làm mới toàn bộ dữ liệu</TooltipContent>
         </Tooltip>
 
-        <SettingsPanel />
+        <SettingsPanel onOpen={onOpenSettings} />
         <NotificationBell />
       </div>
     </header>

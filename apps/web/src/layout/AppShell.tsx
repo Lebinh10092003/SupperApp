@@ -1,4 +1,5 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { Sidebar } from './Sidebar';
 import { MobileSheet } from './MobileSheet';
@@ -7,6 +8,8 @@ import { CommandPalette } from './CommandPalette';
 import { UrgentIncidentBanner } from './UrgentIncidentBanner';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { SIDEBAR_WIDTH, SIDEBAR_WIDTH_COLLAPSED } from './nav-data';
+import { SettingsDialog } from '../features/settings/SettingsDialog';
+import type { SettingsSection } from '../features/settings/SettingsContent';
 
 /**
  * Khung ứng dụng chính (sidebar + topbar + nội dung) — BẢN SHADCN/TAILWIND,
@@ -32,6 +35,12 @@ import { SIDEBAR_WIDTH, SIDEBAR_WIDTH_COLLAPSED } from './nav-data';
  * riêng của nó.
  */
 export function AppShell({ children }: { children: ReactNode }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const compatibilityRoute = location.pathname === '/settings';
+  const compatibilitySection: SettingsSection = searchParams.get('section') === 'contacts' ? 'contacts' : 'appearance';
+  const [settingsOpen, setSettingsOpen] = useState(compatibilityRoute);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   // Nút rút gọn sidebar (kiểu template) — nhớ lựa chọn giữa các phiên qua
@@ -42,6 +51,15 @@ export function AppShell({ children }: { children: ReactNode }) {
     localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0');
   }, [collapsed]);
   const sidebarWidth = collapsed ? SIDEBAR_WIDTH_COLLAPSED : SIDEBAR_WIDTH;
+
+  useEffect(() => {
+    if (compatibilityRoute) setSettingsOpen(true);
+  }, [compatibilityRoute]);
+
+  const closeSettings = (open: boolean) => {
+    setSettingsOpen(open);
+    if (!open && compatibilityRoute) navigate('/', { replace: true });
+  };
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -56,7 +74,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
-      <Topbar onOpenMobileMenu={() => setMobileOpen(true)} sidebarWidth={sidebarWidth} />
+      <Topbar onOpenMobileMenu={() => setMobileOpen(true)} onOpenSettings={() => setSettingsOpen(true)} sidebarWidth={sidebarWidth} />
 
       {/* Sidebar di động (Sheet) */}
       <MobileSheet open={mobileOpen} onOpenChange={setMobileOpen} onOpenSearch={() => setSearchOpen(true)} />
@@ -100,6 +118,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </main>
 
       <CommandPalette open={searchOpen} onOpenChange={setSearchOpen} />
+      <SettingsDialog open={settingsOpen} onOpenChange={closeSettings} initialSection={compatibilityRoute ? compatibilitySection : 'appearance'} />
     </div>
   );
 }
