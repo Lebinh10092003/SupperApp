@@ -149,7 +149,7 @@ Test của API có phần chạy với **Postgres thật** và có thể xóa d�
   - `check-sla-overdue` mỗi 15 phút — leo thang SLA quá hạn
   - `check-unclaimed-incidents` mỗi 15 phút — nhắc hồ sơ chưa ai tiếp nhận
 - Backup: `deploy/backup-postgres.sh` (cần tự đẩy bản sao ra ngoài VPS và thử khôi phục).
-- Các script `scripts/0*.ps1` và `docs/DEPLOYMENT.md` thuộc kiến trúc Cloud Run/Firestore cũ, **không còn là quy trình hiện hành**.
+- Chi tiết: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md). Các script `scripts/0*.ps1` thuộc kiến trúc Cloud Run/Firestore cũ, **không còn là quy trình hiện hành**.
 
 ## Tài liệu
 
@@ -161,10 +161,13 @@ Test của API có phần chạy với **Postgres thật** và có thể xóa d�
 | [`docs/FEATURES_CLASSROOM.md`](docs/FEATURES_CLASSROOM.md) | Điều hành lớp học số |
 | [`docs/FEATURES_ADMIN_AND_AUTH.md`](docs/FEATURES_ADMIN_AND_AUTH.md) | Đăng nhập, quản trị, cài đặt |
 | [`docs/REVIEW_NOTES.md`](docs/REVIEW_NOTES.md) | Vấn đề tồn đọng, đề xuất |
+| [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) | Mô hình dữ liệu PostgreSQL |
+| [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Triển khai VPS, cron, backup |
+| [`docs/PROJECT_STRUCTURE.md`](docs/PROJECT_STRUCTURE.md) | Cấu trúc thư mục theo chức năng |
 | [`docs/DWD_SCOPES.md`](docs/DWD_SCOPES.md) | Scope Domain-Wide Delegation |
 | [`docs/mistakes.md`](docs/mistakes.md) | Nhật ký lỗi do Claude gây ra trong quá trình làm việc, kèm cách phòng tránh |
 
-`docs/DATA_MODEL.md`, `docs/DEPLOYMENT.md`, `docs/PROJECT_STRUCTURE.md` và `DOCS.md` mô tả kiến trúc Firestore/Cloud Run trước đây, chưa được cập nhật.
+`DOCS.md` mô tả kiến trúc Firestore/Cloud Run trước đây, chưa được cập nhật.
 
 ---
 
