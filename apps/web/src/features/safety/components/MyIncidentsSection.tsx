@@ -130,9 +130,7 @@ export function MyIncidentsSection() {
   };
 
   return (
-    <div className="mt-6">
-      <p className="mb-3 text-lg font-bold">Sự vụ của tôi</p>
-
+    <div>
       <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard label="Đang mở (của tôi)" value={loading ? '—' : openCount} className="text-primary" />
         <StatCard label="Tổng số đã/đang làm" value={loading ? '—' : totalCount} className="text-green-700" />

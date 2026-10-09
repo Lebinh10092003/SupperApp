@@ -96,9 +96,9 @@ export const navGroups: NavGroup[] = [
         roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'DEPARTMENT_HEAD', 'TEACHER', 'HOMEROOM']
       },
       {
-        path: '/safety/dashboard',
-        label: 'Dashboard',
-        icon: <LayoutDashboard className={ICON_SIZE} />,
+        path: '/safety/my-incidents',
+        label: 'Sự vụ của tôi',
+        icon: <ClipboardCheck className={ICON_SIZE} />,
         roles: ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'DEPARTMENT_HEAD', 'TEACHER', 'HOMEROOM']
       },
       {

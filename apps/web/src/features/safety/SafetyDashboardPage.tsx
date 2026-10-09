@@ -1,20 +1,35 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldAlert, ListChecks, TriangleAlert } from 'lucide-react';
+import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis } from 'recharts';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
-import { MyIncidentsSection } from './components/MyIncidentsSection';
 import { ReportQrCodeButton } from './components/ReportQrCodeButton';
 import { useOpenUrgentCount } from './hooks/useOpenUrgentCount';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
+import { CAMPUS_LABEL } from './constants';
+import { PriorityChip } from './components/PriorityChip';
+
+/**
+ * Tổng quan An toàn (/safety) — gộp luôn nội dung "Dashboard" (chart +
+ * bảng quá hạn SLA, bố cục phỏng theo layout mẫu shadcnuikit) vào thẳng
+ * trang này theo quyết định Sin (09/10/2026), thay vì tách tab riêng.
+ * "Sự vụ của tôi" (MyIncidentsSection) đã CHUYỂN HẲN sang tab riêng
+ * (MyIncidentsPage.tsx, route /safety/my-incidents) — không còn ở đây.
+ */
 
 interface IncidentStats {
   scope: string;
+  totalIncidents: number;
   byPriority: Record<string, number>;
+  byState: Record<string, number>;
+  byCampus: Record<string, number>;
   openCount: number;
   closedLast30d: number;
-  overdue: unknown[];
+  overdue: Array<{ incidentId: string; clockLabel: string; priority: string; deadlineAt: string }>;
 }
 
 function StatCard({ label, value, className }: { label: string; value: number | string; className: string }) {
@@ -26,15 +41,19 @@ function StatCard({ label, value, className }: { label: string; value: number | 
   );
 }
 
+const STATE_BAR_COLOR = '#2563eb';
+const CAMPUS_BAR_COLORS = ['#2563eb', '#0ea5e9', '#7c3aed'];
+
 export default function SafetyDashboardPage() {
   const navigate = useNavigate();
   const [stats, setStats] = useState<IncidentStats | null>(null);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     api
       .get<IncidentStats>('/api/safety/stats/incidents')
       .then(setStats)
-      .catch(() => setStats(null));
+      .catch((e: any) => setError(e.message || 'Không tải được số liệu.'));
   }, []);
 
   // CỐ Ý không lấy từ `stats.byPriority` — field đó đếm mọi hồ sơ từng ở
@@ -42,6 +61,18 @@ export default function SafetyDashboardPage() {
   // số hồ sơ thật đang mở ở trang "Cần xử lý ngay"). Dùng chung hook đã lọc
   // đúng TERMINAL_STATES với trang đó.
   const openUrgentCount = useOpenUrgentCount();
+
+  const stateData = stats
+    ? Object.entries(stats.byState)
+        .map(([state, count]) => ({ state, count }))
+        .sort((a, b) => b.count - a.count)
+    : [];
+
+  const campusData = stats
+    ? Object.entries(stats.byCampus).map(([campusId, count]) => ({ campusId, label: CAMPUS_LABEL[campusId] || campusId, count }))
+    : [];
+
+  const overdue = stats?.overdue ?? [];
 
   return (
     <>
@@ -54,7 +85,7 @@ export default function SafetyDashboardPage() {
         <StatCard label="Đã đóng (30 ngày)" value={stats?.closedLast30d ?? '—'} className="text-green-700" />
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div
           onClick={() => navigate('/safety/cases')}
           className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)]"
@@ -91,7 +122,98 @@ export default function SafetyDashboardPage() {
         <ReportQrCodeButton />
       </div>
 
-      <MyIncidentsSection />
+      {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
+
+      <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)] lg:col-span-2">
+          <p className="mb-1 font-bold tracking-tight text-[#0f172a]">Sự vụ theo trạng thái</p>
+          <p className="mb-4 text-xs text-slate-500">Số lượng sự vụ đang/đã xử lý, nhóm theo trạng thái hiện tại</p>
+          {stateData.length > 0 ? (
+            <div className="h-[280px] w-full">
+              <ResponsiveContainer>
+                <BarChart data={stateData} layout="vertical" margin={{ left: 24 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
+                  <XAxis type="number" allowDecimals={false} stroke="#94a3b8" fontSize={12} tickLine={false} />
+                  <YAxis type="category" dataKey="state" width={120} stroke="#94a3b8" fontSize={12} tickLine={false} />
+                  <RechartsTooltip />
+                  <Bar dataKey="count" name="Số sự vụ" fill={STATE_BAR_COLOR} radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 py-10 text-center text-sm text-slate-500">
+              {stats ? 'Chưa có sự vụ nào.' : 'Đang tải...'}
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
+          <p className="mb-1 font-bold tracking-tight text-[#0f172a]">So sánh theo cơ sở</p>
+          <p className="mb-4 text-xs text-slate-500">Tổng số sự vụ mỗi cơ sở</p>
+          {campusData.length > 0 ? (
+            <div className="h-[280px] w-full">
+              <ResponsiveContainer>
+                <BarChart data={campusData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                  <XAxis dataKey="label" stroke="#94a3b8" fontSize={11} tickLine={false} interval={0} angle={-15} textAnchor="end" height={50} />
+                  <YAxis allowDecimals={false} stroke="#94a3b8" fontSize={12} tickLine={false} />
+                  <RechartsTooltip />
+                  <Bar dataKey="count" name="Số sự vụ" radius={[4, 4, 0, 0]}>
+                    {campusData.map((entry, i) => (
+                      <Cell key={entry.campusId} fill={CAMPUS_BAR_COLORS[i % CAMPUS_BAR_COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 py-10 text-center text-sm text-slate-500">
+              {stats ? 'Chưa có dữ liệu.' : 'Đang tải...'}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
+        <div className="flex items-center justify-between border-b border-slate-100 p-5 pb-4">
+          <div>
+            <p className="font-bold tracking-tight text-[#0f172a]">Quá hạn SLA</p>
+            <p className="text-xs text-slate-500">Hồ sơ đang mở đã vượt hạn xác nhận/phân công</p>
+          </div>
+          <Badge variant="outline" className="border-transparent bg-red-50 font-bold text-red-600">
+            {overdue.length}
+          </Badge>
+        </div>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Mã hồ sơ</TableHead>
+              <TableHead>Mức ưu tiên</TableHead>
+              <TableHead>Loại hạn</TableHead>
+              <TableHead>Hạn chót</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {overdue.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={4} className="text-center text-slate-500">
+                  {stats ? 'Không có hồ sơ nào quá hạn.' : 'Đang tải...'}
+                </TableCell>
+              </TableRow>
+            )}
+            {overdue.map((o, i) => (
+              <TableRow key={`${o.incidentId}-${i}`} className="cursor-pointer" onClick={() => navigate(`/safety/incidents/${o.incidentId}`)}>
+                <TableCell className="font-medium">{o.incidentId}</TableCell>
+                <TableCell>
+                  <PriorityChip priority={o.priority as any} compact />
+                </TableCell>
+                <TableCell>{o.clockLabel}</TableCell>
+                <TableCell>{new Date(o.deadlineAt).toLocaleString('vi-VN')}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </>
   );
 }
