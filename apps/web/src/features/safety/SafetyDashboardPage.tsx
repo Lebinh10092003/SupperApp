@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldAlert, ListChecks, TriangleAlert } from 'lucide-react';
+import { ShieldAlert, ListChecks, TriangleAlert, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis } from 'recharts';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
@@ -44,6 +44,18 @@ function StatCard({ label, value, className }: { label: string; value: number | 
 const STATE_BAR_COLOR = '#2563eb';
 const CAMPUS_BAR_COLORS = ['#2563eb', '#0ea5e9', '#7c3aed'];
 
+// 2 giá trị cố định từ backend (`sla.ts::registerSlaClock`, cột
+// `clock_label` trong `sla-clocks.schema.ts`) — không có giá trị thứ 3.
+// Khớp đúng thuật ngữ đã dùng ở IncidentDetailPage.tsx ("Xác nhận tiếp
+// nhận" cho hành động ack).
+const CLOCK_LABEL_VI: Record<string, string> = {
+  ack: 'Xác nhận tiếp nhận',
+  assign: 'Phân công'
+};
+
+type OverdueSortKey = 'priority' | 'deadlineAt';
+const PRIORITY_RANK: Record<string, number> = { P0: 0, P1: 1, P2: 2, P3: 3 };
+
 export default function SafetyDashboardPage() {
   const navigate = useNavigate();
   const [stats, setStats] = useState<IncidentStats | null>(null);
@@ -73,6 +85,47 @@ export default function SafetyDashboardPage() {
     : [];
 
   const overdue = stats?.overdue ?? [];
+
+  const [overdueSortKey, setOverdueSortKey] = useState<OverdueSortKey>('deadlineAt');
+  const [overdueSortDir, setOverdueSortDir] = useState<'asc' | 'desc'>('asc');
+  const [overduePage, setOverduePage] = useState(0);
+  const overdueRowsPerPage = 10;
+
+  const sortedOverdue = useMemo(() => {
+    const copy = [...overdue];
+    copy.sort((a, b) => {
+      const cmp =
+        overdueSortKey === 'priority'
+          ? (PRIORITY_RANK[a.priority] ?? 9) - (PRIORITY_RANK[b.priority] ?? 9)
+          : new Date(a.deadlineAt).getTime() - new Date(b.deadlineAt).getTime();
+      return overdueSortDir === 'asc' ? cmp : -cmp;
+    });
+    return copy;
+  }, [overdue, overdueSortKey, overdueSortDir]);
+
+  const overduePageCount = Math.max(1, Math.ceil(sortedOverdue.length / overdueRowsPerPage));
+  const pagedOverdue = sortedOverdue.slice(overduePage * overdueRowsPerPage, overduePage * overdueRowsPerPage + overdueRowsPerPage);
+
+  const handleOverdueSort = (key: OverdueSortKey) => {
+    if (overdueSortKey === key) {
+      setOverdueSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setOverdueSortKey(key);
+      setOverdueSortDir('asc');
+    }
+    setOverduePage(0);
+  };
+
+  const OverdueSortHeader = ({ sortKeyName, children }: { sortKeyName: OverdueSortKey; children: React.ReactNode }) => {
+    const active = overdueSortKey === sortKeyName;
+    const Icon = active ? (overdueSortDir === 'asc' ? ArrowUp : ArrowDown) : ArrowUpDown;
+    return (
+      <button type="button" onClick={() => handleOverdueSort(sortKeyName)} className="inline-flex items-center gap-1 font-semibold text-slate-600">
+        {children}
+        <Icon className={cn('size-3.5', active ? 'text-[#0f172a]' : 'text-slate-400')} />
+      </button>
+    );
+  };
 
   return (
     <>
@@ -188,9 +241,13 @@ export default function SafetyDashboardPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Mã hồ sơ</TableHead>
-              <TableHead>Mức ưu tiên</TableHead>
+              <TableHead>
+                <OverdueSortHeader sortKeyName="priority">Mức ưu tiên</OverdueSortHeader>
+              </TableHead>
               <TableHead>Loại hạn</TableHead>
-              <TableHead>Hạn chót</TableHead>
+              <TableHead>
+                <OverdueSortHeader sortKeyName="deadlineAt">Hạn chót</OverdueSortHeader>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -201,18 +258,33 @@ export default function SafetyDashboardPage() {
                 </TableCell>
               </TableRow>
             )}
-            {overdue.map((o, i) => (
-              <TableRow key={`${o.incidentId}-${i}`} className="cursor-pointer" onClick={() => navigate(`/safety/incidents/${o.incidentId}`)}>
+            {pagedOverdue.map((o, i) => (
+              <TableRow key={`${o.incidentId}-${o.clockLabel}-${i}`} className="cursor-pointer" onClick={() => navigate(`/safety/incidents/${o.incidentId}`)}>
                 <TableCell className="font-medium">{o.incidentId}</TableCell>
                 <TableCell>
                   <PriorityChip priority={o.priority as any} compact />
                 </TableCell>
-                <TableCell>{o.clockLabel}</TableCell>
+                <TableCell>{CLOCK_LABEL_VI[o.clockLabel] || o.clockLabel}</TableCell>
                 <TableCell>{new Date(o.deadlineAt).toLocaleString('vi-VN')}</TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
+        {overdue.length > 0 && (
+          <div className="flex flex-wrap items-center justify-end gap-3 border-t border-slate-200 p-3 text-sm text-slate-500">
+            <span>
+              {overduePage * overdueRowsPerPage + 1}–{Math.min(sortedOverdue.length, (overduePage + 1) * overdueRowsPerPage)} / {sortedOverdue.length}
+            </span>
+            <div className="flex gap-1">
+              <Button variant="ghost" size="sm" disabled={overduePage === 0} onClick={() => setOverduePage((p) => Math.max(0, p - 1))}>
+                Trước
+              </Button>
+              <Button variant="ghost" size="sm" disabled={overduePage >= overduePageCount - 1} onClick={() => setOverduePage((p) => Math.min(overduePageCount - 1, p + 1))}>
+                Sau
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
