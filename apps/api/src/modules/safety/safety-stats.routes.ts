@@ -28,6 +28,7 @@ import { incidents } from './incidents.schema.js';
 import { slaClocks } from './sla-clocks.schema.js';
 import { writeAuditLog, buildAuditRecord } from './audit.js';
 import { computeTrendAlerts } from './trend-alerts.js';
+import { computeIncidentStats, isValidRangeDays, type IncidentStatsRow } from './incident-stats.js';
 import { computeCampusComparisonStats } from './campus-comparison-stats.js';
 import { computeClassStats } from './classStats.js';
 import { searchPeopleByName, listAllPeople } from './people-search.js';
@@ -85,35 +86,39 @@ safetyStatsRouter.get(
     const requestedCampusId = typeof req.query.campusId === 'string' ? req.query.campusId : null;
     const filterCampusId = wholeSchool && requestedCampusId ? requestedCampusId : null;
 
-    const rows = await db.select().from(incidents).orderBy(desc(incidents.updatedAt)).limit(500);
+    // `rangeDays` lọc "mấy thông số" (total/byPriority/byState/byCategory/
+    // byCampus/trend) theo khoảng thời gian — trước đây trang Tổng quan An
+    // toàn chỉ xem được tổng toàn thời gian, không lọc được và không có xu
+    // hướng (Sin phản hồi 09/10/2026). `null` = toàn bộ thời gian.
+    const rawRangeDays = req.query.rangeDays;
+    const parsedRangeDays = typeof rawRangeDays === 'string' && rawRangeDays.trim() ? Number(rawRangeDays) : null;
+    const rangeDays = isValidRangeDays(parsedRangeDays) ? parsedRangeDays : null;
+
+    // KHÔNG còn `.limit(500)` — một khoảng xem rộng (VD 365 ngày/toàn bộ)
+    // dễ vượt 500 dòng ở trường có nhiều hồ sơ, cắt ngầm sẽ làm số liệu
+    // lọc theo thời gian sai mà không ai biết. 5000 là trần an toàn chống
+    // phình bộ nhớ bất thường, không phải giới hạn nghiệp vụ thật.
+    const rows = await db.select().from(incidents).orderBy(desc(incidents.updatedAt)).limit(5000);
     const filtered = rows
       .filter((it) => wholeSchool || myCampusIds.indexOf(it.campusId) !== -1)
       .filter((it) => !filterCampusId || it.campusId === filterCampusId);
 
-    const byPriority: Record<string, number> = { P0: 0, P1: 0, P2: 0, P3: 0 };
-    const byState: Record<string, number> = {};
-    const byCategory: Record<string, number> = {};
-    const byCampus: Record<string, number> = {};
-    let openCount = 0;
-    let closedLast30d = 0;
     const now = new Date();
-    const thirtyDaysAgoMs = now.getTime() - 30 * 24 * 3600 * 1000;
-    for (const it of filtered) {
-      if (it.priority) {
-        const cur = byPriority[it.priority];
-        if (cur !== undefined) byPriority[it.priority] = cur + 1;
-      }
-      byState[it.state] = (byState[it.state] || 0) + 1;
-      byCategory[it.categoryCode] = (byCategory[it.categoryCode] || 0) + 1;
-      byCampus[it.campusId] = (byCampus[it.campusId] || 0) + 1;
-      if (!catalog.isTerminal(it.state as catalog.IncidentState)) openCount += 1;
-      if (it.state === catalog.STATE.CLOSED && it.closedAt) {
-        const closedMs = it.closedAt.getTime();
-        if (closedMs >= thirtyDaysAgoMs) closedLast30d += 1;
-      }
-    }
+    const statsRows: IncidentStatsRow[] = filtered.map((it) => ({
+      incidentId: it.incidentId,
+      campusId: it.campusId,
+      categoryCode: it.categoryCode,
+      priority: it.priority,
+      state: it.state,
+      createdAt: it.createdAt,
+      closedAt: it.closedAt
+    }));
+    const incidentStats = computeIncidentStats(statsRows, { rangeDays }, { now });
 
-    // Quá hạn: đồng hồ 'ack'/'assign' của các hồ sơ CHƯA đóng, đã vượt deadlineAt.
+    // Quá hạn: đồng hồ 'ack'/'assign' của các hồ sơ CHƯA đóng, đã vượt
+    // deadlineAt — LUÔN tính trên TOÀN BỘ hồ sơ đang mở trong phạm vi cơ
+    // sở (KHÔNG áp `rangeDays`), vì đây là danh sách việc cần làm NGAY bây
+    // giờ, không phải số liệu lịch sử theo khoảng thời gian đã chọn.
     const inScopeIds = new Set(filtered.filter((it) => !catalog.isTerminal(it.state as catalog.IncidentState)).map((it) => it.incidentId));
     const overdue: Array<{ incidentId: string; clockLabel: string; priority: string; deadlineAt: Date }> = [];
     if (inScopeIds.size > 0) {
@@ -131,13 +136,18 @@ safetyStatsRouter.get(
       scope: wholeSchool ? 'school' : 'campus',
       campusIds: wholeSchool ? [] : myCampusIds,
       filteredCampusId: filterCampusId,
-      totalIncidents: filtered.length,
-      openCount,
-      closedLast30d,
-      byPriority,
-      byState,
-      byCategory,
-      byCampus,
+      rangeDays: incidentStats.rangeDays,
+      rangeFrom: incidentStats.rangeFrom,
+      rangeTo: incidentStats.rangeTo,
+      totalIncidents: incidentStats.totalIncidents,
+      openCount: incidentStats.openCount,
+      closedInRange: incidentStats.closedInRange,
+      byPriority: incidentStats.byPriority,
+      byState: incidentStats.byState,
+      byCategory: incidentStats.byCategory,
+      byCampus: incidentStats.byCampus,
+      trend: incidentStats.trend,
+      trendBucket: incidentStats.trendBucket,
       overdue
     });
   })

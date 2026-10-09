@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldAlert, ListChecks, TriangleAlert, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
-import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis } from 'recharts';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../services/api';
 import { ReportQrCodeButton } from './components/ReportQrCodeButton';
 import { useOpenUrgentCount } from './hooks/useOpenUrgentCount';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import { CAMPUS_LABEL } from './constants';
@@ -23,14 +24,31 @@ import { PriorityChip } from './components/PriorityChip';
 
 interface IncidentStats {
   scope: string;
+  rangeDays: number | null;
+  rangeFrom: string | null;
+  rangeTo: string;
   totalIncidents: number;
   byPriority: Record<string, number>;
   byState: Record<string, number>;
   byCampus: Record<string, number>;
   openCount: number;
-  closedLast30d: number;
+  closedInRange: number;
+  trend: Array<{ period: string; count: number }>;
+  trendBucket: 'day' | 'month';
   overdue: Array<{ incidentId: string; clockLabel: string; priority: string; deadlineAt: string }>;
 }
+
+// value rỗng '' cho "Toàn bộ thời gian" khiến Select không hiện được nhãn
+// đã chọn — dùng sentinel 'all', cùng quy ước đã dùng ở
+// AnalyticsPage.tsx::RANGE_DAYS_OPTIONS.
+const ALL_TIME = 'all';
+const RANGE_DAYS_OPTIONS = [
+  { value: '7', label: '7 ngày gần đây' },
+  { value: '30', label: '30 ngày gần đây' },
+  { value: '90', label: '90 ngày gần đây' },
+  { value: '365', label: '365 ngày gần đây' },
+  { value: ALL_TIME, label: 'Toàn bộ thời gian' }
+];
 
 function StatCard({ label, value, className }: { label: string; value: number | string; className: string }) {
   return (
@@ -60,13 +78,15 @@ export default function SafetyDashboardPage() {
   const navigate = useNavigate();
   const [stats, setStats] = useState<IncidentStats | null>(null);
   const [error, setError] = useState('');
+  const [rangeDays, setRangeDays] = useState(ALL_TIME);
 
   useEffect(() => {
+    const qs = rangeDays === ALL_TIME ? '' : `?rangeDays=${rangeDays}`;
     api
-      .get<IncidentStats>('/api/safety/stats/incidents')
+      .get<IncidentStats>(`/api/safety/stats/incidents${qs}`)
       .then(setStats)
       .catch((e: any) => setError(e.message || 'Không tải được số liệu.'));
-  }, []);
+  }, [rangeDays]);
 
   // CỐ Ý không lấy từ `stats.byPriority` — field đó đếm mọi hồ sơ từng ở
   // mức P0/P1 kể cả đã đóng/trùng/rác (Sin phát hiện 2026-10-02: lệch với
@@ -85,6 +105,23 @@ export default function SafetyDashboardPage() {
     : [];
 
   const overdue = stats?.overdue ?? [];
+
+  const trendData = (stats?.trend ?? []).map((t) => ({
+    period: t.period,
+    label:
+      stats?.trendBucket === 'month'
+        ? (() => {
+            const [y, m] = t.period.split('-');
+            return `Th.${m}/${y}`;
+          })()
+        : (() => {
+            const [, m, d] = t.period.split('-');
+            return `${d}/${m}`;
+          })(),
+    count: t.count
+  }));
+
+  const closedLabel = rangeDays === ALL_TIME ? 'Đã đóng (toàn bộ)' : `Đã đóng (${RANGE_DAYS_OPTIONS.find((o) => o.value === rangeDays)?.label.toLowerCase()})`;
 
   const [overdueSortKey, setOverdueSortKey] = useState<OverdueSortKey>('deadlineAt');
   const [overdueSortDir, setOverdueSortDir] = useState<'asc' | 'desc'>('asc');
@@ -129,13 +166,30 @@ export default function SafetyDashboardPage() {
 
   return (
     <>
-      <PageHeader title="Cảnh báo an toàn và xử lý sự cố" icon={<ShieldAlert />} />
+      <PageHeader
+        title="Cảnh báo an toàn và xử lý sự cố"
+        icon={<ShieldAlert />}
+        action={
+          <Select value={rangeDays} onValueChange={setRangeDays}>
+            <SelectTrigger className="w-48">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {RANGE_DAYS_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        }
+      />
 
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard label="P0 - Khẩn cấp" value={stats?.byPriority.P0 ?? '—'} className="text-red-600" />
         <StatCard label="P1 - Cao" value={stats?.byPriority.P1 ?? '—'} className="text-orange-700" />
         <StatCard label="Đang mở" value={stats?.openCount ?? '—'} className="text-primary" />
-        <StatCard label="Đã đóng (30 ngày)" value={stats?.closedLast30d ?? '—'} className="text-green-700" />
+        <StatCard label={closedLabel} value={stats?.closedInRange ?? '—'} className="text-green-700" />
       </div>
 
       <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -176,6 +230,38 @@ export default function SafetyDashboardPage() {
       </div>
 
       {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
+
+      <div className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
+        <p className="mb-1 font-bold tracking-tight text-[#0f172a]">Xu hướng số sự vụ theo thời gian</p>
+        <p className="mb-4 text-xs text-slate-500">
+          Số sự vụ phát sinh mới, gộp theo {stats?.trendBucket === 'month' ? 'tháng' : 'ngày'}
+          {stats?.rangeFrom ? ` — từ ${new Date(stats.rangeFrom).toLocaleDateString('vi-VN')} đến ${new Date(stats.rangeTo).toLocaleDateString('vi-VN')}` : ''}
+        </p>
+        {trendData.length > 0 ? (
+          <div className="h-[260px] w-full">
+            <ResponsiveContainer>
+              <LineChart data={trendData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                <XAxis dataKey="label" stroke="#94a3b8" fontSize={12} tickLine={false} />
+                <YAxis allowDecimals={false} stroke="#94a3b8" fontSize={12} tickLine={false} />
+                <RechartsTooltip />
+                <Line
+                  type="monotone"
+                  dataKey="count"
+                  name="Số sự vụ"
+                  stroke="#2563eb"
+                  strokeWidth={2.5}
+                  dot={{ r: 3, fill: '#2563eb', strokeWidth: 2, stroke: '#ffffff' }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 py-10 text-center text-sm text-slate-500">
+            {stats ? 'Chưa có dữ liệu để vẽ xu hướng.' : 'Đang tải...'}
+          </div>
+        )}
+      </div>
 
       <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)] lg:col-span-2">
