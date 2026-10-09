@@ -94,7 +94,7 @@ SupperApp/
 ├─ deploy/               # pm2, nginx, backup Postgres
 ├─ scripts/              # dev.mjs, verify-source.mjs, script PowerShell triển khai GCP (cũ)
 ├─ docs/                 # tài liệu
-├─ DOCS.md               # tài liệu kiến trúc Classroom (một phần đã cũ)
+├─ DOCS.md               # tích hợp Google Workspace & lớp học số
 └─ package.json
 ```
 
@@ -167,7 +167,7 @@ Test của API có phần chạy với **Postgres thật** và có thể xóa d�
 | [`docs/DWD_SCOPES.md`](docs/DWD_SCOPES.md) | Scope Domain-Wide Delegation |
 | [`docs/mistakes.md`](docs/mistakes.md) | Nhật ký lỗi do Claude gây ra trong quá trình làm việc, kèm cách phòng tránh |
 
-`DOCS.md` mô tả kiến trúc Firestore/Cloud Run trước đây, chưa được cập nhật.
+[`DOCS.md`](DOCS.md) mô tả tích hợp Google Workspace (Directory, Classroom, Meet) và phân hệ lớp học số.
 
 ---
 
