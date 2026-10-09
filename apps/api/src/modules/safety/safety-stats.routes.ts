@@ -86,13 +86,18 @@ safetyStatsRouter.get(
     const requestedCampusId = typeof req.query.campusId === 'string' ? req.query.campusId : null;
     const filterCampusId = wholeSchool && requestedCampusId ? requestedCampusId : null;
 
-    // `rangeDays` lọc "mấy thông số" (total/byPriority/byState/byCategory/
-    // byCampus/trend) theo khoảng thời gian — trước đây trang Tổng quan An
-    // toàn chỉ xem được tổng toàn thời gian, không lọc được và không có xu
-    // hướng (Sin phản hồi 09/10/2026). `null` = toàn bộ thời gian.
+    // `rangeDays` HOẶC `fromDate`/`toDate` lọc "mấy thông số"
+    // (total/byPriority/byState/byCategory/byCampus/trend) theo khoảng
+    // thời gian — trước đây trang Tổng quan An toàn chỉ xem được tổng
+    // toàn thời gian, không lọc được và không có xu hướng (Sin phản hồi
+    // 09/10/2026). Mốc tự chọn (fromDate/toDate) ưu tiên hơn rangeDays khi
+    // cả 2 cùng được truyền — xem `resolveRange` trong incident-stats.ts.
+    // Không truyền gì = toàn bộ thời gian.
     const rawRangeDays = req.query.rangeDays;
     const parsedRangeDays = typeof rawRangeDays === 'string' && rawRangeDays.trim() ? Number(rawRangeDays) : null;
     const rangeDays = isValidRangeDays(parsedRangeDays) ? parsedRangeDays : null;
+    const fromDate = typeof req.query.fromDate === 'string' ? req.query.fromDate : null;
+    const toDate = typeof req.query.toDate === 'string' ? req.query.toDate : null;
 
     // KHÔNG còn `.limit(500)` — một khoảng xem rộng (VD 365 ngày/toàn bộ)
     // dễ vượt 500 dòng ở trường có nhiều hồ sơ, cắt ngầm sẽ làm số liệu
@@ -113,7 +118,7 @@ safetyStatsRouter.get(
       createdAt: it.createdAt,
       closedAt: it.closedAt
     }));
-    const incidentStats = computeIncidentStats(statsRows, { rangeDays }, { now });
+    const incidentStats = computeIncidentStats(statsRows, { rangeDays, fromDate, toDate }, { now });
 
     // Quá hạn: đồng hồ 'ack'/'assign' của các hồ sơ CHƯA đóng, đã vượt
     // deadlineAt — LUÔN tính trên TOÀN BỘ hồ sơ đang mở trong phạm vi cơ
@@ -137,6 +142,8 @@ safetyStatsRouter.get(
       campusIds: wholeSchool ? [] : myCampusIds,
       filteredCampusId: filterCampusId,
       rangeDays: incidentStats.rangeDays,
+      fromDate: incidentStats.fromDate,
+      toDate: incidentStats.toDate,
       rangeFrom: incidentStats.rangeFrom,
       rangeTo: incidentStats.rangeTo,
       totalIncidents: incidentStats.totalIncidents,

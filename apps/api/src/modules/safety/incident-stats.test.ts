@@ -99,3 +99,41 @@ test('incidentStats: rangeDays=null (toàn bộ) KHÔNG có hồ sơ nào -> tre
   assert.equal(result.totalIncidents, 0);
   assert.deepEqual(result.trend, []);
 });
+
+test('incidentStats: fromDate/toDate tự chọn — lọc đúng khoảng, bỏ qua rangeDays khi cả 2 cùng truyền', () => {
+  const rows = [
+    row({ incidentId: 'SC.BEFORE', createdAt: new Date('2026-08-01T00:00:00+07:00') }),
+    row({ incidentId: 'SC.IN', createdAt: new Date('2026-08-15T12:00:00+07:00') }),
+    row({ incidentId: 'SC.AFTER', createdAt: new Date('2026-09-10T00:00:00+07:00') })
+  ];
+  const result = computeIncidentStats(rows, { fromDate: '2026-08-10', toDate: '2026-08-20', rangeDays: 7 }, { now });
+  assert.equal(result.rangeDays, null);
+  assert.equal(result.fromDate, '2026-08-10');
+  assert.equal(result.toDate, '2026-08-20');
+  assert.equal(result.totalIncidents, 1);
+  assert.equal(result.rangeFrom, '2026-08-10');
+  assert.equal(result.rangeTo, '2026-08-20');
+});
+
+test('incidentStats: fromDate/toDate bao gồm TRỌN ngày kết thúc (23:59:59), không cắt mất vụ xảy ra cuối ngày đó', () => {
+  const rows = [row({ incidentId: 'SC.LATE', createdAt: new Date('2026-08-20T23:30:00+07:00') })];
+  const result = computeIncidentStats(rows, { fromDate: '2026-08-10', toDate: '2026-08-20' }, { now });
+  assert.equal(result.totalIncidents, 1);
+});
+
+test('incidentStats: chỉ truyền toDate (không có fromDate) -> không giới hạn mốc đầu, lấy từ hồ sơ sớm nhất', () => {
+  const rows = [
+    row({ incidentId: 'SC.1', createdAt: new Date('2025-01-01T00:00:00+07:00') }),
+    row({ incidentId: 'SC.2', createdAt: new Date('2026-09-01T00:00:00+07:00') })
+  ];
+  const result = computeIncidentStats(rows, { toDate: '2026-09-15' }, { now });
+  assert.equal(result.totalIncidents, 2);
+  assert.equal(result.fromDate, null);
+  assert.equal(result.toDate, '2026-09-15');
+});
+
+test('incidentStats: toDate ở TƯƠNG LAI bị chặn về hôm nay (now), không cho xem "tương lai"', () => {
+  const rows = [row({ incidentId: 'SC.1', createdAt: now })];
+  const result = computeIncidentStats(rows, { fromDate: '2026-10-01', toDate: '2099-01-01' }, { now });
+  assert.equal(result.rangeTo, '2026-10-09');
+});

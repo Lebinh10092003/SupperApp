@@ -8,6 +8,7 @@ import { ReportQrCodeButton } from './components/ReportQrCodeButton';
 import { useOpenUrgentCount } from './hooks/useOpenUrgentCount';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
@@ -25,6 +26,8 @@ import { PriorityChip } from './components/PriorityChip';
 interface IncidentStats {
   scope: string;
   rangeDays: number | null;
+  fromDate: string | null;
+  toDate: string | null;
   rangeFrom: string | null;
   rangeTo: string;
   totalIncidents: number;
@@ -42,12 +45,14 @@ interface IncidentStats {
 // đã chọn — dùng sentinel 'all', cùng quy ước đã dùng ở
 // AnalyticsPage.tsx::RANGE_DAYS_OPTIONS.
 const ALL_TIME = 'all';
+const CUSTOM = 'custom';
 const RANGE_DAYS_OPTIONS = [
   { value: '7', label: '7 ngày gần đây' },
   { value: '30', label: '30 ngày gần đây' },
   { value: '90', label: '90 ngày gần đây' },
   { value: '365', label: '365 ngày gần đây' },
-  { value: ALL_TIME, label: 'Toàn bộ thời gian' }
+  { value: ALL_TIME, label: 'Toàn bộ thời gian' },
+  { value: CUSTOM, label: 'Tuỳ chọn khoảng ngày...' }
 ];
 
 function StatCard({ label, value, className }: { label: string; value: number | string; className: string }) {
@@ -71,6 +76,8 @@ const CLOCK_LABEL_VI: Record<string, string> = {
   assign: 'Phân công'
 };
 
+const TODAY_KEY = new Date().toISOString().slice(0, 10);
+
 type OverdueSortKey = 'priority' | 'deadlineAt';
 const PRIORITY_RANK: Record<string, number> = { P0: 0, P1: 1, P2: 2, P3: 3 };
 
@@ -79,14 +86,27 @@ export default function SafetyDashboardPage() {
   const [stats, setStats] = useState<IncidentStats | null>(null);
   const [error, setError] = useState('');
   const [rangeDays, setRangeDays] = useState(ALL_TIME);
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo] = useState('');
+
+  // Khi ở chế độ tuỳ chọn khoảng ngày, chỉ gọi API khi đã chọn ĐỦ cả 2 mốc
+  // — tránh gọi API với 1 nửa khoảng (kết quả sai/khó hiểu) mỗi lần người
+  // dùng mới chọn xong 1 trong 2 ô ngày.
+  const customReady = rangeDays !== CUSTOM || (customFrom && customTo);
 
   useEffect(() => {
-    const qs = rangeDays === ALL_TIME ? '' : `?rangeDays=${rangeDays}`;
+    if (!customReady) return;
+    const qs =
+      rangeDays === CUSTOM
+        ? `?fromDate=${customFrom}&toDate=${customTo}`
+        : rangeDays === ALL_TIME
+          ? ''
+          : `?rangeDays=${rangeDays}`;
     api
       .get<IncidentStats>(`/api/safety/stats/incidents${qs}`)
       .then(setStats)
       .catch((e: any) => setError(e.message || 'Không tải được số liệu.'));
-  }, [rangeDays]);
+  }, [rangeDays, customFrom, customTo, customReady]);
 
   // CỐ Ý không lấy từ `stats.byPriority` — field đó đếm mọi hồ sơ từng ở
   // mức P0/P1 kể cả đã đóng/trùng/rác (Sin phát hiện 2026-10-02: lệch với
@@ -121,7 +141,12 @@ export default function SafetyDashboardPage() {
     count: t.count
   }));
 
-  const closedLabel = rangeDays === ALL_TIME ? 'Đã đóng (toàn bộ)' : `Đã đóng (${RANGE_DAYS_OPTIONS.find((o) => o.value === rangeDays)?.label.toLowerCase()})`;
+  const closedLabel =
+    rangeDays === ALL_TIME
+      ? 'Đã đóng (toàn bộ)'
+      : rangeDays === CUSTOM
+        ? 'Đã đóng (khoảng đã chọn)'
+        : `Đã đóng (${RANGE_DAYS_OPTIONS.find((o) => o.value === rangeDays)?.label.toLowerCase()})`;
 
   const [overdueSortKey, setOverdueSortKey] = useState<OverdueSortKey>('deadlineAt');
   const [overdueSortDir, setOverdueSortDir] = useState<'asc' | 'desc'>('asc');
@@ -170,18 +195,40 @@ export default function SafetyDashboardPage() {
         title="Cảnh báo an toàn và xử lý sự cố"
         icon={<ShieldAlert />}
         action={
-          <Select value={rangeDays} onValueChange={setRangeDays}>
-            <SelectTrigger className="w-48">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {RANGE_DAYS_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {o.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={rangeDays} onValueChange={setRangeDays}>
+              <SelectTrigger className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {RANGE_DAYS_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {rangeDays === CUSTOM && (
+              <>
+                <Input
+                  type="date"
+                  value={customFrom}
+                  max={customTo || TODAY_KEY}
+                  onChange={(e) => setCustomFrom(e.target.value)}
+                  className="w-40"
+                />
+                <span className="text-sm text-slate-400">đến</span>
+                <Input
+                  type="date"
+                  value={customTo}
+                  min={customFrom || undefined}
+                  max={TODAY_KEY}
+                  onChange={(e) => setCustomTo(e.target.value)}
+                  className="w-40"
+                />
+              </>
+            )}
+          </div>
         }
       />
 
@@ -231,73 +278,63 @@ export default function SafetyDashboardPage() {
 
       {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
 
-      <div className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
-        <p className="mb-1 font-bold tracking-tight text-[#0f172a]">Xu hướng số sự vụ theo thời gian</p>
-        <p className="mb-4 text-xs text-slate-500">
-          Số sự vụ phát sinh mới, gộp theo {stats?.trendBucket === 'month' ? 'tháng' : 'ngày'}
-          {stats?.rangeFrom ? ` — từ ${new Date(stats.rangeFrom).toLocaleDateString('vi-VN')} đến ${new Date(stats.rangeTo).toLocaleDateString('vi-VN')}` : ''}
-        </p>
-        {trendData.length > 0 ? (
-          <div className="h-[260px] w-full">
-            <ResponsiveContainer>
-              <LineChart data={trendData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                <XAxis dataKey="label" stroke="#94a3b8" fontSize={12} tickLine={false} />
-                <YAxis allowDecimals={false} stroke="#94a3b8" fontSize={12} tickLine={false} />
-                <RechartsTooltip />
-                <Line
-                  type="monotone"
-                  dataKey="count"
-                  name="Số sự vụ"
-                  stroke="#2563eb"
-                  strokeWidth={2.5}
-                  dot={{ r: 3, fill: '#2563eb', strokeWidth: 2, stroke: '#ffffff' }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        ) : (
-          <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 py-10 text-center text-sm text-slate-500">
-            {stats ? 'Chưa có dữ liệu để vẽ xu hướng.' : 'Đang tải...'}
-          </div>
-        )}
-      </div>
-
-      <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)] lg:col-span-2">
-          <p className="mb-1 font-bold tracking-tight text-[#0f172a]">Sự vụ theo trạng thái</p>
-          <p className="mb-4 text-xs text-slate-500">Số lượng sự vụ đang/đã xử lý, nhóm theo trạng thái hiện tại</p>
-          {stateData.length > 0 ? (
-            <div className="h-[280px] w-full">
+      <div className="mb-6 grid grid-cols-1 gap-3 lg:grid-cols-3">
+        <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
+          <p className="text-xs font-bold tracking-tight text-[#0f172a]">Xu hướng theo thời gian</p>
+          <p className="mb-2 text-[11px] text-slate-500">Sự vụ mới, theo {stats?.trendBucket === 'month' ? 'tháng' : 'ngày'}</p>
+          {trendData.length > 0 ? (
+            <div className="h-[160px] w-full">
               <ResponsiveContainer>
-                <BarChart data={stateData} layout="vertical" margin={{ left: 24 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
-                  <XAxis type="number" allowDecimals={false} stroke="#94a3b8" fontSize={12} tickLine={false} />
-                  <YAxis type="category" dataKey="state" width={120} stroke="#94a3b8" fontSize={12} tickLine={false} />
+                <LineChart data={trendData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                  <XAxis dataKey="label" stroke="#94a3b8" fontSize={10} tickLine={false} />
+                  <YAxis allowDecimals={false} stroke="#94a3b8" fontSize={10} tickLine={false} />
                   <RechartsTooltip />
-                  <Bar dataKey="count" name="Số sự vụ" fill={STATE_BAR_COLOR} radius={[0, 4, 4, 0]} />
+                  <Line type="monotone" dataKey="count" name="Số sự vụ" stroke="#2563eb" strokeWidth={2} dot={{ r: 2, fill: '#2563eb', strokeWidth: 1, stroke: '#ffffff' }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 py-8 text-center text-xs text-slate-500">
+              {stats ? 'Chưa có dữ liệu.' : 'Đang tải...'}
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
+          <p className="text-xs font-bold tracking-tight text-[#0f172a]">Sự vụ theo trạng thái</p>
+          <p className="mb-2 text-[11px] text-slate-500">Nhóm theo trạng thái hiện tại</p>
+          {stateData.length > 0 ? (
+            <div className="h-[160px] w-full">
+              <ResponsiveContainer>
+                <BarChart data={stateData} layout="vertical" margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
+                  <XAxis type="number" allowDecimals={false} stroke="#94a3b8" fontSize={10} tickLine={false} />
+                  <YAxis type="category" dataKey="state" width={88} stroke="#94a3b8" fontSize={10} tickLine={false} />
+                  <RechartsTooltip />
+                  <Bar dataKey="count" name="Số sự vụ" fill={STATE_BAR_COLOR} radius={[0, 3, 3, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           ) : (
-            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 py-10 text-center text-sm text-slate-500">
+            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 py-8 text-center text-xs text-slate-500">
               {stats ? 'Chưa có sự vụ nào.' : 'Đang tải...'}
             </div>
           )}
         </div>
 
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
-          <p className="mb-1 font-bold tracking-tight text-[#0f172a]">So sánh theo cơ sở</p>
-          <p className="mb-4 text-xs text-slate-500">Tổng số sự vụ mỗi cơ sở</p>
+        <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
+          <p className="text-xs font-bold tracking-tight text-[#0f172a]">So sánh theo cơ sở</p>
+          <p className="mb-2 text-[11px] text-slate-500">Tổng số sự vụ mỗi cơ sở</p>
           {campusData.length > 0 ? (
-            <div className="h-[280px] w-full">
+            <div className="h-[160px] w-full">
               <ResponsiveContainer>
-                <BarChart data={campusData}>
+                <BarChart data={campusData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                  <XAxis dataKey="label" stroke="#94a3b8" fontSize={11} tickLine={false} interval={0} angle={-15} textAnchor="end" height={50} />
-                  <YAxis allowDecimals={false} stroke="#94a3b8" fontSize={12} tickLine={false} />
+                  <XAxis dataKey="label" stroke="#94a3b8" fontSize={9} tickLine={false} interval={0} angle={-15} textAnchor="end" height={36} />
+                  <YAxis allowDecimals={false} stroke="#94a3b8" fontSize={10} tickLine={false} />
                   <RechartsTooltip />
-                  <Bar dataKey="count" name="Số sự vụ" radius={[4, 4, 0, 0]}>
+                  <Bar dataKey="count" name="Số sự vụ" radius={[3, 3, 0, 0]}>
                     {campusData.map((entry, i) => (
                       <Cell key={entry.campusId} fill={CAMPUS_BAR_COLORS[i % CAMPUS_BAR_COLORS.length]} />
                     ))}
@@ -306,7 +343,7 @@ export default function SafetyDashboardPage() {
               </ResponsiveContainer>
             </div>
           ) : (
-            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 py-10 text-center text-sm text-slate-500">
+            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 py-8 text-center text-xs text-slate-500">
               {stats ? 'Chưa có dữ liệu.' : 'Đang tải...'}
             </div>
           )}
